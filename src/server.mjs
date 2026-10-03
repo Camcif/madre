@@ -1,8 +1,9 @@
 import http from 'node:http';
 import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access } from 'node:fs/promises';
 import { openSync, rmSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { classifyListening, probePort, framable, parseCwds, inProject } from './ports.mjs';
+import { ControlDesk } from './room/control.mjs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
@@ -301,10 +302,14 @@ export async function createPulseServer({
   const startupMemory = await memoryConfig();
   let listening = null;
   const listeningPort = () => listening?.address?.()?.port ?? Number(process.env.PULSE_PORT ?? 4317);
+  // One CONTROL desk for the whole project, shared by every conversation alive at once: a single
+  // holder of the working tree whichever chat asked, and an UNDO that works from any of them.
+  const controlDesk = new ControlDesk({ projectRoot });
   const roomOptions = () => ({
     store,
     agents,
     projectRoot,
+    controlDesk,
     privacy,
     // Modules may hand tools to a turn; the room asks once per turn, the server knows the port.
     toolsForTurn: async (turn) => modulesToolsForTurn(await moduleContext(), { ...turn, port: listeningPort(), roomDir }),
@@ -678,6 +683,7 @@ export async function createPulseServer({
       const human = event.payload?.role === 'user';
       chatWrites = chatWrites.then(() => touchChat(roomDir, chatId, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
     });
+    unsubscribeActivity = watchActivity(room, chatId);
     sentinel.seed(historicalEvents);
     eyecat.seed(historicalEvents);
     room.restoreAttachments(historicalEvents
@@ -685,27 +691,105 @@ export async function createPulseServer({
       .map((event) => ({ ...event.payload, path: join(attachmentsRoot, event.payload.fileName), dir: attachmentsRoot })));
   }
   function unwireRoom() {
-    for (const off of [unsubscribe, unsubscribeSentinel, unsubscribeEyecat, unsubscribeGhost, unsubscribeLive, unsubscribeChats]) { try { off(); } catch { /* already gone */ } }
-    unsubscribe = unsubscribeSentinel = unsubscribeEyecat = unsubscribeGhost = unsubscribeLive = unsubscribeChats = () => {};
+    for (const off of [unsubscribe, unsubscribeSentinel, unsubscribeEyecat, unsubscribeGhost, unsubscribeLive, unsubscribeChats, unsubscribeActivity]) { try { off(); } catch { /* already gone */ } }
+    unsubscribe = unsubscribeSentinel = unsubscribeEyecat = unsubscribeGhost = unsubscribeLive = unsubscribeChats = unsubscribeActivity = () => {};
+  }
+
+  // TURNS: how much the room may do at once. On by default. Several conversations may be at work
+  // together (a turn that is taking its time no longer holds the human hostage) and each may run a
+  // few turns, both within limits the human sets in MU/TH/UR. Off, the room is what it was: one
+  // conversation drives the crew, and switching away from one that is working is refused.
+  const turnsPolicy = async () => {
+    const saved = (await readConfig(root)).turns ?? {};
+    const clamp = (value, low, high, fallback) => (Number.isInteger(Number(value)) ? Math.min(high, Math.max(low, Number(value))) : fallback);
+    return { enabled: saved.enabled !== false, chats: clamp(saved.chats, 1, 6, 2), turnsPerChat: clamp(saved.turnsPerChat, 1, 8, 3) };
+  };
+  // Conversations still at work after the human moved to another. Each keeps its own record and
+  // keeps writing it; it is not streamed to the page, which only hears that it is working and when
+  // a turn in it ends. When it has nothing left to do it closes itself.
+  const parked = new Map();   // chatId -> { room, store, off }
+  const busyChats = () => [...parked.entries()].filter(([, held]) => held.room.busy()).map(([id]) => id);
+  const sayToAll = (type, payload) => {
+    const event = { id: `live-${randomUUID()}`, sequence: null, live: true, timestamp: new Date().toISOString(), type, payload };
+    for (const client of clients.keys()) writeEvent(client, event);
+  };
+  // A conversation's turns starting and ending, said to every page whichever conversation it shows.
+  // The settle after an end is read a moment later: the turn leaves the room after its last event.
+  function watchActivity(target, id) {
+    return target.subscribe((event) => {
+      if (!['agent.started', 'agent.completed', 'message.failed'].includes(event?.type)) return;
+      const started = event.type === 'agent.started';
+      sayToAll('chat.activity', { chatId: id, working: true, ...(started ? {} : { finished: { agent: event.payload?.agent ?? event.payload?.target ?? null, ok: event.type === 'agent.completed' } }) });
+      if (started) return;
+      setTimeout(() => {
+        if (target.busy()) return;
+        sayToAll('chat.activity', { chatId: id, working: false });
+        const held = parked.get(id);
+        if (held?.room === target) { parked.delete(id); held.off(); void target.shutdown().catch(() => null); }
+      }, 400).unref?.();
+    });
+  }
+  let unsubscribeActivity = () => {};
+  const chatsView = async () => {
+    const list = await listChats(roomDir);
+    const working = new Set([...busyChats(), ...(room?.busy() ? [chatId] : [])]);
+    return { ...list, chats: list.chats.map((chat) => (working.has(chat.id) ? { ...chat, working: true } : chat)) };
+  };
+  // What the human set while the room was open belongs to the project, not to one conversation's
+  // record: a room opened for another chat used to start with no MAX MODE, no Ash, no Choices and
+  // the timeouts MADRE booted with.
+  async function applyRoomSettings(next, previous) {
+    const config = await readConfig(root);
+    next.setScopes(config.scopes ?? {});
+    next.setAsh(Boolean(config.modules?.ash?.enabled));
+    next.setChoices(Boolean(config.modules?.choices?.enabled));
+    next.setRuns(Boolean(config.modules?.runs?.enabled));
+    if (previous) next.configure(previous.settings());
   }
 
   // Opening another conversation. The project keeps its memory, its crew, its modules, its
-  // privacy list and its numbering; what changes is the record being written and read. One
-  // conversation drives the crew at a time — two threads editing the same working tree at once
-  // is not a feature, it is a way to lose work — so a turn in flight is a reason to refuse.
+  // privacy list and its numbering; what changes is the record being shown. With TURNS on, a
+  // conversation still at work is parked, not stopped; with it off, a turn in flight is a reason to
+  // refuse, as it always was.
   async function mountChat(id) {
     if (!isChatId(id)) return { error: `No conversation "${id}".` };
-    if (room && room.working()) return { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') };
+    const policy = await turnsPolicy();
+    const leaving = room;
+    const leavingBusy = Boolean(leaving?.busy());
+    if (leavingBusy && !policy.enabled) return { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') };
     const opened = await openChatIndex(roomDir, id);
     if (!opened) return { error: `No conversation "${id}".` };
     unwireRoom();
     await chatWrites.catch(() => null);
-    await room?.shutdown().catch(() => null);
+    if (leaving && leavingBusy && chatId !== id) {
+      // Still writing its record and touching the list; only the page stops watching it.
+      const leftId = chatId;
+      const offTouch = leaving.subscribe((event) => {
+        if (event?.type !== 'message.created' || event.ghost) return;
+        const human = event.payload?.role === 'user';
+        chatWrites = chatWrites.then(() => touchChat(roomDir, leftId, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
+      });
+      const offActivity = watchActivity(leaving, leftId);
+      parked.set(leftId, { room: leaving, store, off: () => { offTouch(); offActivity(); } });
+    } else if (leaving) {
+      await leaving.shutdown().catch(() => null);
+    }
     chatId = id;
-    store = await new EventStore(chatLedger(roomDir, id), { floor: await projectFloor(roomDir, { except: id }) }).initialize();
-    historicalEvents = await store.readAll();
-    room = new Room(roomOptions());
-    room.setInvoker(MADRE_ADAPTER, madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }));
+    const held = parked.get(id);
+    if (held) {
+      // Back to a conversation that kept working: the same room, not a second one over its record.
+      parked.delete(id);
+      held.off();
+      room = held.room;
+      store = held.store;
+      historicalEvents = await store.readAll();
+    } else {
+      store = await new EventStore(chatLedger(roomDir, id), { floor: await projectFloor(roomDir, { except: id }) }).initialize();
+      historicalEvents = await store.readAll();
+      room = new Room(roomOptions());
+      room.setInvoker(MADRE_ADAPTER, madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }));
+      await applyRoomSettings(room, leaving);
+    }
     wireRoom();
     // Whoever is watching is watching the wrong record now: their stream ends and they come back
     // to the one that is open.
@@ -929,7 +1013,7 @@ export async function createPulseServer({
           // would hand the page a different answer from the one the server itself is using.
           language: roomLanguage(),
           // Which conversation this page is looking at, and the others it could open.
-          chats: await listChats(roomDir),
+          chats: await chatsView(),
           agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })),
           ash: { enabled: room.ashEnabled() },
           choices: { enabled: room.choicesEnabled() },
@@ -1428,35 +1512,35 @@ export async function createPulseServer({
       }
       // The conversations of this project. One memory, one crew, one numbering; many records.
       if (request.method === 'GET' && url.pathname === '/api/chats') {
-        return sendJson(response, 200, await listChats(roomDir));
+        return sendJson(response, 200, await chatsView());
       }
       if (request.method === 'POST' && url.pathname === '/api/chats') {
-        if (room.working()) return sendJson(response, 409, { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') });
+        if (room.busy() && !(await turnsPolicy()).enabled) return sendJson(response, 409, { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') });
         const payload = await body(request).catch(() => ({}));
         const made = await createChat(roomDir, { title: typeof payload.title === 'string' ? payload.title : null });
         const mounted = await mountChat(made.id);
         if (mounted.error) return sendJson(response, 409, mounted);
-        return sendJson(response, 200, { ...(await listChats(roomDir)), opened: made.id });
+        return sendJson(response, 200, { ...(await chatsView()), opened: made.id });
       }
       const chatMatch = url.pathname.match(/^\/api\/chats\/([a-z0-9]+)$/);
       if (chatMatch && request.method === 'POST') {
         const mounted = await mountChat(chatMatch[1]);
         if (mounted.error) return sendJson(response, 409, mounted);
-        return sendJson(response, 200, { ...(await listChats(roomDir)), opened: chatMatch[1] });
+        return sendJson(response, 200, { ...(await chatsView()), opened: chatMatch[1] });
       }
       if (chatMatch && request.method === 'PATCH') {
         const payload = await body(request).catch(() => ({}));
         const named = await renameChat(roomDir, chatMatch[1], payload.title);
-        return named ? sendJson(response, 200, { ...(await listChats(roomDir)) }) : sendJson(response, 404, { error: t('No such conversation.') });
+        return named ? sendJson(response, 200, { ...(await chatsView()) }) : sendJson(response, 404, { error: t('No such conversation.') });
       }
       if (chatMatch && request.method === 'DELETE') {
-        if (chatMatch[1] === chatId && room.working()) return sendJson(response, 409, { error: t('A turn is running in this conversation.') });
+        if ((chatMatch[1] === chatId && room.busy()) || parked.get(chatMatch[1])?.room.busy()) return sendJson(response, 409, { error: t('A turn is running in this conversation.') });
         const gone = await deleteChat(roomDir, chatMatch[1]);
         if (!gone) return sendJson(response, 404, { error: t('No such conversation.') });
         if (gone.error) return sendJson(response, 409, gone);
         // What the archivist distilled from it is the project's memory and stays where it is.
         if (chatMatch[1] === chatId) { const mounted = await mountChat(gone.active); if (mounted.error) return sendJson(response, 409, mounted); }
-        return sendJson(response, 200, { ...(await listChats(roomDir)), deleted: gone.deleted });
+        return sendJson(response, 200, { ...(await chatsView()), deleted: gone.deleted });
       }
       // The three tests. Reading is free; running one is the human's call, and the slow one says
       // where it is while it works.
@@ -1672,8 +1756,28 @@ export async function createPulseServer({
         const stopped = await room.stopTurn(String(payload.messageId ?? ''));
         return sendJson(response, stopped ? 200 : 404, stopped ? { stopped: true } : { error: t('That turn is not running any more.') });
       }
+      // TURNS, read and set from MU/TH/UR. The limits apply to the next message; nothing running stops.
+      if (request.method === 'GET' && url.pathname === '/api/turns') {
+        return sendJson(response, 200, { turns: await turnsPolicy(), working: { here: room.turnsRunning(), chats: busyChats().length + (room.busy() ? 1 : 0) } });
+      }
+      if (request.method === 'POST' && url.pathname === '/api/turns') {
+        const patch = await body(request).catch(() => ({}));
+        const current = (await readConfig(root)).turns ?? {};
+        const next = { ...current };
+        if (typeof patch.enabled === 'boolean') next.enabled = patch.enabled;
+        for (const key of ['chats', 'turnsPerChat']) if (Number.isInteger(Number(patch[key])) && Number(patch[key]) >= 1) next[key] = Number(patch[key]);
+        await updateConfig(root, { turns: next });
+        await room.record('room.turns', { turns: await turnsPolicy() });
+        return sendJson(response, 200, { turns: await turnsPolicy() });
+      }
       if (request.method === 'POST' && url.pathname === '/api/stop-all') {
+        // Every conversation at work, not only the one on screen: the brake is the room's, not the chat's.
         const result = await room.stopAll();
+        for (const held of parked.values()) {
+          const more = await held.room.stopAll().catch(() => ({ plans: 0, turns: 0 }));
+          result.plans += more.plans ?? 0;
+          result.turns += more.turns ?? 0;
+        }
         return sendJson(response, 202, { stopped: true, ...result });
       }
       const stopMatch = request.method === 'POST' && url.pathname.match(/^\/api\/plans\/([0-9a-f-]+)\/stop$/);
@@ -1797,6 +1901,12 @@ export async function createPulseServer({
         // hears "no" with a reason instead of a silent log line.
         const gate = await room.modeCheck(payload);
         if (!gate.ok) return sendJson(response, gate.status ?? 403, { error: gate.error, mode: gate.mode, maxMode: gate.maxMode });
+        const turns = await turnsPolicy();
+        if (turns.enabled) {
+          if (room.turnsRunning() >= turns.turnsPerChat) return sendJson(response, 429, { error: t('This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.', { n: room.turnsRunning(), max: turns.turnsPerChat }) });
+          const others = busyChats().length;
+          if (!room.busy() && others + 1 > turns.chats) return sendJson(response, 429, { error: t('{n} other conversations are already working, and TURNS allows {max} at a time. Wait for one to finish, or raise it in MU/TH/UR → TURNS.', { n: others, max: turns.chats }) });
+        }
         await refreshPrivacy();
         void room.send(payload).catch((error) => {
           console.error(`MADRE room error: ${error.message}`);
@@ -1827,7 +1937,9 @@ export async function createPulseServer({
     unwatchOutbound();
     // In-flight agent processes are killed and their turns recorded as failed
     // before the SSE clients go away, so open pages see the outcome.
-    const shutdown = room.shutdown().catch((error) => console.error(`MADRE shutdown error: ${error.message}`));
+    const shutdown = Promise.all([room, ...[...parked.values()].map((held) => held.room)].map((each) => each.shutdown().catch((error) => console.error(`MADRE shutdown error: ${error.message}`))));
+    for (const held of parked.values()) held.off();
+    parked.clear();
     let result;
     shutdown.then(() => {
       void broadcastPending().then(() => chatWrites).then(() => {

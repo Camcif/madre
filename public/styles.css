@@ -1900,6 +1900,20 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .chats-body .chat-row:hover .chat-drop, .chats-body .chat-drop:focus-visible { opacity: 1; }
 .chats-body .chat-drop:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
 .chats-body .chat-drop.sure { opacity: 1; color: #fff; background: var(--danger); }
+/* A conversation at work spins before its name; one that finished while you were elsewhere keeps
+   a dot until you open it. The toggle carries the same two signs while the panel is closed. */
+.chats-body .chat-spin { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border: 1.5px solid color-mix(in srgb, var(--phosphor) 30%, transparent); border-top-color: var(--phosphor); border-radius: 50%; vertical-align: -1px; animation: chat-spin .8s linear infinite; }
+.chats-body .chat-dot { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--phosphor); box-shadow: 0 0 6px var(--phosphor); vertical-align: 1px; }
+.chats-body .chat.unread .name { font-weight: 600; }
+@keyframes chat-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .chats-body .chat-spin { animation: none; border-color: var(--phosphor); } }
+.chats-button { position: relative; }
+.chats-button.working::after, .chats-button.unread::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--phosphor); box-shadow: 0 0 6px var(--phosphor); }
+.chats-button.working::after { animation: klaxon 1.2s ease-in-out infinite; }
+.turns-controls { flex-wrap: wrap; }
+.turns-field { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--ph-dim, var(--text-2)); }
+.turns-field input { width: 52px; background: transparent; border: 1px solid var(--ph-dim, var(--line-2)); color: var(--ph, var(--text)); font: inherit; font-size: 12px; padding: 4px 6px; text-align: center; }
+.turns-field input:disabled { opacity: .45; }
 .project.chat-here { flex: 0 1 auto; max-width: 340px; color: var(--text-2); }
 .chats-foot { padding: 10px 14px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em; color: var(--text-3); }
 /* Its handle sits in the canvas, under the bar, where the conversation it opens begins. */

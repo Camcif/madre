@@ -162,6 +162,9 @@ export class Room {
     maxPlanSteps = 4,
     maxConcurrentTurns = 3,
     planMaxAgeMs = 300000,
+    // The project's one CONTROL desk, when the server keeps several conversations alive at once:
+    // one holder of the working tree across all of them, and an UNDO that works from any.
+    controlDesk = null,
     escalationMs = Number(process.env.PULSE_ESCALATION_MS ?? 180000),
   }) {
     this.#store = store;
@@ -183,7 +186,7 @@ export class Room {
     this.#maxConcurrentTurns = maxConcurrentTurns;
     this.#planMaxAgeMs = planMaxAgeMs;
     this.#escalation = new Escalation({ escalationMs });
-    this.#controlDesk = new ControlDesk({ projectRoot });
+    this.#controlDesk = controlDesk ?? new ControlDesk({ projectRoot });
     this.#budget = new Budget({ softBudget: softTokenBudget });
     this.#budget.seed(historicalEvents, this.#sentinel);
     // What this room has been charged per character, from its own past turns.
@@ -419,6 +422,10 @@ export class Room {
   // Is anything happening in here right now? Asked before a conversation is closed and another
   // opened: a turn in flight is a reason to wait, not something to race.
   working() { return this.#turns.size > 0; }
+  // TURNS asks two things: how many turns this conversation has in flight, and whether it is still
+  // at work at all — a plan between two of its steps has no turn running and is not finished.
+  turnsRunning() { return this.#turns.size; }
+  busy() { return this.#turns.size > 0 || this.#inflight.size > 0 || this.#plans.size > 0; }
 
   // The decisions this project is standing on, newest first.
   //

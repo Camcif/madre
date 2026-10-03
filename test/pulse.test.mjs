@@ -723,7 +723,11 @@ test('replays since a sequence and closes cleanly with open streams', async () =
       body: JSON.stringify({ text: 'hello', target: 'codex' }),
     });
     await external.append('quota.updated', { agent: 'codex', usedPercent: 10, source: 'test' });
-    const all = await stream.waitFor(5);
+    // Live events (a conversation starting or ending a turn) carry no sequence: they are not in
+    // the log and are never replayed, so the order being checked is the log's.
+    let frames = await stream.waitFor(5);
+    while (!frames.some((frame) => frame.data.sequence === 6)) frames = await stream.waitFor(frames.length + 1);
+    const all = frames.filter((frame) => !frame.data.live);
     const sequences = all.map((frame) => frame.data.sequence);
     assert.deepEqual(sequences, [...new Set(sequences)]);
     assert.deepEqual(sequences, [...sequences].sort((a, b) => a - b));

@@ -115,6 +115,8 @@ Un agente puede poner a trabajar a los demás. Si le pides coordinar, termina su
 
 MADRE ejecuta los pasos como turnos normales: cada uno queda en el ledger, pasa por handoff, presupuesto y timeout. El paso dirigido al orquestador es su turno de cierre. Los delegados no delegan, así que todo plan termina. Máximo cuatro pasos más el cierre.
 
+**TURNOS.** En MU/TH/UR, junto al centinela. Encendido por defecto: una conversación que sigue trabajando cuando abres otra no se detiene, sigue escribiendo su registro y el panel de conversaciones la marca hasta que termina. Dos límites: conversaciones trabajando a la vez (2) y turnos a la vez en cada una (3); un mensaje que los pasaría se rechaza con el motivo antes de empezar. Todas las conversaciones comparten un solo titular de CONTROL o AIRLOCK. Apagado, una sola conversación maneja a la tripulación y no se puede cambiar de una que está trabajando. `STOP ALL` detiene todas.
+
 **STOP ALL.** El botón de la barra, `STOPALL` en el compositor o `curl -X POST http://127.0.0.1:4317/api/stop-all` detienen todos los planes y matan todos los procesos de agente. MU/TH/UR avisa en rojo cuando la sala se escapa: tres agentes a la vez, un agente con dos turnos cruzados, un plan de más de cinco minutos.
 
 ---

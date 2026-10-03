@@ -2741,6 +2741,36 @@ export const ES = {
   ' It will answer read-only.':
     ' Contestará en solo lectura.',
 
+  // TURNOS: la multitarea de la sala.
+  'working':
+    'trabajando',
+  'finished while you were away':
+    'terminó mientras no estabas',
+  'another conversation':
+    'otra conversación',
+  'MU/TH/UR › @{agent} finished in «{chat}».':
+    'MU/TH/UR › @{agent} terminó en «{chat}».',
+  'MU/TH/UR › @{agent} could not finish in «{chat}».':
+    'MU/TH/UR › @{agent} no pudo terminar en «{chat}».',
+  'ON · {chats} CONVERSATIONS · {turns} TURNS EACH':
+    'ENCENDIDO · {chats} CONVERSACIONES · {turns} TURNOS CADA UNA',
+  'OFF · ONE CONVERSATION AT A TIME':
+    'APAGADO · UNA CONVERSACIÓN A LA VEZ',
+  'HOW MUCH THE ROOM DOES AT ONCE. ON, A CONVERSATION THAT IS TAKING ITS TIME KEEPS WORKING WHILE YOU WRITE IN IT AGAIN OR OPEN ANOTHER; THE LIST OF CONVERSATIONS SHOWS WHICH ARE WORKING AND TELLS YOU WHEN ONE FINISHES. ONLY ONE CONVERSATION AT A TIME MAY HOLD CONTROL OR AIRLOCK. OFF, ONE CONVERSATION DRIVES THE CREW AND SWITCHING AWAY FROM ONE AT WORK IS REFUSED.':
+    'CUÁNTO HACE LA SALA A LA VEZ. ENCENDIDO, UNA CONVERSACIÓN QUE SE ESTÁ TARDANDO SIGUE TRABAJANDO MIENTRAS LE ESCRIBES DE NUEVO O ABRES OTRA; LA LISTA DE CONVERSACIONES MUESTRA CUÁLES ESTÁN TRABAJANDO Y TE AVISA CUANDO UNA TERMINA. SOLO UNA CONVERSACIÓN A LA VEZ PUEDE TENER CONTROL O AIRLOCK. APAGADO, UNA SOLA CONVERSACIÓN MANEJA A LA TRIPULACIÓN Y NO SE PUEDE CAMBIAR DE UNA QUE ESTÁ TRABAJANDO.',
+  'COULD NOT READ':
+    'NO SE PUDO LEER',
+  'MULTITASKING':
+    'MULTITAREA',
+  'CONVERSATIONS WORKING AT ONCE':
+    'CONVERSACIONES TRABAJANDO A LA VEZ',
+  'TURNS AT ONCE IN EACH':
+    'TURNOS A LA VEZ EN CADA UNA',
+  'This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.':
+    'Esta conversación ya tiene {n} turnos corriendo, y TURNOS permite {max} a la vez. Espera a que termine uno, abre otra conversación o súbelo en MU/TH/UR → TURNOS.',
+  '{n} other conversations are already working, and TURNS allows {max} at a time. Wait for one to finish, or raise it in MU/TH/UR → TURNS.':
+    'Ya hay {n} conversaciones más trabajando, y TURNOS permite {max} a la vez. Espera a que termine una o súbelo en MU/TH/UR → TURNOS.',
+
   // El interruptor de idioma.
   'Interface in English': 'Interfaz en inglés',
   'Interface in Spanish': 'Interfaz en español',

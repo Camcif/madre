@@ -3637,6 +3637,7 @@ void renderOpenQuestions(); return;
       node = renderPlanEvent(event);
       break;
     case 'choice.offered': node = renderChoice(event); break;
+    case 'chat.activity': onChatActivity(event.payload); return;
     case 'run.requested': node = renderRunRequest(event); break;
     case 'run.started': markRun(event.payload, 'running'); return;
     case 'room.alert': node = renderAlert(event); break;
@@ -4082,7 +4083,7 @@ try { if (localStorage.getItem('pulse.tree') === 'open') setTree(true); } catch 
 // other edge of the canvas: one shape to learn, and the handle sits where the conversation it
 // opens begins. Opening one is a reload, because a conversation is a different record of the
 // same room and the page is built from a record.
-const chats = { open: false, list: [], active: null, working: false };
+const chats = { open: false, list: [], active: null, working: false, unread: new Set() };
 
 function whenWords(iso) {
   const when = iso ? Date.parse(iso) : NaN;
@@ -4101,9 +4102,14 @@ function renderChats() {
   if (els.chatsCount) els.chatsCount.textContent = chats.list.length ? `· ${chats.list.length}` : '';
   for (const chat of chats.list) {
     const row = el('div', 'chat-row');
-    const open = el('button', `chat${chat.id === chats.active ? ' on' : ''}`);
+    const open = el('button', `chat${chat.id === chats.active ? ' on' : ''}${chat.working ? ' working' : ''}${chats.unread.has(chat.id) ? ' unread' : ''}`);
     open.type = 'button';
-    open.append(el('span', 'name', chat.title));
+    // At work: a spinner before the name. Finished while you were elsewhere: a dot, until you open it.
+    const name = el('span', 'name');
+    if (chat.working) { const spin = el('span', 'chat-spin'); spin.setAttribute('aria-label', t('working')); name.append(spin); }
+    else if (chats.unread.has(chat.id)) { const dot = el('span', 'chat-dot'); dot.setAttribute('aria-label', t('finished while you were away')); name.append(dot); }
+    name.append(chat.title);
+    open.append(name);
     open.append(el('span', 'when', whenWords(chat.updatedAt)));
     open.title = `${t('{n} {messages}', { n: chat.messages, messages: chat.messages === 1 ? t('message') : t('messages') })}${chat.updatedAt ? ` · ${new Date(chat.updatedAt).toLocaleString()}` : ''}`;
     open.addEventListener('click', () => { if (chat.id !== chats.active) void openChat(chat.id); });
@@ -4129,6 +4135,31 @@ function renderChats() {
     row.append(open, drop);
     els.chatsBody.append(row);
   }
+  paintChatsButton();
+}
+
+// Something is happening in a conversation, said live by the server whichever one is on screen.
+function onChatActivity({ chatId, working, finished } = {}) {
+  const entry = chats.list.find((chat) => chat.id === chatId);
+  if (entry) entry.working = Boolean(working);
+  if (finished && chatId !== chats.active && !replaying) {
+    chats.unread.add(chatId);
+    const title = entry?.title ?? t('another conversation');
+    const said = finished.ok
+      ? t('MU/TH/UR › @{agent} finished in «{chat}».', { agent: finished.agent ?? '?', chat: title })
+      : t('MU/TH/UR › @{agent} could not finish in «{chat}».', { agent: finished.agent ?? '?', chat: title });
+    toast(said);
+    if (typeof Notification === 'function' && Notification.permission === 'granted' && document.hidden) {
+      try { new Notification('MADRE', { body: said.replace(/^MU\/TH\/UR › /, ''), tag: `chat-${chatId}` }); } catch { /* not offered */ }
+    }
+  }
+  renderChats();
+}
+// The toggle says it too, so a closed panel still shows that something is at work or waiting.
+function paintChatsButton() {
+  if (!els.chatsButton) return;
+  els.chatsButton.classList.toggle('working', chats.list.some((chat) => chat.working && chat.id !== chats.active));
+  els.chatsButton.classList.toggle('unread', chats.unread.size > 0);
 }
 
 async function loadChats() {
@@ -4142,6 +4173,11 @@ async function loadChats() {
 
 async function openChat(id) {
   if (id === chats.active) { setChats(false); return; }
+  // Leaving a conversation at work is the moment to ask once for a system notification, while
+  // the click still counts as the human's: it is how they hear that it finished.
+  const leavingBusy = chats.list.find((chat) => chat.id === chats.active)?.working;
+  if (leavingBusy && typeof Notification === 'function' && Notification.permission === 'default') { try { void Notification.requestPermission(); } catch { /* not offered */ } }
+  chats.unread.delete(id);
   const response = await fetch(`/api/chats/${id}`, { method: 'POST' });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'that conversation could not be opened.'}`); return; }
@@ -11305,10 +11341,54 @@ async function loadSentinel() {
   } catch { /* the room works without it */ }
   renderMotherSentinel();
 }
+// TURNS: how much the room may do at once, beside the sentinel because it is the same kind of
+// thing — a guard the human sets once. The limits are the server's; this only reads and saves them.
+const turnsUI = { turns: null, loading: false, tried: false };
+async function loadTurns() {
+  if (turnsUI.loading) return;
+  turnsUI.loading = true;
+  turnsUI.tried = true;
+  try { turnsUI.turns = (await fetch('/api/turns').then((response) => response.json())).turns ?? null; } catch { /* the section says it could not read */ }
+  turnsUI.loading = false;
+  renderMotherSentinel();
+}
+function renderTurns(section) {
+  const turns = turnsUI.turns;
+  // Asked once per page: a server that cannot answer is not asked again on every repaint.
+  if (!turns && !turnsUI.loading && !turnsUI.tried) { void loadTurns(); }
+  const summary = !turns ? (turnsUI.loading ? t('READING…') : t('COULD NOT READ')) : turns.enabled ? t('ON · {chats} CONVERSATIONS · {turns} TURNS EACH', { chats: turns.chats, turns: turns.turnsPerChat }) : t('OFF · ONE CONVERSATION AT A TIME');
+  const body = folding(section, `${t('TURNS')} · ${summary}`, { key: 'turns', icon: 'bars' });
+  body.append(el('p', 'note', t('HOW MUCH THE ROOM DOES AT ONCE. ON, A CONVERSATION THAT IS TAKING ITS TIME KEEPS WORKING WHILE YOU WRITE IN IT AGAIN OR OPEN ANOTHER; THE LIST OF CONVERSATIONS SHOWS WHICH ARE WORKING AND TELLS YOU WHEN ONE FINISHES. ONLY ONE CONVERSATION AT A TIME MAY HOLD CONTROL OR AIRLOCK. OFF, ONE CONVERSATION DRIVES THE CREW AND SWITCHING AWAY FROM ONE AT WORK IS REFUSED.')));
+  if (!turns) return;
+  const save = async (patch) => {
+    try {
+      const result = await fetch('/api/turns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).then((response) => response.json());
+      turnsUI.turns = result.turns ?? turnsUI.turns;
+    } catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
+    renderMotherSentinel();
+  };
+  const controls = el('div', 'sentinel-controls turns-controls');
+  const toggle = el('label', 'toggle');
+  const box = el('input'); box.type = 'checkbox'; box.checked = Boolean(turns.enabled);
+  box.addEventListener('change', () => void save({ enabled: box.checked }));
+  toggle.append(box, t('MULTITASKING'));
+  controls.append(toggle);
+  const number = (label, key, max) => {
+    const field = el('label', 'turns-field');
+    const input = el('input'); input.type = 'number'; input.min = '1'; input.max = String(max); input.value = String(turns[key]); input.disabled = !turns.enabled;
+    input.addEventListener('change', () => { const value = Math.min(max, Math.max(1, Number(input.value) || 1)); void save({ [key]: value }); });
+    field.append(el('span', null, label), input);
+    return field;
+  };
+  controls.append(number(t('CONVERSATIONS WORKING AT ONCE'), 'chats', 6), number(t('TURNS AT ONCE IN EACH'), 'turnsPerChat', 8));
+  body.append(controls);
+}
+
 function renderMotherSentinel() {
   const section = sentinelUI.section;
   if (!section) return;
   section.replaceChildren();
+  renderTurns(section);
   const reports = [...state.reports.values()].sort((a, b) => (a.at < b.at ? 1 : -1));
   const unsent = reports.filter((report) => !report.sent?.ok).length;
   const sentinelBody = folding(section, `${t('SENTINEL')} · ${reports.length ? t('{n} REPORTS · {unsent} NOT SENT', { n: reports.length, unsent }) : t('NOTHING TO REPORT')}`, { key: 'sentinel', icon: 'alert' });
