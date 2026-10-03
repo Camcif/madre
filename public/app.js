@@ -3232,20 +3232,34 @@ function renderChoice(event) {
     }
     if (lead) tags.append(el('span', 'choice-tag', t('RECOMMENDED')));
     if (tags.childNodes.length) button.append(tags);
+    // Pressing an option answers: it goes to the agent that asked, at the mode the option needs.
+    // #1 and #2 go at once; #3 and #4 go only once the human has turned their keys — cancelling
+    // the ceremony sends nothing, and the option stays there to be pressed again.
     button.addEventListener('click', () => {
+      if (list.classList.contains('sending')) return;
       for (const other of list.querySelectorAll('.choice-option.picked')) other.classList.remove('picked');
       button.classList.add('picked');
       els.input.value = option;
       els.input.dispatchEvent(new Event('input', { bubbles: true }));
-      els.input.focus();
-      if (mode === null || !state.agents.get(agent)?.ready) return;
-      if (state.mode === mode && els.target.value === agent) return;
-      if (mode >= 3) openOverride(agent, { mode, raise: mode > ceilingFor(agent) && Boolean(state.capabilities[agent]?.scopes?.write?.capable) });
-      else { els.target.value = agent; renderPicker(); setMode(mode, { wink: true }); }
+      const send = () => {
+        list.classList.add('sending');
+        els.composer.requestSubmit();
+        setTimeout(() => list.classList.remove('sending'), 1500);
+      };
+      if (!state.agents.get(agent)?.ready) { els.input.focus(); return; }
+      const wanted = mode ?? state.mode;
+      if (wanted >= 3 && !(state.mode === wanted && els.target.value === agent)) {
+        openOverride(agent, { mode: wanted, raise: wanted > ceilingFor(agent) && Boolean(state.capabilities[agent]?.scopes?.write?.capable), then: send });
+        return;
+      }
+      els.target.value = agent;
+      renderPicker();
+      if (mode !== null && state.mode !== mode) setMode(mode, { wink: true });
+      send();
     });
     list.append(button);
   });
-  node.append(list, el('p', 'choice-foot', t('Writes it into the composer · nothing is sent until you press send')));
+  node.append(list, el('p', 'choice-foot', t('Pressing one sends it to @{agent} · #3 and #4 ask for your keys first', { agent })));
   state.lastSender = null;
   return node;
 }

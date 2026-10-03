@@ -134,8 +134,8 @@ export function promptParts({
         '- <option>',
         '- <option>',
         '```',
-        'If carrying out an option needs more than reading (#2 to create files, #3 to edit the project, #4 to run commands), end it with that mode in parentheses, like "(#3)", before "(recommended)"; the human sees it and pressing the option arms it.',
-        'Three to six options, the question first, nothing after the block. Exactly one option ends with "(recommended)": the one you would pick, listed first. Write each option whole, as the sentence the human would send; they are shown in full. MADRE shows them as buttons and pressing one writes it into the composer; nothing runs and no turn is spent until the human presses. Not for yes/no, and never instead of a recommendation you could simply give.',
+        'If carrying out an option needs more than reading (#2 to create files, #3 to edit the project, #4 to run commands), end it with that mode in parentheses, like "(#3)", before "(recommended)"; the human sees it, and pressing the option sends it at that mode.',
+        'Three to six options, the question first, nothing after the block. Exactly one option ends with "(recommended)": the one you would pick, listed first. Write each option whole, as the sentence the human would send; they are shown in full. MADRE shows them as buttons and pressing one sends it to you as the human\'s answer, at the mode it names (#3 and #4 only after the human turns their keys); nothing runs until the human presses. Not for yes/no, and never instead of a recommendation you could simply give.',
       ].join('\n')
       : null },
     { id: 'runs', text: runs

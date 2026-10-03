@@ -52,7 +52,7 @@ export const ES = {
   'off · agents answer in prose': 'apagado · los agentes contestan en prosa',
   'Lets an agent hand a decision back to you as buttons instead of a paragraph, when the answer turns on three or more real options. Costs about 135 tokens of instruction per turn while it is on, counted in the economy like every other block.':
     'Deja que un agente te devuelva una decisión como botones en vez de un párrafo, cuando la respuesta depende de tres o más opciones reales. Cuesta unos 135 tokens de instrucción por turno mientras está encendido, contados en la economía como cualquier otro bloque.',
-  'Writes it into the composer · nothing is sent until you press send': 'Lo escribe en el compositor · no se manda nada hasta que le des enviar',
+  'Pressing one sends it to @{agent} · #3 and #4 ask for your keys first': 'Al presionar una se le manda a @{agent} · #3 y #4 piden antes tus llaves',
   '◉ decided here · {n}': '◉ decidido aquí · {n}',
   'TURNS WEIGHED': 'TURNOS CON FACTURA',
   '{n} characters': '{n} caracteres',

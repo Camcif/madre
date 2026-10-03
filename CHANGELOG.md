@@ -18,7 +18,8 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ### Las elecciones dicen qué permiso necesita cada opción
 
-- Cuando una opción implica crear archivos, editar el proyecto o correr comandos, el agente la marca con el modo que necesita y la opción lo muestra (**#3 CONTROL**, **#4 AIRLOCK**). Al presionarla se escribe en el compositor y se arma ese modo: #2 directo, #3 y #4 con su designación de siempre.
+- Cuando una opción implica crear archivos, editar el proyecto o correr comandos, el agente la marca con el modo que necesita y la opción lo muestra (**#3 CONTROL**, **#4 AIRLOCK**).
+- Presionar una opción ya la manda al agente que preguntó, en el modo que pide. Las de #3 y #4 se mandan solo después de tu designación (y la palabra AIRLOCK); si cancelas, no se manda nada.
 
 ### SERVIDORES marca el de este proyecto
 
