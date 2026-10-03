@@ -6,6 +6,11 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 0.7.3 · Sin publicar
 
+### Actualizar desde la sala ya no la deja cerrada
+
+- Al presionar **REINICIAR CON** una versión recién publicada, la sala se cerraba antes de saber si npm ya la entregaba; si todavía no, no volvía y había que levantarla a mano. Ahora descarga la versión primero y solo se cierra cuando la tiene. Si npm aún no la entrega, la sala sigue abierta y te dice que lo intentes en unos minutos.
+- Lo que imprime la versión nueva al arrancar queda en `update.log`, junto al registro de la sala.
+
 ## 0.7.2 · 2026-10-03
 
 Esta versión les da a los agentes botones para pedirte lo que antes te pedían en un párrafo: que corras un comando, que les subas el permiso, que elijas entre opciones. También trae el nivel de esfuerzo por agente, un panel de archivos que se comporta como esperas, y arreglos en la actualización de Ollama y al volver a abrir la sala.

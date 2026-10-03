@@ -38,6 +38,15 @@ export function updateCommand(install, name, version = 'latest') {
   }
 }
 
+// The version, downloaded into npm's own cache while the room is still open. A release is listed
+// by the registry a little before its tarball can be fetched, and a room that closed first and
+// then found nothing to start was simply gone: the restart below runs detached and nobody is left
+// to say why. Fetched first, the restart starts from the cache; refused, the room stays.
+export function fetchCommand({ name, version }) {
+  if (!/^[\w.@/-]+$/.test(String(name)) || !/^\d+\.\d+\.\d+[\w.+-]*$/.test(String(version))) return null;
+  return { command: 'npm', args: ['cache', 'add', `${name}@${version}`, '--no-fund', '--no-audit'] };
+}
+
 // One shell line that installs the version and starts the same room on the same port.
 // The room's own process runs it detached after closing its listener, then exits.
 const shq = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`;

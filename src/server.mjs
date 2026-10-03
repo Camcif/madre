@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access } from 'node:fs/promises';
-import { rmSync } from 'node:fs';
+import { openSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { classifyListening, probePort, framable } from './ports.mjs';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -51,7 +51,7 @@ import { applyKey, keyPlanFor } from './credentials.mjs';
 import { forgetSecret, summary as vaultSummary, writeSecret } from './vault.mjs';
 import { loadConfig as readConfig, updateConfig } from './config.mjs';
 import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
-import { checkForUpdate, detectInstall, updateCommand, releaseUrl, applyCommand } from './updates.mjs';
+import { checkForUpdate, detectInstall, updateCommand, releaseUrl, applyCommand, fetchCommand } from './updates.mjs';
 import { bootWhatsNew, markSeen, notesFor, whatsNew } from './whats-new.mjs';
 
 // Where a person reads the module contract, in the language the room is speaking.
@@ -1328,13 +1328,26 @@ export async function createPulseServer({
         const command = applyCommand({ install, name: PACKAGE.name, version: info.latest, port: request.socket.localPort, projectRoot: canonicalProjectRoot });
         if (!command) return sendJson(response, 412, { error: t('This copy runs from source: pull the repository and start it again.') });
         if (room.activeTurns().length || room.activePlans().length) return sendJson(response, 409, { error: t('Agents are still working. STOPALL or wait, then update.') });
+        const fetching = fetchCommand({ name: PACKAGE.name, version: info.latest });
+        if (fetching) {
+          // npm is a .cmd on Windows and needs a shell there; every argument here is fixed or checked above.
+          const fetched = await new Promise((resolve) => execFile(fetching.command, fetching.args, { cwd: root, timeout: 180000, shell: process.platform === 'win32', windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => resolve(error ? (String(stderr || error.message).split('\n').map((line) => line.trim()).find((line) => line && !/complete log|^npm (error|ERR!)(\s+code\b.*)?\s*$/i.test(line)) ?? error.message) : null)));
+          if (fetched !== null) {
+            await room.record('room.update.refused', { from: info.current, to: info.latest, error: fetched.slice(0, 300) });
+            return sendJson(response, 502, { error: t('npm does not hand out {version} yet; a new release can take a few minutes. The room stays open: try again in a moment.', { version: info.latest }) });
+          }
+        }
         await room.record('room.updating', { from: info.current, to: info.latest, install, command });
         sendJson(response, 202, { restarting: true, from: info.current, to: info.latest, command });
         setTimeout(() => {
           server.close(() => {
             // Each system has its own shell: the command is one line either way.
             const shell = process.platform === 'win32' ? { file: process.env.COMSPEC ?? 'cmd.exe', args: ['/d', '/s', '/c', command] } : { file: '/bin/sh', args: ['-c', command] };
-            const child = spawn(shell.file, shell.args, { cwd: canonicalProjectRoot, detached: process.platform !== 'win32', windowsHide: true, stdio: 'ignore', env: { ...process.env, PULSE_UPDATE_RESTART: '1' } });
+            // What the new copy says on the way up lands beside the ledger: if it never comes back,
+            // this file is the only witness.
+            let log = 'ignore';
+            try { log = openSync(join(roomDir, 'update.log'), 'a'); } catch { /* no witness, still restart */ }
+            const child = spawn(shell.file, shell.args, { cwd: canonicalProjectRoot, detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', log, log], env: { ...process.env, PULSE_UPDATE_RESTART: '1' } });
             child.unref();
             setTimeout(() => process.exit(0), 200);
           });

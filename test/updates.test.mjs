@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { compareVersions, detectInstall, updateCommand, releaseUrl, checkForUpdate, applyCommand } from '../src/updates.mjs';
+import { compareVersions, detectInstall, updateCommand, releaseUrl, checkForUpdate, applyCommand, fetchCommand } from '../src/updates.mjs';
 
 test('updates: versions compare as releases, the launch mode picks the command, the registry is read once a day', async () => {
   assert.equal(compareVersions('0.3.0', '0.3.1'), -1);
@@ -20,6 +20,11 @@ test('updates: versions compare as releases, the launch mode picks the command, 
   assert.match(applyCommand({ install: 'project', name: '@jossuealcala/madre', version: '0.3.2', port: 4319, projectRoot: '/p' }), /^npm install @jossuealcala\/madre@0\.3\.2 --no-fund --no-audit && exec npx --no madre start --no-open --port 4319 --project '\/p'$/);
   assert.match(applyCommand({ install: 'global', name: '@jossuealcala/madre', version: '0.3.2', port: 4317, projectRoot: '/p' }), /^npm install -g .* && exec madre start/);
   assert.equal(applyCommand({ install: 'source', name: 'x', version: '1', port: 1, projectRoot: '/p' }), null, 'from source the human pulls');
+  // The version is fetched while the room is still open; a room that closed first and found
+  // nothing to start was simply gone. Only a name and a version a registry would give reach npm.
+  assert.deepEqual(fetchCommand({ name: '@jossuealcala/madre', version: '0.7.2' }), { command: 'npm', args: ['cache', 'add', '@jossuealcala/madre@0.7.2', '--no-fund', '--no-audit'] });
+  assert.equal(fetchCommand({ name: '@jossuealcala/madre', version: '0.7.2; rm -rf ~' }), null);
+  assert.equal(fetchCommand({ name: 'x && y', version: '1.0.0' }), null);
   // What a version brought is read in the product's own house, in the room's language. A release
   // page on a code host is written for people who already work there; whoever pressed this button
   // only wanted to know what changed.
@@ -71,4 +76,15 @@ test('closing a version opens the next one, and refuses to close one that says n
   // The section still has to exist before anything runs, and the number is still used once.
   assert.match(script, /CHANGELOG\.md has no "## \$\{version\} · Sin publicar" section/);
   assert.match(script, /already exists\. A number is used once/);
+});
+
+test('updates: the room fetches the new version before it closes, and stays open when npm cannot hand it out yet', async () => {
+  const server = await readFile(join(import.meta.dirname, '..', 'src', 'server.mjs'), 'utf8');
+  const apply = server.slice(server.indexOf("url.pathname === '/api/updates/apply'"));
+  const fetched = apply.indexOf('fetchCommand(');
+  const closing = apply.indexOf("room.record('room.updating'");
+  assert.ok(fetched > 0 && closing > fetched, 'the room announces it is closing before it knows the new version can be fetched');
+  assert.match(apply.slice(fetched, closing), /return sendJson\(response, 502/, 'a failed fetch does not keep the room open');
+  // And the restart leaves a witness: what the new copy printed on the way up.
+  assert.match(apply, /update\.log/);
 });

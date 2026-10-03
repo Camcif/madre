@@ -1432,6 +1432,8 @@ export const ES = {
   'No private terms are set. Write them first.': 'No hay términos privados puestos. Escríbelos primero.',
   'This copy runs from source: pull the repository and start it again.':
     'Esta copia corre desde el código fuente: haz pull del repositorio y arráncala otra vez.',
+  'npm does not hand out {version} yet; a new release can take a few minutes. The room stays open: try again in a moment.':
+    'npm todavía no entrega {version}; una versión recién publicada puede tardar unos minutos. La sala sigue abierta: vuelve a intentarlo en un momento.',
   'Agents are still working. STOPALL or wait, then update.':
     'Los agentes siguen trabajando. Dale STOPALL o espera, y luego actualiza.',
   'MOTHER is silent.': 'MOTHER está callada.',
