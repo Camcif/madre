@@ -991,6 +991,23 @@ export async function createPulseServer({
         ['/assets/abduction-cat-control-left.png', 'abduction-cat-control-left.png'],
         ['/assets/abduction-cat-control-right.png', 'abduction-cat-control-right.png'],
       ]);
+      // The brand: the two typefaces (SIL OFL, licences beside them) and the favicon, served from the
+      // package itself. Nothing is fetched from a font service: the room never leaves this machine
+      // to draw a letter.
+      const brandAssets = new Map([
+        ['/assets/brand/Sora-latin.woff2', 'font/woff2'],
+        ['/assets/brand/Sora-latin-ext.woff2', 'font/woff2'],
+        ['/assets/brand/JetBrainsMono-latin.woff2', 'font/woff2'],
+        ['/assets/brand/JetBrainsMono-latin-ext.woff2', 'font/woff2'],
+        ['/assets/brand/OFL-Sora.txt', 'text/plain; charset=utf-8'],
+        ['/assets/brand/OFL-JetBrainsMono.txt', 'text/plain; charset=utf-8'],
+        ['/assets/brand/madre-favicon.svg', 'image/svg+xml'],
+      ]);
+      if (request.method === 'GET' && brandAssets.has(url.pathname)) {
+        const file = await readFile(join(publicDirectory, url.pathname.slice(1)));
+        response.writeHead(200, { 'content-type': brandAssets.get(url.pathname), 'content-length': file.length, 'cache-control': 'public, max-age=86400' });
+        return response.end(file);
+      }
       if (request.method === 'GET' && abductionAssets.has(url.pathname)) {
         const image = await readFile(join(publicDirectory, 'assets', abductionAssets.get(url.pathname)));
         response.writeHead(200, {

@@ -53,7 +53,8 @@ BRANDS.madre = {
   color: '#9bff66',
   colorLight: '#2f8a1c',
   ink: '#0a1405',
-  mark: () => glyph('<path d="M4 16 H11 L13 16 L15 9 L18 23 L20 16 L22 16 L23.5 13 L25 16 H28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
+  // The brand kit's compact pulse, the one drawn for 64 px and under (favicon, icon), with its dot.
+  mark: () => glyph('<path d="M3.5 16h5.5l2.3-5.5 4 11 3.2-7.5 1.8 2h2.2" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26.4" cy="16" r="2.4" fill="currentColor"/>'),
 };
 
 BRANDS.ollama = {

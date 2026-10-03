@@ -6,6 +6,12 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 0.7.3 · Sin publicar
 
+### La sala estrena su identidad
+
+- La interfaz usa las tipografías de la marca: **Sora** para leer y **JetBrains Mono** para rótulos, datos y comandos. Vienen dentro de MADRE; no se descarga nada para mostrar una letra.
+- El logo de la barra es el oficial: el pulso en verde y la palabra MADRE en blanco (en tema claro, verde oscuro y casi negro). En barras angostas queda solo el pulso.
+- La pestaña del navegador muestra el ícono de MADRE, y @madre lleva el pulso compacto de la marca.
+
 ### Multitarea: varias conversaciones trabajando a la vez
 
 - Si una respuesta se está tardando, ya puedes escribir otra cosa en la misma conversación o abrir otra: la primera sigue trabajando. Antes, cambiar de conversación con un turno en curso no se podía.
