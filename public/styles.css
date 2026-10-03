@@ -1910,10 +1910,20 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .chats-button { position: relative; }
 .chats-button.working::after, .chats-button.unread::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--phosphor); box-shadow: 0 0 6px var(--phosphor); }
 .chats-button.working::after { animation: klaxon 1.2s ease-in-out infinite; }
-.turns-controls { flex-wrap: wrap; }
-.turns-field { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--ph-dim, var(--text-2)); }
-.turns-field input { width: 52px; background: transparent; border: 1px solid var(--ph-dim, var(--line-2)); color: var(--ph, var(--text)); font: inherit; font-size: 12px; padding: 4px 6px; text-align: center; }
-.turns-field input:disabled { opacity: .45; }
+/* TURNS in MU/TH/UR: a table of settings, one per row — the name, a line on what it does, and
+   its control lined up on the right, so the three read down one column instead of wrapping. */
+.turns-table { display: grid; margin: 10px 0 6px; border-top: 1px solid var(--ph-faint, var(--line-2)); }
+.turns-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 12px 0; border-bottom: 1px solid var(--ph-faint, var(--line-2)); }
+.turns-row.off { opacity: .5; }
+.turns-words { display: grid; gap: 4px; min-width: 0; }
+.turns-words b { font-size: 10.5px; font-weight: 600; letter-spacing: .18em; color: var(--ph, var(--text)); }
+.turns-words span { font-size: 10px; letter-spacing: .06em; text-transform: none; color: var(--ph-dim, var(--text-2)); }
+.turns-switch span { min-width: 28px; font-size: 10px; letter-spacing: .16em; }
+.turns-stepper { display: inline-grid; grid-template-columns: 30px 38px 30px; align-items: stretch; border: 1px solid var(--ph-dim, var(--line-2)); }
+.mother-section.sentinel .turns-stepper button { border: 0; padding: 0; height: 28px; font-size: 14px; letter-spacing: 0; }
+.mother-section.sentinel .turns-stepper button:disabled { opacity: .3; cursor: default; background: transparent; }
+.turns-stepper output { display: grid; place-items: center; border-inline: 1px solid var(--ph-dim, var(--line-2)); font-size: 13px; color: var(--ph, var(--text)); }
+.turns-rule { margin-top: 10px; }
 .project.chat-here { flex: 0 1 auto; max-width: 340px; color: var(--text-2); }
 .chats-foot { padding: 10px 14px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em; color: var(--text-3); }
 /* Its handle sits in the canvas, under the bar, where the conversation it opens begins. */

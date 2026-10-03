@@ -11358,7 +11358,7 @@ function renderTurns(section) {
   if (!turns && !turnsUI.loading && !turnsUI.tried) { void loadTurns(); }
   const summary = !turns ? (turnsUI.loading ? t('READING…') : t('COULD NOT READ')) : turns.enabled ? t('ON · {chats} CONVERSATIONS · {turns} TURNS EACH', { chats: turns.chats, turns: turns.turnsPerChat }) : t('OFF · ONE CONVERSATION AT A TIME');
   const body = folding(section, `${t('TURNS')} · ${summary}`, { key: 'turns', icon: 'bars' });
-  body.append(el('p', 'note', t('HOW MUCH THE ROOM DOES AT ONCE. ON, A CONVERSATION THAT IS TAKING ITS TIME KEEPS WORKING WHILE YOU WRITE IN IT AGAIN OR OPEN ANOTHER; THE LIST OF CONVERSATIONS SHOWS WHICH ARE WORKING AND TELLS YOU WHEN ONE FINISHES. ONLY ONE CONVERSATION AT A TIME MAY HOLD CONTROL OR AIRLOCK. OFF, ONE CONVERSATION DRIVES THE CREW AND SWITCHING AWAY FROM ONE AT WORK IS REFUSED.')));
+  body.append(el('p', 'note', t('HOW MUCH THE ROOM DOES AT ONCE. A CONVERSATION THAT TAKES ITS TIME KEEPS WORKING WHILE YOU WRITE IN IT OR OPEN ANOTHER.')));
   if (!turns) return;
   const save = async (patch) => {
     try {
@@ -11367,21 +11367,35 @@ function renderTurns(section) {
     } catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
     renderMotherSentinel();
   };
-  const controls = el('div', 'sentinel-controls turns-controls');
-  const toggle = el('label', 'toggle');
+  // One row per setting: what it is, one line on what it does, and its control on the right.
+  const table = el('div', 'turns-table');
+  const row = (name, hint, control, { off = false } = {}) => {
+    const line = el('div', `turns-row${off ? ' off' : ''}`);
+    const words = el('div', 'turns-words');
+    words.append(el('b', null, name), el('span', null, hint));
+    line.append(words, control);
+    table.append(line);
+  };
+  const toggle = el('label', 'toggle turns-switch');
   const box = el('input'); box.type = 'checkbox'; box.checked = Boolean(turns.enabled);
   box.addEventListener('change', () => void save({ enabled: box.checked }));
-  toggle.append(box, t('MULTITASKING'));
-  controls.append(toggle);
-  const number = (label, key, max) => {
-    const field = el('label', 'turns-field');
-    const input = el('input'); input.type = 'number'; input.min = '1'; input.max = String(max); input.value = String(turns[key]); input.disabled = !turns.enabled;
-    input.addEventListener('change', () => { const value = Math.min(max, Math.max(1, Number(input.value) || 1)); void save({ [key]: value }); });
-    field.append(el('span', null, label), input);
-    return field;
+  toggle.append(box, el('span', null, turns.enabled ? t('SWITCHED ON') : t('SWITCHED OFF')));
+  row(t('MULTITASKING'), turns.enabled ? t('Several conversations may work at once.') : t('One conversation at a time; switching away from one at work is refused.'), toggle);
+  const stepper = (key, max) => {
+    const box = el('div', 'turns-stepper');
+    const value = turns[key];
+    const less = el('button', null, '−'); less.type = 'button'; less.disabled = !turns.enabled || value <= 1;
+    const more = el('button', null, '+'); more.type = 'button'; more.disabled = !turns.enabled || value >= max;
+    less.setAttribute('aria-label', t('fewer')); more.setAttribute('aria-label', t('more'));
+    less.addEventListener('click', () => void save({ [key]: value - 1 }));
+    more.addEventListener('click', () => void save({ [key]: value + 1 }));
+    box.append(less, el('output', null, String(value)), more);
+    return box;
   };
-  controls.append(number(t('CONVERSATIONS WORKING AT ONCE'), 'chats', 6), number(t('TURNS AT ONCE IN EACH'), 'turnsPerChat', 8));
-  body.append(controls);
+  row(t('CONVERSATIONS AT ONCE'), t('How many conversations may be working at the same time.'), stepper('chats', 6), { off: !turns.enabled });
+  row(t('TURNS PER CONVERSATION'), t('How many answers may be under way inside one conversation.'), stepper('turnsPerChat', 8), { off: !turns.enabled });
+  body.append(table);
+  body.append(el('p', 'note turns-rule', t('ALWAYS · ONE CONVERSATION AT A TIME MAY HOLD CONTROL OR AIRLOCK OF THE PROJECT.')));
 }
 
 function renderMotherSentinel() {
