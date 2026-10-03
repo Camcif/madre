@@ -19,7 +19,7 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 ### Multitarea: varias conversaciones trabajando a la vez
 
 - Si una respuesta se está tardando, ya puedes escribir otra cosa en la misma conversación o abrir otra: la primera sigue trabajando. Antes, cambiar de conversación con un turno en curso no se podía.
-- El panel de **CONVERSACIONES** muestra un indicador de carga en las que están trabajando y un punto en las que terminaron mientras estabas en otra. Cuando una termina, baja un aviso desde arriba con el agente, si terminó o no, en qué conversación y un botón para abrirla; si lo permites, también llega una notificación del sistema.
+- El panel de **CONVERSACIONES** muestra un indicador de carga en las que están trabajando y un punto en las que terminaron mientras estabas en otra. Cuando una termina, aparece un aviso a la izquierda, junto al botón de conversaciones y sin taparlo: si terminó o no, en qué conversación, qué agente respondió y un botón para abrirla; si lo permites, también llega una notificación del sistema.
 - **NOTIFICACIONES**, en TURNOS: un botón para activarlas, y la fila dice si el navegador las bloqueó. Llegan cuando termina una conversación que no estás mirando, otra o esta misma con la pestaña al fondo; al presionarla vuelves a esa conversación.
 - La pestaña del navegador dice **MADRE · nombre de la conversación**, para distinguir varias salas abiertas.
 - **TURNOS**, en MU/TH/UR junto al centinela, decide cuánto hace la sala a la vez: cuántas conversaciones pueden trabajar al mismo tiempo (2 por defecto) y cuántos turnos a la vez en cada una (3). Viene encendido. Apagado, la sala trabaja como antes: una conversación a la vez.

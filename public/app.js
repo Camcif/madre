@@ -4159,37 +4159,50 @@ function onChatActivity({ chatId, working, finished } = {}) {
   }
   renderChats();
 }
-// A conversation finished somewhere you are not looking. A card that comes down from the top:
-// who answered, whether it went through, which conversation, and the way there. It leaves on its
-// own unless the pointer is over it; the newest is on top and at most three wait at once.
+// A conversation finished somewhere you are not looking. A card on the left, beside the button
+// that opens the conversations (never over it): what happened, which conversation, who answered,
+// and the way there. A thin line runs down while it waits; the pointer over it holds it.
+const NOTICE_MS = 9000;
 const noticesBox = el('div', 'notices');
 noticesBox.setAttribute('role', 'status');
 noticesBox.setAttribute('aria-live', 'polite');
 document.body.append(noticesBox);
+// Beside whatever is on the left: the open list of conversations, or the button that opens it.
+function placeNotices() {
+  const anchor = (!els.chats?.hidden && els.chats) || els.chatsButton;
+  const rect = anchor?.getBoundingClientRect?.();
+  if (!rect || !rect.width) { noticesBox.style.removeProperty('--notice-left'); noticesBox.style.removeProperty('--notice-top'); return; }
+  noticesBox.style.setProperty('--notice-left', `${Math.round(rect.right + 12)}px`);
+  noticesBox.style.setProperty('--notice-top', `${Math.round(rect.top)}px`);
+}
+window.addEventListener?.('resize', placeNotices);
 function showNotice({ agent, ok, chatId, chat }) {
-  const card = paint(el('div', `notice${ok ? '' : ' failed'}`), agent ?? 'madre');
-  const face = avatar(agent ?? 'madre', { size: 34 });
-  const words = el('div', 'notice-words');
-  const head = el('div', 'notice-head');
-  head.append(el('b', null, `@${agent ?? '?'}`));
-  const status = el('span', 'notice-status');
-  status.append(pixelIcon(ok ? 'check' : 'fault', 'pixel-icon'), ok ? t('FINISHED') : t('COULD NOT FINISH'));
-  head.append(status);
-  const where = el('div', 'notice-chat');
-  where.append(pixelIcon('list', 'pixel-icon'), el('span', null, chat));
-  words.append(head, where, el('div', 'notice-when', `${formatTime(new Date().toISOString())} · ${t('ANOTHER CONVERSATION')}`));
-  const actions = el('div', 'notice-actions');
-  const go = el('button', 'notice-open', t('OPEN'));
-  go.type = 'button';
+  placeNotices();
+  const who = agent ?? 'madre';
+  const card = paint(el('div', `notice${ok ? '' : ' failed'}`), who);
+  const top = el('div', 'notice-top');
+  top.append(el('span', 'notice-state', ok ? t('FINISHED') : t('COULD NOT FINISH')), el('span', 'notice-time', formatTime(new Date().toISOString())));
   const close = el('button', 'notice-close', '×');
   close.type = 'button';
   close.setAttribute('aria-label', t('Dismiss'));
-  actions.append(go, close);
-  card.append(face, words, actions);
+  top.append(close);
+  const name = el('div', 'notice-chat', chat);
+  name.title = chat;
+  const foot = el('div', 'notice-foot');
+  const by = el('span', 'notice-by');
+  by.append(avatar(who, { size: 18 }), el('span', null, t('@{agent} answered', { agent: who })));
+  const go = el('button', 'notice-open', t('OPEN →'));
+  go.type = 'button';
+  foot.append(by, go);
+  const life = el('i', 'notice-life');
+  life.style.animationDuration = `${NOTICE_MS}ms`;
+  card.append(top, name, foot, life);
   let timer = null;
+  let left = NOTICE_MS;
+  let since = Date.now();
   const leave = () => { clearTimeout(timer); card.classList.add('leaving'); setTimeout(() => card.remove(), 220); };
-  const arm = () => { clearTimeout(timer); timer = setTimeout(leave, 9000); };
-  card.addEventListener('mouseenter', () => clearTimeout(timer));
+  const arm = () => { since = Date.now(); clearTimeout(timer); timer = setTimeout(leave, left); card.classList.remove('held'); };
+  card.addEventListener('mouseenter', () => { clearTimeout(timer); left = Math.max(1500, left - (Date.now() - since)); card.classList.add('held'); });
   card.addEventListener('mouseleave', arm);
   close.addEventListener('click', (event) => { event.stopPropagation(); leave(); });
   const open = () => { leave(); if (chatId !== chats.active) void openChat(chatId); };
