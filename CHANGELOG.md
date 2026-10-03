@@ -16,6 +16,18 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 - En el aviso para armar CONTROL o AIRLOCK, la línea bajo **MU/TH/UR 6000** ya no se aprieta en una columna angosta, y en el teléfono el botón **ARMAR** ya no se sale de la pantalla.
 - El campo de la designación, los avisos de solo lectura cuando falta permiso para crear y las alertas de MU/TH/UR sobre planes y modos ya salen en el idioma de la sala.
 
+### Las elecciones dicen qué permiso necesita cada opción
+
+- Cuando una opción implica crear archivos, editar el proyecto o correr comandos, el agente la marca con el modo que necesita y la opción lo muestra (**#3 CONTROL**, **#4 AIRLOCK**). Al presionarla se escribe en el compositor y se arma ese modo: #2 directo, #3 y #4 con su designación de siempre.
+
+### SERVIDORES marca el de este proyecto
+
+- En el menú de servidores locales, el que arrancó este proyecto aparece primero, con la marca **ESTE PROYECTO**.
+
+### La tarjeta de CONTROL se lee completa
+
+- El estado de cada archivo (**MODIFICADO**, **AÑADIDO**…) ya no se parte a la mitad, las rutas largas se alinean a la izquierda y cortan dentro de sí, y «cambió 1 archivo» va en singular.
+
 ### Actualizar desde la sala ya no la deja cerrada
 
 - Al presionar **REINICIAR CON** una versión recién publicada, la sala se cerraba antes de saber si npm ya la entregaba; si todavía no, no volvía y había que levantarla a mano. Ahora descarga la versión primero y solo se cierra cuando la tiene. Si npm aún no la entrega, la sala sigue abierta y te dice que lo intentes en unos minutos.

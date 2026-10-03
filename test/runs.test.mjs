@@ -216,3 +216,21 @@ test('models: a model chosen for one agent never reaches another, and a CLI that
     await room.shutdown();
   } finally { await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 }); }
 });
+
+test('ports: the server this project started is told apart from the rest of the machine', async () => {
+  const { parseCwds, inProject } = await import('../src/ports.mjs');
+  const cwds = parseCwds('p4399\nfcwd\nn/Users/x/gumball/packages/web\np9294\nfcwd\nn/Users/x/other\n');
+  assert.equal(cwds.get(4399), '/Users/x/gumball/packages/web');
+  assert.equal(inProject(cwds.get(4399), '/Users/x/gumball'), true);
+  assert.equal(inProject(cwds.get(9294), '/Users/x/gumball'), false);
+  assert.equal(inProject('/Users/x/gumball-old', '/Users/x/gumball'), false, 'a sibling with a longer name is not the project');
+});
+
+test('choices: an option may say the mode it needs, in either order with the recommendation', async () => {
+  const { parseChoice } = await import('../src/choices.mjs');
+  const asked = parseChoice('x\n\n```pulse-ask\n¿Qué hago?\n- Commitea P1 y P2 (#4) (recommended)\n- Revierte y corre pruebas (recomendada) [#3 CONTROL]\n- Lo pienso antes\n```');
+  assert.deepEqual(asked.options, ['Commitea P1 y P2', 'Revierte y corre pruebas', 'Lo pienso antes']);
+  assert.deepEqual(asked.modes, [4, 3, null]);
+  assert.equal(asked.recommended, 0);
+  assert.equal(parseChoice('x\n\n```pulse-ask\n¿Qué?\n- a\n- b\n- c\n```').modes, undefined, 'a choice that is all talk carries no modes');
+});

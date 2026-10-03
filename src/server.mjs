@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access } from 'node:fs/promises';
 import { openSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { classifyListening, probePort, framable } from './ports.mjs';
+import { classifyListening, probePort, framable, parseCwds, inProject } from './ports.mjs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
@@ -1169,6 +1169,18 @@ export async function createPulseServer({
         for (const found of listening.ports.slice(0, 24)) {
           const probe = await probePort(found.port, { fetchImpl: reportFetch });
           if (probe.ok) ports.push({ ...found, status: probe.status, html: probe.html, contentType: probe.contentType, framable: probe.framable });
+        }
+        // Which of them this project started: the process's working folder is inside the project.
+        // A badge, and first in the list — the server a human opens RIPLEY for is nearly always this one.
+        if (ports.length) {
+          try {
+            // lsof exits 1 when one of the processes is already gone, and still prints the others.
+            const stdout = await execFileAsync('lsof', ['-a', '-p', ports.map((port) => port.pid).join(','), '-d', 'cwd', '-Fpn'], { timeout: 4000, maxBuffer: 1024 * 1024 })
+              .then((result) => result.stdout, (error) => String(error.stdout ?? ''));
+            const cwds = parseCwds(stdout);
+            for (const port of ports) port.here = inProject(cwds.get(port.pid), canonicalProjectRoot) || undefined;
+            ports.sort((a, b) => Number(Boolean(b.here)) - Number(Boolean(a.here)) || a.port - b.port);
+          } catch { /* no folders, no badge: the list stands as it was */ }
         }
         // What is listening on every interface travels too. It is not offered — this room does not
         // help anyone frame something reachable from the network — but saying nothing about it is

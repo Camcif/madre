@@ -35,6 +35,10 @@ const MAX_OPTION = 320;
 
 const RECOMMENDED = /\s*[(\[]\s*(?:recommended|recomendad[ao]|sugerid[ao])\s*[)\]]\s*$/i;
 const STAR = /^[★☆⭐]\s*/;
+// The mode an option needs, written by the agent at its end: (#3), [#2 CREATE], #4. Below #1
+// nothing needs saying; an option that changes the project says which permission it will take,
+// so the human sees it before pressing rather than after the agent refuses.
+const MODE = /\s*[(\[]?\s*#([0-4])(?:\s+[A-Za-z]+)?\s*[)\]]?\s*$/;
 
 function clip(text, max) {
   if (text.length <= max) return text;
@@ -58,12 +62,21 @@ export function parseChoice(text) {
   const options = [];
   const seen = new Set();
   let recommended = null;
+  const modes = [];
   for (const line of lines.slice(question ? 1 : 0)) {
     const match = line.match(/^[-*•]\s+(.+)$/);
     if (!match) continue;
     let label = match[1].trim();
-    const marked = RECOMMENDED.test(label) || STAR.test(label);
-    label = clip(label.replace(RECOMMENDED, '').replace(STAR, '').trim(), MAX_OPTION);
+    // The two marks come in either order: «… (#3) (recommended)» or «… (recommended) #3».
+    let marked = STAR.test(label);
+    let mode = null;
+    label = label.replace(STAR, '');
+    for (let pass = 0; pass < 2; pass += 1) {
+      if (RECOMMENDED.test(label)) { marked = true; label = label.replace(RECOMMENDED, ''); }
+      const found = label.match(MODE);
+      if (found && mode === null) { mode = Number(found[1]); label = label.replace(MODE, ''); }
+    }
+    label = clip(label.trim(), MAX_OPTION);
     // The same option twice is a mistake, and a choice that offers it twice reads as rigged.
     const key = label.toLowerCase();
     if (!label || seen.has(key)) continue;
@@ -72,10 +85,12 @@ export function parseChoice(text) {
     // would punish the agent for the half it got right.
     if (marked && recommended === null) recommended = options.length;
     options.push(label);
+    modes.push(mode);
   }
   if (!question) return null;
   if (options.length < MIN_OPTIONS || options.length > MAX_OPTIONS) return null;
-  return { question, options, recommended };
+  // Modes travel only when an option has one: a choice that is all talk carries no column of nulls.
+  return { question, options, recommended, ...(modes.some((mode) => mode !== null) ? { modes } : {}) };
 }
 
 // What the reply reads as once the block has been lifted out of it: the room shows the question

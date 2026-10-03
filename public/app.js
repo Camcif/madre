@@ -883,6 +883,7 @@ async function browserServers() {
     const kind = found.html ? '' : (found.contentType ?? '').trim();
     const what = `${found.command} · ${found.status}${kind ? ` · ${kind}` : ''}`;
     row.append(el('b', null, `:${found.port}`), el('span', null, found.framable === false ? t('{what} · refuses to be framed', { what }) : what));
+    if (found.here) { row.classList.add('here'); row.append(el('span', 'ports-here', t('THIS PROJECT'))); }
     if (found.framable === false) row.classList.add('refuses');
     row.addEventListener('click', () => {
       portsMenuShown(false);
@@ -2916,7 +2917,7 @@ function renderControlChanged(event) {
   node.id = `control-${checkpointId}`;
   node.style.setProperty('--agent', agentColor(agent));
   const head = el('div', 'head');
-  head.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), files.length ? t(' changed {n} files', { n: files.length }) : t(' changed nothing'));
+  head.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), el('span', null, (files.length === 1 ? t(' changed 1 file') : files.length ? t(' changed {n} files', { n: files.length }) : t(' changed nothing')).trim()));
   node.append(head);
   if (files.length) {
     const list = el('ul', 'files');
@@ -3202,7 +3203,7 @@ async function renderSettled() {
 // send, and the half that got cut was the half that made it an option — and the agent's own pick
 // leads, marked, so the human can take it with one press or see at once what they are overruling.
 function renderChoice(event) {
-  const { question, options = [], agent, recommended = null } = event.payload;
+  const { question, options = [], agent, recommended = null, modes = [] } = event.payload;
   if (!options.length) return null;
   const node = el('div', 'choice');
   node.style.setProperty('--agent', agentColor(agent));
@@ -3220,13 +3221,27 @@ function renderChoice(event) {
     const button = el('button', `choice-option${lead ? ' recommended' : ''}`);
     button.type = 'button';
     button.append(el('span', 'choice-key', String(position + 1)), el('span', 'choice-text', option));
-    if (lead) button.append(el('span', 'choice-tag', t('RECOMMENDED')));
+    // The permission this option needs, said before it is pressed. Pressing it arms that mode the
+    // way the mode chip does: #1 and #2 at once, #3 and #4 through their own ceremony.
+    const mode = Number.isInteger(modes[index]) && MODES[modes[index]] ? modes[index] : null;
+    const tags = el('span', 'choice-tags');
+    if (mode !== null) {
+      const chip = el('span', `choice-mode m${mode}`, `#${mode} ${MODES[mode].label}`);
+      chip.title = t('Pressing it arms #{n} {label} for @{agent}', { n: mode, label: MODES[mode].label, agent });
+      tags.append(chip);
+    }
+    if (lead) tags.append(el('span', 'choice-tag', t('RECOMMENDED')));
+    if (tags.childNodes.length) button.append(tags);
     button.addEventListener('click', () => {
       for (const other of list.querySelectorAll('.choice-option.picked')) other.classList.remove('picked');
       button.classList.add('picked');
       els.input.value = option;
       els.input.dispatchEvent(new Event('input', { bubbles: true }));
       els.input.focus();
+      if (mode === null || !state.agents.get(agent)?.ready) return;
+      if (state.mode === mode && els.target.value === agent) return;
+      if (mode >= 3) openOverride(agent, { mode, raise: mode > ceilingFor(agent) && Boolean(state.capabilities[agent]?.scopes?.write?.capable) });
+      else { els.target.value = agent; renderPicker(); setMode(mode, { wink: true }); }
     });
     list.append(button);
   });

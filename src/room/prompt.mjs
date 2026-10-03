@@ -130,10 +130,11 @@ export function promptParts({
         'If answering well means the human has to pick between three or more real options, end your reply with one fenced block:',
         '```pulse-ask',
         '<the question, one line>',
-        '- <the option you would pick> (recommended)',
+        '- <the option you would pick> (#3) (recommended)',
         '- <option>',
         '- <option>',
         '```',
+        'If carrying out an option needs more than reading (#2 to create files, #3 to edit the project, #4 to run commands), end it with that mode in parentheses, like "(#3)", before "(recommended)"; the human sees it and pressing the option arms it.',
         'Three to six options, the question first, nothing after the block. Exactly one option ends with "(recommended)": the one you would pick, listed first. Write each option whole, as the sentence the human would send; they are shown in full. MADRE shows them as buttons and pressing one writes it into the composer; nothing runs and no turn is spent until the human presses. Not for yes/no, and never instead of a recommendation you could simply give.',
       ].join('\n')
       : null },

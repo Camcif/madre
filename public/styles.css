@@ -1575,13 +1575,15 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .system.control .who { color: var(--agent); }
 .system.control code { font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--terror) 45%, transparent); border-radius: 6px; }
 .system.control.changed { display: grid; gap: 8px; justify-items: center; max-width: min(760px, 92%); padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--terror) 55%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--terror) 6%, transparent); text-shadow: none; text-transform: none; letter-spacing: 0; font-size: 12.5px; }
-.system.control.changed .head { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; }
+.system.control.changed .head { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; }
 .system.control.changed.quiet { border-style: dashed; color: var(--text-2); background: transparent; }
-.system.control .files { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; justify-items: start; text-align: left; }
-.system.control .files li { display: flex; gap: 8px; align-items: center; }
-.system.control .files .st { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); min-width: 64px; }
+/* The status and the path in two columns: the status never breaks inside a word (MODIFICADO used
+   to split as MODIFICAD / O), and a long path breaks inside itself, left-aligned, not centred. */
+.system.control .files { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; justify-self: stretch; text-align: left; }
+.system.control .files li { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.system.control .files .st { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); min-width: 64px; white-space: nowrap; }
 .system.control .files .st.A { color: var(--phosphor); } .system.control .files .st.M { color: var(--warn); } .system.control .files .st.D { color: var(--danger); }
-.system.control .files .file-ref { font-family: var(--mono); font-size: 12px; color: var(--text); background: transparent; border: 0; border-bottom: 1px dashed var(--line-2); padding: 0; cursor: pointer; }
+.system.control .files .file-ref { font-family: var(--mono); font-size: 12px; color: var(--text); background: transparent; border: 0; border-bottom: 1px dashed var(--line-2); padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; justify-self: start; }
 .system.control .files .file-ref:disabled { text-decoration: line-through; cursor: default; }
 .system.control .stat { margin: 0; font-family: var(--mono); font-size: 10.5px; color: var(--text-3); white-space: pre-wrap; }
 .system.control .forbidden { font-family: var(--mono); font-size: 10.5px; color: var(--danger); letter-spacing: .04em; }
@@ -1766,6 +1768,8 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .ports-row b { font-family: var(--mono); font-size: 12.5px; color: var(--phosphor); }
 .ports-row span { font-size: 11.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ports-row:hover { background: color-mix(in srgb, var(--phosphor) 12%, transparent); }
+.ports-row.here { grid-template-columns: auto minmax(0, 1fr) auto; }
+.ports-row .ports-here { align-self: center; padding: 2px 8px; border: 1px solid var(--phosphor); border-radius: 999px; color: var(--phosphor); font-family: var(--mono); font-size: 8.5px; font-weight: 700; letter-spacing: .14em; overflow: visible; }
 /* Found and not offered: it is there, and it is not something this room will frame. */
 .ports-row.wider { cursor: default; opacity: .62; }
 .ports-row.wider:hover { background: transparent; }
@@ -1817,6 +1821,9 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .choice-tag { align-self: center; padding: 4px 9px; border: 1px solid color-mix(in srgb, var(--agent, var(--phosphor)) 45%, transparent); border-radius: 999px; color: var(--agent, var(--phosphor)); font-family: var(--mono); font-size: 8.5px; font-weight: 600; letter-spacing: .16em; white-space: nowrap; }
 .choice-option.recommended { border-color: color-mix(in srgb, var(--agent, var(--phosphor)) 40%, var(--line-2)); background: color-mix(in srgb, var(--agent, var(--phosphor)) 6%, var(--panel)); }
 .choice-option.recommended .choice-key { border-color: color-mix(in srgb, var(--agent, var(--phosphor)) 50%, transparent); color: var(--agent, var(--phosphor)); }
+.choice-tags { align-self: center; display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.choice-mode { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; border: 1px solid currentColor; font-family: var(--mono); font-size: 8.5px; font-weight: 600; letter-spacing: .16em; white-space: nowrap; color: var(--text-2); }
+.choice-mode.m2 { color: var(--phosphor); } .choice-mode.m3 { color: var(--terror); } .choice-mode.m4 { color: var(--mode-4); }
 .choice-option.picked { border-color: color-mix(in srgb, var(--agent, var(--phosphor)) 70%, transparent); background: color-mix(in srgb, var(--agent, var(--phosphor)) 10%, var(--panel)); }
 .choice-option.picked .choice-key { background: var(--agent, var(--phosphor)); border-color: transparent; color: var(--bg); }
 .choice-foot { margin: 14px 2px 0; font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; color: var(--text-3); }
@@ -1824,6 +1831,7 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
   .choice { margin: 12px 0 4px; padding: 14px 12px 12px; }
   .choice-option { grid-template-columns: 24px minmax(0, 1fr); gap: 12px; }
   .choice-tag { grid-column: 2; justify-self: start; }
+  .choice-tags { grid-column: 2; justify-self: start; }
 }
 
 /* A command an agent asks the human to run: a .choice whose options are command lines. The line

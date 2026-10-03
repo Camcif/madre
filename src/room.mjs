@@ -1505,7 +1505,7 @@ export class Room {
         const validation = validateAshReply({ request: text, response: result.text });
         await this.#emit('ash.validated', { messageId, responseMessageId, agent: agent.id, ...validation });
       }
-      if (asked) await this.#emit('choice.offered', { messageId, responseMessageId, agent: agent.id, question: asked.question, options: asked.options, recommended: asked.recommended ?? undefined });
+      if (asked) await this.#emit('choice.offered', { messageId, responseMessageId, agent: agent.id, question: asked.question, options: asked.options, recommended: asked.recommended ?? undefined, modes: asked.modes ?? undefined });
       if (requested) await this.#emit('run.requested', { messageId, responseMessageId, agent: agent.id, reason: requested.reason, commands: requested.commands });
       if (guarded.hits) await this.#emit('privacy.redacted', { agent: agent.id, messageId, responseMessageId, hits: guarded.hits, marker: this.#privacy.marker });
       if (artifacts.length) {

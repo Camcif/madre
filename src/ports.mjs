@@ -53,6 +53,26 @@ export function classifyListening(output = '', { self = null } = {}) {
   };
 }
 
+// Where each listening process was started, from `lsof -a -p <pids> -d cwd -Fpn`: a `p<pid>` line
+// then an `n<path>` line. Same tool, same read-only look; it is how a list of ports learns which
+// one is this project's own dev server rather than somebody else's on the same machine.
+export function parseCwds(output = '') {
+  const cwds = new Map();
+  let pid = null;
+  for (const line of String(output ?? '').split('\n')) {
+    if (line.startsWith('p')) pid = Number(line.slice(1));
+    else if (line.startsWith('n') && Number.isInteger(pid)) cwds.set(pid, line.slice(1));
+  }
+  return cwds;
+}
+
+// A process started in the project or anywhere under it serves this project.
+export function inProject(cwd, projectRoot) {
+  if (!cwd || !projectRoot) return false;
+  const root = String(projectRoot).replace(/\/+$/, '');
+  return cwd === root || cwd.startsWith(`${root}/`);
+}
+
 // What RIPLEY may open, which is what nearly every caller wants.
 export function parseListening(output = '', options = {}) {
   return classifyListening(output, options).ports;

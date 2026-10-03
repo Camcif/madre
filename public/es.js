@@ -1138,6 +1138,7 @@ export const ES = {
   'MU/TH/UR › @{agent} holds CONTROL. Checkpoint taken; UNDO will be one click.':
     'MU/TH/UR › @{agent} tiene CONTROL. Checkpoint tomado; DESHACER va a ser un clic.',
   ' changed {n} files': ' cambió {n} archivos',
+  ' changed 1 file': ' cambió 1 archivo',
   ' changed nothing': ' no cambió nada',
   'added': 'agregado',
   'modified': 'modificado',
@@ -2658,6 +2659,7 @@ export const ES = {
   // Una elección que devuelve un agente.
   '@{agent} asks you to choose': '@{agent} te pide elegir',
   'RECOMMENDED': 'RECOMENDADA',
+  'Pressing it arms #{n} {label} for @{agent}': 'Al presionarla se arma #{n} {label} para @{agent}',
   'CLI': 'CLI',
 
   // Un comando que un agente te pide correr.
