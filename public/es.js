@@ -2780,6 +2780,20 @@ export const ES = {
     'SIEMPRE · SOLO UNA CONVERSACIÓN A LA VEZ PUEDE TENER CONTROL O AIRLOCK DEL PROYECTO.',
   'SWITCHED ON': 'ENCENDIDO',
   'SWITCHED OFF': 'APAGADO',
+  'BLOCKED':
+    'BLOQUEADAS',
+  'NOT HERE':
+    'NO DISPONIBLE',
+  'TURN ON':
+    'ACTIVAR',
+  'NOTIFICATIONS':
+    'NOTIFICACIONES',
+  'This browser blocked them for this page; allow them in its site settings.':
+    'Este navegador las bloqueó para esta página; permítelas en la configuración del sitio.',
+  'This browser does not offer notifications.':
+    'Este navegador no ofrece notificaciones.',
+  'A system notification when a conversation finishes and you are not looking at it.':
+    'Una notificación del sistema cuando termina una conversación que no estás mirando.',
   'MULTITASKING':
     'MULTITAREA',
   'This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.':

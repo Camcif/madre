@@ -20,6 +20,8 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 - Si una respuesta se está tardando, ya puedes escribir otra cosa en la misma conversación o abrir otra: la primera sigue trabajando. Antes, cambiar de conversación con un turno en curso no se podía.
 - El panel de **CONVERSACIONES** muestra un indicador de carga en las que están trabajando y un punto en las que terminaron mientras estabas en otra. Cuando una termina, MU/TH/UR te avisa, y si lo permites también llega una notificación del sistema.
+- **NOTIFICACIONES**, en TURNOS: un botón para activarlas, y la fila dice si el navegador las bloqueó. Llegan cuando termina una conversación que no estás mirando, otra o esta misma con la pestaña al fondo; al presionarla vuelves a esa conversación.
+- La pestaña del navegador dice **MADRE · nombre de la conversación**, para distinguir varias salas abiertas.
 - **TURNOS**, en MU/TH/UR junto al centinela, decide cuánto hace la sala a la vez: cuántas conversaciones pueden trabajar al mismo tiempo (2 por defecto) y cuántos turnos a la vez en cada una (3). Viene encendido. Apagado, la sala trabaja como antes: una conversación a la vez.
 - Solo una conversación a la vez puede tener **CONTROL** o **AIRLOCK** del proyecto, aunque haya varias trabajando, y **DESHACER** funciona desde cualquiera.
 - Al cambiar de conversación, la sala conserva lo que ajustaste: el modo máximo de cada agente, los módulos encendidos y los tiempos límite. Antes, una conversación recién abierta los perdía.

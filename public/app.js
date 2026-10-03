@@ -3560,6 +3560,8 @@ function renderEventNode(event) {
     case 'message.created':
       node = event.payload.role === 'user' ? renderUserMessage(event) : renderAssistantMessage(event);
       if (event.payload.role !== 'user') removeThinking(event.payload.parentMessageId);
+      // The first thing said names a conversation; the tab and the list learn the name from the room.
+      if (event.payload.role === 'user' && !replaying) setTimeout(() => void loadChats(), 600);
       // The room refused to hand this agent a model that is not its own. Forget it here too, or
       // the chip keeps offering it and every message pays for the same mistake.
       if (event.payload.modelIgnored && !replaying) {
@@ -4136,25 +4138,52 @@ function renderChats() {
     els.chatsBody.append(row);
   }
   paintChatsButton();
+  paintTitle();
 }
 
 // Something is happening in a conversation, said live by the server whichever one is on screen.
 function onChatActivity({ chatId, working, finished } = {}) {
   const entry = chats.list.find((chat) => chat.id === chatId);
   if (entry) entry.working = Boolean(working);
-  if (finished && chatId !== chats.active && !replaying) {
-    chats.unread.add(chatId);
+  const elsewhere = chatId !== chats.active;
+  const away = document.hidden || !document.hasFocus();
+  if (finished && !replaying && (elsewhere || away)) {
     const title = entry?.title ?? t('another conversation');
     const said = finished.ok
       ? t('MU/TH/UR › @{agent} finished in «{chat}».', { agent: finished.agent ?? '?', chat: title })
       : t('MU/TH/UR › @{agent} could not finish in «{chat}».', { agent: finished.agent ?? '?', chat: title });
-    toast(said);
-    if (typeof Notification === 'function' && Notification.permission === 'granted' && document.hidden) {
-      try { new Notification('MADRE', { body: said.replace(/^MU\/TH\/UR › /, ''), tag: `chat-${chatId}` }); } catch { /* not offered */ }
-    }
+    if (elsewhere) { chats.unread.add(chatId); toast(said); }
+    // A notification for whoever is not looking at it: another conversation, or this one while the
+    // tab is behind something else. Pressing it brings the room back, at that conversation.
+    notifyFinished(said.replace(/^MU\/TH\/UR › /, ''), chatId);
   }
   renderChats();
 }
+function notificationsState() {
+  if (typeof Notification !== 'function') return 'unsupported';
+  return Notification.permission;   // 'default' · 'granted' · 'denied'
+}
+// Asked only from a press: browsers refuse a request that no gesture started.
+async function askForNotifications() {
+  if (notificationsState() !== 'default') return notificationsState();
+  try { return await Notification.requestPermission(); } catch { return notificationsState(); }
+}
+function notifyFinished(body, chatId) {
+  if (notificationsState() !== 'granted') return;
+  try {
+    const note = new Notification('MADRE', { body, tag: `chat-${chatId}`, icon: '/assets/brand/madre-favicon.svg' });
+    note.onclick = () => { window.focus(); note.close(); if (chatId !== chats.active) void openChat(chatId); };
+  } catch { /* not offered here */ }
+}
+
+// The tab says which conversation it is, so a row of MADRE tabs can be told apart.
+function paintTitle() {
+  const here = chats.list.find((chat) => chat.id === chats.active);
+  const name = here?.title && !/^(Untitled|First conversation)$/i.test(here.title) ? here.title : (document.querySelector('#project')?.textContent?.replace(/^\/\s*/, '').trim() || '');
+  const clipped = name.length > 48 ? `${name.slice(0, 47)}…` : name;
+  document.title = clipped ? `MADRE · ${clipped}` : 'MADRE';
+}
+
 // The toggle says it too, so a closed panel still shows that something is at work or waiting.
 function paintChatsButton() {
   if (!els.chatsButton) return;
@@ -4176,7 +4205,7 @@ async function openChat(id) {
   // Leaving a conversation at work is the moment to ask once for a system notification, while
   // the click still counts as the human's: it is how they hear that it finished.
   const leavingBusy = chats.list.find((chat) => chat.id === chats.active)?.working;
-  if (leavingBusy && typeof Notification === 'function' && Notification.permission === 'default') { try { void Notification.requestPermission(); } catch { /* not offered */ } }
+  if (leavingBusy) void askForNotifications();
   chats.unread.delete(id);
   const response = await fetch(`/api/chats/${id}`, { method: 'POST' });
   const result = await response.json().catch(() => ({}));
@@ -4201,6 +4230,7 @@ els.chatsButton?.addEventListener('click', () => setChats(!chats.open));
 els.chatsClose?.addEventListener('click', () => setChats(false));
 els.chatsNew?.addEventListener('click', async () => {
   els.chatsNew.disabled = true;
+  if (chats.list.some((chat) => chat.working)) await askForNotifications();
   const response = await fetch('/api/chats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'the conversation was not started.'}`); els.chatsNew.disabled = false; return; }
@@ -4332,6 +4362,7 @@ if (initial.chats?.chats?.length > 1) {
 }
 chats.list = initial.chats?.chats ?? [];
 chats.active = initial.chats?.active ?? null;
+paintTitle();
 if (els.treeRoot) els.treeRoot.textContent = `/ ${initial.projectRoot.split('/').filter(Boolean).at(-1) ?? ''}`;
 state.budget = Number.isFinite(initial.softTokenBudget) && initial.softTokenBudget > 0 ? initial.softTokenBudget : null;
 state.timeouts = initial.timeouts ?? {};
@@ -11392,6 +11423,14 @@ function renderTurns(section) {
     box.append(less, el('output', null, String(value)), more);
     return box;
   };
+  const notes = notificationsState();
+  const ask = el('button', 'turns-ask', notes === 'granted' ? t('SWITCHED ON') : notes === 'denied' ? t('BLOCKED') : notes === 'unsupported' ? t('NOT HERE') : t('TURN ON'));
+  ask.type = 'button';
+  ask.disabled = notes !== 'default';
+  ask.addEventListener('click', async () => { await askForNotifications(); renderMotherSentinel(); });
+  row(t('NOTIFICATIONS'), notes === 'denied'
+    ? t('This browser blocked them for this page; allow them in its site settings.')
+    : notes === 'unsupported' ? t('This browser does not offer notifications.') : t('A system notification when a conversation finishes and you are not looking at it.'), ask);
   row(t('CONVERSATIONS AT ONCE'), t('How many conversations may be working at the same time.'), stepper('chats', 6), { off: !turns.enabled });
   row(t('TURNS PER CONVERSATION'), t('How many answers may be under way inside one conversation.'), stepper('turnsPerChat', 8), { off: !turns.enabled });
   body.append(table);
