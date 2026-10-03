@@ -173,8 +173,10 @@ body {
 .brand { display: flex; align-items: center; text-decoration: none; cursor: pointer; }
 /* The kit's horizontal logo, its geometry untouched: pulse and word in one drawing, at the kit's
    own proportion. No glow, no recolouring of the letters (kit §3.5). It still draws itself in once. */
-.brand-logo { display: block; height: 20px; width: auto; overflow: visible; }
-.brand-icon { display: none; height: 20px; width: auto; overflow: visible; }
+/* 16 px tall puts the word's capitals at the height of the bar's own labels, so the logo sits in
+   the row instead of shouting over it. The kit's proportions are untouched; only the size. */
+.brand-logo { display: block; height: 16px; width: auto; overflow: visible; }
+.brand-icon { display: none; height: 16px; width: auto; overflow: visible; }
 .brand-icon .pulse { stroke: var(--brand-pulse); }
 .brand-icon .pulse .beat-dot { fill: var(--brand-pulse); }
 .brand-logo .pulse { stroke: var(--brand-pulse); }
@@ -1734,12 +1736,14 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .reply-quote {
   grid-column: 1 / -1;
   display: flex; align-items: baseline; gap: 7px;
-  margin: 2px 0 0 -6px; padding: 6px 8px 6px 12px; border-radius: 12px;
+  /* Its words start in the column the label below starts in. */
+  margin: 2px 0 2px -12px; padding: 6px 8px 6px 12px; border-radius: 12px;
   background: color-mix(in srgb, var(--text-3) 9%, transparent);
   font-size: 13px; line-height: 1.4; color: var(--text-3);
 }
-/* With something quoted the field gives you room to answer in rather than one cramped line. */
-.field.quoting textarea, .field.quoting .highlight { min-height: 42px; }
+/* A quote used to give the field a taller box to write in, but the writing still began on the
+   box's first line while the label and the buttons sat at its middle: the line you typed on and
+   the line that said who you were talking to no longer met. The field grows as you write instead. */
 .reply-quote b { flex: none; color: var(--text-2); font-weight: 600; }
 .reply-quote .said { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .reply-quote .drop { flex: none; margin-left: auto; width: 18px; height: 18px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); font-size: 14px; line-height: 1; cursor: pointer; }

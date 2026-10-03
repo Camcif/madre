@@ -12,6 +12,10 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 - El logo de la barra es el oficial: el pulso en verde y la palabra MADRE en blanco (en tema claro, verde oscuro y casi negro). En barras angostas queda solo el pulso.
 - La pestaña del navegador muestra el ícono de MADRE, y @madre lleva el pulso compacto de la marca.
 
+### Responder citando ya no deforma la caja
+
+- Al responder a un mensaje, la línea donde escribes quedaba por encima de la etiqueta y los botones. Ahora la cita ocupa su propia fila, alineada con la etiqueta, y la caja crece solo cuando escribes más de una línea.
+
 ### Multitarea: varias conversaciones trabajando a la vez
 
 - Si una respuesta se está tardando, ya puedes escribir otra cosa en la misma conversación o abrir otra: la primera sigue trabajando. Antes, cambiar de conversación con un turno en curso no se podía.

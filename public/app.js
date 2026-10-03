@@ -4446,9 +4446,9 @@ function autosize() {
   const padding = 14; // 7px top + bottom, content-box
   const needed = Math.max(1, Math.ceil((els.input.scrollHeight - padding) / LINE_PX));
   const rows = Math.min(Number.isFinite(needed) ? needed : 1, MAX_ROWS);
-  // While a quote is held the field asks for more room than one line; the CSS minimum sets it,
-  // so the height is left to grow rather than pinned back to what the text alone needs.
-  els.input.style.height = `${Math.max(rows, els.field?.classList.contains('quoting') ? 2 : 1) * LINE_PX}px`;
+  // As tall as what is written, quote or no quote. A second empty line under a quote put the line
+  // you write on above the label and the buttons, which stay at the field's middle.
+  els.input.style.height = `${rows * LINE_PX}px`;
   els.highlight.style.height = els.input.style.height;
   renderHighlight();
 }

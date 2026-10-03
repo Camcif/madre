@@ -71,10 +71,11 @@ test('composer: what you are answering sits above the field, smaller and in a ba
   assert.match(css, /\.reply-quote \.drop \{/, 'there is no way to drop the quote');
   assert.match(app, /state\.replyTo = null; renderReplyQuote\(\)/, 'dropping the quote does nothing');
 
-  // And the box grows to hold it, so what is quoted never eats the room to answer in.
-  assert.match(css, /\.field\.quoting textarea[^{]*\{[^}]*min-height/, 'the field does not make room for an answer');
+  // The box grows by the quote's own row, and the line you write on stays one line until you write
+  // more: an empty second line under a quote put the writing above the label and the buttons.
   assert.match(app, /classList\.toggle\('quoting'/, 'the field is never told it is holding a quote');
-  assert.match(app, /Math\.max\(rows, els\.field\?\.classList\.contains\('quoting'\) \? 2 : 1\)/, 'the field is pinned back to one line while quoting');
+  assert.doesNotMatch(css, /\.field\.quoting textarea[^{]*\{[^}]*min-height/, 'a quote pins the writing line above the label again');
+  assert.match(app, /els\.input\.style\.height = `\$\{rows \* LINE_PX\}px`/, 'the field is not as tall as what is written');
   // The height is worked out again whenever the quote comes or goes.
   const render = app.slice(app.indexOf('function renderReplyQuote('), app.indexOf('function replyWith('));
   assert.equal((render.match(/autosize\(\)/g) ?? []).length, 2, 'the box does not resize when the quote appears or is dropped');
