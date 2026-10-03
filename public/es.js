@@ -2794,6 +2794,11 @@ export const ES = {
     'Este navegador no ofrece notificaciones.',
   'A system notification when a conversation finishes and you are not looking at it.':
     'Una notificación del sistema cuando termina una conversación que no estás mirando.',
+  'FINISHED': 'TERMINÓ',
+  'COULD NOT FINISH': 'NO PUDO TERMINAR',
+  'ANOTHER CONVERSATION': 'OTRA CONVERSACIÓN',
+  'OPEN': 'ABRIR',
+  'Dismiss': 'Descartar',
   'MULTITASKING':
     'MULTITAREA',
   'This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.':

@@ -4152,13 +4152,54 @@ function onChatActivity({ chatId, working, finished } = {}) {
     const said = finished.ok
       ? t('MU/TH/UR › @{agent} finished in «{chat}».', { agent: finished.agent ?? '?', chat: title })
       : t('MU/TH/UR › @{agent} could not finish in «{chat}».', { agent: finished.agent ?? '?', chat: title });
-    if (elsewhere) { chats.unread.add(chatId); toast(said); }
+    if (elsewhere) { chats.unread.add(chatId); showNotice({ agent: finished.agent, ok: finished.ok, chatId, chat: title }); }
     // A notification for whoever is not looking at it: another conversation, or this one while the
     // tab is behind something else. Pressing it brings the room back, at that conversation.
     notifyFinished(said.replace(/^MU\/TH\/UR › /, ''), chatId);
   }
   renderChats();
 }
+// A conversation finished somewhere you are not looking. A card that comes down from the top:
+// who answered, whether it went through, which conversation, and the way there. It leaves on its
+// own unless the pointer is over it; the newest is on top and at most three wait at once.
+const noticesBox = el('div', 'notices');
+noticesBox.setAttribute('role', 'status');
+noticesBox.setAttribute('aria-live', 'polite');
+document.body.append(noticesBox);
+function showNotice({ agent, ok, chatId, chat }) {
+  const card = paint(el('div', `notice${ok ? '' : ' failed'}`), agent ?? 'madre');
+  const face = avatar(agent ?? 'madre', { size: 34 });
+  const words = el('div', 'notice-words');
+  const head = el('div', 'notice-head');
+  head.append(el('b', null, `@${agent ?? '?'}`));
+  const status = el('span', 'notice-status');
+  status.append(pixelIcon(ok ? 'check' : 'fault', 'pixel-icon'), ok ? t('FINISHED') : t('COULD NOT FINISH'));
+  head.append(status);
+  const where = el('div', 'notice-chat');
+  where.append(pixelIcon('list', 'pixel-icon'), el('span', null, chat));
+  words.append(head, where, el('div', 'notice-when', `${formatTime(new Date().toISOString())} · ${t('ANOTHER CONVERSATION')}`));
+  const actions = el('div', 'notice-actions');
+  const go = el('button', 'notice-open', t('OPEN'));
+  go.type = 'button';
+  const close = el('button', 'notice-close', '×');
+  close.type = 'button';
+  close.setAttribute('aria-label', t('Dismiss'));
+  actions.append(go, close);
+  card.append(face, words, actions);
+  let timer = null;
+  const leave = () => { clearTimeout(timer); card.classList.add('leaving'); setTimeout(() => card.remove(), 220); };
+  const arm = () => { clearTimeout(timer); timer = setTimeout(leave, 9000); };
+  card.addEventListener('mouseenter', () => clearTimeout(timer));
+  card.addEventListener('mouseleave', arm);
+  close.addEventListener('click', (event) => { event.stopPropagation(); leave(); });
+  const open = () => { leave(); if (chatId !== chats.active) void openChat(chatId); };
+  go.addEventListener('click', (event) => { event.stopPropagation(); open(); });
+  card.addEventListener('click', open);
+  noticesBox.prepend(card);
+  for (const extra of [...noticesBox.children].slice(3)) extra.remove();
+  arm();
+}
+
 function notificationsState() {
   if (typeof Notification !== 'function') return 'unsupported';
   return Notification.permission;   // 'default' · 'granted' · 'denied'
