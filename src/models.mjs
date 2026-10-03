@@ -41,6 +41,29 @@ export function isValidEffort(agentId, effort) {
   return typeof effort === 'string' && (EFFORTS[agentId] ?? []).includes(effort);
 }
 
+// Whose model a name is, when the name says so. Codex, Claude and Gemini each answer only to their
+// own vendor's models, and a name from another one reaches the CLI as an API error that reads
+// like anything but "wrong model" (Gemini: `models/gpt-5.6-sol is not found for API version
+// v1beta`). OpenCode is left out on purpose: it speaks to many providers, so any name may be its.
+const VENDOR = [
+  ['codex', /^(gpt-|o\d|codex-|chatgpt-)/i],
+  ['claude', /^(claude|fable|opus|sonnet|haiku)\b/i],
+  ['gemini', /^(gemini|gemma|auto$)/i],
+];
+export function modelOwner(model) {
+  return VENDOR.find(([, pattern]) => pattern.test(String(model ?? '')))?.[0] ?? null;
+}
+// True when the name clearly belongs to another of the three: the turn is better off on the
+// agent's own default than sent to fail.
+export function belongsElsewhere(agentId, model) {
+  if (!VENDOR.some(([id]) => id === agentId)) return false;
+  const owner = modelOwner(model);
+  return Boolean(owner) && owner !== agentId;
+}
+
+// A CLI saying it does not know the model it was given, in any of the ways the four say it.
+export const MODEL_NOT_FOUND = /models?\/\S+ is not found|not supported for generateContent|model[_ ]not[_ ]found|unknown model|invalid model|model (?:\S+ )?(?:does not exist|is not available|not found)|issue with the selected model/i;
+
 export function parseCodexDefaultEffort(toml) {
   return String(toml ?? '').match(/^\s*model_reasoning_effort\s*=\s*"([^"]+)"/m)?.[1] ?? null;
 }

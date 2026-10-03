@@ -1201,8 +1201,19 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 dialog.override[open] { display: grid; place-items: center; }
 .override-frame { width: min(680px, 92vw); height: auto; min-height: 0; padding: 26px 30px 22px; border: 1px solid var(--ph-dim); box-shadow: 0 0 0 1px var(--ph-faint), 0 0 60px rgba(155, 255, 102, .12); animation: mother-on .4s ease; }
 .override-query { grid-template-columns: auto 1fr auto; }
+/* The override is narrower than MU/TH/UR's own screen, and the title takes most of a row: beside it
+   the subtitle was squeezed into a column a word wide. It reads as one line under the title. */
+.override .mother-head { grid-template-columns: 1fr auto; row-gap: 8px; }
+.override .mother-head .mother-title { grid-column: 1; grid-row: 1; }
+.override .mother-head .mother-close { grid-column: 2; grid-row: 1; align-self: center; }
+.override .mother-head .mother-sub { grid-column: 1 / -1; grid-row: 2; line-height: 1.5; }
 .override-query .k { font-size: 11px; letter-spacing: .22em; color: var(--ph-dim); }
-.override-query input { text-transform: none; letter-spacing: .12em; }
+.override-query input { text-transform: none; letter-spacing: .12em; min-width: 0; }
+/* On a phone the label, the field and ARM did not fit one row and ARM left the screen. */
+@media (max-width: 560px) {
+  .override-query { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+  .override-query .k { grid-column: 1 / -1; }
+}
 .override-reply { min-height: 22px; letter-spacing: .14em; }
 .override-reply.denied { color: #ff7b72; text-shadow: 0 0 10px rgba(255, 123, 114, .6); animation: terror-in .8s steps(3, end) 1; }
 .override-reply.granted { color: var(--ph); text-shadow: 0 0 10px rgba(155, 255, 102, .6); }

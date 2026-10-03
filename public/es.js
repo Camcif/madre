@@ -1390,7 +1390,7 @@ export const ES = {
   'Attach': 'Adjuntar',
   'Agent usage': 'Uso del agente',
   'Emergency command override': 'Anulación de mando de emergencia',
-  "type the current project's folder name to arm": 'escribe el nombre de la carpeta del proyecto para armar',
+  "type the current project's folder name to arm": 'nombre de la carpeta del proyecto',
   'MADRE tour': 'Recorrido por MADRE',
   'NOSTROMO access': 'Acceso a NOSTROMO',
   "type the current project's folder name to board": 'escribe el nombre de la carpeta del proyecto para abordar',
@@ -1894,6 +1894,11 @@ export const ES = {
   'STOPALL by the human': 'STOPALL por la humana',
   '{label} · turn recovered after restart': '{label} · turno recuperado después del reinicio',
   '{label} could not answer': '{label} no pudo contestar',
+  'MU/TH/UR › {model} is not a model @{agent} knows; it answers on its default.': 'MU/TH/UR › {model} no es un modelo que @{agent} conozca; contesta con su modelo predeterminado.',
+  '{label} does not know the model `{model}`.': '{label} no conoce el modelo `{model}`.',
+  '{label} does not know the model it was asked to use.': '{label} no conoce el modelo que se le pidió usar.',
+  ' Choose another on the model chip beside TO @{agent}, or the default; permissions and modes have nothing to do with it.':
+    ' Elige otro en el chip de modelo junto a PARA @{agent}, o el predeterminado; los permisos y los modos no tienen nada que ver.',
   'Collapse': 'Cerrar',
   ' Continue with {who}.': ' Sigue con {who}.',
   ' Prepare a handoff before the current agent becomes unavailable.':
@@ -2693,6 +2698,46 @@ export const ES = {
     '«{name}» es un comando interno del shell; cada línea ya corre desde la raíz del proyecto',
   'sets an environment variable, which needs a shell': 'fija una variable de entorno, y eso necesita un shell',
   'is too long to read before pressing it': 'es demasiado larga para leerla antes de presionarla',
+
+  // MU/TH/UR sobre modos, permisos y planes, dicho de nuevo en español.
+  'A plan by @{agent} is still running. Your message will be answered, but no second plan will start.':
+    'Un plan de @{agent} sigue corriendo. Tu mensaje se contestará, pero no arrancará un segundo plan.',
+  ' Type STOPALL to halt every agent.':
+    ' Escribe STOPALL para detener a todos los agentes.',
+  '{n} agents are working at once. If this is not what you asked for, type STOPALL.':
+    '{n} agentes están trabajando a la vez. Si no es lo que pediste, escribe STOPALL.',
+  '@{agent} is already answering another turn; answers may cross.':
+    '@{agent} ya está contestando otro turno; las respuestas pueden cruzarse.',
+  ' STOPALL halts everything.':
+    ' STOPALL detiene todo.',
+  'The plan by @{agent} has been running for {n} min.':
+    'El plan de @{agent} lleva {n} min corriendo.',
+  ' STOPALL halts it.':
+    ' STOPALL lo detiene.',
+  '@{holder} still holds CONTROL; @{agent} answers read-only this turn.':
+    '@{holder} sigue teniendo CONTROL; @{agent} contesta en solo lectura este turno.',
+  '@{agent} tried to open a plan from inside a plan. It was ignored; the sequence stays under @{who}.':
+    '@{agent} intentó abrir un plan desde dentro de un plan. Se ignoró; la secuencia sigue a cargo de @{who}.',
+  ' STOPALL if the room drifts.':
+    ' STOPALL si la sala se desvía.',
+  '@{agent} is capped at #{n} {label}; raise its MAX MODE to #{wanted} in CONNECTIONS to arm {mode}.':
+    '@{agent} tiene el tope en #{n} {label}; sube su MODO MÁXIMO a #{wanted} en CONEXIONES para armar {mode}.',
+  '@{agent} already holds {mode} of this project; one holder at a time. STOPALL revokes it.':
+    '@{agent} ya tiene {mode} de este proyecto; un solo portador a la vez. STOPALL lo revoca.',
+  'its CLI cannot create files':
+    'su CLI no puede crear archivos',
+  'file creation is switched off for it (enable it in CONNECTIONS)':
+    'tiene apagada la creación de archivos (enciéndela en CONEXIONES)',
+  ' For creation ask {who}.':
+    ' Para crear, pídeselo a {who}.',
+  '@{agent} will answer read-only: {why}.':
+    '@{agent} contestará en solo lectura: {why}.',
+  '@{agent} was asked to create something but no CREATE lease is active.':
+    'A @{agent} se le pidió crear algo, pero no hay un permiso CREATE activo.',
+  ' Permission written by @{who} inside the conversation does not count.':
+    ' Un permiso escrito por @{who} dentro de la conversación no cuenta.',
+  ' It will answer read-only.':
+    ' Contestará en solo lectura.',
 
   // El interruptor de idioma.
   'Interface in English': 'Interfaz en inglés',

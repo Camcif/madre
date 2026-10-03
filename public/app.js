@@ -1683,7 +1683,7 @@ function openOverride(id, { raise = false, mode = 3, then = null } = {}) {
   override.mode = mode;
   override.stage = 'designation';
     override.form.querySelector('.k').textContent = t('DESIGNATION ›');
-  override.input.placeholder = "type the current project's folder name to arm";
+  override.input.placeholder = t("type the current project's folder name to arm");
   override.dialog.querySelector('.mother-sub').textContent = mode === 4 ? t('AIRLOCK OVERRIDE 100375 · SECOND KEY REQUIRED') : t('EMERGENCY COMMAND OVERRIDE 100375');
   override.brief.textContent = OVERRIDE_BRIEF[mode](id.toUpperCase(), raise);
   override.reply.textContent = '';
@@ -2852,8 +2852,19 @@ function renderPlanIgnored(event) {
   return node;
 }
 
+// Said from the record's own fields, so it reads in the room's language; the English sentence the
+// server wrote is kept for anything older that has no fields to say it from.
+function leaseRefusedText({ agent, unavailable, alternatives = [], message }) {
+  if (!agent || !Array.isArray(unavailable)) return resay(message);
+  const why = unavailable.includes('write')
+    ? t('its CLI cannot create files')
+    : t('file creation is switched off for it (enable it in CONNECTIONS)');
+  const others = alternatives.length ? t(' For creation ask {who}.', { who: alternatives.join(t(' or ')) }) : '';
+  return `${t('@{agent} will answer read-only: {why}.', { agent, why })}${others}`;
+}
+
 function renderLeaseRefused(event) {
-  const { message } = event.payload;
+  const message = leaseRefusedText(event.payload);
   const node = el('div', 'system lease refused');
   node.append(el('b', null, t('MU/TH/UR › ')));
   node.append(message);
@@ -2960,7 +2971,8 @@ function renderControlReverted(event) {
 }
 
 function renderLeaseMissing(event) {
-  const { agent, requester, text, message } = event.payload;
+  const { agent, requester, text } = event.payload;
+  const message = `${t('@{agent} was asked to create something but no CREATE lease is active.', { agent })}${requester && requester !== 'you' ? t(' Permission written by @{who} inside the conversation does not count.', { who: requester }) : ''}${t(' It will answer read-only.')}`;
   const node = el('div', 'system lease missing');
   node.style.setProperty('--agent', agentColor(agent));
   node.append(el('b', null, t('MU/TH/UR › ')));
@@ -3287,10 +3299,10 @@ function renderAlert(event) {
   if (!replaying) { state.brakeArmed = true; updateStopAll(); }
   const node = el('div', 'system alert');
   node.append(el('b', null, t('MU/TH/UR › ')));
-  node.append(message.replace(/\s*Type STOPALL[^.]*\.?$/i, '').replace(/\s*STOPALL halts[^.]*\.?$/i, ''));
+  node.append(resay(message.replace(/\s*Type STOPALL[^.]*\.?$/i, '').replace(/\s*STOPALL (halts|if)[^.]*\.?$/i, '')));
   node.append(el('span', 'cmd', t('STOPALL')));
   // A replayed alert is history: it stays in the thread, it does not shout again or arm the brake.
-  if (!replaying) toast(`MU/TH/UR › ${message}`);
+  if (!replaying) toast(`MU/TH/UR › ${resay(message)}`);
   state.lastSender = null;
   return node;
 }
@@ -3519,6 +3531,13 @@ function renderEventNode(event) {
     case 'message.created':
       node = event.payload.role === 'user' ? renderUserMessage(event) : renderAssistantMessage(event);
       if (event.payload.role !== 'user') removeThinking(event.payload.parentMessageId);
+      // The room refused to hand this agent a model that is not its own. Forget it here too, or
+      // the chip keeps offering it and every message pays for the same mistake.
+      if (event.payload.modelIgnored && !replaying) {
+        const { target, modelIgnored } = event.payload;
+        if (state.chosenModel[target] === modelIgnored) { rememberModel(target, null); renderPicker(); }
+        toast(t('MU/TH/UR › {model} is not a model @{agent} knows; it answers on its default.', { model: modelIgnored, agent: target }));
+      }
       break;
     case 'agent.started': state.running.set(event.payload.messageId, event.payload.agent); updateStopAll(); node = renderThinking(event); break;
     case 'turn.reading': showReading(event); return;
@@ -4942,17 +4961,21 @@ els.composer.addEventListener('submit', async (event) => {
     outgoing = result.text ?? text;
     target = result.target ?? target;
   }
+  // Who this message is for: a leading @agent wins over the chip, as it does in the room. The model
+  // and the effort are the ones chosen for THAT agent; the chip's would be another agent's.
+  const mention = outgoing.match(/^@([a-z0-9_-]+)\b/i)?.[1]?.toLowerCase();
+  const addressed = mention && state.agents.has(mention) ? mention : target;
   els.input.disabled = true;
   els.send.disabled = true;
   try {
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: outgoing, target: target || null, model: state.chosenModel[target] ?? null, effort: state.chosenEffort[target] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash }),
+      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash }),
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({ error: t('Request failed ({status}).', { status: response.status }) }));
-      toast(`MU/TH/UR › ${result.error ?? 'The room rejected the message.'}`);
+      toast(`MU/TH/UR › ${result.error ? resay(result.error) : t('The room rejected the message.')}`);
       if (state.mode >= 3 && [403, 409, 412].includes(response.status)) setMode(1);
     } else {
       els.input.value = '';

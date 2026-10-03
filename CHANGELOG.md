@@ -6,6 +6,16 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 0.7.3 · Sin publicar
 
+### Un modelo elegido para un agente ya no le llega a otro
+
+- Si el chip de modelo tenía elegido uno de otro agente (por ejemplo, un modelo de OpenAI con el mensaje dirigido a @gemini, o un mensaje que empieza con `@gemini` mientras el chip apuntaba a @codex), ese modelo viajaba igual y el agente fallaba con un error de su API que parecía de permisos. Ahora cada mensaje usa el modelo y el esfuerzo del agente al que de verdad va, un modelo de otro agente no se le pasa, y la sala te avisa y lo olvida del chip.
+- Cuando un agente no conoce el modelo que recibió, el error lo dice primero en claro: qué modelo, dónde cambiarlo, y que los permisos y los modos no tienen nada que ver. La línea original del CLI queda después, tal cual.
+
+### El aviso de AIRLOCK y CONTROL se lee bien, y en español
+
+- En el aviso para armar CONTROL o AIRLOCK, la línea bajo **MU/TH/UR 6000** ya no se aprieta en una columna angosta, y en el teléfono el botón **ARMAR** ya no se sale de la pantalla.
+- El campo de la designación, los avisos de solo lectura cuando falta permiso para crear y las alertas de MU/TH/UR sobre planes y modos ya salen en el idioma de la sala.
+
 ### Actualizar desde la sala ya no la deja cerrada
 
 - Al presionar **REINICIAR CON** una versión recién publicada, la sala se cerraba antes de saber si npm ya la entregaba; si todavía no, no volvía y había que levantarla a mano. Ahora descarga la versión primero y solo se cierra cuando la tiene. Si npm aún no la entrega, la sala sigue abierta y te dice que lo intentes en unos minutos.

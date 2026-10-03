@@ -28,7 +28,7 @@ import { OLLAMA_ARCHIVIST } from './distiller.mjs';
 import { memoryServerForTurn } from './memory-tools.mjs';
 import { CODE000_STRIKES } from './mother.mjs';
 import { parseDirectives } from './directives.mjs';
-import { isValidModelName, isValidEffort } from './models.mjs';
+import { isValidModelName, isValidEffort, belongsElsewhere, MODEL_NOT_FOUND } from './models.mjs';
 import { MODES, SCOPES, SCOPE_LABELS, capabilitySummary, normalizeMode, resolveScopes } from './capabilities.mjs';
 import { createLease, diffSnapshots, namedPaths, snapshot } from './lease.mjs';
 import { stat as statFile } from 'node:fs/promises';
@@ -908,10 +908,16 @@ export class Room {
     if (!parsed.text && !files.length) throw new Error('Write a message first.');
     if (!parsed.target) throw new Error('Choose an agent or begin with @agent.');
     if (model !== null && model !== undefined && model !== '' && !isValidModelName(model)) throw new Error('Model name is not valid.');
-    const chosenModel = model || null;
+    // A model chosen for one agent never travels to another. Two ways it used to: a message that
+    // opened with @gemini while the composer pointed at @codex took Codex's model along, and a
+    // name that is plainly another vendor's reached the CLI and came back as an API error that
+    // read like anything but «wrong model». Either way the agent answers on its own default.
+    const redirected = Boolean(target) && parsed.target !== target;
+    const modelIgnored = model && (redirected || belongsElsewhere(parsed.target, model)) ? model : null;
+    const chosenModel = modelIgnored ? null : (model || null);
     // An effort the target's CLI does not take is dropped, not refused: the composer remembers it
     // per agent, so a stale one should cost the human nothing but the flag.
-    const chosenEffort = isValidEffort(parsed.target, effort) ? effort : null;
+    const chosenEffort = !redirected && isValidEffort(parsed.target, effort) ? effort : null;
     // What the human wrote, sent as they wrote it. Ash used to rewrite this line before it left
     // the room; it does not any more, so there is no original to keep beside an abbreviation.
     const text2 = parsed.text || `(${files.length} attached file${files.length === 1 ? '' : 's'})`;
@@ -932,6 +938,7 @@ export class Room {
       ash: ashRequested ? { requested: true, active: ashActive } : undefined,
       status: 'sent',
       model: chosenModel,
+      modelIgnored: modelIgnored ?? undefined,
       effort: chosenEffort ?? undefined,
       attachments: files.length ? files.map((file) => ({ id: file.id, name: file.name, fileName: file.fileName, size: file.size, contentType: file.contentType })) : undefined,
       references: references.length ? references.map(({ excerpt, ...reference }) => reference) : undefined,
@@ -1533,7 +1540,14 @@ export class Room {
           await this.#emit('turn.cost', { agent: agent.id, mode: turnMode, responseMessageId, ash: Boolean(cost.blocks.ash), failed: true, spared: shape.spared, ...cost });
         }
       }
-      await this.#emit('message.failed', { messageId, target: agent.id, planId, error: this.#privacy ? this.#privacy.redact(failureMessage(error)).text : failureMessage(error), ...(this.#turns.get(messageId)?.stoppedByHuman ? { stopped: true } : {}) });
+      // A CLI that does not know its model says so in its vendor's words, which read like an outage
+      // or a permission problem. MADRE says what it is first; the CLI's own line stays after it,
+      // word for word, so it can still be searched.
+      const said = failureMessage(error);
+      const plain = MODEL_NOT_FOUND.test(String(error?.message ?? error ?? ''))
+        ? `${model ? `${agent.label} does not know the model \`${model}\`.` : `${agent.label} does not know the model it was asked to use.`} Choose another on the model chip beside TO @${agent.id}, or the default; permissions and modes have nothing to do with it. CLI: ${said}`
+        : said;
+      await this.#emit('message.failed', { messageId, target: agent.id, planId, error: this.#privacy ? this.#privacy.redact(plain).text : plain, ...(this.#turns.get(messageId)?.stoppedByHuman ? { stopped: true } : {}) });
       return null;
     } finally {
       // Release CONTROL whichever way the turn ended; the checkpoint stays for UNDO.

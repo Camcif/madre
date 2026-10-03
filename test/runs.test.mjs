@@ -178,3 +178,41 @@ test('runs: AIRLOCK runs its own commands and GHOST asks for nothing, so the blo
     await room.shutdown();
   } finally { await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 }); }
 });
+
+test('models: a model chosen for one agent never reaches another, and a CLI that does not know its model is said plainly', async () => {
+  const { belongsElsewhere, MODEL_NOT_FOUND } = await import('../src/models.mjs');
+  assert.equal(belongsElsewhere('gemini', 'gpt-5.6-sol'), true);
+  assert.equal(belongsElsewhere('codex', 'gpt-5.6-sol'), false);
+  assert.equal(belongsElsewhere('opencode', 'gpt-5.6-sol'), false, 'OpenCode speaks to many providers');
+  assert.equal(belongsElsewhere('gemini', 'my-tuned-model'), false, 'a name nobody owns is the human\'s to try');
+  assert.match('[API Error: models/gpt-5.6-sol is not found for API version v1beta, or is not supported for generateContent.]', MODEL_NOT_FOUND);
+
+  const root = await mkdtemp(join(tmpdir(), 'pulse-model-'));
+  try {
+    const store = await new EventStore(join(root, 'events.jsonl')).initialize();
+    const agents = ['codex', 'gemini'].map((id) => ({ id, label: id === 'codex' ? 'Codex' : 'Gemini', detected: true, ready: true, adapter: `${id}-readonly`, path: '/x', version: '1' }));
+    const asked = [];
+    const room = new Room({ store, agents, projectRoot: root, invokers: {
+      'gemini-readonly': async ({ model }) => { asked.push(model); if (model === 'gemini-typo') throw new Error('[API Error: models/gemini-typo is not found for API version v1beta]'); return { text: 'ok', usage: null }; },
+      'codex-readonly': async ({ model }) => { asked.push(model); return { text: 'ok', usage: null }; },
+    } });
+    // The case in the field: Gemini's message carried Codex's model.
+    await room.send({ text: 'hola', target: 'gemini', model: 'gpt-5.6-sol' });
+    // And the other road: the chip on @codex, the message opening with @gemini.
+    await room.send({ text: '@gemini hola', target: 'codex', model: 'gpt-5.6-luna', effort: 'high' });
+    assert.deepEqual(asked, [null, null], 'another agent\'s model reached Gemini');
+    let events = await store.readAll();
+    const sent = events.filter((event) => event.type === 'message.created' && event.payload.role === 'user');
+    assert.deepEqual(sent.map((event) => event.payload.modelIgnored), ['gpt-5.6-sol', 'gpt-5.6-luna']);
+    assert.equal(sent[1].payload.effort, undefined, 'the effort chosen for Codex went with the message');
+
+    // A name Gemini could own but does not know: it runs, fails, and the room says what happened.
+    await room.send({ text: 'hola', target: 'gemini', model: 'gemini-typo' });
+    events = await store.readAll();
+    const failed = events.filter((event) => event.type === 'message.failed').at(-1);
+    assert.match(failed.payload.error, /^Gemini does not know the model `gemini-typo`\. Choose another on the model chip beside TO @gemini.*permissions and modes have nothing to do with it\. CLI: \[API Error/);
+    const { resay } = await import('../public/resay.js');
+    assert.match(resay(failed.payload.error, { when: 'es' }), /^Gemini no conoce el modelo `gemini-typo`\. Elige otro en el chip de modelo junto a PARA @gemini.*los permisos y los modos no tienen nada que ver\. CLI: \[API Error/);
+    await room.shutdown();
+  } finally { await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 }); }
+});
