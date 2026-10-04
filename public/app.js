@@ -344,6 +344,27 @@ function toast(message) {
 // sentence first, the rest under it, placed where it fits. An element whose only name was its title
 // keeps that name for screen readers.
 const TIP_DELAY = 480;
+// A button's note is help, not content: it waits five seconds of resting on it and says itself once
+// per session — whoever stays that long on a button is unsure of it, and once told, is told. Notes on
+// anything else (a cut-off title, a chip that quotes more than it shows) still come at once, every
+// time, because they carry text the page could not fit.
+const BUTTON_TIP_DELAY = 5000;
+const BUTTON_TIPS_KEY = 'madre.tips.told';
+const toldTips = (() => {
+  try { return new Set(JSON.parse(sessionStorage.getItem(BUTTON_TIPS_KEY) ?? '[]')); } catch { return new Set(); }
+})();
+// A button that rewrites its note as its state changes (the theme, the language) is still one button.
+const tipKey = (node) => (node.id ? `#${node.id}` : node.dataset.tip);
+const isButtonTip = (node) => Boolean(node.matches?.('button, [role="button"], .dock-grip, .stage-grip'));
+function tipDelay(node) {
+  if (!isButtonTip(node)) return TIP_DELAY;
+  return toldTips.has(tipKey(node)) ? null : BUTTON_TIP_DELAY;
+}
+function markTold(node) {
+  if (!isButtonTip(node)) return;
+  toldTips.add(tipKey(node));
+  try { sessionStorage.setItem(BUTTON_TIPS_KEY, JSON.stringify([...toldTips])); } catch { /* no storage: once per page instead */ }
+}
 const tipBox = el('div', 'tip');
 tipBox.setAttribute('role', 'tooltip');
 tipBox.hidden = true;
@@ -372,6 +393,7 @@ function showTip(node) {
   const rest = cut > 0 && cut < 110 ? said.slice(cut).trim() : '';
   tipBox.replaceChildren(el('b', null, head), ...(rest ? [el('span', null, rest)] : []));
   tipBox.hidden = false;
+  markTold(node);
   const rect = node.getBoundingClientRect();
   const box = tipBox.getBoundingClientRect();
   const below = rect.bottom + 8 + box.height <= innerHeight - 8;
@@ -387,8 +409,10 @@ document.addEventListener('pointerover', (event) => {
   if (node === tipFor) return;
   hideTip();
   if (!node.dataset.tip) return;
+  const delay = tipDelay(node);
+  if (delay === null) return;
   tipFor = node;
-  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
+  tipTimer = setTimeout(() => showTip(node), delay);
 });
 document.addEventListener('pointerout', (event) => { if (tipFor && !tipFor.contains(event.relatedTarget)) hideTip(); });
 document.addEventListener('pointerdown', hideTip, true);
@@ -401,8 +425,10 @@ document.addEventListener('focusin', (event) => {
   if (node.hasAttribute('title')) adoptTitle(node);
   hideTip();
   if (!node.dataset.tip) return;
+  const delay = tipDelay(node);
+  if (delay === null) return;
   tipFor = node;
-  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
+  tipTimer = setTimeout(() => showTip(node), delay);
 });
 document.addEventListener('focusout', hideTip);
 
@@ -6093,8 +6119,12 @@ function cardShell(item, { on, state: stateText }) {
   }
   top.append(el('span', `state ${stateText === 'INSTALLING' ? 'running' : on ? 'on' : 'off'}`, stateText));
   head.append(top);
-  head.append(el('div', 'vendor', item.vendor));
+  // What it does comes right under its name, in the reading face: it is what decides whether you
+  // want it, and it used to sit three floors down under the version and the vendor.
+  if (item.summary) head.append(el('p', 'summary', item.summary));
+  // Who makes it, which version and whether it is current: one quiet line, not three.
   const line = el('div', 'version');
+  if (item.vendor) line.append(el('span', 'vendor', item.vendor));
   line.append(el('b', null, versionLabel(item)));
   const said = el('span', 'update');
   const known = updateWord(item.update);
@@ -6138,12 +6168,11 @@ function cardShell(item, { on, state: stateText }) {
     line.append(get);
   }
   head.append(line);
-  if (item.status?.detail) head.append(el('div', 'detail', item.status.detail.toUpperCase()));
+  if (item.status?.detail) head.append(el('div', 'detail', item.status.detail));
   if (item.external) head.append(el('div', 'detail', `${item.origin === 'project' ? t('THIS PROJECT') : t('EVERY ROOM')} · ${item.file}`));
   card.append(head);
 
-  // FLOOR 2 · what it does, in one paragraph.
-  if (item.summary) { const about = el('div', 'about'); about.append(el('p', null, item.summary)); card.append(about); }
+  // (What it does now lives in the first floor, under the name.)
 
   // FLOOR 3 · what it touches, folded, with the count and nothing else.
   const bullets = [
@@ -6846,10 +6875,17 @@ function moduleCard(item) {
 
 function renderModules() {
   modules.list.replaceChildren();
-  modules.list.append(el('h3', null, t('AVAILABLE · {n} · PROJECT /{project}', { n: modules.items.length, project: els.project.textContent })));
-  const grid = el('div', 'mother-grid');
-  for (const item of modules.items) grid.append(moduleCard(item));
-  modules.list.append(grid);
+  // What is working for you first, what you could turn on after: two short lists read faster than
+  // one long one where on and off alternate.
+  const on = modules.items.filter((item) => item.status?.installed);
+  const off = modules.items.filter((item) => !item.status?.installed);
+  for (const [title, items] of [[t('ON · {n}', { n: on.length }), on], [t('AVAILABLE · {n} · PROJECT /{project}', { n: off.length, project: els.project.textContent }), off]]) {
+    if (!items.length) continue;
+    modules.list.append(el('h3', null, title));
+    const grid = el('div', 'mother-grid');
+    for (const item of items) grid.append(moduleCard(item));
+    modules.list.append(grid);
+  }
   renderModulesDev();
 }
 
