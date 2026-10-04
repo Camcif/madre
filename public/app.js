@@ -248,6 +248,23 @@ const el = (tag, className, text) => {
   return node;
 };
 
+// Every way to close something closes the same way: one × drawn as a line, not a letter, that
+// turns a quarter and thickens under the pointer — the one the conversations panel already had.
+// A labelled button keeps its words («CLOSE ×» says what it closes); only its × becomes the mark.
+const X_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5.6 5.6l8.8 8.8M14.4 5.6l-8.8 8.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function xIcon() {
+  const mark = el('span', 'x-icon');
+  mark.innerHTML = X_ICON; // trusted: our own SVG
+  return mark;
+}
+// A close control built in code: the mark and nothing else, with its name for a screen reader.
+function closeMark(tag, className, name) {
+  const node = el(tag, `${className} x-close x-only`);
+  if (tag === 'button') node.type = 'button';
+  if (name) node.setAttribute('aria-label', name);
+  node.append(xIcon());
+  return node;
+}
 const formatTokens = (value) => {
   if (!Number.isFinite(value)) return '';
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -815,7 +832,7 @@ function browserRenderTabs() {
     node.setAttribute('aria-selected', String(tab.id === browser.active));
     node.title = tab.url === 'about:blank' ? t('new tab') : tab.url;
     node.append(el('span', 'tab-title', tab.title));
-    const shut = el('span', 'tab-close', '×');
+    const shut = closeMark('span', 'tab-close');
     shut.addEventListener('click', (event) => { event.stopPropagation(); browserCloseTab(tab.id); });
     node.append(shut);
     node.addEventListener('click', () => browserSelect(tab.id));
@@ -2350,8 +2367,7 @@ function renderReplyQuote() {
   if (!reply) { box.replaceChildren(); autosize(); return; }
   const who = el('b', null, `↩ @${reply.sender}${reply.sequence ? ` #${reply.sequence}` : ''}`);
   const said = el('span', 'said', reply.text);
-  const drop = el('button', 'drop', '×');
-  drop.type = 'button';
+  const drop = closeMark('button', 'drop');
   drop.title = t('Answer without quoting this');
   drop.setAttribute('aria-label', t('Remove the quoted reply'));
   drop.addEventListener('click', () => { state.replyTo = null; renderReplyQuote(); els.input.focus(); });
@@ -3926,6 +3942,20 @@ function translateMarkup(node) {
 }
 translateMarkup(document.body ?? document);
 
+// The page's own: a trailing × in a button's words becomes the mark.
+for (const button of document.querySelectorAll?.('button') ?? []) {
+  if (button.classList?.contains('x-close')) continue;
+  if (button.id === 'chats-close') { button.classList.add('x-close', 'x-only'); continue; }
+  const last = [...(button.childNodes ?? [])].reverse().find((node) => node.nodeType === 3 && node.nodeValue.trim());
+  if (!last || !/×\s*$/.test(last.nodeValue)) continue;
+  const words = last.nodeValue.replace(/\s*×\s*$/, '');
+  last.nodeValue = words ? `${words} ` : '';
+  if (!words.trim() && !button.getAttribute('aria-label')) button.setAttribute('aria-label', t('Close'));
+  button.classList.add('x-close');
+  if (!words.trim()) button.classList.add('x-only');
+  button.append(xIcon());
+}
+
 /* ---------- project files panel ---------- */
 
 // `openDirs` survives a reload of the tree: after a copy, a move or a new folder the panel is
@@ -4277,8 +4307,7 @@ function renderChats() {
     open.append(el('span', 'when', whenWords(chat.updatedAt)));
     open.title = `${t('{n} {messages}', { n: chat.messages, messages: chat.messages === 1 ? t('message') : t('messages') })}${chat.updatedAt ? ` · ${new Date(chat.updatedAt).toLocaleString()}` : ''}`;
     open.addEventListener('click', () => { if (chat.id !== chats.active) void openChat(chat.id); });
-    const drop = el('button', 'chat-drop', '×');
-    drop.type = 'button';
+    const drop = closeMark('button', 'chat-drop');
     drop.title = t('Delete this conversation. Its transcript goes; what the archive learned from it stays.');
     drop.addEventListener('click', async (event) => {
       event.stopPropagation();
@@ -4361,8 +4390,7 @@ function showNotice({ agent, ok, chatId, chat }) {
   const card = paint(el('div', `notice${ok ? '' : ' failed'}`), who);
   const top = el('div', 'notice-top');
   top.append(el('span', 'notice-state', ok ? t('FINISHED') : t('COULD NOT FINISH')), el('span', 'notice-time', formatTime(new Date().toISOString())));
-  const close = el('button', 'notice-close', '×');
-  close.type = 'button';
+  const close = closeMark('button', 'notice-close');
   close.setAttribute('aria-label', t('Dismiss'));
   top.append(close);
   const name = el('div', 'notice-chat', chat);
@@ -5212,7 +5240,7 @@ function renderPendingAttachments() {
     if (item.previewUrl) { const img = el('img'); img.src = item.previewUrl; img.alt = item.name; chip.append(img); }
     else chip.append(el('span', 'kind', (item.name.split('.').pop() ?? 'file').slice(0, 4).toUpperCase()));
     chip.append(el('span', 'name', item.uploading ? t('{name} · uploading…', { name: item.name }) : item.name));
-    const remove = el('button', 'remove', '×');
+    const remove = closeMark('button', 'remove');
     remove.type = 'button'; remove.title = t('Remove');
     remove.addEventListener('click', () => { state.pending = state.pending.filter((other) => other !== item); renderPendingAttachments(); });
     chip.append(remove);
@@ -5731,7 +5759,7 @@ function renderMotherRecorded() {
     }
     rowNode.append(links);
     // One record, one way out. The ledger keeps it; this room stops counting it.
-    const drop = el('button', 'drop', '×');
+    const drop = closeMark('button', 'drop');
     drop.type = 'button';
     drop.title = t('Dismiss this record · it stays in the ledger');
     drop.addEventListener('click', () => {

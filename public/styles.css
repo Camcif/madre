@@ -2932,3 +2932,16 @@ dialog.tour::backdrop { background: transparent; }
 .module-card > .actions { margin-top: auto; padding-top: 12px; padding-bottom: 14px; }
 .mother-grid { align-items: stretch; }
 
+/* Every close control closes the same way as the conversations panel's: a drawn ×, 14px, that turns a
+   quarter and thickens under the pointer. A × on its own also gets the panel's soft ground; one beside
+   words («CLOSE ×») keeps the look of the button it sits in. */
+.x-icon { display: inline-grid; place-items: center; width: 14px; height: 14px; flex: none; vertical-align: -2px; transition: transform var(--motion, .2s) var(--ease-out, ease); }
+.x-icon svg { display: block; width: 100%; height: 100%; }
+.x-icon path { stroke-width: var(--icon-w, var(--icon-stroke, 1.6)); transition: stroke-width var(--motion, .2s) var(--ease-out, ease); }
+.x-close { --icon-w: var(--icon-stroke, 1.6); }
+.x-close:hover, .x-close:focus-visible { --icon-w: var(--icon-stroke-hover, 1.8); }
+.x-close:hover .x-icon, .x-close:focus-visible .x-icon { transform: rotate(90deg); }
+.x-close:not(.x-only) .x-icon { margin-left: 2px; }
+.x-close.x-only { display: inline-grid; place-items: center; padding: 4px; border-radius: 6px; line-height: 0; transition: color var(--motion, .2s) var(--ease-out, ease), background-color var(--motion, .2s) var(--ease-out, ease); }
+.x-close.x-only:not(.chat-drop):hover { background: var(--line); color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .x-icon, .x-icon path { transition: none; } .x-close:hover .x-icon { transform: none; } }
