@@ -884,17 +884,13 @@ textarea::placeholder { color: var(--text-3); }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .mother-button:hover,
   :root:not([data-theme="dark"]) .tree-button:hover,
-  :root:not([data-theme="dark"]) .tree-button[aria-pressed="true"],
   :root:not([data-theme="dark"]) .stop-all:hover,
-  :root:not([data-theme="dark"]) .chats-button:hover,
-  :root:not([data-theme="dark"]) .chats-button[aria-pressed="true"] { box-shadow: var(--ring-soft); }
+  :root:not([data-theme="dark"]) .chats-button:hover { box-shadow: var(--ring-soft); }
 }
 :root[data-theme="light"] .mother-button:hover,
 :root[data-theme="light"] .tree-button:hover,
-:root[data-theme="light"] .tree-button[aria-pressed="true"],
 :root[data-theme="light"] .stop-all:hover,
-:root[data-theme="light"] .chats-button:hover,
-:root[data-theme="light"] .chats-button[aria-pressed="true"] { box-shadow: var(--ring-soft); }
+:root[data-theme="light"] .chats-button:hover { box-shadow: var(--ring-soft); }
 
 .lang-button { font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: .16em; padding: 0 9px; }
 .mother-glyph { width: 8px; height: 8px; border: 1px solid currentColor; }
@@ -1981,7 +1977,7 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .tree-button svg { width: 16px; height: 16px; }
 .theme-button svg { display: none; }
 .theme-button[data-theme="auto"] .t-auto, .theme-button[data-theme="light"] .t-light, .theme-button[data-theme="dark"] .t-dark { display: block; }
-.tree-button:hover, .tree-button[aria-pressed="true"] { color: var(--phosphor); border-color: var(--phosphor); box-shadow: var(--ring-soft); }
+.tree-button:hover { color: var(--phosphor); border-color: var(--phosphor); box-shadow: var(--ring-soft); }
 /* The conversations of this project, on the other side of the canvas from the files: the same
    panel, so there is one shape to learn, and never both edges at once on a narrow screen. */
 .tree.chats { justify-self: start; margin: 18px 0 10px 20px; grid-template-rows: auto minmax(0, 1fr) auto auto; }
@@ -1992,8 +1988,6 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .chats-body { padding: 10px 8px; display: grid; gap: 6px; align-content: start; }
 .chats-body .chat { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: baseline; width: 100%; border: 0; background: transparent; color: var(--text-2); font: inherit; text-align: left; padding: 11px 12px; border-radius: 10px; cursor: pointer; }
 .chats-body .chat:hover { background: color-mix(in srgb, var(--phosphor) 10%, transparent); color: var(--text); }
-.chats-body .chat.on { background: var(--phosphor); color: var(--phosphor-ink); }
-.chats-body .chat.on:hover { background: var(--phosphor); color: var(--phosphor-ink); }
 .chats-body .chat .name { font-family: var(--sans, inherit); font-size: 12.5px; line-height: 1.4; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chats-body .chat .when { font-family: var(--mono); font-size: 9px; letter-spacing: .08em; color: var(--text-3); white-space: nowrap; }
 .chats-body .chat-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; }
@@ -2030,7 +2024,7 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 /* Its handle sits in the canvas, under the bar, where the conversation it opens begins. */
 .chats-button { grid-row: 3; justify-self: start; align-self: start; z-index: 6; margin: 18px 0 0 20px; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 36px; border-radius: 11px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text-2); cursor: pointer; padding: 0; }
 .chats-button svg { width: 21px; height: 21px; }
-.chats-button:hover, .chats-button[aria-pressed="true"] { color: var(--phosphor); border-color: var(--phosphor); box-shadow: var(--ring-soft); }
+.chats-button:hover { color: var(--phosphor); border-color: var(--phosphor); box-shadow: var(--ring-soft); }
 .chats-button:active { transform: translateY(1px); }
 @media (max-width: 1100px) { .chats-button { display: none; } }
 
@@ -2255,15 +2249,27 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 }
 .bar > .tree-button.lang-button { font-weight: 500; }
 .bar > :is(.tree-button, .mother-button)[aria-pressed="true"], .chats-button[aria-pressed="true"] {
-  --icon-w: var(--icon-stroke-on);
-  font-weight: 650;
-  /* Filled while its panel is open: the squircle takes the phosphor, the icon the ink. */
-  color: var(--phosphor-ink); border-color: var(--phosphor);
-  background-color: var(--phosphor);
-  box-shadow: none;
+  /* Open: the drawing fills and the word goes bold. The button around it stays as it was. */
+  font-weight: 650; color: var(--text);
 }
-/* The count on a filled button turns over too, or it would vanish into the green. */
-.bar > .mother-button[aria-pressed="true"] :is(.modules-count, .mother-count) { background: var(--phosphor-ink); color: var(--phosphor); }
+.bar > :is(.tree-button, .mother-button)[aria-pressed="true"] svg, .chats-button[aria-pressed="true"] svg { color: var(--phosphor); }
+.bar > :is(.tree-button, .mother-button), .chats-button { --knock: var(--bg); }
+.chats-button { --knock: var(--panel); }
+
+/* The filled drawing. ic-f is the shape that fills, ic-k the detail cut out of it in the colour of
+   the ground behind, ic-disc a disc for a drawing with no shape of its own (a line), and ic-ring
+   repaints an outline the cut would otherwise notch. Fill comes in with a short ease; the shape
+   settles from a hair smaller so the change is felt, not just seen. */
+.ic-f { transition: fill var(--motion) var(--ease-out), stroke var(--motion) var(--ease-out); }
+.ic-k { transition: stroke var(--motion) var(--ease-out); }
+.ic-disc { fill: currentColor; opacity: 0; transform: scale(.55); transform-origin: center; transform-box: fill-box; transition: opacity var(--motion) var(--ease-out), transform var(--motion-slow) var(--ease-out); }
+:is(.bar > :is(.tree-button, .mother-button)[aria-pressed="true"], .chats-button[aria-pressed="true"]) svg {
+  animation: icon-fill var(--motion-slow) var(--ease-out);
+}
+:is(.bar > :is(.tree-button, .mother-button)[aria-pressed="true"], .chats-button[aria-pressed="true"], .chats-body .chat.on) .ic-f { fill: currentColor; }
+:is(.bar > :is(.tree-button, .mother-button)[aria-pressed="true"], .chats-button[aria-pressed="true"], .chats-body .chat.on) .ic-k { stroke: var(--knock, var(--bg)); opacity: 1; }
+:is(.bar > :is(.tree-button, .mother-button)[aria-pressed="true"], .chats-button[aria-pressed="true"]) .ic-disc { opacity: 1; transform: none; }
+@keyframes icon-fill { from { transform: scale(.86); } 60% { transform: scale(1.06); } to { transform: none; } }
 .bar > :is(.tree-button, .mother-button, .bar-icon):active { transform: scale(.96); }
 
 /* ---------- conversations ---------- */
@@ -2281,12 +2287,11 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .chats-body .chat-glyph svg { display: block; width: 15px; height: 15px; }
 .chats-body .chat-glyph :is(.chat-spin, .chat-dot) { margin: 0; vertical-align: 0; }
 .chats-body .chat:hover .chat-glyph { color: var(--text-2); transform: translateX(1px); }
-.chats-body .chat.on .chat-glyph { --icon-w: var(--icon-stroke-on); color: var(--phosphor-ink); transform: none; }
+.chats-body .chat.on .chat-glyph { color: var(--phosphor); transform: none; }
+.chats-body .chat { --knock: var(--panel); }
 .chats-body .chat .name { font-weight: 400; transition: font-weight var(--motion) var(--ease-out), color var(--motion) var(--ease-out); }
 .chats-body .chat.on .name, .chats-body .chat.unread .name { font-weight: 600; }
-.chats-body .chat.on .when { color: color-mix(in srgb, var(--phosphor-ink) 70%, transparent); }
-.chats-body .chat.on .name { color: var(--phosphor-ink); }
-.chats-body .chat.on .chat-spin { border-color: color-mix(in srgb, var(--phosphor-ink) 30%, transparent); border-top-color: var(--phosphor-ink); }
+.chats-body .chat.on .name { color: var(--text); }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --motion-fast: 0s; --motion: 0s; --motion-slow: 0s; }
@@ -2839,5 +2844,22 @@ dialog.tour::backdrop { background: transparent; }
   .shell.with-split.with-browser > .browser-dock { grid-column: 1; grid-row: 3 / 4; }
   .shell.with-split > .split-dock, .chats-body .chat-split { display: none; }
   .chats-body .chat-row:has(.chat-split) { grid-template-columns: minmax(0, 1fr) auto; }
+}
+/* The panes beside the conversation are cards, not strips: a gutter of ground on every side, one
+   hairline, soft corners. The edge you drag is the card's own left side, and it says so with a
+   small pill that is always faintly there and wakes under the pointer. */
+@media (min-width: 901px) {
+  .shell.with-split > .split-dock, .shell.with-browser > .browser-dock {
+    margin: 10px 10px 10px 2px; min-height: 0;
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    box-shadow: var(--lift-1);
+  }
+  .shell.with-split > .split-dock { background: var(--bg); }
+  .shell.with-split.with-browser > .split-dock { margin-right: 0; }
+  .split-head { padding: 9px 10px 9px 16px; background: var(--panel); }
+  .split-dock > .dock-grip, .browser-dock > .dock-grip { left: 0; width: 10px; }
+  .split-dock > .dock-grip::after, .browser-dock > .dock-grip::after { left: 3px; width: 3px; height: 36px; opacity: .55; background: var(--line-2); transition: opacity var(--motion) var(--ease-out), height var(--motion) var(--ease-out), background-color var(--motion) var(--ease-out); }
+  .split-dock > .dock-grip:hover::after, .browser-dock > .dock-grip:hover::after,
+  .shell.dragging-split .split-grip::after, .shell.dragging-dock .browser-dock > .dock-grip::after { opacity: 1; height: 56px; background: var(--phosphor); }
 }
 /* ================= end split ================= */

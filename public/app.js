@@ -4167,7 +4167,7 @@ function whenWords(iso) {
 
 // One drawing per conversation, in the bar's own hand: 20×20, a 1.6 stroke, round ends.
 const UPDATE_GLYPH = '<svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.6v9.4M6.4 9.4 10 13l3.6-3.6M3.6 13.4v1a2 2 0 0 0 2 2h8.8a2 2 0 0 0 2-2v-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const CHAT_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 16.5 6v4.6a2.5 2.5 0 0 1-2.5 2.5H9.4l-3.6 3v-3A2.5 2.5 0 0 1 3.5 10.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHAT_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M3.5 6a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 16.5 6v4.6a2.5 2.5 0 0 1-2.5 2.5H9.4l-3.6 3v-3A2.5 2.5 0 0 1 3.5 10.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function renderChats() {
   if (!els.chatsBody) return;
   els.chatsBody.replaceChildren();
