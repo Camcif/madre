@@ -342,6 +342,19 @@
         <div id="browser-body" class="viewer-body browsing"></div>
       </aside>
 
+      <aside id="split" class="split-dock" aria-label="Second conversation" hidden>
+        <div id="split-grip" class="dock-grip split-grip" role="separator" aria-orientation="vertical" aria-label="Resize the two halves"></div>
+        <header class="split-head">
+          <span class="split-spin" aria-hidden="true"></span>
+          <span id="split-title" class="split-title"></span>
+          <button id="split-swap" class="split-action" type="button" title="Make this the open conversation, and put the other one here" aria-label="Swap the two halves">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h11.5M12.5 4l3 3-3 3M16 13H4.5M7.5 10l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button id="split-close" class="split-action" type="button" title="Close the split" aria-label="Close the split">×</button>
+        </header>
+        <iframe id="split-frame" class="split-frame" title="Second conversation"></iframe>
+      </aside>
+
       <dialog id="viewer" class="viewer" aria-label="File viewer">
         <header class="viewer-head">
           <span class="viewer-nav" id="viewer-nav" hidden>

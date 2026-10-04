@@ -2781,3 +2781,45 @@ dialog.tour::backdrop { background: transparent; }
 .bubble, .editor, .memory-hint .pill, .settled-note, .openq-ask, .choice-option { font-family: var(--read); font-weight: var(--read-weight); }
 /* At 300 the emphasis has to be asked for: "bolder" from 300 is only 400. */
 .bubble strong, .bubble b { font-weight: 600; }
+
+/* ================= split: a second conversation in the right half =================
+   The right half is the same page loaded with ?pane=split&chat=<id> inside a frame. Here: the
+   dock that holds it on the left page, the button beside × in the list, and what the page inside
+   the frame drops (the bar and every panel). Thin lines, no glow. Below 900px there is no room
+   for two and the page is one again. */
+.shell.with-split { grid-template-columns: minmax(0, 1fr) var(--split, 50%); }
+.shell.with-split > .split-dock { grid-column: 2; grid-row: 1 / -1; }
+.shell.with-split.with-browser { grid-template-columns: minmax(0, 1fr) var(--split, 50%) var(--dock, 46vw); }
+.shell.with-split.with-browser > .browser-dock { grid-column: 3; }
+.shell.with-split .colophon { display: none; }
+.split-dock { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; background: var(--bg); border-left: 1px solid var(--line-2); }
+.split-head { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 7px 10px 7px 14px; border-bottom: 1px solid var(--line); }
+.split-title { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-2); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.split-spin { display: none; width: 9px; height: 9px; flex: none; border: 1.5px solid color-mix(in srgb, var(--phosphor) 30%, transparent); border-top-color: var(--phosphor); border-radius: 50%; animation: chat-spin .8s linear infinite; }
+.split-dock.working .split-spin { display: inline-block; }
+@media (prefers-reduced-motion: reduce) { .split-spin { animation: none; border-color: var(--phosphor); } }
+.split-action { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text-3); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
+.split-action svg { width: 15px; height: 15px; }
+.split-action:hover, .split-action:focus-visible { color: var(--text); border-color: var(--line-2); }
+.split-frame { display: block; width: 100%; height: 100%; min-height: 0; border: 0; background: transparent; }
+.shell.dragging-split .split-frame, .shell.dragging-split .browser-dock iframe { pointer-events: none; }
+.shell.dragging-split .split-grip::after { opacity: 1; background: var(--phosphor); }
+
+.chats-body .chat-row:has(.chat-split) { grid-template-columns: minmax(0, 1fr) auto auto; }
+.chats-body .chat-split { display: inline-grid; place-items: center; border: 1px solid transparent; background: transparent; color: var(--text-3); padding: 3px 5px; border-radius: 7px; cursor: pointer; opacity: 0; }
+.chats-body .chat-split svg { width: 14px; height: 14px; }
+.chats-body .chat-row:hover .chat-split, .chats-body .chat-split:focus-visible, .chats-body .chat-split.on { opacity: 1; }
+.chats-body .chat-split:hover { color: var(--text); border-color: var(--line-2); }
+.chats-body .chat-split.on { color: var(--phosphor); border-color: color-mix(in srgb, var(--phosphor) 35%, transparent); }
+
+/* The page inside the frame: the conversation and its composer, nothing of the bar. */
+.split-pane .shell > .bar, .split-pane .chats-button, .split-pane #chats, .split-pane #tree, .split-pane .browser-dock, .split-pane .split-dock, .split-pane .colophon, .split-pane .notices { display: none !important; }
+.split-pane .shell { --column: min(880px, 100% - 32px); grid-template-columns: minmax(0, 1fr); }
+
+@media (max-width: 900px) {
+  .shell.with-split, .shell.with-split.with-browser { grid-template-columns: minmax(0, 1fr); }
+  .shell.with-split.with-browser > .browser-dock { grid-column: 1; }
+  .shell.with-split > .split-dock, .chats-body .chat-split { display: none; }
+  .chats-body .chat-row:has(.chat-split) { grid-template-columns: minmax(0, 1fr) auto; }
+}
+/* ================= end split ================= */

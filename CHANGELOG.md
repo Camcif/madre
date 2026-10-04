@@ -31,6 +31,15 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 - Solo una conversación a la vez puede tener **CONTROL** o **AIRLOCK** del proyecto, aunque haya varias trabajando, y **DESHACER** funciona desde cualquiera.
 - Al cambiar de conversación, la sala conserva lo que ajustaste: el modo máximo de cada agente, los módulos encendidos y los tiempos límite. Antes, una conversación recién abierta los perdía.
 
+### Dos conversaciones a la vez, una en cada mitad
+
+- En **CONVERSACIONES**, junto a la ×, un botón nuevo abre esa conversación en la mitad derecha de la ventana: su transcripción y su caja de texto, en vivo. Puedes escribir en las dos y ver a cada agente responder en la suya.
+- La mitad derecha no tiene barra ni paneles: solo el nombre de la conversación, un botón para intercambiar las mitades y la × para cerrarla. La barra, MÓDULOS, MU/TH/UR y los paneles siguen actuando sobre la conversación de la izquierda, que sigue siendo la abierta.
+- El borde entre las dos se arrastra para repartir el ancho. El tema y el idioma que elijas a la izquierda cambian también a la derecha.
+- La división se recuerda al recargar. Abrir desde la lista la conversación de la derecha, o borrarla, cierra la división. En una ventana de menos de 900 px no cabe y la sala vuelve a ser una.
+- **TURNOS** cuenta la conversación de la derecha como cualquier otra, y la que termina ahí no te manda aviso: ya la estás viendo.
+- Dos conversaciones que escriben al mismo tiempo ya no pueden repetir un número de mensaje: la numeración del proyecto se lee en el momento de escribir.
+
 ### Un modelo elegido para un agente ya no le llega a otro
 
 - Si el chip de modelo tenía elegido uno de otro agente (por ejemplo, un modelo de OpenAI con el mensaje dirigido a @gemini, o un mensaje que empieza con `@gemini` mientras el chip apuntaba a @codex), ese modelo viajaba igual y el agente fallaba con un error de su API que parecía de permisos. Ahora cada mensaje usa el modelo y el esfuerzo del agente al que de verdad va, un modelo de otro agente no se le pasa, y la sala te avisa y lo olvida del chip.
