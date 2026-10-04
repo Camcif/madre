@@ -360,7 +360,9 @@ test('a module card has the same floors whatever the module is, and its numbers 
     card: 'ash', runs: [], status: { installed: true, detail: 'on' }, preflight: { ok: true, problems: [] }, install: { display: '', platforms: [] },
   });
   const floors = ash.children.filter((child) => typeof child !== 'string');
-  assert.deepEqual(floors.map((floor) => floor.className), ['head', 'about', 'card-fold', 'card-panel', 'actions'], 'the floors of a card changed');
+  // What it does sits in the first floor, under the name: it is what decides whether you want it.
+  assert.deepEqual(floors.map((floor) => floor.className), ['head', 'card-fold', 'card-panel', 'actions'], 'the floors of a card changed');
+  assert.equal(ash.querySelector('.summary')?.textContent, 'Asks every agent for compact prose.', 'what the module does is not under its name');
   assert.equal(floors.at(-1).className, 'actions', 'the switch is not the last floor');
   assert.equal(ash.querySelector('.vendor').textContent, 'MADRE');
   assert.match(ash.querySelector('.version').textContent, /v1\.0\.0/, 'a module that ships with MADRE does not show its own version');

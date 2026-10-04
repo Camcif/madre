@@ -12,6 +12,16 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 - El logo de la barra es el oficial: el pulso en verde y la palabra MADRE en blanco (en tema claro, verde oscuro y casi negro). En barras angostas queda solo el pulso.
 - La pestaña del navegador muestra el ícono de MADRE, y @madre lleva el pulso compacto de la marca.
 
+### MÓDULOS, ordenado
+
+- Primero los módulos **encendidos** y luego los **disponibles**. Cada tarjeta dice su nombre y si está encendido en una fila, y debajo qué hace, en letra de lectura. Fabricante, versión y si está al día van en una sola línea, y los botones quedan siempre al pie.
+
+### Notas propias al pasar el mouse, y la caja de texto más limpia
+
+- Las notas que salen al dejar el mouse sobre un botón ya son de la sala y no del navegador: aparecen a medio segundo, con la idea principal primero y el detalle debajo.
+- En la caja de texto, los comandos (`/module`), los archivos y las menciones se ven en negrita de su color, sin recuadro.
+- Los paneles de conversaciones y archivos son más anchos, y con dos conversaciones abiertas lado a lado sus cajas de texto quedan a la misma altura.
+
 ### La barra angosta y las preguntas abiertas se leen mejor
 
 - Cuando la barra se compacta, cada ícono vive en un cuadro de esquinas suaves y su número va en la esquina, como en el teléfono.

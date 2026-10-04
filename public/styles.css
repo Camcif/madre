@@ -2914,3 +2914,22 @@ dialog.tour::backdrop { background: transparent; }
 .chats-body .chat-split.on .ic-f { fill: currentColor; }
 .chats-body .chat-split.on .ic-k { stroke: var(--panel); }
 /* ================= end split ================= */
+
+/* MODULES, rearranged. Name and state on one line; what it does under the name, in the reading face
+   and in sentence case; who, which version and whether it is current on one quiet mono line; the
+   state's detail in sentence case; the buttons always on the card's floor, level across a row. */
+.module-card:not(.dev-card) > * { padding: 14px 18px; }
+.module-card .head { gap: 8px; }
+.module-card .head .top { align-items: center; }
+.module-card h4 { font-size: 14px; letter-spacing: .12em; }
+.module-card .head .summary { margin: 0; font-family: var(--read, inherit); font-weight: 400; font-size: 13.5px; line-height: 1.5; letter-spacing: 0; text-transform: none; color: rgba(225, 255, 210, .9); }
+.module-card .version { gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--ph-dim); }
+.module-card .version .vendor { font-size: 10px; letter-spacing: .08em; color: var(--ph-dim); }
+.module-card .version .vendor::after { content: '·'; margin-left: 8px; opacity: .6; }
+.module-card .version b { font-size: 10.5px; }
+.module-card .version .check { padding: 1px 6px; font-size: 10px; }
+.module-card .detail { font-family: var(--read, inherit); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--ph-dim); }
+.module-card.off > *:not(.actions) { opacity: .7; }
+.module-card > .actions { margin-top: auto; padding-top: 12px; padding-bottom: 14px; }
+.mother-grid { align-items: stretch; }
+

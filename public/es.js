@@ -2810,6 +2810,7 @@ export const ES = {
   'Dismiss': 'Descartar',
   '@{agent} answered': '@{agent} respondió',
   'OPEN →': 'ABRIR →',
+  'ON · {n}': 'ENCENDIDOS · {n}',
   'MULTITASKING':
     'MULTITAREA',
   'This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.':
