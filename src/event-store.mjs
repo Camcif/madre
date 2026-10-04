@@ -14,16 +14,27 @@ export class EventStore {
   // numbering across all of its conversations, so #1411 means one exchange in this project and
   // not one in each thread — the memory index, every citation and NOSTROMO all lean on that.
   // Gaps in a single ledger are fine: sequences are an order, not a count.
+  // It may be a function, read at every append, when other conversations of the project are
+  // writing at the same time as this one: a number fixed when the ledger opened would hand out
+  // a sequence another conversation has taken since.
   constructor(file, { floor = 0 } = {}) {
     this.#file = file;
-    this.#floor = Number.isFinite(floor) ? floor : 0;
+    this.#floor = typeof floor === 'function' || Number.isFinite(floor) ? floor : 0;
     this.#lockDirectory = `${file}.lock`;
   }
+
+  #floorNow() {
+    const value = typeof this.#floor === 'function' ? Number(this.#floor()) : this.#floor;
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  // The last sequence this ledger handed out (or the floor it opened above).
+  get lastSequence() { return this.#nextSequence - 1; }
 
   async initialize() {
     await mkdir(dirname(this.#file), { recursive: true });
     const existing = await this.readAll();
-    this.#nextSequence = Math.max(existing.at(-1)?.sequence ?? 0, this.#floor) + 1;
+    this.#nextSequence = Math.max(existing.at(-1)?.sequence ?? 0, this.#floorNow()) + 1;
     return this;
   }
 
@@ -144,7 +155,7 @@ export class EventStore {
         const temp = `${this.#file}.rewrite-${process.pid}`;
         await writeFile(temp, next.map((event) => JSON.stringify(event)).join('\n') + (next.length ? '\n' : ''));
         await rename(temp, this.#file);
-        this.#nextSequence = Math.max(next.at(-1)?.sequence ?? 0, this.#floor) + 1;
+        this.#nextSequence = Math.max(next.at(-1)?.sequence ?? 0, this.#floorNow()) + 1;
         return { total: next.length, changed };
       } finally {
         await release();
@@ -159,7 +170,7 @@ export class EventStore {
       const release = await this.#acquireLock();
       try {
         const existing = await this.#readAllUnlocked();
-        const sequence = Math.max(existing.at(-1)?.sequence ?? 0, this.#floor) + 1;
+        const sequence = Math.max(existing.at(-1)?.sequence ?? 0, this.#floorNow()) + 1;
         const event = {
           id: randomUUID(),
           sequence,

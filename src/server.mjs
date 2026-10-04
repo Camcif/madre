@@ -128,6 +128,8 @@ export async function createPulseServer({
   quotaSources = [],
   quotaPollIntervalMs = Number(process.env.PULSE_QUOTA_POLL_INTERVAL_MS ?? 60000),
   broadcastIntervalMs = Number(process.env.PULSE_BROADCAST_INTERVAL_MS ?? 500),
+  // How long a conversation opened beside the one on screen waits for a page to start watching it.
+  heldGraceMs = 30000,
   sseMaxBufferedBytes = Number(process.env.PULSE_SSE_MAX_BUFFERED_BYTES ?? 1_048_576),
   agentTimeouts,
   maxMessageChars = Number(process.env.PULSE_MAX_MESSAGE_CHARS ?? 20000),
@@ -198,7 +200,20 @@ export async function createPulseServer({
   // numbering is the project's, so a citation means the same thing in all of them.
   await adoptStrays(roomDir).catch(() => null);
   let chatId = (await chatIndex(roomDir)).active;
-  let store = await new EventStore(chatLedger(roomDir, chatId), { floor: await projectFloor(roomDir, { except: chatId }) }).initialize();
+  // Every record open in this process. Two conversations may write at once (one at work while
+  // the human is in another, or both halves of a split window), so the floor a ledger numbers
+  // from is read when it writes: what the project had on disk, or what any open ledger has
+  // handed out since, whichever is higher.
+  const liveStores = new Set();
+  let retiredHigh = 0;   // the highest a ledger that closed in this process had reached
+  const openLedger = async (id) => {
+    const base = await projectFloor(roomDir, { except: id });
+    const opened = await new EventStore(chatLedger(roomDir, id), { floor: () => Math.max(base, retiredHigh, ...[...liveStores].map((each) => each.lastSequence)) }).initialize();
+    liveStores.add(opened);
+    return opened;
+  };
+  const retireLedger = (closed) => { if (!liveStores.delete(closed)) return; retiredHigh = Math.max(retiredHigh, closed.lastSequence); };
+  let store = await openLedger(chatId);
   let historicalEvents = await store.readAll();
   // The room's memory: derived from the ledger, rebuilt if missing or stale,
   // and never a reason for the room not to open.
@@ -305,7 +320,9 @@ export async function createPulseServer({
   // One CONTROL desk for the whole project, shared by every conversation alive at once: a single
   // holder of the working tree whichever chat asked, and an UNDO that works from any of them.
   const controlDesk = new ControlDesk({ projectRoot });
-  const roomOptions = () => ({
+  // The open conversation's record unless another is named: a conversation held open beside it
+  // builds its room the same way, over its own record.
+  const roomOptions = (own = {}) => ({
     store,
     agents,
     projectRoot,
@@ -332,6 +349,7 @@ export async function createPulseServer({
     maxMessageChars,
     delegation,
     maxPlanSteps,
+    ...own,
   });
   room = new Room(roomOptions());
   await wireOllama({ probe: false });
@@ -576,53 +594,54 @@ export async function createPulseServer({
   await quotaMonitor.start();
   // SSE fan-out works from the durable log, not from in-memory emits, so events
   // appended by another MADRE process on the same room reach open pages too.
-  // `clients` maps each SSE response to the last sequence it already holds.
-  const clients = new Map();
-  let lastBroadcastSequence = historicalEvents.at(-1)?.sequence ?? 0;
-  // Byte offset of the log already broadcast; the poller only reads past it.
-  let tailOffset = (await store.tail(0)).offset;
-  let inFlight = null;
-  let dirty = false;
+  // A feed is one record and the pages watching it: `clients` maps each SSE response to the last
+  // sequence it already holds, `sent` is the last sequence broadcast and `offset` the byte offset
+  // of the log already read. The open conversation has one; a conversation held open beside it
+  // (the window split in two) has its own, so neither page hears the other's record.
+  const feedOver = async (source, events) => ({ store: source, clients: new Map(), sent: events.at(-1)?.sequence ?? 0, offset: (await source.tail(0)).offset, inFlight: null, dirty: false });
+  const mainFeed = await feedOver(store, historicalEvents);
+  const clients = mainFeed.clients;
   // A client that stops draining is dropped instead of buffering without bound.
-  const writeEvent = (client, event) => {
+  const writeEvent = (client, event, feed = mainFeed) => {
     // Ghost events have no sequence: they are never in the log, so no `id:`
     // line, and a reconnecting client will not ask for them again.
     client.write(`${event.sequence ? `id: ${event.sequence}\n` : ''}data: ${JSON.stringify(event)}\n\n`);
     if (client.writableLength > sseMaxBufferedBytes) {
-      clients.delete(client);
+      feed.clients.delete(client);
       client.destroy();
       return false;
     }
     return true;
   };
 
-  function broadcastPending() {
-    if (inFlight) {
-      dirty = true;
-      return inFlight;
+  function pump(feed) {
+    if (feed.inFlight) {
+      feed.dirty = true;
+      return feed.inFlight;
     }
-    inFlight = (async () => {
+    feed.inFlight = (async () => {
       try {
         do {
-          dirty = false;
-          const { events, offset } = await store.tail(tailOffset);
-          tailOffset = offset;
+          feed.dirty = false;
+          const { events, offset } = await feed.store.tail(feed.offset);
+          feed.offset = offset;
           for (const event of events) {
-            if (event.sequence <= lastBroadcastSequence) continue;
-            for (const [client, floor] of clients) {
-              if (event.sequence > floor) writeEvent(client, event);
+            if (event.sequence <= feed.sent) continue;
+            for (const [client, floor] of feed.clients) {
+              if (event.sequence > floor) writeEvent(client, event, feed);
             }
-            lastBroadcastSequence = event.sequence;
+            feed.sent = event.sequence;
           }
-        } while (dirty);
+        } while (feed.dirty);
       } catch (error) {
         console.error(`MADRE broadcast error: ${error.message}`);
       } finally {
-        inFlight = null;
+        feed.inFlight = null;
       }
     })();
-    return inFlight;
+    return feed.inFlight;
   }
+  const broadcastPending = () => pump(mainFeed);
   let unsubscribe = () => {};
 
   // The error sentinel: failures MU/TH/UR cannot classify, and crashes, become
@@ -704,15 +723,35 @@ export async function createPulseServer({
     const clamp = (value, low, high, fallback) => (Number.isInteger(Number(value)) ? Math.min(high, Math.max(low, Number(value))) : fallback);
     return { enabled: saved.enabled !== false, chats: clamp(saved.chats, 1, 6, 2), turnsPerChat: clamp(saved.turnsPerChat, 1, 8, 3) };
   };
-  // Conversations still at work after the human moved to another. Each keeps its own record and
-  // keeps writing it; it is not streamed to the page, which only hears that it is working and when
-  // a turn in it ends. When it has nothing left to do it closes itself.
-  const parked = new Map();   // chatId -> { room, store, off }
+  // Conversations held open beside the one on screen. Two reasons to hold one: it is still at work
+  // after the human moved to another (parked: it keeps writing its record, and the page only hears
+  // that it is working and when a turn ends), or a page is watching it in the other half of the
+  // window (it has a feed of its own and takes messages addressed to it). One room per record,
+  // always: opening a held conversation takes the room that is already there. When nothing is
+  // running in it and nobody is watching, it closes itself.
+  const parked = new Map();   // chatId -> { room, store, off, feed }
+  const opening = new Map();  // chatId -> the promise of its room, while it is being built
   const busyChats = () => [...parked.entries()].filter(([, held]) => held.room.busy()).map(([id]) => id);
   const sayToAll = (type, payload) => {
     const event = { id: `live-${randomUUID()}`, sequence: null, live: true, timestamp: new Date().toISOString(), type, payload };
     for (const client of clients.keys()) writeEvent(client, event);
   };
+  const endClients = (feed) => { for (const client of [...feed.clients.keys()]) { feed.clients.delete(client); try { client.end(); } catch { /* already gone */ } } };
+  async function closeHeld(id) {
+    const held = parked.get(id);
+    if (!held) return;
+    parked.delete(id);
+    held.off();
+    await held.room.shutdown().catch(() => null);
+    retireLedger(held.store);
+  }
+  // A held conversation with no turn running and nobody watching it has no reason to stay open.
+  async function releaseIfIdle(id, target = null) {
+    const held = parked.get(id);
+    if (!held || (target && held.room !== target)) return;
+    if (held.room.busy() || held.feed?.clients.size) return;
+    await closeHeld(id);
+  }
   // A conversation's turns starting and ending, said to every page whichever conversation it shows.
   // The settle after an end is read a moment later: the turn leaves the room after its last event.
   function watchActivity(target, id) {
@@ -724,10 +763,73 @@ export async function createPulseServer({
       setTimeout(() => {
         if (target.busy()) return;
         sayToAll('chat.activity', { chatId: id, working: false });
-        const held = parked.get(id);
-        if (held?.room === target) { parked.delete(id); held.off(); void target.shutdown().catch(() => null); }
+        void releaseIfIdle(id, target);
       }, 400).unref?.();
     });
+  }
+  // What a held conversation keeps doing while it is not the one on screen: its list entry follows
+  // what is said in it, and every page hears when a turn in it starts and ends.
+  function hold(id, target, source) {
+    const offTouch = target.subscribe((event) => {
+      if (event?.type !== 'message.created' || event.ghost) return;
+      const human = event.payload?.role === 'user';
+      chatWrites = chatWrites.then(() => touchChat(roomDir, id, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
+    });
+    const offActivity = watchActivity(target, id);
+    const entry = { room: target, store: source, feed: null, off: () => { offTouch(); offActivity(); } };
+    parked.set(id, entry);
+    return entry;
+  }
+  // A page starts watching a held conversation: it gets its own feed, fed by its own room.
+  async function watchHeld(entry) {
+    if (entry.feed) return entry.feed;
+    const feed = await feedOver(entry.store, await entry.store.readAll());
+    if (entry.feed) return entry.feed;
+    entry.feed = feed;
+    const offs = [
+      entry.room.subscribe(() => { void pump(feed); }),
+      entry.room.subscribeGhost((event) => { for (const client of [...feed.clients.keys()]) writeEvent(client, event, feed); }),
+      entry.room.subscribeLive((event) => { for (const client of [...feed.clients.keys()]) writeEvent(client, event, feed); }),
+    ];
+    const before = entry.off;
+    entry.off = () => { before(); for (const off of offs) { try { off(); } catch { /* already gone */ } } endClients(feed); };
+    return feed;
+  }
+  // The conversation a request is about. Without `?chat=`, or naming the one on screen, it is the
+  // open conversation, exactly as before. Naming another opens it beside, without changing which
+  // one is on screen: the same room a parked conversation already has, or a new one built the way
+  // mountChat builds one.
+  // The room on screen, for the places where a route names its own conversation `room`.
+  const openRoom = () => room;
+  async function scopeOf(url) {
+    const asked = url.searchParams.get('chat');
+    if (!asked || asked === chatId) return { id: chatId, room, store, feed: mainFeed, main: true };
+    if (!isChatId(asked)) return { error: `No conversation "${asked}".` };
+    let entry = parked.get(asked);
+    if (!entry) {
+      if (!opening.has(asked)) {
+        opening.set(asked, (async () => {
+          if (!(await listChats(roomDir)).chats.some((chat) => chat.id === asked)) return null;
+          const source = await openLedger(asked);
+          const events = await source.readAll();
+          const opened = new Room(roomOptions({ store: source, historicalEvents: events }));
+          opened.setInvoker(MADRE_ADAPTER, madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }));
+          await applyRoomSettings(opened, room);
+          opened.restoreAttachments(events
+            .filter((event) => event.type === 'attachment.stored')
+            .map((event) => ({ ...event.payload, path: join(attachmentsRoot, event.payload.fileName), dir: attachmentsRoot })));
+          const made = hold(asked, opened, source);
+          // Opened to be looked at; if no page comes to watch it, it closes again.
+          setTimeout(() => { void releaseIfIdle(asked, opened); }, heldGraceMs).unref?.();
+          return made;
+        })().finally(() => opening.delete(asked)));
+      }
+      entry = await opening.get(asked);
+      if (!entry) return { error: `No conversation "${asked}".` };
+    }
+    // It may have become the open one while it was being built.
+    if (asked === chatId) return { id: chatId, room, store, feed: mainFeed, main: true };
+    return { id: asked, room: entry.room, store: entry.store, entry, main: false };
   }
   let unsubscribeActivity = () => {};
   const chatsView = async () => {
@@ -759,47 +861,49 @@ export async function createPulseServer({
     if (leavingBusy && !policy.enabled) return { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') };
     const opened = await openChatIndex(roomDir, id);
     if (!opened) return { error: `No conversation "${id}".` };
+    // A room being built for it beside is the room it gets; never a second one over its record.
+    await opening.get(id)?.catch(() => null);
     unwireRoom();
     await chatWrites.catch(() => null);
     if (leaving && leavingBusy && chatId !== id) {
       // Still writing its record and touching the list; only the page stops watching it.
-      const leftId = chatId;
-      const offTouch = leaving.subscribe((event) => {
-        if (event?.type !== 'message.created' || event.ghost) return;
-        const human = event.payload?.role === 'user';
-        chatWrites = chatWrites.then(() => touchChat(roomDir, leftId, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
-      });
-      const offActivity = watchActivity(leaving, leftId);
-      parked.set(leftId, { room: leaving, store, off: () => { offTouch(); offActivity(); } });
+      hold(chatId, leaving, store);
     } else if (leaving) {
       await leaving.shutdown().catch(() => null);
+      retireLedger(store);
     }
     chatId = id;
     const held = parked.get(id);
     if (held) {
-      // Back to a conversation that kept working: the same room, not a second one over its record.
+      // Back to a conversation that kept working, or that was open beside: the same room, not a
+      // second one over its record. A page watching it there comes back to it as the open one.
       parked.delete(id);
       held.off();
       room = held.room;
       store = held.store;
       historicalEvents = await store.readAll();
     } else {
-      store = await new EventStore(chatLedger(roomDir, id), { floor: await projectFloor(roomDir, { except: id }) }).initialize();
+      store = await openLedger(id);
       historicalEvents = await store.readAll();
       room = new Room(roomOptions());
       room.setInvoker(MADRE_ADAPTER, madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }));
       await applyRoomSettings(room, leaving);
     }
     wireRoom();
-    // Whoever is watching is watching the wrong record now: their stream ends and they come back
-    // to the one that is open.
-    lastBroadcastSequence = historicalEvents.at(-1)?.sequence ?? 0;
-    tailOffset = (await store.tail(0)).offset;
-    for (const client of [...clients.keys()]) { clients.delete(client); try { client.end(); } catch { /* already gone */ } }
+    // Whoever is watching the open conversation is watching the wrong record now: their stream
+    // ends and they come back to the one that is open. A page watching another conversation
+    // beside it has a feed of its own and is not touched.
+    mainFeed.store = store;
+    mainFeed.sent = historicalEvents.at(-1)?.sequence ?? 0;
+    mainFeed.offset = (await store.tail(0)).offset;
+    endClients(mainFeed);
     return { chat: opened };
   }
   wireRoom();
-  const poller = setInterval(() => { void broadcastPending(); }, broadcastIntervalMs);
+  const poller = setInterval(() => {
+    void broadcastPending();
+    for (const held of parked.values()) if (held.feed) void pump(held.feed);
+  }, broadcastIntervalMs);
   poller.unref();
 
   let installing = null;
@@ -1021,7 +1125,14 @@ export async function createPulseServer({
         return response.end(image);
       }
       if (request.method === 'GET' && url.pathname === '/api/state') {
+        // `?chat=` reads another conversation, held open beside the one on screen; the room-wide
+        // parts are the same, the record and what is running in it are that conversation's.
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const room = here.room;
+        const store = here.store;
         return sendJson(response, 200, {
+          ...(here.main ? {} : { chat: here.id }),
           projectRoot,
           platform: process.platform,
           // Which MADRE this is. The page prints it in the corner: the one fact a bug report
@@ -1062,6 +1173,10 @@ export async function createPulseServer({
       if (request.method === 'GET' && url.pathname === '/api/events') {
         const sinceValue = request.headers['last-event-id'] ?? url.searchParams.get('since');
         const since = sinceValue === undefined || sinceValue === null || sinceValue === '' ? null : Number(sinceValue);
+        // `?chat=` watches a conversation held open beside the one on screen, on a feed of its own.
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const feed = here.main ? mainFeed : await watchHeld(here.entry);
         response.writeHead(200, {
           'content-type': 'text/event-stream',
           'cache-control': 'no-cache',
@@ -1070,17 +1185,22 @@ export async function createPulseServer({
         response.write(': connected\n\n');
         // Replay what this client missed between /api/state and this connection,
         // then register it so the shared cursor delivers everything newer.
-        const events = Number.isFinite(since) ? await store.readAll() : [];
+        const events = Number.isFinite(since) ? await feed.store.readAll() : [];
         let floor = Number.isFinite(since) ? since : 0;
         for (const event of events) {
-          if (event.sequence > floor && event.sequence <= lastBroadcastSequence) {
-            writeEvent(response, event);
+          if (event.sequence > floor && event.sequence <= feed.sent) {
+            writeEvent(response, event, feed);
             floor = event.sequence;
           }
         }
-        clients.set(response, floor);
-        request.on('close', () => clients.delete(response));
-        void broadcastPending();
+        feed.clients.set(response, floor);
+        request.on('close', () => {
+          feed.clients.delete(response);
+          // The last page watching a held conversation went away: it closes unless it is at work. A
+          // moment later, so a page that is only reconnecting finds the same room.
+          if (!here.main) setTimeout(() => { void releaseIfIdle(here.id, here.room); }, 1500).unref?.();
+        });
+        void pump(feed);
         return;
       }
       // Copying and moving, by the human's own hand. Both ends are resolved inside the project
@@ -1184,7 +1304,9 @@ export async function createPulseServer({
           return sendJson(response, error.status ?? 400, { error: error.message });
         }
         const name = decodeURIComponent(request.headers['x-pulse-filename'] ?? url.searchParams.get('name') ?? 'attachment');
-        const record = await room.registerAttachment(await storeAttachment(attachmentsRoot, { name, bytes }));
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const record = await here.room.registerAttachment(await storeAttachment(attachmentsRoot, { name, bytes }));
         return sendJson(response, 201, { attachment: { id: record.id, name: record.name, fileName: record.fileName, size: record.size, contentType: record.contentType, url: `/api/files?root=attachments&path=${encodeURIComponent(record.fileName)}` } });
       }
       if (request.method === 'GET' && url.pathname === '/api/settings') {
@@ -1293,11 +1415,15 @@ export async function createPulseServer({
       }
       if (request.method === 'GET' && url.pathname === '/api/questions') {
         const limit = Math.min(5, Math.max(1, Number(url.searchParams.get('limit') ?? 3) || 3));
-        return sendJson(response, 200, { questions: room.questions({ limit }) });
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        return sendJson(response, 200, { questions: here.room.questions({ limit }) });
       }
       if (request.method === 'GET' && url.pathname === '/api/decisions') {
         const limit = Math.min(5, Math.max(1, Number(url.searchParams.get('limit') ?? 3) || 3));
-        return sendJson(response, 200, { decisions: room.decisions({ limit }) });
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        return sendJson(response, 200, { decisions: here.room.decisions({ limit }) });
       }
       if (url.pathname === '/api/economy' && request.method === 'GET') {
         return sendJson(response, 200, economy(await store.readAll()));
@@ -1412,14 +1538,16 @@ export async function createPulseServer({
         if (!privacy.enabled) return sendJson(response, 412, { error: t('No private terms are set. Write them first.') });
         const result = await room.purgePrivate();
         // The log was rewritten in place: the broadcaster's byte offset is stale, the sequences are not.
-        tailOffset = (await store.tail(0)).offset;
+        mainFeed.offset = (await store.tail(0)).offset;
         return sendJson(response, 200, { purged: result, exposure: room.privacyExposure(await store.readAll()) });
       }
       // The human's verdict on a reply, for the dataset: good, bad, none.
       if (request.method === 'POST' && url.pathname === '/api/messages/rate') {
         const payload = await body(request).catch(() => ({}));
         try {
-          const event = await room.rateMessage(String(payload.messageId ?? ''), String(payload.rating ?? ''));
+          const here = await scopeOf(url);
+          if (here.error) return sendJson(response, 404, here);
+          const event = await here.room.rateMessage(String(payload.messageId ?? ''), String(payload.rating ?? ''));
           return sendJson(response, 200, { rated: event.payload });
         } catch (error) { return sendJson(response, 400, { error: error.message }); }
       }
@@ -1522,6 +1650,9 @@ export async function createPulseServer({
         const mode = Math.min(4, Math.max(0, Number(url.searchParams.get('mode') ?? 1) || 0));
         const text = String(url.searchParams.get('text') ?? '').slice(0, 2000);
         const ash = url.searchParams.get('ash') === 'true';
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const room = here.room;
         const briefing = await room.briefing({ agent: asked, mode, text, ash });
         if (!briefing) return sendJson(response, 404, { error: `No agent "${asked}" on this computer.` });
         return sendJson(response, 200, {
@@ -1555,6 +1686,9 @@ export async function createPulseServer({
       }
       if (chatMatch && request.method === 'DELETE') {
         if ((chatMatch[1] === chatId && room.busy()) || parked.get(chatMatch[1])?.room.busy()) return sendJson(response, 409, { error: t('A turn is running in this conversation.') });
+        // Open beside the one on screen and idle: its room closes, and the page watching it hears
+        // its stream end, before its record goes.
+        await closeHeld(chatMatch[1]);
         const gone = await deleteChat(roomDir, chatMatch[1]);
         if (!gone) return sendJson(response, 404, { error: t('No such conversation.') });
         if (gone.error) return sendJson(response, 409, gone);
@@ -1773,7 +1907,9 @@ export async function createPulseServer({
       // One answer, not the room. The master brake lives next door and means something else.
       if (request.method === 'POST' && url.pathname === '/api/stop-turn') {
         const payload = await body(request).catch(() => ({}));
-        const stopped = await room.stopTurn(String(payload.messageId ?? ''));
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const stopped = await here.room.stopTurn(String(payload.messageId ?? ''));
         return sendJson(response, stopped ? 200 : 404, stopped ? { stopped: true } : { error: t('That turn is not running any more.') });
       }
       // TURNS, read and set from MU/TH/UR. The limits apply to the next message; nothing running stops.
@@ -1802,7 +1938,9 @@ export async function createPulseServer({
       }
       const stopMatch = request.method === 'POST' && url.pathname.match(/^\/api\/plans\/([0-9a-f-]+)\/stop$/);
       if (stopMatch) {
-        const stopped = await room.stopPlan(stopMatch[1]);
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const stopped = await here.room.stopPlan(stopMatch[1]);
         return sendJson(response, stopped ? 202 : 404, stopped ? { stopped: true } : { error: t('No running plan with that id.') });
       }
       // One line of a ```pulse-run, pressed by the human. The body names the request and the line;
@@ -1811,7 +1949,9 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         const index = Number(payload.index);
         if (typeof payload.responseMessageId !== 'string' || !Number.isInteger(index) || index < 0) return sendJson(response, 400, { error: t('Name the request and the line to run.') });
-        const outcome = await room.runRequested({ responseMessageId: payload.responseMessageId, index });
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const outcome = await here.room.runRequested({ responseMessageId: payload.responseMessageId, index });
         return sendJson(response, outcome.status, outcome.ok ? outcome.result : { error: outcome.error });
       }
       if (request.method === 'GET' && url.pathname === '/api/commands') {
@@ -1848,7 +1988,9 @@ export async function createPulseServer({
           } catch (error) { result = { ok: false, title: own.title, text: `/${parsed.name} failed: ${error.message}` }; }
           command = own;
         }
-        const event = await room.recordCommand({ name: parsed.name, args: parsed.args, ...result });
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const event = await here.room.recordCommand({ name: parsed.name, args: parsed.args, ...result });
         return sendJson(response, result.ok ? 200 : 422, { command: parsed.name, title: result.title, ok: result.ok, sequence: event.sequence });
       }
       if (request.method === 'GET' && url.pathname === '/api/extensions') {
@@ -1906,17 +2048,26 @@ export async function createPulseServer({
         return sendJson(response, result.status, result.body);
       }
       if (request.method === 'POST' && /^\/api\/control\/[\w-]+\/undo$/.test(url.pathname)) {
-        const result = await room.undoControl(url.pathname.split('/')[3]);
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const result = await here.room.undoControl(url.pathname.split('/')[3]);
         return sendJson(response, result.ok ? 200 : result.status ?? 400, result);
       }
       if (request.method === 'POST' && /^\/api\/modes\/[\w-]+\/decide$/.test(url.pathname)) {
         const requestId = url.pathname.split('/')[3];
         const { decision } = await body(request);
-        const result = room.decideMode(requestId, decision);
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const result = here.room.decideMode(requestId, decision);
         return sendJson(response, result.ok ? 200 : 409, result);
       }
       if (request.method === 'POST' && url.pathname === '/api/messages') {
         const payload = await body(request);
+        // `?chat=` sends into a conversation held open beside the one on screen. TURNS counts it
+        // like any other: the conversation on screen is one of the "others" when it is working.
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const room = here.room;
         // Modes are checked before the turn is accepted, so the composer
         // hears "no" with a reason instead of a silent log line.
         const gate = await room.modeCheck(payload);
@@ -1924,8 +2075,11 @@ export async function createPulseServer({
         const turns = await turnsPolicy();
         if (turns.enabled) {
           if (room.turnsRunning() >= turns.turnsPerChat) return sendJson(response, 429, { error: t('This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.', { n: room.turnsRunning(), max: turns.turnsPerChat }) });
-          const others = busyChats().length;
+          const others = busyChats().filter((id) => id !== here.id).length + (!here.main && openRoom().busy() ? 1 : 0);
           if (!room.busy() && others + 1 > turns.chats) return sendJson(response, 429, { error: t('{n} other conversations are already working, and TURNS allows {max} at a time. Wait for one to finish, or raise it in MU/TH/UR → TURNS.', { n: others, max: turns.chats }) });
+        } else if (!here.main && !room.busy() && openRoom().busy()) {
+          // TURNS off: one conversation drives the crew at a time, beside or not.
+          return sendJson(response, 409, { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') });
         }
         await refreshPrivacy();
         void room.send(payload).catch((error) => {
@@ -1958,6 +2112,7 @@ export async function createPulseServer({
     // In-flight agent processes are killed and their turns recorded as failed
     // before the SSE clients go away, so open pages see the outcome.
     const shutdown = Promise.all([room, ...[...parked.values()].map((held) => held.room)].map((each) => each.shutdown().catch((error) => console.error(`MADRE shutdown error: ${error.message}`))));
+    // off() also ends the streams of pages watching a conversation held open beside.
     for (const held of parked.values()) held.off();
     parked.clear();
     let result;
