@@ -1380,6 +1380,17 @@ dialog.viewer { border: 0; padding: 0; width: min(1100px, 96vw); max-width: 96vw
   .mother-button .modules-count, .mother-button .mother-count { font-size: 9px; }
   .stop-all { width: 30px; height: 28px; padding: 0; gap: 0; font-size: 0; justify-content: center; }
   .stop-all .stop-all-glyph { font-size: 12px; }
+  /* Squircles with their count on the corner, the way a phone shows it. The count used to be
+     pulled out with position:absolute and escape 16-23px past the edge into an 18px gap; it now
+     overhangs by 7px and the bar keeps 14px between buttons, so it sits on its own icon's corner
+     and touches nothing else. A ring in the background colour cuts it out of the outline. */
+  .bar { gap: 14px; }
+  .bar-icon, .mother-button, .stop-all { position: relative; width: 34px; height: 34px; padding: 0; gap: 0; border-radius: 11px; justify-content: center; }
+  .bar-icon svg, .mother-button .bar-glyph { width: 18px; height: 18px; }
+  .bar-icon .bar-count, .mother-button .modules-count, .mother-button .mother-count {
+    position: absolute; top: -6px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    font-family: var(--mono); font-size: 9.5px; font-weight: 700; line-height: 18px; box-shadow: 0 0 0 2px var(--bg);
+  }
 }
 @container bar (max-width: 640px) {
   /* The room's name is the first thing that cannot be drawn, so it becomes the mark that says
@@ -1912,12 +1923,15 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
    second line and walked the composer down the page; a sideways rail keeps the height fixed
    however many the room is carrying. */
 .openq { display: grid; justify-items: center; gap: 5px; margin: 0 0 8px; min-width: 0; }
-.openq-lead { font-family: var(--mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.openq-lead { font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--text-2); }
 .openq-rail { display: flex; gap: 6px; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 1px 2px; }
 .openq-rail::-webkit-scrollbar { display: none; }
 .openq-rail > * { flex: 0 0 auto; }
-.openq-ask { max-width: min(340px, 100%); padding: 4px 11px; border: 1px solid color-mix(in srgb, var(--text-3) 24%, transparent); background: transparent; color: var(--text-2); font: inherit; font-size: 11px; line-height: 1.45; border-radius: 999px; cursor: pointer; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.openq-ask:hover { background: color-mix(in srgb, var(--text-3) 10%, transparent); color: var(--text); border-color: color-mix(in srgb, var(--text-3) 40%, transparent); }
+/* An open question reads as something to press: a card with its own background, the question in
+   full-strength text, and a phosphor «?» that says what kind of thing it is. */
+.openq-ask { position: relative; max-width: min(360px, 100%); padding: 6px 13px 6px 32px; border: 1px solid color-mix(in srgb, var(--text-3) 40%, transparent); background: var(--panel); color: var(--text); font: inherit; font-size: 12px; line-height: 1.45; border-radius: 999px; cursor: pointer; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 4px 14px -10px rgba(0, 0, 0, .5); }
+.openq-ask::before { content: '?'; position: absolute; left: 7px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--phosphor) 16%, transparent); color: var(--phosphor); font-family: var(--mono); font-size: 10px; font-weight: 700; }
+.openq-ask:hover { background: color-mix(in srgb, var(--phosphor) 8%, var(--panel)); border-color: color-mix(in srgb, var(--phosphor) 55%, transparent); }
 
 /* The free-turn offer: one line above the field, never in the way of typing. */
 .free-offer { display: flex; align-items: center; gap: 12px; margin: 0 0 8px; padding: 8px 12px; border: 1px dashed var(--brew); border-radius: 10px; background: color-mix(in srgb, var(--brew) 7%, transparent); }
