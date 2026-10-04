@@ -634,7 +634,19 @@ const ripley = {
 // What is lost cross-origin is the bridge: MADRE cannot inject its error reporter into somebody
 // else's page, so the error strip stays quiet here. The viewer says so rather than looking broken.
 function ripleyGripOn(grip, side, owner) {
-  grip.addEventListener('pointerdown', (event) => {
+  grip.addEventListener('pointerdown', (event) => ripleyStageDrag(event, grip, side, owner));
+}
+// The ground around a narrowed page is a handle too: pressed on either side of the canvas, it pulls
+// that side, the way the edge itself does.
+function ripleyFrameOn(stage, owner) {
+  stage.addEventListener('pointerdown', (event) => {
+    if (event.target !== stage || !owner.frame) return;
+    const box = owner.frame.getBoundingClientRect();
+    ripleyStageDrag(event, stage, event.clientX < box.left + box.width / 2 ? 'left' : 'right', owner);
+  });
+}
+function ripleyStageDrag(event, grip, side, owner) {
+  {
     event.preventDefault();
     const stage = owner.stage;
     const frame = owner.frame;
@@ -655,7 +667,7 @@ function ripleyGripOn(grip, side, owner) {
       grip.removeEventListener('pointermove', move);
       stage.classList.remove('dragging');
     }, { once: true });
-  });
+  }
 }
 
 /* ---------- the browser: RIPLEY's other surface ---------- */
@@ -850,6 +862,7 @@ function browserMountFrame() {
   browser.stage = stage;
   ripleyGripOn(left, 'left', browser);
   ripleyGripOn(right, 'right', browser);
+  ripleyFrameOn(stage, browser);
   browser.body.replaceChildren(stage);
   if (browser.sizes && !browser.sizes.children.length) {
     for (const [label, width] of BROWSER_WIDTHS) {
@@ -974,7 +987,8 @@ browserGrip?.addEventListener('pointerdown', (event) => {
   const move = (moving) => {
     // With a second conversation open, two panes need their floor, not one.
     const floor = shell.classList.contains('with-split') && window.innerWidth > 1100 ? 720 : 360;
-    const width = Math.max(320, Math.min(window.innerWidth - floor, window.innerWidth - moving.clientX));
+    const right = browser.dialog?.getBoundingClientRect().right ?? window.innerWidth;
+    const width = Math.max(320, Math.min(window.innerWidth - floor, right - moving.clientX));
     shell.style.setProperty('--dock', `${Math.round(width)}px`);
   };
   browserGrip.addEventListener('pointermove', move);
@@ -4152,7 +4166,7 @@ const split = {
   swap: document.querySelector('#split-swap'),
   close: document.querySelector('#split-close'),
 };
-const SPLIT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.75v12.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const SPLIT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-k" d="M10 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
 function whenWords(iso) {
   const when = iso ? Date.parse(iso) : NaN;
@@ -4457,6 +4471,66 @@ split.grip?.addEventListener('pointerdown', (event) => {
     shell.classList.remove('dragging-split');
   }, { once: true });
 });
+
+/* ---------- the two panes beside the conversation trade places ---------- */
+
+// With a second conversation and the browser both open, either may stand next to the open
+// conversation. The ⇄ in the browser's head trades them; so does carrying one by its head and
+// letting it go over the other. The order is the human's and is remembered.
+const panes = { order: 'split-first', swap: document.querySelector('#browser-swap') };
+try { if (localStorage.getItem('pulse.panes') === 'browser-first') panes.order = 'browser-first'; } catch { /* no storage */ }
+function paintPanes() {
+  document.querySelector('.shell')?.classList.toggle('browser-first', panes.order === 'browser-first');
+}
+function tradePanes() {
+  const shell = document.querySelector('.shell');
+  if (!shell?.classList.contains('with-split') || !shell.classList.contains('with-browser')) return;
+  panes.order = panes.order === 'browser-first' ? 'split-first' : 'browser-first';
+  try { localStorage.setItem('pulse.panes', panes.order); } catch { /* no storage */ }
+  // The two cards slide into each other's place where the browser can say how; elsewhere they
+  // simply stand where they now belong.
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (document.startViewTransition && !reduced) document.startViewTransition(paintPanes);
+  else paintPanes();
+}
+panes.swap?.addEventListener('click', () => tradePanes());
+// Carried by the head: past a few pixels the card lifts, the other one says it will take it, and
+// letting go over it trades them. A press on a button in the head is still a press on that button.
+function carryPaneBy(head, own, other) {
+  head?.addEventListener('pointerdown', (event) => {
+    const shell = document.querySelector('.shell');
+    if (event.button !== 0 || event.target.closest('button, input, a, select, [role="menu"]')) return;
+    if (!shell?.classList.contains('with-split') || !shell.classList.contains('with-browser') || !own() || !other()) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let carrying = false;
+    let over = false;
+    try { head.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+    const move = (moving) => {
+      if (!carrying && Math.hypot(moving.clientX - startX, moving.clientY - startY) < 6) return;
+      if (!carrying) { carrying = true; shell.classList.add('carrying-pane'); own().classList.add('pane-lifted'); }
+      const box = other().getBoundingClientRect();
+      over = moving.clientX >= box.left && moving.clientX <= box.right && moving.clientY >= box.top && moving.clientY <= box.bottom;
+      other().classList.toggle('pane-target', over);
+    };
+    const drop = () => {
+      head.removeEventListener('pointermove', move);
+      head.removeEventListener('pointercancel', drop);
+      shell.classList.remove('carrying-pane');
+      own()?.classList.remove('pane-lifted');
+      other()?.classList.remove('pane-target');
+      if (carrying && over) tradePanes();
+    };
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', drop, { once: true });
+    head.addEventListener('pointercancel', drop, { once: true });
+  });
+}
+if (!SPLIT_CHAT) {
+  carryPaneBy(browser.dialog?.querySelector('.browser-head'), () => browser.dialog, () => split.box);
+  carryPaneBy(split.box?.querySelector('.split-head'), () => split.box, () => browser.dialog);
+  paintPanes();
+}
 
 /* ---------- easter egg: hold the scroll at the end of the record ---------- */
 

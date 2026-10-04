@@ -1207,6 +1207,7 @@ export const ES = {
   'Resize the two halves': 'Cambiar el tamaño de las dos mitades',
   'Swap the two halves': 'Intercambiar las dos mitades',
   'Make this the open conversation, and put the other one here': 'Hacer de esta la conversación abierta y poner la otra aquí',
+  'Trade places with the second conversation': 'Cambiar de lugar con la segunda conversación',
   'MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.':
     'MU/TH/UR › la ventana es demasiado angosta para dos conversaciones. Ensánchala y vuelve a intentarlo.',
   'This conversation is no longer here.': 'Esta conversación ya no está aquí.',

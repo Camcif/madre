@@ -2862,4 +2862,35 @@ dialog.tour::backdrop { background: transparent; }
   .split-dock > .dock-grip:hover::after, .browser-dock > .dock-grip:hover::after,
   .shell.dragging-split .split-grip::after, .shell.dragging-dock .browser-dock > .dock-grip::after { opacity: 1; height: 56px; background: var(--phosphor); }
 }
+/* The browser and the second conversation in either order. Only where three panes fit: below that
+   the browser stands alone on the right and the order has nothing to say. */
+.pane-swap { display: none; }
+@media (min-width: 1101px) {
+  .shell.with-split.with-browser .pane-swap { display: inline-grid; }
+  .shell.with-split.with-browser.browser-first { grid-template-columns: minmax(360px, 1fr) minmax(320px, var(--dock, 34vw)) minmax(360px, var(--split-3, 1fr)); }
+  .shell.with-split.with-browser.browser-first > .browser-dock { grid-column: 2; margin-right: 0; }
+  .shell.with-split.with-browser.browser-first > .split-dock { grid-column: 3; margin-right: 10px; }
+  .shell.with-split.with-browser :is(.browser-head, .split-head) { cursor: grab; }
+  .shell.carrying-pane, .shell.carrying-pane :is(.browser-head, .split-head) { cursor: grabbing; user-select: none; }
+}
+.shell.carrying-pane iframe { pointer-events: none; }
+.pane-lifted { opacity: .55; transform: scale(.985); transition: opacity var(--motion) var(--ease-out), transform var(--motion) var(--ease-out); }
+.pane-target { outline: 1.5px dashed var(--phosphor); outline-offset: -7px; }
+.browser-dock { view-transition-name: madre-browser; }
+.split-dock { view-transition-name: madre-split; }
+::view-transition-group(madre-browser), ::view-transition-group(madre-split) { animation-duration: var(--motion-slow); animation-timing-function: var(--ease-out); }
+
+/* The canvas of a page narrowed to a width: its edges are where it is pulled, and the ground on
+   either side pulls it too. The handles stand on the canvas's own edges, not the panel's. */
+.browser-dock .viewer-stage[data-sized="true"] { cursor: ew-resize; }
+.browser-dock .viewer-stage .stage-grip { width: 16px; z-index: 2; }
+.browser-dock .viewer-stage .stage-grip:first-of-type { left: max(0px, calc((100% - min(var(--stage, 100%), 100%)) / 2 - 8px)) !important; }
+.browser-dock .viewer-stage .stage-grip:last-of-type { right: max(0px, calc((100% - min(var(--stage, 100%), 100%)) / 2 - 8px)) !important; }
+.browser-dock .viewer-stage[data-sized="true"] .stage-grip::after { opacity: .5; }
+.browser-dock .viewer-stage .stage-grip:hover::after, .browser-dock .viewer-stage.dragging .stage-grip::after { opacity: 1; height: 64px; background: var(--phosphor); }
+
+/* The split button on a conversation already open beside: the drawing fills, nothing around it. */
+.chats-body .chat-split.on { border-color: transparent; }
+.chats-body .chat-split.on .ic-f { fill: currentColor; }
+.chats-body .chat-split.on .ic-k { stroke: var(--panel); }
 /* ================= end split ================= */
