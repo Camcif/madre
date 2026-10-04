@@ -8,7 +8,7 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ### La sala estrena su identidad
 
-- La interfaz usa las tipografías de la marca: **Sora** para leer y **JetBrains Mono** para rótulos, datos y comandos. Vienen dentro de MADRE; no se descarga nada para mostrar una letra.
+- La interfaz usa las tipografías de la marca: **Sora** para títulos, **Geist** para leer (los mensajes, las respuestas, los chips y la caja de texto, a 15 px en peso ligero) y **JetBrains Mono** para rótulos, datos y comandos. Vienen dentro de MADRE; no se descarga nada para mostrar una letra.
 - El logo de la barra es el oficial: el pulso en verde y la palabra MADRE en blanco (en tema claro, verde oscuro y casi negro). En barras angostas queda solo el pulso.
 - La pestaña del navegador muestra el ícono de MADRE, y @madre lleva el pulso compacto de la marca.
 
