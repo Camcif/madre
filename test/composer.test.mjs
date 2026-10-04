@@ -96,24 +96,31 @@ test('composer: what you are answering sits above the field, smaller and in a ba
   assert.match(app, /excerpt\.slice\(0, REPLY_CLIP - 1\)/, 'the ellipsis pushes the quote past its own limit');
 });
 
-test('composer: the top bar glows on a dark ground, and barely on a pale one', async () => {
+test('composer: the top bar answers a hover with a thin ring, not a neon bloom', async () => {
   const css = await read('styles.css');
   const blur = (rule) => Number(rule.match(/box-shadow: 0 0 (\d+)px/)?.[1] ?? 0);
-  const mix = (rule) => Number(rule.match(/var\(--phosphor\) (\d+)%/)?.[1] ?? 0);
+
+  // The ring is one token, in each theme: a 3px edge with no blur and a low alpha.
+  const rings = [...css.matchAll(/--ring-soft: 0 0 0 (\d+)px color-mix\(in srgb, var\(--phosphor\) (\d+)%/g)];
+  assert.ok(rings.length >= 3, 'the ring is not defined for the dark theme and both ways of asking for light');
+  for (const [, width, alpha] of rings) {
+    assert.ok(Number(width) <= 3, `a ${width}px ring is a halo, not an edge`);
+    assert.ok(Number(alpha) <= 18, `a ring at ${alpha}% is a glow again`);
+  }
 
   const dark = css.match(/\.mother-button:hover \{[^}]*\}/)[0];
-  assert.ok(blur(dark) >= 10, 'the dark theme lost its glow');
+  assert.match(dark, /box-shadow: var\(--ring-soft\)/, 'the hover is not the shared ring');
+  assert.equal(blur(dark), 0, 'the top bar blooms again');
 
   // Light mode, both ways it can be asked for: the system setting and the explicit choice.
   const bySystem = css.match(/:root:not\(\[data-theme="dark"\]\) \.mother-button:hover[^{]*\{[^}]*\}/);
   const byChoice = css.match(/:root\[data-theme="light"\] \.mother-button:hover[^{]*\{[^}]*\}/);
-  assert.ok(bySystem, 'a light system theme still gets the dark theme glow');
-  assert.ok(byChoice, 'choosing light still gets the dark theme glow');
+  assert.ok(bySystem, 'a light system theme lost its top-bar rule');
+  assert.ok(byChoice, 'choosing light lost its top-bar rule');
   for (const rule of [bySystem[0], byChoice[0]]) {
-    assert.ok(blur(rule) < blur(dark) / 2, `the light glow is ${blur(rule)}px against ${blur(dark)}px`);
-    assert.ok(mix(rule) < mix(dark) / 2, `the light glow is ${mix(rule)}% against ${mix(dark)}%`);
-    // The other top-bar buttons are softened with it, or one of them shouts alone.
-    for (const also of ['.tree-button:hover', '.stop-all:hover']) assert.ok(rule.includes(also), `${also} was left glowing`);
+    assert.equal(blur(rule), 0, 'the light theme blooms again');
+    // The other top-bar buttons answer the same way, or one of them shouts alone.
+    for (const also of ['.tree-button:hover', '.stop-all:hover']) assert.ok(rule.includes(also), `${also} was left out`);
   }
 });
 
