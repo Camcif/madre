@@ -972,7 +972,9 @@ browserGrip?.addEventListener('pointerdown', (event) => {
   browserGrip.setPointerCapture(event.pointerId);
   shell.classList.add('dragging-dock');
   const move = (moving) => {
-    const width = Math.max(320, Math.min(window.innerWidth - 360, window.innerWidth - moving.clientX));
+    // With a second conversation open, two panes need their floor, not one.
+    const floor = shell.classList.contains('with-split') && window.innerWidth > 1100 ? 720 : 360;
+    const width = Math.max(320, Math.min(window.innerWidth - floor, window.innerWidth - moving.clientX));
     shell.style.setProperty('--dock', `${Math.round(width)}px`);
   };
   browserGrip.addEventListener('pointermove', move);
@@ -4445,7 +4447,9 @@ split.grip?.addEventListener('pointerdown', (event) => {
   const right = split.box.getBoundingClientRect().right;
   const move = (moving) => {
     const width = Math.max(360, Math.min(right - 400, right - moving.clientX));
-    shell.style.setProperty('--split', `${Math.round(width)}px`);
+    // Beside the browser the split is its own track, measured the same way but kept apart, so
+    // closing the browser does not leave the halves at a width chosen for three panes.
+    shell.style.setProperty(shell.classList.contains('with-browser') ? '--split-3' : '--split', `${Math.round(width)}px`);
   };
   split.grip.addEventListener('pointermove', move);
   split.grip.addEventListener('pointerup', () => {
