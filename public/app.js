@@ -344,27 +344,11 @@ function toast(message) {
 // sentence first, the rest under it, placed where it fits. An element whose only name was its title
 // keeps that name for screen readers.
 const TIP_DELAY = 480;
-// A button's note is help, not content: it waits five seconds of resting on it and says itself once
-// per session — whoever stays that long on a button is unsure of it, and once told, is told. Notes on
-// anything else (a cut-off title, a chip that quotes more than it shows) still come at once, every
-// time, because they carry text the page could not fit.
-const BUTTON_TIP_DELAY = 5000;
-const BUTTON_TIPS_KEY = 'madre.tips.told';
-const toldTips = (() => {
-  try { return new Set(JSON.parse(sessionStorage.getItem(BUTTON_TIPS_KEY) ?? '[]')); } catch { return new Set(); }
-})();
-// A button that rewrites its note as its state changes (the theme, the language) is still one button.
-const tipKey = (node) => (node.id ? `#${node.id}` : node.dataset.tip);
+// Buttons say nothing on hover: their drawing and their word are the whole of it, and a card
+// coming up under the pointer got in the way more than it helped. Their title still names them for
+// a screen reader. Notes on anything else (a cut-off title, a chip that quotes more than it shows)
+// still come, because they carry text the page could not fit.
 const isButtonTip = (node) => Boolean(node.matches?.('button, [role="button"], .dock-grip, .stage-grip'));
-function tipDelay(node) {
-  if (!isButtonTip(node)) return TIP_DELAY;
-  return toldTips.has(tipKey(node)) ? null : BUTTON_TIP_DELAY;
-}
-function markTold(node) {
-  if (!isButtonTip(node)) return;
-  toldTips.add(tipKey(node));
-  try { sessionStorage.setItem(BUTTON_TIPS_KEY, JSON.stringify([...toldTips])); } catch { /* no storage: once per page instead */ }
-}
 const tipBox = el('div', 'tip');
 tipBox.setAttribute('role', 'tooltip');
 tipBox.hidden = true;
@@ -393,7 +377,6 @@ function showTip(node) {
   const rest = cut > 0 && cut < 110 ? said.slice(cut).trim() : '';
   tipBox.replaceChildren(el('b', null, head), ...(rest ? [el('span', null, rest)] : []));
   tipBox.hidden = false;
-  markTold(node);
   const rect = node.getBoundingClientRect();
   const box = tipBox.getBoundingClientRect();
   const below = rect.bottom + 8 + box.height <= innerHeight - 8;
@@ -409,10 +392,9 @@ document.addEventListener('pointerover', (event) => {
   if (node === tipFor) return;
   hideTip();
   if (!node.dataset.tip) return;
-  const delay = tipDelay(node);
-  if (delay === null) return;
+  if (isButtonTip(node)) return;
   tipFor = node;
-  tipTimer = setTimeout(() => showTip(node), delay);
+  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
 });
 document.addEventListener('pointerout', (event) => { if (tipFor && !tipFor.contains(event.relatedTarget)) hideTip(); });
 document.addEventListener('pointerdown', hideTip, true);
@@ -425,10 +407,9 @@ document.addEventListener('focusin', (event) => {
   if (node.hasAttribute('title')) adoptTitle(node);
   hideTip();
   if (!node.dataset.tip) return;
-  const delay = tipDelay(node);
-  if (delay === null) return;
+  if (isButtonTip(node)) return;
   tipFor = node;
-  tipTimer = setTimeout(() => showTip(node), delay);
+  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
 });
 document.addEventListener('focusout', hideTip);
 

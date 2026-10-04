@@ -2854,10 +2854,6 @@ dialog.tour::backdrop { background: transparent; }
 /* The page inside the frame: the conversation and its composer, nothing of the bar. */
 .split-pane .shell > .bar, .split-pane .chats-button, .split-pane #chats, .split-pane #tree, .split-pane .browser-dock, .split-pane .split-dock, .split-pane .colophon, .split-pane .notices { display: none !important; }
 .split-pane .shell { --column: min(880px, 100% - 32px); grid-template-columns: minmax(0, 1fr); }
-/* The pane sits 11px off the window's floor (its card's 10px gutter and 1px edge), so its composer
-   rode 11px higher than the open conversation's. The safety line beneath it gives those 11px back
-   and the two writing lines meet. */
-.split-pane .safety { margin-top: 1px; margin-bottom: 0; }
 
 @media (max-width: 900px) {
   .shell.with-split, .shell.with-split.with-browser { grid-template-columns: minmax(0, 1fr); }
@@ -2875,6 +2871,9 @@ dialog.tour::backdrop { background: transparent; }
     box-shadow: var(--lift-1);
   }
   .shell.with-split > .split-dock { background: var(--bg); }
+  /* The cards stand on the window's floor, like the open conversation does: measured from the same
+     bottom, the box and the line under it in either half meet without nudging one of them. */
+  .shell.with-split > .split-dock, .shell.with-browser > .browser-dock { margin-bottom: 0; border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
   .shell.with-split.with-browser > .split-dock { margin-right: 0; }
   .split-head { padding: 9px 10px 9px 16px; background: var(--panel); }
   .split-dock > .dock-grip, .browser-dock > .dock-grip { left: 0; width: 10px; }
