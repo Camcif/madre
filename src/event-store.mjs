@@ -171,6 +171,10 @@ export class EventStore {
       try {
         const existing = await this.#readAllUnlocked();
         const sequence = Math.max(existing.at(-1)?.sequence ?? 0, this.#floorNow()) + 1;
+        // Taken in the same tick it was read: another conversation's ledger asks for the floor
+        // while this one is still on its way to the disk, and must already see this number as
+        // spent. A write that fails leaves a gap, and gaps are fine.
+        this.#nextSequence = sequence + 1;
         const event = {
           id: randomUUID(),
           sequence,
@@ -185,7 +189,6 @@ export class EventStore {
         } finally {
           await handle.close();
         }
-        this.#nextSequence = sequence + 1;
         return event;
       } finally {
         await release();

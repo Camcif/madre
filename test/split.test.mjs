@@ -90,6 +90,8 @@ test('split: a conversation held beside the open one has its own state, stream a
     assert.equal(split.ended, false, 'opening another conversation dropped the stream beside it');
     assert.equal((await post(`/api/messages?chat=${second}`, { text: 'still here', target: 'codex' })).status, 202);
     await until(() => said(split.frames, 'still here'), 'the split stream kept working');
+    await until(() => split.frames.filter((event) => event.type === 'agent.completed' && event.payload?.agent === 'codex').length >= 2, 'the quick turn beside finished');
+    await until(async () => (await get(`/api/state?chat=${second}`)).turns.length === 0, 'the room beside is idle');
 
     // A slow turn beside, then that conversation becomes the open one: the same room, still running.
     assert.equal((await post(`/api/messages?chat=${second}`, { text: 'slow beside', target: 'claude' })).status, 202);
