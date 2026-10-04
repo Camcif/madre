@@ -854,6 +854,13 @@ textarea::placeholder { color: var(--text-3); }
 @keyframes notice-out { to { opacity: 0; transform: translateX(-10px); } }
 @media (prefers-reduced-motion: reduce) { .notice, .notice.leaving { animation: none; } .notice-life { display: none; } }
 @media (max-width: 560px) { .notices { left: 16px; top: auto; bottom: 120px; width: calc(100vw - 32px); } }
+/* The room's hover note: a small card in the reading face, the first sentence in full weight and the
+   rest under it. Above everything, never under the pointer, never past the window's edge. */
+.tip { position: fixed; z-index: 90; max-width: 280px; padding: 8px 11px 9px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel-2, var(--panel)); color: var(--text-2); box-shadow: 0 12px 30px -14px rgba(0, 0, 0, .55); font-family: var(--read, inherit); font-size: 12px; font-weight: 400; line-height: 1.45; pointer-events: none; animation: tip-in .14s ease-out; }
+.tip b { display: block; color: var(--text); font-weight: 600; }
+.tip span { display: -webkit-box; margin-top: 3px; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 .toast { position: fixed; left: var(--composer-center, 50%); bottom: calc(100vh - var(--composer-top, 70vh) + 22px); transform: translateX(-50%); text-align: center; padding: 9px 14px; animation: toast-in .22s ease; z-index: 40; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: var(--panel); color: var(--danger); font-size: 13px; box-shadow: var(--shadow); max-width: min(560px, calc(100% - 32px)); overflow-wrap: anywhere; }
 
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }

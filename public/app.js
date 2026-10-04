@@ -338,6 +338,74 @@ function toast(message) {
   toastTimer = setTimeout(() => { els.toast.hidden = true; }, 6000);
 }
 
+// The room's own hover notes, in place of the browser's. Every `title` in the page keeps working as
+// written: the first time the pointer reaches an element its title is taken off (so the browser's
+// grey box never comes) and kept, and after a short pause the room shows it in its own card — first
+// sentence first, the rest under it, placed where it fits. An element whose only name was its title
+// keeps that name for screen readers.
+const TIP_DELAY = 480;
+const tipBox = el('div', 'tip');
+tipBox.setAttribute('role', 'tooltip');
+tipBox.hidden = true;
+document.body.append(tipBox);
+let tipFor = null;
+let tipTimer = null;
+function adoptTitle(node) {
+  const said = node.getAttribute('title');
+  if (said === null) return;
+  node.removeAttribute('title');
+  if (!said.trim()) { delete node.dataset.tip; return; }
+  node.dataset.tip = said;
+  if (!node.hasAttribute('aria-label') && !node.textContent.trim()) node.setAttribute('aria-label', said);
+}
+function hideTip() {
+  clearTimeout(tipTimer);
+  tipFor = null;
+  tipBox.hidden = true;
+}
+function showTip(node) {
+  if (!node.isConnected || !node.dataset.tip) return;
+  const said = node.dataset.tip.trim();
+  // The first sentence is the answer; anything after it is the detail.
+  const cut = said.search(/(?<=[.!?:·])\s+(?=\S)/);
+  const head = cut > 0 && cut < 110 ? said.slice(0, cut).replace(/\s*·$/, '') : said;
+  const rest = cut > 0 && cut < 110 ? said.slice(cut).trim() : '';
+  tipBox.replaceChildren(el('b', null, head), ...(rest ? [el('span', null, rest)] : []));
+  tipBox.hidden = false;
+  const rect = node.getBoundingClientRect();
+  const box = tipBox.getBoundingClientRect();
+  const below = rect.bottom + 8 + box.height <= innerHeight - 8;
+  const top = below ? rect.bottom + 8 : Math.max(8, rect.top - 8 - box.height);
+  const left = Math.min(innerWidth - box.width - 8, Math.max(8, rect.left + rect.width / 2 - box.width / 2));
+  tipBox.style.top = `${Math.round(top)}px`;
+  tipBox.style.left = `${Math.round(left)}px`;
+}
+document.addEventListener('pointerover', (event) => {
+  const node = event.target?.closest?.('[title], [data-tip]');
+  if (!node) return;
+  if (node.hasAttribute('title')) adoptTitle(node);
+  if (node === tipFor) return;
+  hideTip();
+  if (!node.dataset.tip) return;
+  tipFor = node;
+  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
+});
+document.addEventListener('pointerout', (event) => { if (tipFor && !tipFor.contains(event.relatedTarget)) hideTip(); });
+document.addEventListener('pointerdown', hideTip, true);
+document.addEventListener('scroll', hideTip, true);
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideTip(); });
+// Keyboard users get the same note when a control takes the focus.
+document.addEventListener('focusin', (event) => {
+  const node = event.target?.closest?.('[title], [data-tip]');
+  if (!node || !event.target.matches?.(':focus-visible')) return;
+  if (node.hasAttribute('title')) adoptTitle(node);
+  hideTip();
+  if (!node.dataset.tip) return;
+  tipFor = node;
+  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
+});
+document.addEventListener('focusout', hideTip);
+
 function scrollToEnd() {
   els.thread.scrollTop = els.thread.scrollHeight;
 }
@@ -5019,7 +5087,7 @@ function showMenu(items, found) {
       const args = rest.join(' ');
       button.append(el('span', 'key', name), el('span', 'what', item.what));
       if (args) button.append(el('span', 'args', args));
-      button.title = `${item.key} · ${item.what}`;
+      // No hover note: the row already shows the command, what it does and how it is written.
     }
     button.addEventListener('mousedown', (event) => { event.preventDefault(); pickMenu(index); });
     els.slashMenu.append(button);
