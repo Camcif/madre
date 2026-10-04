@@ -60,6 +60,16 @@
   --mode-3: var(--terror); --mode-3-ink: #fff3f1;  /* CONTROL · the red screen */
   --mode-4: #8fd3ff; --mode-4-ink: #04131c;        /* AIRLOCK · the cold outside */
   --module-electric: #b44cff; --module-electric-ink: #12001d; /* MODULE · MADRE electric purple */
+
+  /* Motion: one curve and three lengths for everything that answers a hand — fast out, soft in. */
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --motion-fast: 160ms;
+  --motion: 220ms;
+  --motion-slow: 280ms;
+  /* The icons' one hand: the stroke at rest, under the pointer, and when what it opens is open. */
+  --icon-stroke: 1.6;
+  --icon-stroke-hover: 1.8;
+  --icon-stroke-on: 2.05;
 }
 /* Reading code, in whichever ground the room is standing on. These were picked for phosphor on
    black; on white the same green and yellow disappear, so each one has a light value of its own. */
@@ -2190,6 +2200,82 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .mother-button, .tree-button, .chats-button, .stop-all, .mother-close, .mother-section button, .seg-option, .mode-chip, .model-chip, .bubble-actions .act, .update-command button, .codeblock .copy { transition: background-color .22s ease, color .22s ease, border-color .22s ease, box-shadow .22s ease, opacity .22s ease, transform .16s ease; }
 .mother-button:active, .tree-button:active, .mother-close:active, .mother-section button:active, .update-command button:active { transform: scale(.98); }
 @media (prefers-reduced-motion: reduce) { .mother-button, .tree-button, .chats-button, .stop-all, .mother-close, .mother-section button, .seg-option, .mode-chip, .model-chip, .bubble-actions .act, .update-command button, .update-pill, .update-restart { transition: none; } }
+
+/* ================= icons: one hand for the bar and the conversations =================
+   Every control in the bar carries a drawing in the same idiom — 20×20, round ends, one stroke —
+   and its word, where it has one, beside it. What is open is drawn heavier and its word is set
+   bolder; the pointer gets half of that on the way. Colour, weight and ground carry the state. */
+.bar .bar-glyph { display: block; flex: none; width: 15px; height: 15px; }
+.bar > .mother-button .mother-glyph { display: none; }
+.bar > .mother-button, .bar > .stop-all { gap: 7px; }
+.bar > .lang-button { width: auto; gap: 5px; padding: 0 8px 0 6px; font-weight: 500; }
+.bar > .lang-button .lang-code { line-height: 1; }
+.update-glyph { display: inline-flex; }
+@container bar (max-width: 980px) {
+  .bar > :is(.mother-button, .stop-all) .bar-glyph { width: 18px; height: 18px; }
+  .bar > .mother-button, .bar > .stop-all { gap: 0; }
+}
+/* The live line: the dot keeps saying the state, the waves around it say what the dot is. */
+.connection-icon { display: inline-grid; place-items: center; flex: none; }
+.connection-icon > * { grid-area: 1 / 1; }
+.bar .connection .bar-glyph { width: 16px; height: 16px; color: var(--text-3); transition: color var(--motion) var(--ease-out), opacity var(--motion) var(--ease-out); opacity: .7; }
+.connection[data-state="live"] .connection-icon .bar-glyph { color: var(--phosphor); opacity: .55; }
+.connection[data-state="reconnecting"] .connection-icon .bar-glyph { color: var(--warn); }
+
+/* One stroke, read from the control that holds the drawing, so a state changes it in one place. */
+.bar > :is(.tree-button, .mother-button, .stop-all, .bar-icon), .connection-icon, .chats-button, .chats .tree-close, .chats-new-button, .chats-body .chat-glyph { --icon-w: var(--icon-stroke); }
+:is(.bar > :is(.tree-button, .mother-button, .stop-all, .bar-icon), .connection-icon, .chats-button, .chats .tree-close, .chats-new-button, .chats-body .chat-glyph) svg :is(path, circle, rect) {
+  stroke-width: var(--icon-w);
+  transition: stroke-width var(--motion) var(--ease-out);
+}
+:is(.bar > :is(.tree-button, .mother-button, .stop-all, .bar-icon), .chats-button, .chats .tree-close, .chats-new-button) svg {
+  transition: transform var(--motion) var(--ease-out);
+}
+.bar > :is(.tree-button, .mother-button, .bar-icon, .update-pill, .stop-all.armed):hover,
+.chats-button:hover, .chats .tree-close:hover, .chats-new-button:hover { --icon-w: var(--icon-stroke-hover); }
+.bar > :is(.tree-button, .mother-button, .bar-icon, .update-pill):hover svg,
+.chats-button:hover svg, .chats-new-button:hover svg { transform: translateY(-.5px) scale(1.07); }
+
+/* Pressed: the panel or the screen it opens is open. Heavier line, bolder word, a tint of ground. */
+.bar > :is(.tree-button, .mother-button):not(.arming), .chats-button {
+  font-weight: 400;
+  transition: color var(--motion) var(--ease-out), background-color var(--motion) var(--ease-out), border-color var(--motion) var(--ease-out), box-shadow var(--motion) var(--ease-out), font-weight var(--motion) var(--ease-out), opacity var(--motion) var(--ease-out), transform var(--motion-fast) var(--ease-out);
+}
+.bar > .tree-button.lang-button { font-weight: 500; }
+.bar > :is(.tree-button, .mother-button)[aria-pressed="true"], .chats-button[aria-pressed="true"] {
+  --icon-w: var(--icon-stroke-on);
+  font-weight: 650;
+  color: var(--phosphor); border-color: var(--phosphor);
+  background-color: color-mix(in srgb, var(--phosphor) 9%, transparent);
+}
+.bar > :is(.tree-button, .mother-button, .bar-icon):active { transform: scale(.96); }
+
+/* ---------- conversations ---------- */
+.tree.chats { transform-origin: left top; animation: chats-rise var(--motion-slow) var(--ease-out); }
+@keyframes chats-rise { from { opacity: 0; transform: translateX(-10px) scale(.985); } to { opacity: 1; transform: none; } }
+.chats .tree-close { display: inline-grid; place-items: center; padding: 4px; transition: color var(--motion) var(--ease-out), background-color var(--motion) var(--ease-out); }
+.chats .tree-close svg { display: block; width: 14px; height: 14px; }
+.chats .tree-close:hover svg { transform: rotate(90deg); }
+.chats-new-button { transition: color var(--motion) var(--ease-out), background-color var(--motion) var(--ease-out), border-color var(--motion) var(--ease-out); }
+.chats-new-button:hover { border-style: solid; }
+.chats-new-button svg { width: 15px; height: 15px; }
+.chats-body .chat { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; transition: background-color var(--motion) var(--ease-out), color var(--motion) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
+.chats-body .chat:active { transform: scale(.985); }
+.chats-body .chat-glyph { display: grid; place-items: center; width: 16px; height: 16px; color: var(--text-3); transition: color var(--motion) var(--ease-out), transform var(--motion) var(--ease-out); }
+.chats-body .chat-glyph svg { display: block; width: 15px; height: 15px; }
+.chats-body .chat-glyph :is(.chat-spin, .chat-dot) { margin: 0; vertical-align: 0; }
+.chats-body .chat:hover .chat-glyph { color: var(--text-2); transform: translateX(1px); }
+.chats-body .chat.on .chat-glyph { --icon-w: var(--icon-stroke-on); color: var(--phosphor); transform: none; }
+.chats-body .chat .name { font-weight: 400; transition: font-weight var(--motion) var(--ease-out), color var(--motion) var(--ease-out); }
+.chats-body .chat.on .name, .chats-body .chat.unread .name { font-weight: 600; }
+.chats-body .chat.on .when { color: var(--text-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-fast: 0s; --motion: 0s; --motion-slow: 0s; }
+  .tree.chats { animation: none; }
+  :is(.bar > *, .chats-button, .chats .tree-close, .chats-new-button, .chats-body .chat) svg,
+  .chats-body .chat-glyph, .bar > *:active, .chats-body .chat:active { transform: none !important; }
+}
 
 /* Developer card in MODULES and the four-step tour */
 .dev-card { display: grid; grid-template-columns: 64px 1fr; gap: 18px; align-items: start; padding: 18px 20px; }

@@ -3723,7 +3723,9 @@ const langButton = document.querySelector('#lang-button');
 function drawLanguageButton() {
   if (!langButton) return;
   const other = LANGUAGES[language()].other;
-  langButton.textContent = other.toUpperCase();
+  // The glyph stays; only the code beside it changes.
+  const code = langButton.querySelector?.('.lang-code');
+  if (code) code.textContent = other.toUpperCase(); else langButton.textContent = other.toUpperCase();
   langButton.title = other === 'en' ? t('Interface in English') : t('Interface in Spanish');
   langButton.dataset.language = language();
 }
@@ -4098,6 +4100,9 @@ function whenWords(iso) {
   return days < 30 ? `${days}d` : new Date(when).toLocaleDateString();
 }
 
+// One drawing per conversation, in the bar's own hand: 20×20, a 1.6 stroke, round ends.
+const UPDATE_GLYPH = '<svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.6v9.4M6.4 9.4 10 13l3.6-3.6M3.6 13.4v1a2 2 0 0 0 2 2h8.8a2 2 0 0 0 2-2v-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHAT_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 16.5 6v4.6a2.5 2.5 0 0 1-2.5 2.5H9.4l-3.6 3v-3A2.5 2.5 0 0 1 3.5 10.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function renderChats() {
   if (!els.chatsBody) return;
   els.chatsBody.replaceChildren();
@@ -4106,12 +4111,15 @@ function renderChats() {
     const row = el('div', 'chat-row');
     const open = el('button', `chat${chat.id === chats.active ? ' on' : ''}${chat.working ? ' working' : ''}${chats.unread.has(chat.id) ? ' unread' : ''}`);
     open.type = 'button';
-    // At work: a spinner before the name. Finished while you were elsewhere: a dot, until you open it.
+    // The bubble before the name gives its place up to what is happening: a spinner at work, a
+    // dot for one that finished while you were elsewhere, until you open it.
+    const glyph = el('span', 'chat-glyph');
+    if (chat.working) { const spin = el('span', 'chat-spin'); spin.setAttribute('aria-label', t('working')); glyph.append(spin); }
+    else if (chats.unread.has(chat.id)) { const dot = el('span', 'chat-dot'); dot.setAttribute('aria-label', t('finished while you were away')); glyph.append(dot); }
+    else glyph.innerHTML = CHAT_GLYPH;
     const name = el('span', 'name');
-    if (chat.working) { const spin = el('span', 'chat-spin'); spin.setAttribute('aria-label', t('working')); name.append(spin); }
-    else if (chats.unread.has(chat.id)) { const dot = el('span', 'chat-dot'); dot.setAttribute('aria-label', t('finished while you were away')); name.append(dot); }
     name.append(chat.title);
-    open.append(name);
+    open.append(glyph, name);
     open.append(el('span', 'when', whenWords(chat.updatedAt)));
     open.title = `${t('{n} {messages}', { n: chat.messages, messages: chat.messages === 1 ? t('message') : t('messages') })}${chat.updatedAt ? ` · ${new Date(chat.updatedAt).toLocaleString()}` : ''}`;
     open.addEventListener('click', () => { if (chat.id !== chats.active) void openChat(chat.id); });
@@ -5485,6 +5493,7 @@ function bootMother() {
 function openMother() {
   if (mother.dialog.open) return;
   mother.dialog.showModal();
+  mother.button.setAttribute('aria-pressed', 'true');
   bootMother();
   renderMother();
   mother.input.focus();
@@ -5495,6 +5504,8 @@ mother.close.addEventListener('click', () => mother.dialog.close());
 mother.query.addEventListener('submit', (event) => { event.preventDefault(); answerQuery(mother.input.value); });
 mother.input.addEventListener('input', () => answerQuery(mother.input.value));
 mother.dialog.addEventListener('close', () => clearTimeout(mother.bootTimer));
+// The button stays pressed while its screen is open, so the bar says where you are.
+mother.dialog.addEventListener('close', () => mother.button.setAttribute('aria-pressed', 'false'));
 
 
 /* ---------- MODULES: optional integrations installed by their own tools ---------- */
@@ -6600,10 +6611,12 @@ function renderModulesDev() {
 modules.button.addEventListener('click', async () => {
   if (modules.dialog.open) return;
   modules.dialog.showModal();
+  modules.button.setAttribute('aria-pressed', 'true');
   await refreshModules();
   renderModules();
 });
 modules.close.addEventListener('click', () => modules.dialog.close());
+modules.dialog.addEventListener('close', () => modules.button.setAttribute('aria-pressed', 'false'));
 void refreshModules();
 
 /* ---------- agent spheres: click to expand session usage ---------- */
@@ -11333,7 +11346,7 @@ function renderUpdate() {
   const pill = updateUI.pill;
   if (pill) {
     pill.hidden = !info?.available;
-    if (info?.available) { pill.replaceChildren(el('span', 'stop-all-glyph update-glyph'), t('{version} AVAILABLE', { version: info.latest })); pill.title = t('MADRE {latest} is on npm · you run {current} · open MU/TH/UR for the command', { latest: info.latest, current: info.current }); }
+    if (info?.available) { const glyph = el('span', 'update-glyph'); glyph.innerHTML = UPDATE_GLYPH; pill.replaceChildren(glyph, t('{version} AVAILABLE', { version: info.latest })); pill.title = t('MADRE {latest} is on npm · you run {current} · open MU/TH/UR for the command', { latest: info.latest, current: info.current }); }
   }
   const section = updateUI.section;
   if (!section) return;
