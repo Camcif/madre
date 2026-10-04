@@ -7,6 +7,47 @@ import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t
 import { resay } from './resay.js';
 import { familyOf, languageLabel, tokenize } from './syntax.js';
 
+// The window split in two. The right half is this same page loaded with `?pane=split&chat=<id>`:
+// a second conversation with its transcript and its composer, and nothing of the bar. Everything
+// that belongs to one conversation goes to the server with `chat=<id>`, so the server answers
+// from that conversation's own room; everything room-wide (the crew, the modules, MU/TH/UR) stays
+// with the page on the left. Decided here, before the first request, because every request after
+// this line goes through it.
+const SPLIT_CHAT = (() => {
+  try {
+    const asked = new URLSearchParams(globalThis.location?.search ?? '');
+    const id = asked.get('chat') ?? '';
+    return asked.get('pane') === 'split' && /^[a-z0-9]+$/.test(id) ? id : null;
+  } catch { return null; }
+})();
+const CHAT_SCOPED = /^\/api\/(state|events|messages|messages\/rate|stop-turn|attachments|runs|commands|briefing|questions|decisions|plans\/[^/]+\/stop|modes\/[^/]+\/decide|control\/[^/]+\/undo)$/;
+// One road for every request the half on the right makes: the ones about a conversation name it.
+function chatScoped(input) {
+  if (!SPLIT_CHAT || typeof input !== 'string' || !input.startsWith('/api/')) return input;
+  const url = new URL(input, 'http://madre.local');
+  if (!CHAT_SCOPED.test(url.pathname)) return input;
+  url.searchParams.set('chat', SPLIT_CHAT);
+  return `${url.pathname}${url.search}`;
+}
+if (SPLIT_CHAT) {
+  document.documentElement?.classList.add('split-pane');
+  const nativeFetch = globalThis.fetch.bind(globalThis);
+  globalThis.fetch = (input, init) => nativeFetch(chatScoped(input), init);
+  const NativeSource = globalThis.EventSource;
+  if (typeof NativeSource === 'function') globalThis.EventSource = class extends NativeSource { constructor(url, options) { super(chatScoped(String(url)), options); } };
+  // The two halves share this browser's storage. What the left half remembers (panels, theme,
+  // language, the split itself) is the left half's to write; the right one only reads it. The
+  // model and effort chosen per agent are the human's, wherever they chose them.
+  const SHARED_KEYS = new Set(['pulse.chosenModel', 'pulse.chosenEffort']);
+  const proto = globalThis.Storage?.prototype;
+  if (proto) {
+    const write = proto.setItem;
+    const drop = proto.removeItem;
+    proto.setItem = function setItem(key, value) { if (this === globalThis.localStorage && !SHARED_KEYS.has(key)) return undefined; return write.call(this, key, value); };
+    proto.removeItem = function removeItem(key) { if (this === globalThis.localStorage && !SHARED_KEYS.has(key)) return undefined; return drop.call(this, key); };
+  }
+}
+
 // Before anything is written on the screen. The constants below are sentences, and a sentence
 // chosen in the wrong language stays wrong for the life of the page.
 let chosenLanguage = null;
@@ -17,6 +58,8 @@ if (document.documentElement) document.documentElement.lang = language();
 // A browser that has never chosen takes what this machine chose, once, and remembers it. It
 // cannot loop: the choice is written before the page is asked to come back.
 function adoptLanguage(fromMachine) {
+  // The half on the right never writes the choice, so it would reload for ever; the left decides.
+  if (SPLIT_CHAT) return;
   if (chosenLanguage || !isLanguage(fromMachine) || fromMachine === language()) return;
   try { localStorage.setItem('pulse.language', fromMachine); } catch { return; }
   location.reload();
@@ -3714,6 +3757,14 @@ themeButton?.addEventListener('click', () => {
   applyTheme(themeMode);
   toast(t('Theme · {mode}', { mode: themeMode === 'auto' ? t('auto, following the system') : t(themeMode) }));
 });
+// The half on the right has no bar of its own: it follows the theme and the language the left
+// half chooses, the moment they are chosen.
+if (SPLIT_CHAT) {
+  window.addEventListener?.('storage', (event) => {
+    if (event.key === 'pulse.theme') { themeMode = ['auto', 'light', 'dark'].includes(event.newValue) ? event.newValue : 'auto'; applyTheme(themeMode); }
+    if (event.key === 'pulse.language' && isLanguage(event.newValue) && event.newValue !== language()) location.reload();
+  });
+}
 
 // EN / ES. One button, showing the language it would switch to, and a reload — a page half in
 // one language and half in another is worse than either. What the crew writes is not this
@@ -4077,7 +4128,7 @@ function setTree(open) {
 }
 els.treeButton?.addEventListener('click', () => setTree(!tree.open));
 els.treeClose?.addEventListener('click', () => setTree(false));
-try { if (localStorage.getItem('pulse.tree') === 'open') setTree(true); } catch { /* no storage */ }
+try { if (!SPLIT_CHAT && localStorage.getItem('pulse.tree') === 'open') setTree(true); } catch { /* no storage */ }
 
 /* ---------- conversations ---------- */
 
@@ -4086,6 +4137,18 @@ try { if (localStorage.getItem('pulse.tree') === 'open') setTree(true); } catch 
 // opens begins. Opening one is a reload, because a conversation is a different record of the
 // same room and the page is built from a record.
 const chats = { open: false, list: [], active: null, working: false, unread: new Set() };
+// The conversation open in the right half of the window, if any. Declared beside the list because
+// the list draws the button that opens it.
+const split = {
+  chat: null,
+  box: document.querySelector('#split'),
+  frame: document.querySelector('#split-frame'),
+  title: document.querySelector('#split-title'),
+  grip: document.querySelector('#split-grip'),
+  swap: document.querySelector('#split-swap'),
+  close: document.querySelector('#split-close'),
+};
+const SPLIT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.75v12.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
 function whenWords(iso) {
   const when = iso ? Date.parse(iso) : NaN;
@@ -4130,22 +4193,39 @@ function renderChats() {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'the conversation was not deleted.'}`); return; }
       if (chat.id === chats.active) { window.location.reload(); return; }
+      if (chat.id === split.chat) closeSplit();
       chats.list = result.chats ?? chats.list;
       chats.active = result.active ?? chats.active;
       renderChats();
     });
-    row.append(open, drop);
+    // Beside the ×: this conversation in the other half of the window. Not on the one on screen,
+    // which is already there.
+    if (!SPLIT_CHAT && split.box && chat.id !== chats.active) {
+      const beside = chat.id === split.chat;
+      const half = el('button', `chat-split${beside ? ' on' : ''}`);
+      half.type = 'button';
+      half.innerHTML = SPLIT_ICON; // trusted: our own SVG string
+      half.title = beside ? t('Close the split') : t('Open this conversation in the other half of the window');
+      half.setAttribute('aria-label', half.title);
+      half.setAttribute('aria-pressed', String(beside));
+      half.addEventListener('click', (event) => { event.stopPropagation(); if (beside) closeSplit(); else openSplit(chat.id); });
+      row.append(open, half, drop);
+    } else row.append(open, drop);
     els.chatsBody.append(row);
   }
   paintChatsButton();
   paintTitle();
+  paintSplit();
 }
 
 // Something is happening in a conversation, said live by the server whichever one is on screen.
 function onChatActivity({ chatId, working, finished } = {}) {
   const entry = chats.list.find((chat) => chat.id === chatId);
   if (entry) entry.working = Boolean(working);
-  const elsewhere = chatId !== chats.active;
+  // The half on the right only shows its own conversation; notices are the left half's to give.
+  if (SPLIT_CHAT) return;
+  // A conversation open in the other half is on screen too: no card for it, no unread dot.
+  const elsewhere = chatId !== chats.active && chatId !== split.chat;
   const away = document.hidden || !document.hasFocus();
   if (finished && !replaying && (elsewhere || away)) {
     const title = entry?.title ?? t('another conversation');
@@ -4250,6 +4330,7 @@ async function loadChats() {
     const payload = await fetch('/api/chats').then((response) => response.json());
     chats.list = payload.chats ?? [];
     chats.active = payload.active ?? null;
+    if (split.chat && !chats.list.some((chat) => chat.id === split.chat)) closeSplit();
     renderChats();
   } catch { /* the panel simply shows what it had */ }
 }
@@ -4261,6 +4342,8 @@ async function openChat(id) {
   const leavingBusy = chats.list.find((chat) => chat.id === chats.active)?.working;
   if (leavingBusy) void askForNotifications();
   chats.unread.delete(id);
+  // One conversation is never on screen twice: opening the one beside closes the split.
+  if (id === split.chat) closeSplit();
   const response = await fetch(`/api/chats/${id}`, { method: 'POST' });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'that conversation could not be opened.'}`); return; }
@@ -4290,7 +4373,78 @@ els.chatsNew?.addEventListener('click', async () => {
   if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'the conversation was not started.'}`); els.chatsNew.disabled = false; return; }
   window.location.reload();
 });
-try { if (localStorage.getItem('pulse.chats') === 'open') setChats(true); } catch { /* no storage */ }
+try { if (!SPLIT_CHAT && localStorage.getItem('pulse.chats') === 'open') setChats(true); } catch { /* no storage */ }
+
+/* ---------- the window split in two ---------- */
+
+// A second conversation in the right half of the window: its transcript and its composer, live,
+// in a page of its own that has no bar and no panels. The bar keeps acting on the conversation on
+// the left, which is still the open one. The split is remembered across a reload; a conversation
+// that is gone closes it. Below 900px there is no room for two, and the page is one again.
+const SPLIT_MIN_PX = 900;
+function paintSplit() {
+  if (!split.box) return;
+  const here = chats.list.find((chat) => chat.id === split.chat);
+  if (split.title) {
+    split.title.textContent = here?.title ?? '';
+    split.title.title = here?.title ?? '';
+  }
+  split.box.classList.toggle('working', Boolean(here?.working));
+}
+function rememberSplit() {
+  try { localStorage.setItem('pulse.split', split.chat ?? ''); } catch { /* no storage */ }
+}
+function openSplit(id) {
+  if (SPLIT_CHAT || !split.box || !id || id === chats.active) return;
+  if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
+  split.chat = id;
+  chats.unread.delete(id);
+  split.box.hidden = false;
+  document.querySelector('.shell')?.classList.add('with-split');
+  if (split.frame) split.frame.src = `/?pane=split&chat=${encodeURIComponent(id)}`;
+  rememberSplit();
+  paintSplit();
+  renderChats();
+}
+function closeSplit() {
+  if (!split.box) return;
+  split.chat = null;
+  split.box.hidden = true;
+  document.querySelector('.shell')?.classList.remove('with-split');
+  // Dropping the page drops its stream, and the server lets that conversation's room go.
+  split.frame?.setAttribute('src', 'about:blank');
+  rememberSplit();
+  renderChats();
+}
+// The two halves trade places: the one on the right becomes the open conversation.
+async function swapSplit() {
+  const left = chats.active;
+  const right = split.chat;
+  if (!left || !right) return;
+  await openChat(right);
+  if (chats.active === right) openSplit(left);
+}
+split.close?.addEventListener('click', () => closeSplit());
+split.swap?.addEventListener('click', () => { void swapSplit(); });
+// The edge between the halves, dragged the way the browser's edge is: the frame stops taking the
+// pointer while it lasts, or it swallows the drag the moment the cursor crosses into it.
+split.grip?.addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  const shell = document.querySelector('.shell');
+  if (!shell || !split.box) return;
+  split.grip.setPointerCapture(event.pointerId);
+  shell.classList.add('dragging-split');
+  const right = split.box.getBoundingClientRect().right;
+  const move = (moving) => {
+    const width = Math.max(360, Math.min(right - 400, right - moving.clientX));
+    shell.style.setProperty('--split', `${Math.round(width)}px`);
+  };
+  split.grip.addEventListener('pointermove', move);
+  split.grip.addEventListener('pointerup', () => {
+    split.grip.removeEventListener('pointermove', move);
+    shell.classList.remove('dragging-split');
+  }, { once: true });
+});
 
 /* ---------- easter egg: hold the scroll at the end of the record ---------- */
 
@@ -4380,6 +4534,12 @@ els.thread.addEventListener('keydown', (event) => trackHold(event.key === 'Arrow
 /* ---------- bootstrap ---------- */
 
 const initial = await fetch('/api/state').then((response) => response.json());
+// The half on the right, asked for a conversation that is gone: it says so and goes no further.
+// The left half closes it the next time it reads the list.
+if (SPLIT_CHAT && !Array.isArray(initial.events)) {
+  els.column.replaceChildren(el('div', 'empty', t('This conversation is no longer here.')));
+  await new Promise(() => {});
+}
 // The corner of the room: which MADRE this is, and whose it is. Quiet enough to forget about,
 // there the moment a bug report needs it. The notice is NOTICE's, word for word — a copyright
 // line the page invents for itself is a copyright line that drifts from the one that counts.
@@ -4415,8 +4575,15 @@ if (initial.chats?.chats?.length > 1) {
   }
 }
 chats.list = initial.chats?.chats ?? [];
-chats.active = initial.chats?.active ?? null;
+// The half on the right is looking at its own conversation, whichever one the left has open.
+chats.active = SPLIT_CHAT ?? initial.chats?.active ?? null;
 paintTitle();
+// The split, as it was left: only while that conversation still exists and is not the open one.
+try {
+  const remembered = SPLIT_CHAT ? null : localStorage.getItem('pulse.split');
+  if (remembered && remembered !== chats.active && chats.list.some((chat) => chat.id === remembered)) openSplit(remembered);
+  else if (remembered) rememberSplit();
+} catch { /* no storage */ }
 if (els.treeRoot) els.treeRoot.textContent = `/ ${initial.projectRoot.split('/').filter(Boolean).at(-1) ?? ''}`;
 state.budget = Number.isFinite(initial.softTokenBudget) && initial.softTokenBudget > 0 ? initial.softTokenBudget : null;
 state.timeouts = initial.timeouts ?? {};
@@ -11148,7 +11315,8 @@ tour.dialog?.addEventListener('close', () => { try { localStorage.setItem('pulse
 window.addEventListener?.('resize', () => { if (tour.dialog?.open) placeTour(); });
 document.querySelector('#tour-button')?.addEventListener('click', () => { document.querySelector('#mother')?.close?.(); startTour(); });
 function maybeStartTour() {
-  if (state.tourArmed) return;
+  // The half on the right of a split window is the same room; the left half already did this.
+  if (state.tourArmed || SPLIT_CHAT) return;
   state.tourArmed = true;
   // What is new comes first; the tour, if this page still owes it, waits until that is closed.
   void maybeShowWhatsNew().then((shown) => { if (!shown) tourIfOwed(); });

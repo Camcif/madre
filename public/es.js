@@ -1200,6 +1200,16 @@ export const ES = {
   'Delete this conversation. Its transcript goes; what the archive learned from it stays.':
     'Borra esta conversación. Su transcripción se va; lo que el archivo aprendió de ella se queda.',
   'Press again to delete this conversation.': 'Vuelve a apretar para borrar esta conversación.',
+  // La ventana partida en dos: una segunda conversación en la mitad derecha.
+  'Open this conversation in the other half of the window': 'Abrir esta conversación en la otra mitad de la ventana',
+  'Close the split': 'Cerrar la división',
+  'Second conversation': 'Segunda conversación',
+  'Resize the two halves': 'Cambiar el tamaño de las dos mitades',
+  'Swap the two halves': 'Intercambiar las dos mitades',
+  'Make this the open conversation, and put the other one here': 'Hacer de esta la conversación abierta y poner la otra aquí',
+  'MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.':
+    'MU/TH/UR › la ventana es demasiado angosta para dos conversaciones. Ensánchala y vuelve a intentarlo.',
+  'This conversation is no longer here.': 'Esta conversación ya no está aquí.',
   'end of record. nothing else is down here, human. crew status under review.':
     'fin del registro. aquí abajo no hay nada más, humano. estado de la tripulación en revisión.',
   'MU/TH/UR › nobody in the room can generate images right now: enable Image Studio in MODULES or switch on GENERATE IMAGES for an agent in CONNECTIONS.':
