@@ -15,6 +15,7 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 ### La barra angosta y las preguntas abiertas se leen mejor
 
 - Cuando la barra se compacta, cada ícono vive en un cuadro de esquinas suaves y su número va en la esquina, como en el teléfono.
+- Un botón de la barra se rellena mientras su panel está abierto, y la conversación actual se ve rellena en la lista.
 - **SIGUE ABIERTO AQUÍ**, sobre la caja de texto, se ve más: cada pregunta es una tarjeta con su «?» y el texto completo en primer plano.
 
 ### Responder citando ya no deforma la caja
