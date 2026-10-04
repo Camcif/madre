@@ -2028,7 +2028,7 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .chats-button:active { transform: translateY(1px); }
 @media (max-width: 1100px) { .chats-button { display: none; } }
 
-.tree { position: relative; grid-row: 3; justify-self: end; align-self: stretch; z-index: 5; width: clamp(240px, calc((100% - var(--column)) / 2 - 36px), 420px); margin: 18px 20px 10px 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); border: 1px solid var(--line-2); border-radius: 18px; background: var(--panel); box-shadow: 0 10px 30px rgba(0, 0, 0, .06); overflow: hidden; animation: tree-in .22s ease; }
+.tree { position: relative; grid-row: 3; justify-self: end; align-self: stretch; z-index: 5; width: clamp(320px, calc((100% - var(--column)) / 2 - 28px), 460px); margin: 18px 20px 10px 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); border: 1px solid var(--line-2); border-radius: 18px; background: var(--panel); box-shadow: 0 10px 30px rgba(0, 0, 0, .06); overflow: hidden; animation: tree-in .22s ease; }
 /* The finder's own row of tools: a search, and what is waiting to be pasted. */
 .tree { grid-template-rows: auto auto auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
 /* The files panel reads paths and asks for names; at its old 240px floor neither fit. */
@@ -2272,6 +2272,9 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 @keyframes icon-fill { from { transform: scale(.86); } 60% { transform: scale(1.06); } to { transform: none; } }
 .bar > :is(.tree-button, .mother-button, .bar-icon):active { transform: scale(.96); }
 
+/* The conversations and the files are read, not glanced at: 240px cut every name to its first
+   two words. They take at least 320px, and up to 460px when the side of the room has it. */
+@media (max-width: 720px) { .tree { width: min(320px, calc(100vw - 32px)); } }
 /* ---------- conversations ---------- */
 .tree.chats { transform-origin: left top; animation: chats-rise var(--motion-slow) var(--ease-out); }
 @keyframes chats-rise { from { opacity: 0; transform: translateX(-10px) scale(.985); } to { opacity: 1; transform: none; } }
