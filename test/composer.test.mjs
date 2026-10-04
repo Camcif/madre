@@ -24,12 +24,15 @@ test('composer: /module has a guided command and an electric pixel transition', 
 
 test('composer: a mention is coloured, never boxed', async () => {
   const css = await read('styles.css');
-  // The base chip is a pill: a background, and a ring drawn with two shadows. That is right for
-  // a mode or a command, which are tokens you are choosing. A mention is a word in the sentence
-  // you are writing, so it keeps the colour and loses the box.
+  // A command, a file and a mention are words in the sentence you are writing: their colour, in
+  // bold, and no box — a badge round a word still being written read as a form field. The bold is
+  // a stroke, because a heavier weight would widen the layer over the textarea. Only a mode (#2),
+  // a token you choose rather than a word, keeps a pill.
   const base = css.match(/\.editor \.highlight \.chip \{[^}]*\}/);
   assert.ok(base, 'the chip style is gone from styles.css');
-  assert.match(base[0], /background: var\(--chip-bg\)/, 'the base chip is no longer a pill, so this test guards nothing');
+  assert.match(base[0], /background: transparent/, 'a command or a file is boxed again');
+  assert.match(base[0], /-webkit-text-stroke:/, 'a command or a file lost its bold');
+  assert.match(css, /\.editor \.highlight \.chip\.mode \{[^}]*background: var\(--chip-bg\)/, 'a mode token is no longer a pill');
 
   const mention = css.match(/\.editor \.highlight \.chip\.agent \{([^}]*)\}/);
   assert.ok(mention, 'a mention is still drawn as a pill');
