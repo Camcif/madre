@@ -754,7 +754,9 @@ export async function createPulseServer({
   const turnsPolicy = async () => {
     const saved = (await readConfig(root)).turns ?? {};
     const clamp = (value, low, high, fallback) => (Number.isInteger(Number(value)) ? Math.min(high, Math.max(low, Number(value))) : fallback);
-    return { enabled: saved.enabled !== false, chats: clamp(saved.chats, 1, 6, 2), turnsPerChat: clamp(saved.turnsPerChat, 1, 8, 3) };
+    // Three conversations by default: as many as fit on screen at once (the open one and two beside
+    // it, MAX_BESIDE in app.js), so every one the human can see may be at work.
+    return { enabled: saved.enabled !== false, chats: clamp(saved.chats, 1, 6, 3), turnsPerChat: clamp(saved.turnsPerChat, 1, 8, 3) };
   };
   // Conversations held open beside the one on screen. Two reasons to hold one: it is still at work
   // after the human moved to another (parked: it keeps writing its record, and the page only hears

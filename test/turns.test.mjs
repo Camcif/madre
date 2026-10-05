@@ -21,9 +21,9 @@ test('turns: a conversation at work is parked, not stopped, and the limits are s
   const post = (path, payload = {}) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   const until = async (check) => { for (let i = 0; i < 200; i += 1) { if (await check()) return true; await new Promise((resolve) => setTimeout(resolve, 10)); } return false; };
   try {
-    // On by default: two conversations, three turns each.
+    // On by default: three conversations, as many as fit on screen, and three turns each.
     const { turns } = await fetch(`${base}/api/turns`).then((response) => response.json());
-    assert.deepEqual(turns, { enabled: true, chats: 2, turnsPerChat: 3 });
+    assert.deepEqual(turns, { enabled: true, chats: 3, turnsPerChat: 3 });
 
     // The first conversation starts a turn that takes its time.
     assert.equal((await post('/api/messages', { text: 'long one', target: 'claude' })).status, 202);
