@@ -952,7 +952,7 @@ export class Room {
     this.#vectors.stop();
   }
 
-  async send({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined }) {
+  async send({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false }) {
     const parsed = parseMessage(text, target);
     const requestedMode = normalizeMode(mode, create === true ? 2 : 1);
     // This is the decision the human made when pressing Send. Capture it before modeCheck() —
@@ -1039,13 +1039,18 @@ export class Room {
           message: `@${parsed.target} will answer read-only: ${scopes.write.capable ? 'file creation is switched off for it (enable it in CONNECTIONS)' : 'its CLI cannot create files'}${unavailableSaid.length ? `; it cannot ${unavailableSaid.join(' or ')}` : ''}.${alternatives.length ? ` For creation ask ${alternatives.join(' or ')}.` : ''}`,
         });
       } else {
-        lease = await this.#projectLease({ leaseId: randomUUID(), messageId });
+        // `/module` asks for less than #2: one file in its own draft folder. Only a #2 message can
+        // narrow itself this way; a default-#2 lease stays what it is.
+        lease = draft === true && create === true
+          ? await this.#draftLease({ leaseId: randomUUID(), messageId })
+          : await this.#projectLease({ leaseId: randomUUID(), messageId });
         // CREATE authorizes the plan to use each delegate's enabled creation
         // scopes; a default-#2 lease authorizes files only.
         lease.scopeCeiling = { write: true, imageGen: !standing, web: true };
         lease.scopes = Object.fromEntries(SCOPES.map((scope) => [scope, enabled.includes(scope) && (!standing || scope === 'write')]));
         await this.#emit('lease.granted', {
           standing: standing || undefined,
+          draft: lease.draft || undefined,
           leaseId: lease.leaseId,
           messageId,
           agent: parsed.target,
@@ -1080,6 +1085,15 @@ export class Room {
   async #projectLease({ leaseId, messageId }) {
     const scratch = await createLease({ projectRoot: this.#projectRoot, leaseId });
     return { leaseId, messageId, outDir: this.#projectRoot, relativeDir: '.', scratchDir: scratch.relativeDir, create: true };
+  }
+
+  // A lease for one folder of its own and nothing else: `/module` writes one file for the human to
+  // read before installing it, and needs no more than that. Every CLI is told the folder and held
+  // to it; nothing in the project can be touched, so there is no checkpoint to take and no other
+  // turn to wait for.
+  async #draftLease({ leaseId, messageId }) {
+    const draft = await createLease({ projectRoot: this.#projectRoot, leaseId });
+    return { ...draft, messageId, draft: true };
   }
 
   // Artifacts from a #2 turn: the files the checkpoint saw appear, as the room shows them.

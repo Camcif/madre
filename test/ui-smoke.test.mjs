@@ -275,6 +275,7 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.match(registry.get('crew-label').textContent, /MODULE · CREATE/);
   assert.equal(moduleRequest.handled, false);
   assert.equal(moduleRequest.target, chosenTarget, '/module changed the selected agent');
+  assert.equal(moduleRequest.draft, true, '/module asked for the whole project instead of its draft folder');
   assert.match(moduleRequest.text, /un reloj local/);
   assert.match(moduleRequest.text, /<id>\.module\.mjs/);
   assert.equal(uiState.mode, 2, 'the human could not arm CREATE for /module');

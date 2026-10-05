@@ -2001,6 +2001,8 @@ export const ES = {
   'writing {files}': 'escribía {files}',
   'stopped from its card': 'detenido desde su tarjeta',
   'TRYING IT…': 'PROBÁNDOLO…',
+  'only in its own draft folder ': 'solo en su carpeta de borrador ',
+  ' · nothing else in the project': ' · nada más en el proyecto',
   'on · the browser does not start: {problem}': 'encendido · el navegador no arranca: {problem}',
   'Untitled': 'Sin título',
   'Files': 'Archivos',

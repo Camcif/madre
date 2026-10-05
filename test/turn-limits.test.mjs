@@ -248,3 +248,59 @@ test('a page a turn made is recorded as HTML, and still served as text outside R
     await rm(base, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
 });
+
+test('/module gets one folder of its own: the lease is its draft, the card comes, and it waits for no writer', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'pulse-draft-lease-'));
+  const root = join(base, 'project');
+  try {
+    await mkdir(root);
+    const store = await new EventStore(join(base, 'events.jsonl')).initialize();
+    const agents = [
+      { id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/x', version: '1' },
+      { id: 'opencode', label: 'OpenCode', detected: true, ready: true, adapter: 'opencode-readonly', path: '/x', version: '1' },
+    ];
+    const order = [];
+    let seen = null;
+    const invokers = {
+      // A #2 turn writing in the project, slowly.
+      'codex-readonly': async ({ lease }) => {
+        order.push('codex in');
+        await writeFile(join(lease.outDir, 'index.html'), '<h1>Phobos</h1>\n');
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        order.push('codex out');
+        return { text: 'page written', usage: null };
+      },
+      // The module, beside it, in its own folder.
+      'opencode-readonly': async ({ lease, prompt }) => {
+        order.push('module in');
+        seen = { lease, prompt };
+        await writeFile(join(lease.outDir, 'tamano.module.mjs'), 'export default { id: "tamano", name: "TAMAÑO" };\n');
+        order.push('module out');
+        return { text: 'module ready', usage: null };
+      },
+    };
+    const room = new Room({ store, agents, projectRoot: root, invokers });
+    const page = room.send({ text: 'write the home page', target: 'codex', create: true });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await room.send({ text: 'Create a MADRE module for this request: un comando /tamano. Write exactly one <id>.module.mjs file for review.', target: 'opencode', mode: 2, draft: true });
+    await page;
+    const events = await store.readAll();
+    const granted = events.find((event) => event.type === 'lease.granted' && event.payload.agent === 'opencode');
+    assert.equal(granted.payload.draft, true);
+    assert.match(granted.payload.outDir, /^\.pulse\/out\/[^/]+$/);
+    assert.ok(seen.lease.outDir.startsWith(join(root, '.pulse', 'out')), 'the lease is not the draft folder');
+    assert.ok(!seen.lease.create && !seen.lease.control, 'the module was given the project');
+    assert.match(seen.prompt, /CREATION LEASE: the human allows you to create files for this request, only inside .*\.pulse\/out\//);
+    assert.match(seen.prompt, new RegExp(`write ONE file named <id>\\.module\\.mjs .* in ${seen.lease.outDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`));
+    assert.ok(order.indexOf('module out') < order.indexOf('codex out'), `the module waited for the page: ${order}`);
+    assert.ok(!events.some((event) => event.type === 'write.waiting' && event.payload.agent === 'opencode'));
+    const proposed = events.find((event) => event.type === 'module.proposed');
+    assert.match(proposed?.payload.path ?? '', /^\.pulse\/out\/[^/]+\/tamano\.module\.mjs$/);
+    // Without the flag, #2 is still the project.
+    const project = events.find((event) => event.type === 'lease.granted' && event.payload.agent === 'codex');
+    assert.equal(project.payload.outDir, '.');
+    assert.equal(project.payload.draft, undefined);
+  } finally {
+    await rm(base, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});

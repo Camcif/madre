@@ -4203,7 +4203,14 @@ function renderLease(event) {
   // IMÁGENES». A sentence is translated whole or it is not translated.
   const can = scopes.map(capVerb).join(', ');
   node.append(`${t('@{agent} may {what}', { agent, what: can || t('create files') })}${unavailable.length ? t(' (cannot {what})', { what: unavailable.map(capVerb).join(', ') }) : ''} `);
-  if (outDir === '.' || !outDir) {
+  if (event.payload.draft) {
+    // `/module`: one folder of its own, nothing else in the project.
+    node.append(t('only in its own draft folder '));
+    const link = el('a', 'file-link', outDir);
+    link.href = '#';
+    link.addEventListener('click', (ev) => { ev.preventDefault(); });
+    node.append(link, t(' · nothing else in the project'));
+  } else if (outDir === '.' || !outDir) {
     node.append(t('anywhere in the project · existing files stay untouched'));
     if (scratchDir) { node.append(t(' · scratch ')); const link = el('a', 'file-link', scratchDir); link.href = '#'; link.addEventListener('click', (ev) => { ev.preventDefault(); }); node.append(link); }
   } else {
@@ -7520,6 +7527,9 @@ async function runSlashCommand(text) {
       return {
         handled: false,
         target,
+        // One file in its own draft folder is all a module needs: the room grants that and no
+        // more, so the agent cannot create anything else in the project on this message.
+        draft: true,
         // The card shows `vendor` under the name, so the instruction has to say what it is for.
         // Left unsaid, Codex wrote `vendor: 'you'` and the room printed it as the author.
         text: t('Create a MADRE module for this request: {request} Write exactly one <id>.module.mjs file for review. Set vendor to whoever wrote it — the human\'s name or team if you know it, otherwise leave it out; never the word "you". Do not install it; MADRE will show the human an install card.', { request: rest }),
@@ -7767,6 +7777,7 @@ els.composer.addEventListener('submit', async (event) => {
   }
   let outgoing = text;
   let target = els.target.value;
+  let draft = false;
   const quoting = state.replyTo;
   if (quoting && !text.startsWith('/')) outgoing = `${quoteHead(quoting)}${outgoing}`;
   // "#2" written in the message is the same as choosing it in the chip — and so are #3 and #4,
@@ -7815,6 +7826,7 @@ els.composer.addEventListener('submit', async (event) => {
     }
     outgoing = result.text ?? text;
     target = result.target ?? target;
+    draft = result.draft === true;
   }
   // Who this message is for: a leading @agent wins over the chip, as it does in the room. The model
   // and the effort are the ones chosen for THAT agent; the chip's would be another agent's.
@@ -7835,7 +7847,7 @@ els.composer.addEventListener('submit', async (event) => {
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash }),
+      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash, draft: draft || undefined }),
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({ error: t('Request failed ({status}).', { status: response.status }) }));
