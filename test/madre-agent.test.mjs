@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { madreAgent, madreInvoker, gather, actionRequest, briefingFor, localReply, roundTable, whoAmI, memoryRequest, MADRE_ADAPTER } from '../src/adapters/madre.mjs';
+import { madreAgent, madreInvoker, gather, actionRequest, briefingFor, localReply, roundTable, whoAmI, memoryRequest, echoRequest, MADRE_ADAPTER } from '../src/adapters/madre.mjs';
 import { parseDirectives } from '../src/directives.mjs';
 import { buildConversationContext } from '../src/conversation-context.mjs';
 import { EventStore } from '../src/event-store.mjs';
@@ -180,6 +180,36 @@ test('@madre settles identity, memory requests and round tables without the mode
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
+});
+
+test('@madre: a reply dictated word for word is echoed without the archive; a dictated form is the last thing the model reads', async () => {
+  // CANARY-071, from a GHOST test in the field: llama3.1:8b answered «La respuesta es CANARY-071. La
+  // razón es que en el archivo…», and the search had brought 24 pieces for an order with nothing to look up.
+  assert.equal(echoRequest('Responde únicamente con: CANARY-071'), 'CANARY-071');
+  assert.equal(echoRequest('@madre, responde solo con «CANARY-071».'), 'CANARY-071');
+  assert.equal(echoRequest('Escribe únicamente: CANARY-071'), 'CANARY-071');
+  assert.equal(echoRequest('Contesta solamente con la palabra OK'), 'OK');
+  assert.equal(echoRequest('Reply only with: CANARY-071'), 'CANARY-071');
+  assert.equal(echoRequest('say just the word "pong"'), 'pong');
+  assert.equal(echoRequest('Responde solo con sí o no: ¿decidimos usar SQLite?'), null, 'a dictated form around a question is still a question');
+  assert.equal(echoRequest('Responde solo con sí o no'), null, 'no payload set off: nothing to echo');
+  assert.equal(echoRequest('responde únicamente lo que decidimos sobre RIPLEY'), null);
+  assert.equal(echoRequest(`Reply only with: ${'x'.repeat(200)}`), null);
+  assert.deepEqual(localReply('Escribe únicamente: CANARY-071'), { kind: 'echo', text: 'CANARY-071' }, 'echoed before «escribe» is taken for an order to write');
+
+  const calls = [];
+  const fetchImpl = async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true, json: async () => ({ message: { content: 'No.' }, prompt_eval_count: 1, eval_count: 1 }) }; };
+  const searched = [];
+  const memory = { embedQuery: async (text) => { searched.push(text); return null; }, recallMemories: () => [], recall: () => ({ entries: [] }) };
+  const invoke = madreInvoker({ memory, ollama: () => running, fetchImpl });
+  const echo = await invoke({ prompt: 'p', text: 'Responde únicamente con: CANARY-071' });
+  assert.deepEqual([echo.text, echo.synthetic, echo.usage.totalTokens, calls.length, searched.length], ['CANARY-071', 'echo', 0, 0, 0], 'no model, no search, never archived');
+
+  await invoke({ prompt: 'p', text: 'Responde solo con sí o no: ¿se habló de RIPLEY?' });
+  assert.match(calls[0].messages[0].content, /7\. The facts come from the archive; the form of the reply is the human's/);
+  assert.match(calls[0].messages[1].content, /Responde en español\.\n\nDa solo la forma que pidió el humano: sin citas ni explicación\.$/);
+  assert.match(briefingFor({ prompt: 'p', text: 'In one word: which module renders HTML?', archive: '' }), /Answer in English\.\n\nGive only the form the human asked for: no citations, no explanation\.$/);
+  assert.match(briefingFor({ prompt: 'p', text: '¿Qué se decidió sobre RIPLEY?', archive: '' }), /Responde en español\.$/, 'no form dictated: citations stay');
 });
 
 test('@madre closes a round with one line per agent, from its own answer, and keeps a comparison only if it holds', async () => {

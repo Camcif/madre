@@ -20,7 +20,8 @@ Rules:
 3. If they contain nothing on the point, say exactly that the room never discussed it, and stop. Do not guess, do not propose plans, do not invent files, decisions or dates.
 4. You cannot read or change files, run commands or browse. If that is needed, name the agent of the room that can (@codex, @claude, @gemini, @opencode).
 5. Answer in the language the human wrote in.
-6. The archivist is your other half: the same local model, in the background, distils what the room says into the notes you quote. You never write notes yourself; agents save them with memory_note.`;
+6. The archivist is your other half: the same local model, in the background, distils what the room says into the notes you quote. You never write notes yourself; agents save them with memory_note.
+7. The facts come from the archive; the form of the reply is the human's. Only when the human dictates the form (only yes or no, one word, a fixed text) give exactly that and nothing more. Every other answer keeps rule 2: each fact ends with its [#n].`;
 
 // The room's briefing is written for CLIs with tools; @madre gets only what it can use:
 // the recent transcript, the archive, the question.
@@ -36,10 +37,15 @@ export function briefingFor({ prompt, text, archive }) {
     // And the language last of all: rule 5 sits far above, under a transcript and a reminder in
     // English, and a 7B model answered a Spanish question in English.
     lang(text) === 'es' ? 'Responde en español.' : 'Answer in English.',
+    // A dictated form goes last for the same reason: rule 7 alone, llama3.1:8b still answered
+    // «solo sí o no» with «No. La sala nunca discutió… [#1910]».
+    FORM.test(text) ? (lang(text) === 'es' ? 'Da solo la forma que pidió el humano: sin citas ni explicación.' : 'Give only the form the human asked for: no citations, no explanation.') : null,
   ].filter(Boolean).join('\n\n');
 }
 
-const REMINDER = `REMINDER: You are @madre, the local memory of this room. You are not Claude, Codex, Gemini or OpenCode; the quotes above are theirs, not yours. Never claim to be another assistant or company. Answer as @madre, from the archive only.`;
+const FORM = /\b(?:s[oó]lo|[uú]nicamente|solamente)\s+(?:con\s+)?(?:un\s+)?(?:s[ií]\s+o\s+no|una\s+palabra|un\s+n[uú]mero)|\ben\s+una\s+(?:sola\s+)?palabra|\b(?:only|just)\s+(?:with\s+)?(?:a\s+)?(?:yes\s+or\s+no|one\s+word|a\s+number)|\bin\s+(?:one|a\s+single)\s+word|\b(?:answer|reply)\s+yes\s+or\s+no\b/i;
+
+const REMINDER = `REMINDER: You are @madre, the local memory of this room. You are not Claude, Codex, Gemini or OpenCode; the quotes above are theirs, not yours. Never claim to be another assistant or company. Answer as @madre: the facts from the archive only, the form exactly as the human asks.`;
 
 // ---- Replies that never reach the model. Small models echo whatever sits in their
 // transcript, so everything MADRE can settle deterministically is settled here, and the
@@ -155,9 +161,27 @@ export function actionRequest(text = '', { requester = 'you' } = {}) {
     : 'I only answer from the room\'s memory: I do not delegate, run or write. For that, write to @codex, @claude, @gemini or @opencode, whichever is in the row. If you want me to put a question to the whole crew, say: "@madre, ask the crew …".';
 }
 
+// "Responde únicamente con: CANARY-071": the whole message dictates the reply word for word.
+// A 7-8B model handed twelve notes answered «La respuesta es CANARY-071. La razón es que en el
+// archivo…», so the echo is settled here and the archive is never searched. Only a payload set off
+// by a colon, quotes or «la palabra …» is echoed: «responde solo con sí o no: ¿…?» is a question.
+const ECHO_ES = /^(?:responde|contesta|di|dime|escribe|devuelve|repite|imprime)\s+(?:únicamente|unicamente|solamente|solo|sólo|exactamente)(?:\s+con)?(?:\s*:\s*|\s+(?:la\s+palabra|el\s+texto|la\s+frase|el\s+código|el\s+codigo|la\s+cadena)\s*:?\s*|\s+(?=[«"“'`]))([\s\S]+)$/i;
+const ECHO_EN = /^(?:reply|respond|answer|say|write|return|print|output|repeat)\s+(?:only|just|exactly)(?:\s+with)?(?:\s*:\s*|\s+(?:the\s+word|the\s+text|the\s+phrase|the\s+code|the\s+string)\s*:?\s*|\s+(?=[«"“'`]))([\s\S]+)$/i;
+
+export function echoRequest(text = '') {
+  const body = stripVocative(text);
+  const match = body.match(ECHO_ES) ?? body.match(ECHO_EN);
+  if (!match) return null;
+  const payload = match[1].trim().replace(/[.!]+$/, '').trim().replace(/^[«"“'`]+|[»"”'`]+$/g, '').trim();
+  if (!payload || payload.length > 120 || /[\n?¿]/.test(payload)) return null;
+  return payload;
+}
+
 // Everything @madre settles without the model, in order. Null means the model answers.
 export function localReply(text, { requester = 'you', crew = [], delegation = false, maxSteps = 4, model = null } = {}) {
   if (!text || CLOSING_TURN.test(text)) return null;
+  const echo = echoRequest(text);
+  if (echo) return { kind: 'echo', text: echo };
   const identity = whoAmI(text, { model, crew });
   if (identity) return { kind: 'identity', text: identity };
   if (requester === 'you' && delegation) {
