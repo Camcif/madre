@@ -85,8 +85,8 @@ export const ES = {
   'You will type the project designation, as always. Then @{agent} gets your permission and continues.':
     'Vas a escribir la designación del proyecto, como siempre. Después @{agent} recibe tu permiso y sigue.',
   '@{agent} gets your permission for one message and continues.': '@{agent} recibe tu permiso para un mensaje y sigue.',
-  'GRANT #{n} AND CONTINUE': 'CONCEDER #{n} Y SEGUIR',
-  'WRITE IT MYSELF': 'ESCRIBIRLE YO',
+  'GRANT #{n} · LET IT GO ON': 'CONCEDER #{n} · QUE SIGA',
+  'GRANT #{n} · GIVE IT ANOTHER INSTRUCTION': 'CONCEDER #{n} · DARLE OTRA INSTRUCCIÓN',
   'Arms #{n} in the box below, so you can add instructions before sending.':
     'Arma #{n} en la caja de abajo, para que agregues instrucciones antes de mandar.',
   '#{n} {label} granted · @{agent} continues': '#{n} {label} concedido · @{agent} sigue',
@@ -316,8 +316,8 @@ export const ES = {
   'Attach an image or file (or drop it here)': 'Adjunta una imagen o un archivo (o arrástralo aquí)',
   'Send': 'Enviar',
   'Agent': 'Agente',
-  'Agents write only with CREATE, inside .pulse/out/ · what they read may reach their provider.':
-    'Los agentes escriben solo con CREATE, dentro de .pulse/out/ · lo que leen puede llegar a su proveedor.',
+  'Agents write only when you raise the mode · what they read may reach their provider.':
+    'Los agentes escriben solo cuando tú subes el modo · lo que leen puede llegar a su proveedor.',
 
   // Quién habla, delante del campo.
   'HUMAN ›': 'HUMANO ›',
@@ -562,8 +562,8 @@ export const ES = {
   'an embedding model and a chat model · MADRE can pull the recommended ones':
     'un modelo de embeddings y uno de chat · MADRE puede bajar los recomendados',
 
-  'Hands every agent a headless browser that reaches only this room: it opens the RIPLEY preview of a page, clicks through it, reads the console and takes screenshots.':
-    'Le da a cada agente un navegador sin ventana que solo alcanza esta sala: abre la vista previa RIPLEY de una página, le da clic, lee la consola y toma capturas.',
+  'Hands an agent a headless browser that reaches only this room and the servers you start from RUNS, on the turns that ask to look at a page, click through it, read its console or take screenshots.':
+    'Le da a un agente un navegador sin ventana que solo alcanza esta sala y los servidores que arrancas desde RUNS, en los turnos que piden ver una página, darle clic, leer su consola o tomar capturas.',
   'nothing in the project · screenshots land in .pulse/out/<turn>/':
     'nada en el proyecto · las capturas caen en .pulse/out/<turno>/',
   'a browser per turn, started and stopped by the CLI': 'un navegador por turno, que el CLI levanta y apaga',
@@ -1135,6 +1135,12 @@ export const ES = {
   '{events} events · {entries} indexed exchanges · {memories} memories rewritten with the marker':
     '{events} eventos · {entries} intercambios indexados · {memories} memorias reescritas con el marcador',
   '{n} private terms replaced with {marker}': '{n} términos privados reemplazados con {marker}',
+  '1 private term replaced with {marker}': '1 término privado reemplazado con {marker}',
+  '1 key or token hidden': '1 llave o token oculto',
+  '{n} keys or tokens hidden': '{n} llaves o tokens ocultos',
+  'your user folder hidden as ~': 'tu carpeta de usuario se ocultó como ~',
+  '1 private detail hidden': '1 dato privado oculto',
+  '{n} private details hidden': '{n} datos privados ocultos',
   'memory · ': 'memoria · ',
   // Neutro a propósito: casi todas las clases son femeninas (decisión, pregunta, aberración).
   'memory · the human forgot a ': 'memoria · olvidada por la humana · ',
@@ -1344,9 +1350,9 @@ export const ES = {
   'THIS ROOM HAS NO MEMORY INDEX.': 'ESTA SALA NO TIENE ÍNDICE DE MEMORIA.',
   'READING THE ARCHIVE…': 'LEYENDO EL ARCHIVO…',
   'COLLAPSE ALL': 'CERRAR TODO',
-  'END SESSION ×': 'TERMINAR SESIÓN ×',
-  'NO SPECIAL ORDERS ON THIS SHIP · THE CREW IS NOT EXPENDABLE · ESC TO END SESSION':
-    'EN ESTA NAVE NO HAY ÓRDENES ESPECIALES · LA TRIPULACIÓN NO ES PRESCINDIBLE · ESC PARA TERMINAR LA SESIÓN',
+  'CLOSE MU/TH/UR ×': 'CERRAR MU/TH/UR ×',
+  'NO SPECIAL ORDERS ON THIS SHIP · THE CREW IS NOT EXPENDABLE · ESC TO CLOSE':
+    'EN ESTA NAVE NO HAY ÓRDENES ESPECIALES · LA TRIPULACIÓN NO ES PRESCINDIBLE · ESC PARA CERRAR',
   'One conversation. Every agent.': 'Una conversación. Todos los agentes.',
   'Pick an agent and ask, or start with a mention such as': 'Elige un agente y pregunta, o empieza con una mención como',
   'EMERGENCY COMMAND OVERRIDE 100375': 'ANULACIÓN DE MANDO DE EMERGENCIA 100375',
@@ -1992,6 +1998,36 @@ export const ES = {
   '{label} was interrupted: {why}.': '{label} se interrumpió: {why}.',
   '{label} did not respond before the timeout ({seconds}s).': '{label} no contestó antes del tiempo límite ({seconds}s).',
   ' Last output: {output}': ' Última salida: {output}',
+  'writing {files}': 'escribía {files}',
+  'stopped from its card': 'detenido desde su tarjeta',
+  'TRYING IT…': 'PROBÁNDOLO…',
+  'on · the browser does not start: {problem}': 'encendido · el navegador no arranca: {problem}',
+  'Untitled': 'Sin título',
+  'Files': 'Archivos',
+  'The viewer': 'El visor',
+  'The second conversation': 'La segunda conversación',
+  '{first} and {second} float over the conversation while there is no room beside it, and go back beside it when there is.': '{first} y {second} flotan sobre la conversación mientras no hay lugar a su lado, y regresan cuando lo hay.',
+  '{what} floats over the conversation while there is no room beside it, and goes back beside it when there is.': '{what} flota sobre la conversación mientras no hay lugar a su lado, y regresa cuando lo hay.',
+  '{what} moved to a window so the conversation stays readable. Its split button puts it back beside.': '{what} pasó a ventana para que la conversación siga legible. Su botón de split lo regresa al lado.',
+  'I want to start a project: ': 'Quiero empezar un proyecto: ',
+  'Before writing anything, ask me what I want to build and propose a plan in steps.': 'Antes de escribir nada, pregúntame qué quiero construir y propón un plan por pasos.',
+  'Which stack would you use for a small web app that anyone can open, and why?': '¿Qué tecnología usarías para una app web pequeña que cualquiera pueda abrir, y por qué?',
+  'First conversation': 'Primera conversación',
+  'Fresh input of the middle turn with each tool server attached, against without it.': 'Entrada nueva del turno mediano con cada servidor de herramientas adjunto, contra sin él.',
+  '@{agent} · {server}: {with} with it ({nWith} turns) · {without} without it ({nWithout} turns)': '@{agent} · {server}: {with} con él ({nWith} turnos) · {without} sin él ({nWithout} turnos)',
+  'it did not answer within {seconds}s': 'no contestó en {seconds} s',
+  'it exited with code {code} before it spoke': 'salió con código {code} antes de hablar',
+  'PLAYWRIGHT did not start, so it stays off: {problem}. Install the server and its browser (npm install -g @playwright/mcp, then npx @playwright/mcp install-browser chrome-for-testing) and turn it on again.':
+    'PLAYWRIGHT no arrancó, así que se queda apagado: {problem}. Instala el servidor y su navegador (npm install -g @playwright/mcp, luego npx @playwright/mcp install-browser chrome-for-testing) y vuelve a encenderlo.',
+  '#{n} {label} is written in the message: its keys are asked for when you send it.': '#{n} {label} está escrito en el mensaje: sus llaves se piden al enviarlo.',
+  'stopped at the {seconds}s limit': 'detenido al llegar al límite de {seconds} s',
+  'stopped ({why})': 'detenido ({why})',
+  'did not start': 'no arrancó',
+  'exit {code}': 'salió con código {code}',
+  'asked by @{agent}': 'lo pidió @{agent}',
+  '(no output)': '(sin salida)',
+  'Files changed: {files}': 'Archivos cambiados: {files}',
+  'running {command}': 'corría {command}',
   'MADRE is shutting down': 'MADRE se está cerrando',
   'Google says the AI Studio project behind this Gemini key has no prepaid credits left; every request is refused (HTTP 429) until it is topped up.':
     'Google dice que el proyecto de AI Studio detrás de esta llave de Gemini se quedó sin créditos prepagados; cada petición se rechaza (HTTP 429) hasta que se recargue.',
@@ -2187,9 +2223,6 @@ export const ES = {
   'SHOW THE {n} DISMISSED': 'VER LOS {n} DESCARTADOS',
   'DISMISS ALL {n}': 'DESCARTAR LOS {n}',
   'DOWNLOAD THE LOG': 'DESCARGAR EL REGISTRO',
-  '/module writes a file, so it needs #2 CREATE. Your request is still in the composer.':
-    '/module escribe un archivo, así que necesita #2 CREATE. Tu petición sigue en el compositor.',
-  'ARM #2 CREATE': 'ARMAR #2 CREATE',
   // Lo que un agente puede hacer, dicho dentro de una frase: infinitivo, no el imperativo de
   // la etiqueta suelta de su ficha. «puede crea» era el botón metido en una oración.
   'read the project': 'leer el proyecto',
@@ -2418,8 +2451,6 @@ export const ES = {
     'MU/TH/UR › /{name} necesita una petición después, por ejemplo «/{name} un póster para el lanzamiento».',
   'MU/TH/UR › /module needs a job, e.g. "/module summarize today’s commits".':
     'MU/TH/UR › /module necesita una tarea, por ejemplo «/module resume los commits de hoy».',
-  'MU/TH/UR › /module needs #2 CREATE. Choose #2 in the mode chip, then send again.':
-    'MU/TH/UR › /module necesita #2 CREATE. Elige #2 en el chip de modo y vuelve a enviar.',
   'MU/TH/UR · MODULE · NEEDS #2 ›': 'MU/TH/UR · MODULE · REQUIERE #2 ›',
   'Create a MADRE module for this request: {request} Write exactly one <id>.module.mjs file for review. Set vendor to whoever wrote it — the human\'s name or team if you know it, otherwise leave it out; never the word "you". Do not install it; MADRE will show the human an install card.':
     'Crea un módulo de MADRE para esta petición: {request} Escribe exactamente un archivo <id>.module.mjs para revisión. Pon en vendor a quien lo escribió —el nombre o el equipo del humano si lo sabes, y si no, déjalo fuera; nunca la palabra «you»—. No lo instales; MADRE le va a mostrar al humano una tarjeta de instalación.',
@@ -2739,8 +2770,8 @@ export const ES = {
   // Un comando que un agente te pide correr.
   'on · agents may ask you to run commands': 'encendido · los agentes pueden pedirte que corras comandos',
   'off · agents describe the command in prose': 'apagado · los agentes describen el comando en prosa',
-  'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a checkpoint is taken first, and the output comes back to the room. Costs about 250 tokens of instruction per turn below AIRLOCK while it is on.':
-    'Deja que un agente te pida correr un comando que en su modo no puede correr (las pruebas, un build, un linter). Cada comando es un botón: nada corre hasta que lo presionas, corre desde la raíz del proyecto sin shell, antes se toma un checkpoint y la salida vuelve a la sala. Cuesta unos 250 tokens de instrucción por turno debajo de AIRLOCK mientras está encendido.',
+  'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a checkpoint is taken first, and the output comes back to the room. Costs about 300 tokens of instruction per turn below AIRLOCK while it is on.':
+    'Deja que un agente te pida correr un comando que en su modo no puede correr (las pruebas, un build, un linter). Cada comando es un botón: nada corre hasta que lo presionas, corre desde la raíz del proyecto sin shell, antes se toma un checkpoint y la salida vuelve a la sala. Cuesta unos 300 tokens de instrucción por turno debajo de AIRLOCK mientras está encendido.',
   'Name the request and the line to run.': 'Di qué petición y qué línea correr.',
   '@{agent} asks you to run': '@{agent} te pide correr',
   'RUNNING': 'CORRIENDO',
@@ -2764,8 +2795,8 @@ export const ES = {
     'expande una variable o un comando; no hay shell que lo expanda',
   'uses "{char}" as a glob; there is no shell to expand it, name the files':
     'usa «{char}» como comodín; no hay shell que lo expanda, nombra los archivos',
-  'starts a word with "~"; there is no shell to expand it, write the path':
-    'empieza una palabra con «~»; no hay shell que lo expanda, escribe la ruta',
+  'names another user\'s home with "~"; there is no shell to expand it, write the path':
+    'nombra la carpeta de otro usuario con «~»; no hay shell que lo expanda, escribe la ruta',
   'carries a "#" comment, which only a shell would drop; say it in the reason':
     'lleva un comentario con «#», que solo un shell quitaría; dilo en el motivo',
   'leaves a quote open': 'deja una comilla abierta',

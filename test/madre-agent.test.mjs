@@ -67,7 +67,8 @@ test('@madre: answers from the whole archive with a grounded system prompt, and 
     assert.equal(actionRequest('what did we decide about RIPLEY and scripts?'), null);
     assert.equal(actionRequest('Which files did codex create yesterday'), null);
     assert.equal(actionRequest('resume lo que se dijo sobre el empaque'), null, 'a recall request is not an action');
-    assert.match(briefingFor({ prompt: 'p', text: 'q', archive: '' }), /nothing in the archive[\s\S]*REMINDER[\s\S]*QUESTION FROM THE HUMAN:\nq$/);
+    assert.match(briefingFor({ prompt: 'p', text: 'q', archive: '' }), /nothing in the archive[\s\S]*REMINDER[\s\S]*QUESTION FROM THE HUMAN:\nq\n\nAnswer in English\.$/);
+    assert.match(briefingFor({ prompt: 'p', text: 'Las categorías son fijas: comida, transporte y casa.', archive: '' }), /Responde en español\.$/, 'the language is the last thing a small model reads');
     assert.ok(!calls[0].messages[1].content.includes('You are @madre.'), 'the room briefing for CLIs is not forwarded, only its transcript');
     let state = running;
     const flaky = madreInvoker({ memory, ollama: () => state, fetchImpl });
@@ -178,5 +179,33 @@ test('@madre settles identity, memory requests and round tables without the mode
     memory.close();
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('@madre closes a round with one line per agent, from its own answer, and keeps a comparison only if it holds', async () => {
+  const round = {
+    asked: ['claude', 'codex', 'opencode'],
+    answers: [
+      { agent: 'claude', sequence: 41, text: '## Riesgos\n- En **Safari** de iPhone, `localStorage` se borra tras 7 días sin uso. Lo demás está bien.' },
+      { agent: 'codex', sequence: 43, text: 'Los montos en centavos evitan errores de redondeo. Las fechas como texto AAAA-MM-DD ordenan bien.' },
+      { agent: 'opencode', failed: true, error: 'OpenCode did not respond before the timeout (180s).' },
+    ],
+  };
+  const question = 'Resume con citas [#n] lo que el crew respondió a: «¿qué riesgos ves en Phobos?». Señala coincidencias y diferencias; sin inventar consenso.\n(The delegated agents have answered above; this is your closing turn.)';
+  const say = (content) => async () => ({ ok: true, json: async () => ({ message: { content }, prompt_eval_count: 300, eval_count: 30 }) });
+  const honest = madreInvoker({ memory: null, ollama: () => running, fetchImpl: say('@claude [#41] mira el almacenamiento en Safari y @codex [#43] el formato de los datos; no se contradicen.') });
+  const closed = await honest({ prompt: 'p', text: question, requester: 'madre', round });
+  assert.match(closed.text, /^Lo que respondió el crew a «¿qué riesgos ves en Phobos\?»:/);
+  assert.match(closed.text, /- @claude \[#41\]: Riesgos En Safari de iPhone, localStorage se borra tras 7 días sin uso\./, 'Claude\'s point is Claude\'s');
+  assert.match(closed.text, /- @codex \[#43\]: Los montos en centavos/);
+  assert.match(closed.text, /- @opencode: no respondió \(OpenCode did not respond before the timeout \(180s\)\.\)\./, 'an agent that did not answer is not left out');
+  assert.match(closed.text, /no se contradicen\.$/);
+  assert.equal(closed.usage.local, true);
+  // A comparison that credits someone who did not speak, or cites a number that is not theirs, goes.
+  for (const lie of ['@opencode [#45] coincide con @claude.', '@codex [#41] habla de Safari.', '@madre resume que todos coinciden.']) {
+    const invoke = madreInvoker({ memory: null, ollama: () => running, fetchImpl: say(lie) });
+    const text = (await invoke({ prompt: 'p', text: question, requester: 'madre', round })).text;
+    assert.ok(!text.includes(lie), `kept: ${lie}`);
+    assert.match(text, /- @codex \[#43\]/);
   }
 });

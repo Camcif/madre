@@ -422,12 +422,18 @@ if (typeof ResizeObserver === 'function' && els.thread) {
 
 const SAFE_URL = /^https?:\/\//i;
 
-const FILE_PATH = /(?<![\w/@.-])((?:\.{1,2}\/)?(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]{1,8}|\/Users\/[\w.-]+(?:\/[\w.-]+)+\.[A-Za-z0-9]{1,8})(?::(\d+))?(?![\w/])/g;
+const FILE_PATH = /(?<![\w/@.-])((?:\.{1,2}\/)?(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]{1,8}|\/Users\/[\w.-]+(?:\/[\w.-]+)+\.[A-Za-z0-9]{1,8}|~\/(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]{1,8})(?::(\d+))?(?![\w/])/g;
 
+// A path an agent wrote, as a path inside this project, or null. Agents read the home folder as ~
+// (MADRE's privacy guard writes it so), and that is how their links come back.
 function projectRelative(path) {
-  if (state.projectRoot && path.startsWith(state.projectRoot + '/')) return path.slice(state.projectRoot.length + 1);
-  if (path.startsWith('/')) return null;
-  return path.replace(/^\.\//, '');
+  const clean = String(path ?? '').replace(/^file:\/\//, '').replace(/[?#].*$/, '').replace(/:\d+(?::\d+)?$/, '');
+  const root = state.projectRoot;
+  if (root && clean.startsWith(root + '/')) return clean.slice(root.length + 1);
+  const tilde = root?.replace(/^\/(?:Users|home)\/[^/]+/, '~');
+  if (tilde && tilde !== root && clean.startsWith(tilde + '/')) return clean.slice(tilde.length + 1);
+  if (clean.startsWith('/') || clean.startsWith('~')) return null;
+  return clean.replace(/^\.\//, '');
 }
 
 // Plain text with file paths turned into viewer links.
@@ -453,7 +459,7 @@ function imageSource(src) {
 }
 
 function renderInline(text, into) {
-  const pattern = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(!\[[^\]\n]*\]\(([^)\s]+)\))|(\[[^\]\n]+\]\((https?:\/\/[^)\s]+)\))|((?<![\w/])!((?:[\w.-]+\/)*[\w.-]+\.[A-Za-z0-9]{1,8})(?::(\d+)(?:-(\d+))?)?(?![\w/]))/g;
+  const pattern = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(!\[[^\]\n]*\]\(([^)\s]+)\))|(\[[^\]\n]+\]\((https?:\/\/[^)\s]+)\))|((?<![\w/])!((?:[\w.-]+\/)*[\w.-]+\.[A-Za-z0-9]{1,8})(?::(\d+)(?:-(\d+))?)?(?![\w/]))|(\[([^\]\n]+)\]\(([^)\s]+)\))/g;
   let last = 0;
   for (const match of text.matchAll(pattern)) {
     if (match.index > last) appendTextWithPaths(text.slice(last, match.index), into);
@@ -485,6 +491,19 @@ function renderInline(text, into) {
     }
     else if (match[2]) into.append(el('strong', null, token.slice(2, -2)));
     else if (match[3]) into.append(el('em', null, token.slice(1, -1)));
+    else if (match[12]) {
+      // A link to a file: the project's own opens in the viewer, at its line when it names one; a
+      // link to somewhere else on this machine keeps its words and drops the address nobody can open.
+      const rel = projectRelative(match[14]);
+      if (rel) {
+        const line = Number(match[14].match(/(?::|#L)(\d+)/)?.[1]) || null;
+        const link = el('a', 'file-link', match[13]);
+        link.href = `/api/files?path=${encodeURIComponent(rel)}`;
+        link.title = rel;
+        link.addEventListener('click', (event) => { event.preventDefault(); openViewer({ root: 'project', path: rel, line }); });
+        into.append(link);
+      } else into.append(match[13]);
+    }
     else if (match[6]) {
       const anchor = el('a', null, token.slice(1, token.indexOf(']')));
       const href = match[7];
@@ -2205,6 +2224,7 @@ function renderPicker() {
       closeModelMenu();
       closeModeMenu();
       els.target.value = agent.id;
+      state.typedTarget = null;
       setMode(defaultModeFor(agent.id));
       els.input.focus();
     };
@@ -2225,10 +2245,15 @@ function renderPicker() {
         measured ? `\n\n${t('Measured against this room {when}: it landed where the crew landed on {matched} of {n} real questions{verdict}', { when: agoWords(measured.at), matched: measured.matched, n: measured.n, verdict: measured.passed ? t('. Ready to be worked in.') : t(' — not yet.') })}` : `\n\n${t('Nobody has measured it against this project yet: MU/TH/UR → the three tests, or the line in the room when it joined.')}`}`;
       text.append(note);
     }
-    const modeChip = el('button', `mode-chip m${state.mode}`);
+    // A #3 or #4 typed in the message shows here before it is sent, as not armed yet: its keys are
+    // asked for on sending.
+    const shown = state.typedPending ?? state.mode;
+    const modeChip = el('button', `mode-chip m${shown}${state.typedPending ? ' pending' : ''}`);
     modeChip.type = 'button';
-    modeChip.append(el('b', null, `#${state.mode}`), `${MODES[state.mode].label} ▾`);
-    modeChip.title = t('Permission mode for this message · {hint}', { hint: MODES[state.mode].hint });
+    modeChip.append(el('b', null, `#${shown}`), `${MODES[shown].label} ▾`);
+    modeChip.title = state.typedPending
+      ? t('#{n} {label} is written in the message: its keys are asked for when you send it.', { n: shown, label: MODES[shown].label })
+      : t('Permission mode for this message · {hint}', { hint: MODES[state.mode].hint });
     modeChip.addEventListener('click', (event) => { event.stopPropagation(); toggleModeMenu(current.id, modeChip); });
     text.append(modeChip);
     // An agent with no models to choose from gets no chooser. @madre answers on whatever chat
@@ -2650,8 +2675,10 @@ function toggleModeMenu(id, anchor) {
 }
 
 // One place changes the mode: chip, classes, label, placeholder and the old CREATE state.
-function setMode(n, { wink = false } = {}) {
+function setMode(n, { wink = false, typed = false } = {}) {
   const mode = [0, 1, 2, 3, 4].includes(n) ? n : 1;
+  // A mode chosen by hand wins over one typed in the message: taking the #n out no longer undoes it.
+  if (!typed) state.typedMode = null;
   state.mode = mode;
   state.create = mode === 2;
   if (mode < 3) state.modeArmedFor = null;
@@ -2668,7 +2695,49 @@ function setMode(n, { wink = false } = {}) {
   if (wink && typeof winkField === 'function') winkField(mode >= 3 ? 'control' : mode === 0 ? 'ghost' : 'ash');
 }
 // After a message goes out the mode falls back to the target's default: #2 for a standing lease, else #1.
-function resetModeAfterSend() { setMode(defaultModeFor(els.target.value)); }
+// A leading @agent chose the agent for that message only: the picker goes back to the one it had.
+function resetModeAfterSend() {
+  if (state.typedTarget && state.agents.has(state.typedTarget.from)) els.target.value = state.typedTarget.from;
+  state.typedTarget = null;
+  state.typedPending = null;
+  setMode(defaultModeFor(els.target.value));
+}
+
+// What is typed shows before it is sent. A leading @agent moves the picker to it, with its model and
+// effort chips; a #0, #1 or #2 sets the mode; both are undone when the text is taken back. A #3 or
+// #4 shows on the chip as pending, because those keys are asked for on sending. The report: «#2»
+// typed left the chip on #1 EXCHANGE, and «@madre…» typed left the row saying TO @CLAUDE.
+const TYPED_MODE = /(^|\s)#([0-4])(?=\s|$)/;
+const TYPED_TO = /^\s*(?:#[0-4]\s+)?@([a-z0-9_-]+)\b/i;
+function followTyped() {
+  const text = els.input.value;
+  const mention = text.match(TYPED_TO)?.[1]?.toLowerCase();
+  const to = mention && state.agents.get(mention)?.ready !== false && state.agents.has(mention) ? mention : null;
+  let repaint = false;
+  if (to && to !== els.target.value) {
+    state.typedTarget ??= { from: els.target.value };
+    els.target.value = to;
+    repaint = true;
+  } else if (!to && state.typedTarget) {
+    if (state.agents.has(state.typedTarget.from)) els.target.value = state.typedTarget.from;
+    state.typedTarget = null;
+    repaint = true;
+  }
+  const token = text.match(TYPED_MODE);
+  const n = token ? Number(token[2]) : null;
+  const pending = n !== null && n >= 3 ? n : null;
+  if (pending !== (state.typedPending ?? null)) { state.typedPending = pending; repaint = true; }
+  if (n !== null && n <= 2) {
+    state.typedMode ??= { from: state.mode };
+    if (state.mode !== n) { setMode(n, { typed: true }); return; }
+  } else if (state.typedMode) {
+    const back = state.typedMode.from;
+    state.typedMode = null;
+    setMode(back, { typed: true });
+    return;
+  }
+  if (repaint) renderPicker();
+}
 
 /* ---------- emergency command override: arming CONTROL ---------- */
 
@@ -2801,20 +2870,35 @@ function renderOnboarding() {
 }
 const sessionOf = (agent) => state.sessions?.[agent.id]?.state ?? 'unknown';
 
-// The blank page is its own friction: three first messages, written for this project.
+// The blank page is its own friction: three first messages, written for this project — and for a
+// folder with nothing in it yet, three ways to begin one, since there is nothing to explain.
 function renderEmptyStarts() {
   const box = els.emptyStarts;
   if (!box) return;
   const ready = [...state.agents.values()].filter((agent) => agent.ready && agent.id !== 'madre');
   box.replaceChildren();
   if (!ready.length) return;
+  if (state.projectEmpty === undefined) {
+    state.projectEmpty = null;
+    void fetch('/api/tree?path=.').then((response) => response.json()).then((data) => {
+      state.projectEmpty = !(data.entries ?? []).some((entry) => !entry.name.startsWith('.'));
+      renderEmptyStarts();
+    }).catch(() => { state.projectEmpty = false; });
+    return;
+  }
+  if (state.projectEmpty === null) return;
   const project = (state.projectRoot ?? '').split('/').filter(Boolean).pop() || t('this project');
-  for (const text of [
+  for (const text of state.projectEmpty ? [
+    t('I want to start a project: '),
+    t('Before writing anything, ask me what I want to build and propose a plan in steps.'),
+    t('Which stack would you use for a small web app that anyone can open, and why?'),
+  ] : [
     t('Explain {project} to me: what it does, how it runs, and where the important code lives.', { project }),
     t('Read the project and name the three things most likely to break. Say why, with file and line.'),
     t('What would you change first in {project}, and what would you not touch?', { project }),
   ]) {
-    const chip = el('button', 'empty-start', text);
+    // One that ends open is for the human to finish: it says so, and the cursor waits at its end.
+    const chip = el('button', 'empty-start', text.endsWith(': ') ? `${text}…` : text);
     chip.type = 'button';
     chip.addEventListener('click', () => {
       els.input.value = text;
@@ -3609,9 +3693,16 @@ function renderPrivacy(event) {
     node.append(t('privacy · '), el('b', 'who', t('PURGE')), ' · ', t('{events} events · {entries} indexed exchanges · {memories} memories rewritten with the marker', { events, entries, memories }));
     return node;
   }
-  const { agent, hits, marker } = event.payload;
+  const { agent, hits, marker, kinds = null } = event.payload;
   node.style.setProperty('--agent', agentColor(agent));
-  node.append(t('privacy · '), el('b', 'who', `@${agent}`), ' · ', t('{n} private terms replaced with {marker}', { n: hits, marker }));
+  // What was hidden, by kind: a term you named, a key, your user folder. A notice from before the
+  // room told them apart says only how many.
+  const said = kinds ? [
+    kinds.terms ? (kinds.terms === 1 ? t('1 private term replaced with {marker}', { marker }) : t('{n} private terms replaced with {marker}', { n: kinds.terms, marker })) : null,
+    kinds.secrets ? (kinds.secrets === 1 ? t('1 key or token hidden') : t('{n} keys or tokens hidden', { n: kinds.secrets })) : null,
+    kinds.paths ? t('your user folder hidden as ~') : null,
+  ].filter(Boolean) : [hits === 1 ? t('1 private detail hidden') : t('{n} private details hidden', { n: hits })];
+  node.append(t('privacy · '), el('b', 'who', `@${agent}`), ' · ', said.join(' · '));
   return node;
 }
 
@@ -3652,8 +3743,9 @@ function renderDistilled(event) {
 // asked — a second step nobody could guess from a button that said ARM. Now the press is the
 // answer: it opens the same ceremony as always for #3 and #4, where the project designation is
 // typed by hand (nothing here shortens that), and then sends the agent its permission, quoting
-// the reply that asked, at the mode it asked for. WRITE IT MYSELF keeps the old road for a human
-// who wants to add instructions; NOT NOW folds the card.
+// the reply that asked, at the mode it asked for. The other way grants the same and leaves the box
+// to the human, for an instruction of their own; NOT NOW folds the card. Both used to read as the
+// same press («GRANT AND CONTINUE» against «WRITE IT MYSELF») until one was pressed.
 const modeAsks = [];   // { agent, wanted, card } still waiting for an answer in this page
 function attachModeAsk(payload, { sequence = null } = {}) {
   if (!payload || payload.role !== 'assistant' || payload.sender === 'you') return null;
@@ -3671,9 +3763,9 @@ function attachModeAsk(payload, { sequence = null } = {}) {
     ? t('You will type the project designation, as always. Then @{agent} gets your permission and continues.', { agent })
     : t('@{agent} gets your permission for one message and continues.', { agent }));
   const actions = el('div', 'mode-actions');
-  const go = el('button', 'mode-go', t('GRANT #{n} AND CONTINUE', { n: wanted }));
+  const go = el('button', 'mode-go', t('GRANT #{n} · LET IT GO ON', { n: wanted }));
   go.type = 'button';
-  const myself = el('button', 'mode-alt', t('WRITE IT MYSELF'));
+  const myself = el('button', 'mode-alt', t('GRANT #{n} · GIVE IT ANOTHER INSTRUCTION', { n: wanted }));
   myself.type = 'button';
   myself.title = t('Arms #{n} in the box below, so you can add instructions before sending.', { n: wanted });
   const later = el('button', 'mode-alt', t('NOT NOW'));
@@ -4787,13 +4879,13 @@ void renderOpenQuestions(); return;
     case 'control.started': node = renderControlStarted(event); break;
     case 'create.reverted': node = renderCreateReverted(event); break;
     case 'create.missing': node = renderCreateMissing(event); break;
-    case 'control.changed': markTouched(event.payload.agent, event.payload.files); node = renderControlChanged(event); if (!replaying) ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); break;
-    case 'control.reverted': node = renderControlReverted(event); break;
+    case 'control.changed': markTouched(event.payload.agent, event.payload.files); node = renderControlChanged(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } break;
+    case 'control.reverted': node = renderControlReverted(event); if (!replaying) treeFollowWrites(); break;
     case 'mode.granted':
     case 'mode.denied': settleModeRequest(event); return;
     case 'plan.ignored': node = renderPlanIgnored(event); break;
-    case 'artifacts.created': markTouched(event.payload.agent, event.payload.files); attachArtifacts(event); if (!replaying) ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); return;
-    case 'command.output': node = renderCommandCard(event); break;
+    case 'artifacts.created': markTouched(event.payload.agent, event.payload.files); attachArtifacts(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } return;
+    case 'command.output': node = renderCommandCard(event); if (!replaying && event.payload.run?.files?.length) treeFollowWrites(); break;
     case 'eyecat.flagged': node = renderEyecat(event); break;
     case 'eyecat.settled': settleEyecat(event); return;
     default: return;
@@ -4802,7 +4894,10 @@ void renderOpenQuestions(); return;
   // is not an error, but appending the nothing it returned puts a hole in the column that every
   // later pass over the children trips on.
   if (!node) return;
-  removeEmpty();
+  // The blank page with its first messages goes when the conversation starts, not when the room
+  // says something about itself: in a new project @madre's arrival used to take it away before
+  // anyone had written a word.
+  if (event.type.startsWith('message.') || event.type === 'command.output' || event.type === 'run.requested') removeEmpty();
   const stickToBottom = els.thread.scrollHeight - els.thread.scrollTop - els.thread.clientHeight < 120;
   els.column.append(tidySystemLine(node));
   followTurn(event, node, stickToBottom);
@@ -5048,6 +5143,26 @@ function finderAsk({ label, value = '', hint = '', where = null }) {
 
 const finderDirOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '.');
 const finderJoin = (dir, name) => (dir === '.' ? name : `${dir}/${name}`);
+
+// The agents write while the panel is open: what they made appears in it, the folders that were
+// open stay open, the list keeps its scroll, and nothing blinks — the new list is built aside and
+// swapped in whole. Several writes in a row are one refresh. A search being typed, or a word being
+// asked in the panel, is the human's and is left alone.
+let treeFollowTimer = null;
+function treeFollowWrites() {
+  if (!tree.open) return;
+  clearTimeout(treeFollowTimer);
+  treeFollowTimer = setTimeout(async () => {
+    const busy = () => !tree.open || finder.q?.value.trim() || finder.clip?.querySelector('.tree-ask');
+    if (busy()) return;
+    const root = el('ul');
+    await loadTreeLevel('.', root);
+    if (busy() || root.querySelector('.error')) return;
+    const top = els.treeBody.scrollTop;
+    els.treeBody.replaceChildren(root);
+    els.treeBody.scrollTop = top;
+  }, 350);
+}
 
 // The panel again, as it was: the folders that were open stay open, the one the result landed in
 // opens too, and the result itself is lit. A search in progress is asked again instead, so the
@@ -5359,6 +5474,22 @@ function besideNow() {
   }
   return members;
 }
+// Which panels stood docked beside the conversation at the last layout, and where the room keeps
+// the notes it says once (the first-touch cards' store, HINTS_KEY, named here because the layout
+// runs before that line does).
+let dockedBefore = new Set();
+const LAYOUT_HINTS = 'madre.hints';
+// One voice at a time: the first time the browser opens, its own card explains it, and a note about
+// the panels that moved for it waits until that card is closed instead of talking over it.
+function sayWhenQuiet(say) {
+  const go = () => {
+    const card = document.querySelector('.hint-card');
+    if (!card) { say(); return; }
+    const watch = new MutationObserver(() => { if (!card.isConnected) { watch.disconnect(); setTimeout(say, 300); } });
+    watch.observe(document.body, { childList: true });
+  };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(go)); else go();
+}
 let givingWay = false;
 function giveWay() {
   if (givingWay) return false;
@@ -5372,7 +5503,19 @@ function giveWay() {
     else if (oldest.kind === 'dock') setBrowserFloating(true, { animate: false });
     else { const id = split.chat; closeSplit({ animate: false }); openConvWindow(id, { animate: false }); }
   } finally { givingWay = false; }
+  saidGaveWay(oldest);
   return true;
+}
+// The first time something gives way, the room says what moved and why, once per browser: a panel
+// that jumps into a window over the thread is right, and the first time it is also a surprise.
+function saidGaveWay(one) {
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(LAYOUT_HINTS) ?? '{}') ?? {}; } catch { /* no storage */ }
+  if (seen.gaveWay) return;
+  try { localStorage.setItem(LAYOUT_HINTS, JSON.stringify({ ...seen, gaveWay: true })); } catch { /* a private window hears it every time */ }
+  const what = { chats: t('Conversations'), tree: t('Files'), viewer: t('The viewer'), modules: t('MODULES'), mother: 'MU/TH/UR' }[one.surface?.key ?? one.key]
+    ?? (one.kind === 'dock' ? t('The browser') : t('The second conversation'));
+  sayWhenQuiet(() => toast(t('{what} moved to a window so the conversation stays readable. Its split button puts it back beside.', { what }), { tone: 'note' }));
 }
 // The browser's dock and the second conversation are columns of the page's own grid: when the
 // splits at the sides leave the grid too narrow for them and a readable conversation, they narrow
@@ -5471,13 +5614,31 @@ function layoutPanels() {
     glides.set(node, node.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.22, 1, .36, 1)' }));
   });
   let over = false;
+  const floated = [];
   for (const one of panelSides) {
     const floating = beside.includes(one) && !docked.has(one.key);
     one.node()?.classList.toggle('floating', floating);
+    if (floating && dockedBefore.has(one.key)) floated.push(one.key);
     over ||= floating;
   }
+  dockedBefore = new Set(docked);
   shellBox.classList.toggle('panels-over', over);
+  if (floated.length) saidFloated(floated);
   fitGridBeside();
+}
+// A panel that stood beside the conversation and now floats over it, because something else took
+// the room (the browser's dock, a split): said the first time, once per browser. It docks again by
+// itself when the room is back. The report: Files jumped over the thread when the browser opened,
+// which is right, and the first time it is also a surprise.
+function saidFloated(keys) {
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem(LAYOUT_HINTS) ?? '{}') ?? {}; } catch { /* no storage */ }
+  if (seen.floated) return;
+  try { localStorage.setItem(LAYOUT_HINTS, JSON.stringify({ ...seen, floated: true })); } catch { /* a private window hears it every time */ }
+  const names = keys.map((key) => ({ chats: t('Conversations'), tree: t('Files') }[key] ?? key));
+  sayWhenQuiet(() => toast(names.length > 1
+    ? t('{first} and {second} float over the conversation while there is no room beside it, and go back beside it when there is.', { first: names[0], second: names[1] })
+    : t('{what} floats over the conversation while there is no room beside it, and goes back beside it when there is.', { what: names[0] }), { tone: 'note' }));
 }
 
 // The inner edge of a split is its handle, the way the browser's dock has one.
@@ -6158,7 +6319,7 @@ function renderChats() {
       if (chat.id === chats.active) { window.location.reload(); return; }
       if (chat.id === split.chat) closeSplit();
       if (convWindows.has(chat.id)) closeConvWindow(chat.id);
-      chats.list = result.chats ?? chats.list;
+      chats.list = namedChats(result.chats) ?? chats.list;
       chats.active = result.active ?? chats.active;
       renderChats();
     });
@@ -6286,7 +6447,7 @@ function notifyFinished(body, chatId) {
 // The tab says which conversation it is, so a row of MADRE tabs can be told apart.
 function paintTitle() {
   const here = chats.list.find((chat) => chat.id === chats.active);
-  const name = here?.title && !/^(Untitled|First conversation)$/i.test(here.title) ? here.title : (document.querySelector('#project')?.textContent?.replace(/^\/\s*/, '').trim() || '');
+  const name = here?.title && ![t('Untitled'), t('First conversation'), 'Untitled', 'First conversation'].includes(here.title) ? here.title : (document.querySelector('#project')?.textContent?.replace(/^\/\s*/, '').trim() || '');
   const clipped = name.length > 48 ? `${name.slice(0, 47)}…` : name;
   document.title = clipped ? `MADRE · ${clipped}` : 'MADRE';
 }
@@ -6301,7 +6462,7 @@ function paintChatsButton() {
 async function loadChats() {
   try {
     const payload = await fetch('/api/chats').then((response) => response.json());
-    chats.list = payload.chats ?? [];
+    chats.list = namedChats(payload.chats) ?? [];
     chats.active = payload.active ?? null;
     if (split.chat && !chats.list.some((chat) => chat.id === split.chat)) closeSplit();
     for (const id of [...convWindows.keys()]) if (!chats.list.some((chat) => chat.id === id)) closeConvWindow(id);
@@ -6365,6 +6526,10 @@ try { if (!SPLIT_CHAT && localStorage.getItem('pulse.chats') === 'open') setChat
 // the left, which is still the open one. The split is remembered across a reload; a conversation
 // that is gone closes it. Below 900px there is no room for two, and the page is one again.
 const SPLIT_MIN_PX = 900;
+// The two names the room gives a conversation nobody has named yet, said in the human's language.
+// One a person typed stays exactly as they typed it.
+const chatTitle = (title) => (title === 'Untitled' ? t('Untitled') : title === 'First conversation' ? t('First conversation') : title);
+const namedChats = (list) => (Array.isArray(list) ? list.map((chat) => ({ ...chat, title: chatTitle(chat.title) })) : null);
 function paintSplit() {
   if (!split.box) return;
   const here = chats.list.find((chat) => chat.id === split.chat);
@@ -6867,12 +7032,12 @@ els.project.title = initial.projectRoot;
 if (initial.chats?.chats?.length > 1) {
   const here = initial.chats.chats.find((chat) => chat.id === initial.chats.active);
   if (here) {
-    const mark = el('span', 'project chat-here', here.title);
+    const mark = el('span', 'project chat-here', chatTitle(here.title));
     mark.title = t("Conversation · {n} messages. The project's memory is shared by all of them.", { n: here.messages });
     els.project.after(mark);
   }
 }
-chats.list = initial.chats?.chats ?? [];
+chats.list = namedChats(initial.chats?.chats) ?? [];
 // The half on the right is looking at its own conversation, whichever one the left has open.
 chats.active = SPLIT_CHAT ?? initial.chats?.active ?? null;
 paintTitle();
@@ -6999,7 +7164,7 @@ function forgetConversation() {
 async function paintConversation(payload) {
   replaying = true;
   forgetConversation();
-  chats.list = payload.chats?.chats ?? chats.list;
+  chats.list = namedChats(payload.chats?.chats) ?? chats.list;
   chats.active = payload.chats?.active ?? chats.active;
   renderChats();
   const here = chats.list.find((chat) => chat.id === chats.active);
@@ -7037,26 +7202,6 @@ autosize();
 // animation trigger: it is added once when the prefix becomes a command, and removed when the
 // human edits away from it or the message leaves the composer.
 const MODULE_COMMAND = /^\/module(?:\s|$)/i;
-// A refusal that only flashes is a refusal the room forgets. `/module` needs #2 because writing a
-// module is writing a file, so the answer lands in the thread where every other decision of the
-// room lands — and it carries the way out: the button that arms the mode, without arming it.
-function moduleModeNotice() {
-  const node = el('div', 'system alert module-notice');
-  node.append(el('b', null, t('MU/TH/UR › ')));
-  node.append(t('/module writes a file, so it needs #2 CREATE. Your request is still in the composer.'));
-  const arm = el('button', 'cmd', t('ARM #2 CREATE'));
-  arm.type = 'button';
-  // The human arms it, here as everywhere: the command asked, the click grants.
-  arm.addEventListener('click', () => { setMode(2, { wink: true }); els.input.focus(); });
-  node.append(arm);
-  removeEmpty();
-  els.column.append(tidySystemLine(node));
-  node.scrollIntoView({ behavior: 'smooth', block: 'end' });
-}
-
-function askForModuleMode() {
-  toast(t('MU/TH/UR › /module needs #2 CREATE. Choose #2 in the mode chip, then send again.'));
-}
 function syncModuleComposer() {
   const active = MODULE_COMMAND.test(els.input.value.trimStart());
   if (state.moduleCommand === active) return;
@@ -7064,7 +7209,6 @@ function syncModuleComposer() {
   els.composer.classList.toggle('module-command', active);
   updateCrewLabel();
   updatePlaceholder();
-  if (active && !state.create) askForModuleMode();
 }
 // A question about what this room already said is a question the room can answer itself, on this
 // computer, for nothing. @madre reads the same archive every paid agent reads and bills no
@@ -7357,10 +7501,6 @@ async function runSlashCommand(text) {
         : t('MU/TH/UR › /{name} needs a request after it, e.g. "/{name} a poster for the launch".', { name }));
       return { handled: true };
     }
-    if (name === 'module' && !state.create) {
-      moduleModeNotice();
-      return { handled: true, preserve: true };
-    }
     let target = els.target.value;
     if (name === 'image') {
       const capable = [...state.agents.values()].filter((agent) => agent.ready && state.capabilities[agent.id]?.scopes?.imageGen?.enabled).map((agent) => agent.id);
@@ -7372,6 +7512,9 @@ async function runSlashCommand(text) {
         renderPicker();
       }
     }
+    // /image and /module are asked for by name, and both write a file: typing one arms #2 for that
+    // message, as choosing it on the chip would. /module used to stop and ask for the chip while
+    // /image went ahead, and the two read as one rule broken.
     if (!state.create) setMode(2);
     if (name === 'module') {
       return {
@@ -7415,6 +7558,7 @@ els.input.addEventListener('keydown', (event) => {
   els.input.dispatchEvent(new Event('input', { bubbles: true }));
 });
 
+els.input.addEventListener('input', followTyped);
 const STOPALL = /^\/?stop\s*all!?$/i;
 els.input.addEventListener('input', () => {
   els.composer.classList.toggle('stopall', STOPALL.test(els.input.value.trim()));
@@ -8097,13 +8241,31 @@ function renderModuleEvent(event) {
   return node;
 }
 
+// A command the human ran: its line and how it ended, said in the human's language. The room
+// records the title in English for the agents; the card is built from the facts beside it.
+function runTitle(run) {
+  const why = String(run.stoppedBy ?? '');
+  // «stopped by the human» is how a card's STOP was recorded before it was called STOP.
+  const status = why === 'STOP' || why === 'stopped by the human' ? t('stopped from its card')
+    : why.startsWith('timeout') ? t('stopped at the {seconds}s limit', { seconds: why.match(/\d+/)?.[0] ?? '?' })
+      : why ? t('stopped ({why})', { why: resay(why) })
+        : run.exitCode === null || run.exitCode === undefined ? t('did not start')
+          : t('exit {code}', { code: run.exitCode });
+  return `$ ${run.line} · ${status} · ${((Number(run.durationMs) || 0) / 1000).toFixed(1)}s · ${t('asked by @{agent}', { agent: run.agent })}`;
+}
+function runOutput(text, run) {
+  const output = String(text ?? '').replace(/\n\nFiles changed: [^\n]*$/, '');
+  const said = output === '(no output)' ? t('(no output)') : output;
+  return run.files?.length ? `${said}\n\n${t('Files changed: {files}', { files: run.files.map((file) => `${file.status} ${file.path}`).join(', ') })}` : said;
+}
+
 function renderCommandCard(event) {
   const { name, title, text, ok, args = [], run = null } = event.payload;
   const node = el('div', `command-card${ok === false ? ' failed' : ''}`);
   const head = el('div', 'head');
-  head.append(el('b', null, `/${name}`), el('span', null, title ?? name), el('span', 'args', args.join(' ')));
+  head.append(el('b', null, `/${name}`), el('span', null, run?.line ? runTitle(run) : title ?? name), el('span', 'args', args.join(' ')));
   const pre = el('pre');
-  for (const line of String(text ?? '').split('\n')) {
+  for (const line of String(run?.line ? runOutput(text, run) : text ?? '').split('\n')) {
     if (line.startsWith('## ')) pre.append(el('span', 'h', line.slice(3)), '\n');
     else pre.append(`${line}\n`);
   }
@@ -8749,6 +8911,14 @@ async function renderEconomy() {
   third.append(cardHead('bars', t('WHERE EACH PROMPT GOES')));
   economyBlocks(third, read);
   third.append(el('p', 'note', t('{pct} of each prompt is the unchanging head a cache can match. MADRE wrote {chars} characters of the {input} input tokens you were charged for; the rest is what the CLIs read on their own.', { pct: pct(read.totals.prefixShare), chars: count(read.totals.chars), input: count(read.totals.input) })));
+  // The tools a turn carried. A server's tool list goes into every call a CLI makes inside a turn;
+  // the middle turn with it against the middle turn without it, per agent, with the counts behind.
+  if (read.servers?.length) {
+    third.append(el('p', 'unit-note', t('Fresh input of the middle turn with each tool server attached, against without it.')));
+    for (const one of read.servers) {
+      third.append(el('p', 'note', t('@{agent} · {server}: {with} with it ({nWith} turns) · {without} without it ({nWithout} turns)', { agent: one.agent, server: one.server, with: count(one.medianWith), nWith: one.with, without: count(one.medianWithout), nWithout: one.without })));
+    }
+  }
   box.append(third);
 
   // 4 · One row per agent, because they do not behave alike.
@@ -9038,7 +9208,11 @@ function builtinCard(item) {
   toggle.disabled = !on && item.preflight && !item.preflight.ok;
   toggle.addEventListener('click', async () => {
     toggle.disabled = true;
+    // A module that tries itself before turning on (PLAYWRIGHT starts its server) takes a few
+    // seconds; said only when it does, so a switch that flips at once does not flash a word.
+    const trying = on ? null : setTimeout(() => { toggle.textContent = t('TRYING IT…'); }, 400);
     const response = await fetch(`/api/extensions/${item.id}/install`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm: true }) });
+    clearTimeout(trying);
     const result = await response.json().catch(() => ({}));
     if (!response.ok) toast(result.error ?? t('{name} could not be switched.', { name: item.name }));
     else {
@@ -13974,6 +14148,13 @@ function placeTour() {
     { fits: box.right + gap + card.width <= vw - margin, left: box.right + gap, top: centredY },
     { fits: box.left - gap - card.width >= margin, left: box.left - gap - card.width, top: centredY },
   ];
+  // Where it already is, if that still leaves the lit part uncovered and fits the window: a card
+  // that slid on every step put «Next» somewhere else each time, and a quick second click fell on
+  // nothing.
+  const lit = { left: box.left - gap, top: box.top - gap, right: box.right + gap, bottom: box.bottom + gap };
+  const stays = tour.card.style.left && card.left >= margin && card.top >= margin && card.right <= vw - margin && card.bottom <= vh - margin
+    && (card.right <= lit.left || card.left >= lit.right || card.bottom <= lit.top || card.top >= lit.bottom);
+  if (stays) return;
   const place = places.find((one) => one.fits) ?? { left: centredX, top: Math.max(margin, box.top - gap - card.height) };
   tour.card.style.left = `${place.left}px`;
   tour.card.style.top = `${place.top}px`;

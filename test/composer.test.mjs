@@ -10,8 +10,8 @@ test('composer: /module has a guided command and an electric pixel transition', 
 
   // Written in the room's language: the placeholder goes through the catalogue.
   assert.match(app, /name: 'module'.*usage: `\/module \$\{t\('<what it should do>'\)\}`/, 'the guided module command is missing');
-  assert.match(app, /name === 'module' && !state\.create/, '/module does not require CREATE explicitly');
-  assert.match(app, /return \{ handled: true, preserve: true \}/, 'a rejected /module request is erased instead of preserved');
+  // /module arms #2 for its message, as /image does: both are asked for by name and write a file.
+  assert.match(app, /if \(!state\.create\) setMode\(2\);\n    if \(name === 'module'\) \{/, '/module does not arm CREATE for its message');
   assert.match(app, /Write exactly one <id>\.module\.mjs file for review/, '/module no longer asks for one reviewable file');
   assert.match(app, /classList\.toggle\('module-command', active\)/, 'typing /module never changes the typebox state');
 

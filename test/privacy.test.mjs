@@ -26,7 +26,12 @@ test('privacy: terms match by meaning of the name, not by exact spelling, and ar
   // "off": it is only off when nothing at all would be replaced.
   assert.equal(new Privacy().enabled, true);
   assert.equal(new Privacy({ secrets: false, paths: false }).enabled, false);
-  assert.deepEqual(new Privacy().redact('Come Verde'), { text: 'Come Verde', hits: 0 }, 'an ordinary name is not a secret');
+  assert.deepEqual(new Privacy().redact('Come Verde'), { text: 'Come Verde', hits: 0, kinds: { terms: 0, secrets: 0, paths: 0 } }, 'an ordinary name is not a secret');
+  // What was replaced is told by kind: a home path is not a term anybody wrote.
+  const home = new Privacy({ terms: ['Globex'] }).setGuards({ home: '/Users/ana' }).redact('Lee /Users/ana/phobos/app.js y pregunta a Globex');
+  assert.equal(home.text, 'Lee ~/phobos/app.js y pregunta a [ENTIDAD-ORG]');
+  assert.deepEqual(home.kinds, { terms: 1, secrets: 0, paths: 1 });
+  assert.equal(home.hits, 2);
   assert.deepEqual(normalizeTerms(['ab', ' Come  Verde ', 'come verde', 'x'.repeat(81)]), ['Come Verde']);
   const settings = privacySettings({ privacy: { terms: ['Acme'], marker: '[ORG]' } }, { PULSE_PRIVATE_TERMS: 'Globex, Acme' });
   assert.deepEqual(settings, { terms: ['Globex', 'Acme'], marker: '[ORG]', envWins: true, secrets: true, paths: true });

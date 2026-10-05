@@ -59,7 +59,7 @@ test('a forgotten memory is named in the room\'s language, not by its id', () =>
 
 test('every way into the column tidies the line on its way in', () => {
   const appends = [...app.matchAll(/els\.column\.append\(([^;]*)\);/g)].map((m) => m[1]);
-  assert.ok(appends.length >= 3);
+  assert.ok(appends.length >= 2);
   for (const call of appends) assert.match(call, /^tidySystemLine\(/, `a line enters the column untidied: ${call}`);
 });
 

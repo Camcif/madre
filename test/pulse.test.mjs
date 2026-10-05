@@ -106,6 +106,9 @@ test('routes an explicit agent mention', () => {
     target: 'codex',
     mentioned: 'codex',
   });
+  // The comma or colon that hangs on the mention goes with it.
+  assert.equal(parseMessage('@madre, pregúntale al crew qué harían', 'madre').text, 'pregúntale al crew qué harían');
+  assert.equal(parseMessage('@codex: revisa app.js', 'claude').text, 'revisa app.js');
 });
 
 test('places Codex global safety flags before the exec command', () => {
@@ -2703,6 +2706,11 @@ test('standing lease: an agent opted in creates files on every turn, and a creat
     assert.equal(looksLikeCreation('Genera el PDF con el análisis'), true);
     assert.equal(looksLikeCreation('crea un archivo markdown'), true);
     assert.equal(looksLikeCreation('¿qué opinas del diseño?'), false);
+    // Asked not to write yet, it is not a request to write.
+    assert.equal(looksLikeCreation('Dame un plan por pasos antes de escribir código: index.html, app.js y el archivo de estilos'), false);
+    assert.equal(looksLikeCreation('Lee el README y no toques ningún archivo, solo explícame'), false);
+    assert.equal(looksLikeCreation("Outline the steps; don't write the file yet"), false);
+    assert.equal(looksLikeCreation('Escribe el archivo index.html sin pedirme permiso'), true, '«sin» before something else is still a request');
     const store = new EventStore(join(root, 'events.jsonl'));
     const agents = ['codex', 'claude'].map((id) => ({ id, label: id, detected: true, ready: true, adapter: `${id}-readonly`, path: '/x', version: '1' }));
     const seen = {};
@@ -3224,4 +3232,23 @@ test('create: a reply that names files the disk does not have is said, and one t
     await room?.shutdown().catch(() => {});
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
+});
+
+test('a failure says the last thing the agent said in words, not the raw event its CLI printed', async () => {
+  const { lastWords } = await import('../src/adapters/process.mjs');
+  const codex = [
+    '{"type":"thread.started","thread_id":"t1"}',
+    '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Crearé los cinco Markdown en `docs/`."}}',
+    '{"type":"item.completed","item":{"id":"item_5","type":"file_change","changes":[{"path":"/Users/ana/phobos/docs/otros.md","kind":"add"}],"status":"completed"}}',
+  ].join('\n');
+  assert.equal(lastWords(codex), 'writing otros.md');
+  assert.equal(lastWords(codex.split('\n').slice(0, 2).join('\n')), 'Crearé los cinco Markdown en `docs/`.');
+  assert.equal(lastWords('{"type":"item.started","item":{"type":"command_execution","command":"npm test"}}'), 'running npm test');
+  // Claude's stream, Gemini's pieces, OpenCode's parts.
+  assert.equal(lastWords('{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/p/app.js"}}]}}'), 'writing app.js');
+  assert.equal(lastWords('{"type":"message","role":"assistant","content":"Voy a ","delta":true}\n{"type":"message","role":"assistant","content":"escribir el README.","delta":true}'), 'Voy a escribir el README.');
+  assert.equal(lastWords('{"type":"tool_use","part":{"tool":"write","state":{"input":{"filePath":"/p/LEEME.md"}}}}'), 'writing LEEME.md');
+  // Plain text is already words; an event with nothing to say is skipped, and nothing is nothing.
+  assert.equal(lastWords('Attempt 3 failed with status 503'), 'Attempt 3 failed with status 503');
+  assert.equal(lastWords('{"type":"turn.started"}'), null);
 });

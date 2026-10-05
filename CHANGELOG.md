@@ -6,6 +6,36 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 0.7.3 · Sin publicar
 
+### Lo que cada turno lleva, y lo que la sala dice
+
+- **Codex ya usa la memoria y el navegador de la sala.** Codex corre aquí sin pedir aprobaciones, y así rechazaba toda herramienta de MADRE («MCP tool call requires approval»): nunca había podido buscar en la memoria ni abrir una página. Ahora las herramientas de la sala le llegan aprobadas.
+- **Cada turno lleva solo las herramientas que usa.** El navegador de PLAYWRIGHT se adjunta en los turnos que piden ver, probar, capturar o revisar la consola de una página, y no en el resto. Sus herramientas viajan en cada llamada que el agente hace dentro del turno, así que un cambio de una línea cargaba miles de tokens de un navegador que nadie abrió.
+  - Codex y Gemini reciben solo las 16 herramientas que la sala permite, no las 25 del servidor.
+  - ECONOMÍA compara la entrada del turno mediano de cada agente con y sin cada servidor de herramientas, cuando hay al menos dos turnos de cada lado.
+- **PLAYWRIGHT se prueba al encenderlo.** MADRE arranca su servidor y le pide abrir una página en blanco. Si no arranca o le falta el navegador, se queda apagado y dice qué instalar. Si ya estaba encendido, su ficha dice que el navegador no arranca y ningún turno lo recibe. Además alcanza los servidores que arrancas desde RUNS, donde una app sí guarda sus datos.
+- **La caja muestra lo que escribes antes de enviarlo.** `#2` cambia el modo al instante y se deshace si lo borras. `#3` o `#4` aparecen en la píldora como pendientes, con borde punteado, porque sus llaves se piden al enviar. Un `@agente` al inicio mueve el selector, con su modelo y su esfuerzo, y al enviar regresa el que tenías.
+- **`/module` arma #2 para su mensaje, igual que `/image`.** Antes se detenía a pedir el modo y `/image` no.
+- **El cierre de una mesa redonda de @madre cita a cada agente con su propia respuesta.** Una línea por agente, con su número, y la sala dice quién no respondió. La comparación que escribe el modelo local solo se queda si cada agente que nombra habló y cada cita es suya. Antes atribuía a uno lo que dijo otro y omitía agentes.
+- **@madre responde en el idioma en que le escribes**, también cuando la conversación anterior está en inglés.
+- **RUNS acepta `~/` como tu carpeta de usuario.** La sala escribe así toda ruta de tu carpeta en lo que leen los agentes, y un agente que pedía leer un archivo de ahí recibía «no hay shell que lo expanda». MADRE la expande al correr la línea, sin shell. `~otro` sigue sin correr.
+- Los agentes saben que todo comando que te dan va en el bloque de RUNS, para que tenga botón.
+- **Lo que un turno deja se ve en ARCHIVOS sin recargar.** Las carpetas abiertas siguen abiertas y la lista no parpadea.
+- **DESHACER quita también las carpetas que el turno creó** y quedaron vacías.
+- **Un corte por tiempo dice qué hacía el agente**: su última frase, el archivo que escribía o el comando que corría, no el evento JSON de su CLI.
+- La tarjeta de un comando de RUNS dice en tu idioma cómo terminó y quién lo pidió.
+- **El aviso de privacidad dice qué se ocultó**: un término tuyo, una llave o tu carpeta de usuario. Antes llamaba «término privado» a la ruta de tu carpeta.
+- **Los enlaces de los agentes a archivos del proyecto abren el visor**, también los que traen la ruta con `~`. Antes se veía el markdown crudo.
+- El aviso de que «se pidió crear algo» ya no sale cuando pides un plan antes de escribir código o que no toque archivos.
+- Al hablarle a `@madre, …` ya no queda una coma suelta al inicio del mensaje.
+- La línea bajo la caja dice que los agentes escriben solo cuando tú subes el modo.
+- Las dos salidas de una petición de modo dicen lo que hacen: **CONCEDER #n · QUE SIGA** y **CONCEDER #n · DARLE OTRA INSTRUCCIÓN**.
+- Una conversación nueva se llama **Sin título**, y la primera, **Primera conversación**.
+- **La página en blanco conserva sus sugerencias** hasta que empieza la conversación; antes las quitaba el aviso de @madre al entrar. En una carpeta vacía propone cómo empezar un proyecto.
+- La tarjeta del recorrido se queda donde está mientras no tape lo que señala, así «Siguiente» no se mueve bajo el cursor. En pantallas bajas tiene scroll en vez de pegarse al borde.
+- La × de MU/TH/UR se llama **CERRAR MU/TH/UR**.
+- La primera vez que Conversaciones o Archivos pasan a flotar sobre la conversación porque el navegador o un split les quitó el lugar, la sala dice cuáles y que regresan solos cuando vuelve a haber lugar. Si la tarjeta del navegador está abierta, el aviso espera a que la cierres. Lo mismo, una vez, cuando un split pasa a ventana.
+- Un archivo `.html` que crea un turno queda registrado como HTML. Se sigue abriendo como texto fuera de RIPLEY, donde nunca corre en la sala.
+
 ### Escribir un proyecto de principio a fin
 
 - **Gemini vuelve a escribir.** Gemini CLI rechazaba completa la política con la que MADRE le abre el proyecto en #2, #3 y #4, porque algunas prioridades pasaban de 999, y el turno terminaba sin escribir nada. Ahora todas las reglas caben en su escala.

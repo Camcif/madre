@@ -445,7 +445,9 @@ test('adapters: every CLI gets the memory server for the run, with its tools all
   const codex = buildCodexArgs({ projectRoot: '/proj', prompt: 'q', memoryServer: server });
   assert.deepEqual(codex.slice(0, 6), ['--sandbox', 'read-only', '--ask-for-approval', 'never', '-C', '/proj']);
   const overrides = codex.filter((arg, index) => codex[index - 1] === '-c');
-  assert.equal(overrides.length, 3);
+  assert.equal(overrides.length, 5);
+  assert.equal(overrides[4], 'mcp_servers.pulse-memory.default_tools_approval_mode="approve"', 'under --ask-for-approval never, Codex refuses every MCP call not approved here');
+  assert.equal(overrides[3], `mcp_servers.pulse-memory.enabled_tools=[${MEMORY_TOOLS.map((tool) => JSON.stringify(tool)).join(', ')}]`, 'only the tools the room allows reach the model');
   assert.equal(overrides[0], `mcp_servers.pulse-memory.command=${JSON.stringify(process.execPath)}`);
   assert.match(overrides[1], /^mcp_servers\.pulse-memory\.args=\[".*memory-server\.mjs"\]$/);
   assert.equal(overrides[2], 'mcp_servers.pulse-memory.env={ PULSE_MEMORY_DB = "/home/u/.pulse/rooms/r/memory.sqlite", PULSE_PROJECT_ROOT = "/proj", GEMINI_API_KEY = "k" }');

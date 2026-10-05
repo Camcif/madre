@@ -235,9 +235,24 @@ export function economy(events = []) {
     paidOutputMedian: paidOutputs.length ? median(paidOutputs) : null,
   };
 
+  // What an MCP server carried costs: its tool list rides in every call a CLI makes inside a turn.
+  // Set against the same agent's turns without it, and only once each side has two turns, because
+  // one agent's turns already differ by an order of magnitude from one request to the next.
+  const servers = [];
+  const weighed = billed.filter((turn) => Array.isArray(turn.servers) && !turn.failed);
+  for (const agent of new Set(weighed.map((turn) => turn.agent))) {
+    const own = weighed.filter((turn) => turn.agent === agent);
+    for (const server of new Set(own.flatMap((turn) => turn.servers))) {
+      const carried = own.filter((turn) => turn.servers.includes(server)).map((turn) => Number(turn.input) || 0);
+      const without = own.filter((turn) => !turn.servers.includes(server)).map((turn) => Number(turn.input) || 0);
+      if (carried.length >= 2 && without.length >= 2) servers.push({ agent, server, with: carried.length, without: without.length, medianWith: median(carried), medianWithout: median(without) });
+    }
+  }
+
   return {
     turns: turns.length,
     billed: billed.length,
+    servers,
     saved,
     free: freeTurns,
     ash: ashObservation(turns),

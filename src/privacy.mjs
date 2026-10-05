@@ -120,20 +120,23 @@ export class Privacy {
 
   // The text with every private term replaced by the marker, and the count. The shape guards run
   // too: a key or a home path is caught whether or not anyone thought to name it.
+  // `kinds` says what was replaced: a term the human named, a key, or a home path. The room's
+  // notice used to call all of them «private terms», so a home path turned into ~ read as a term
+  // that was never written.
   redact(text) {
-    if (typeof text !== 'string' || !text) return { text, hits: 0 };
-    let hits = 0;
+    if (typeof text !== 'string' || !text) return { text, hits: 0, kinds: { terms: 0, secrets: 0, paths: 0 } };
+    const kinds = { terms: 0, secrets: 0, paths: 0 };
     let out = text;
-    if (this.#pattern) out = out.replace(this.#pattern, () => { hits += 1; return this.#marker; });
+    if (this.#pattern) out = out.replace(this.#pattern, () => { kinds.terms += 1; return this.#marker; });
     if (this.#secrets) {
-      for (const [pattern, replacement] of SECRETS) out = out.replace(pattern, () => { hits += 1; return replacement; });
+      for (const [pattern, replacement] of SECRETS) out = out.replace(pattern, () => { kinds.secrets += 1; return replacement; });
     }
     if (this.#paths) {
-      if (this.#home) { const parts = out.split(this.#home); hits += parts.length - 1; out = parts.join('~'); }
-      out = out.replace(/\/(Users|home)\/[^/\s"']+/g, () => { hits += 1; return '/$1/…'.replace('$1', RegExp.$1 || 'Users'); });
-      out = out.replace(/[A-Za-z]:\\Users\\[^\\\s"']+/g, () => { hits += 1; return 'C:\\Users\\…'; });
+      if (this.#home) { const parts = out.split(this.#home); kinds.paths += parts.length - 1; out = parts.join('~'); }
+      out = out.replace(/\/(Users|home)\/[^/\s"']+/g, () => { kinds.paths += 1; return '/$1/…'.replace('$1', RegExp.$1 || 'Users'); });
+      out = out.replace(/[A-Za-z]:\\Users\\[^\\\s"']+/g, () => { kinds.paths += 1; return 'C:\\Users\\…'; });
     }
-    return { text: out, hits };
+    return { text: out, hits: kinds.terms + kinds.secrets + kinds.paths, kinds };
   }
 
   // Every string inside a value (an event payload, a plan), replaced in place of

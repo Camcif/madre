@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
-import { access, mkdir, mkdtemp, readdir, rm, unlink } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, rm, rmdir, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 
@@ -214,7 +214,25 @@ export async function restoreCheckpoint(root, checkpoint, { paths = null } = {})
       restored.push(file.path);
     }
   }
+  await dropFoldersBornAfter(root, removed, Date.parse(checkpoint.createdAt));
   return { removed, restored };
+}
+
+// A folder the turn made for the files it added goes with them. Git keeps no folders, so after
+// UNDO an empty docs/ was the one trace left of a turn taken back. Only a folder born after the
+// checkpoint, deepest first, and only while it is empty: rmdir refuses anything else. Where the
+// system does not say when a folder was born, it stays.
+async function dropFoldersBornAfter(root, paths, since) {
+  if (!Number.isFinite(since) || !paths.length) return;
+  const canonicalRoot = resolve(root);
+  const folders = new Set();
+  for (const path of paths) {
+    for (let dir = dirname(resolve(root, path)); dir.startsWith(canonicalRoot + sep); dir = dirname(dir)) folders.add(dir);
+  }
+  for (const dir of [...folders].sort((a, b) => b.length - a.length)) {
+    const born = (await stat(dir).catch(() => null))?.birthtimeMs;
+    if (born > 0 && born >= since) await rmdir(dir).catch(() => {});
+  }
 }
 
 export async function dropCheckpoint(root, checkpoint) {

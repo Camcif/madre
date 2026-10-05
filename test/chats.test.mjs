@@ -139,7 +139,7 @@ test('chats: the panel is the files panel on the other edge, and its handle is i
   // is built from a record.
   assert.match(app, /async function openChat\(id[^)]*\) \{[\s\S]*window\.location\.reload\(\)/);
   // Where you are reads as one path: MADRE / project / conversation.
-  assert.match(app, /el\('span', 'project chat-here', here\.title\)/);
+  assert.match(app, /el\('span', 'project chat-here', chatTitle\(here\.title\)\)/);
   assert.match(css, /\.project::before \{ content: "\/ "; \}/);
   // The conversation sits against the project it belongs to, not at the far end of the bar — and
   // when the bar runs out of room it is the conversation that gives way, never the project: a room
@@ -291,7 +291,15 @@ test('surfaces: every one carries split and window in its header, and a dialog i
 test('room: the conversation never gives way, and what stands beside it does, oldest first', async () => {
   const [app, css] = await Promise.all(['app.js', 'styles.css'].map((name) => readFile(join(import.meta.dirname, '..', 'public', name), 'utf8')));
   // Splits, the browser's dock and the second conversation all count against one width; when even
-  // their floors do not fit beside a readable conversation, the oldest floats as a window.
+  // their floors do not fit beside a readable conversation, the oldest floats as a window — and the
+  // first time that happens, the room says what moved and how to put it back, once per browser.
+  assert.match(app, /\} finally \{ givingWay = false; \}\n  saidGaveWay\(oldest\);/);
+  assert.match(app, /if \(seen\.gaveWay\) return;[\s\S]{0,200}gaveWay: true[\s\S]{0,600}moved to a window so the conversation stays readable/);
+  // A panel in its base that stood docked and now floats over the conversation (the browser took its
+  // room) is said too, once, and after the browser's own first-touch card has been closed.
+  assert.match(app, /if \(floating && dockedBefore\.has\(one\.key\)\) floated\.push\(one\.key\);/);
+  assert.match(app, /if \(seen\.floated\) return;[\s\S]{0,200}floated: true[\s\S]{0,300}sayWhenQuiet\(/);
+  assert.match(app, /const card = document\.querySelector\('\.hint-card'\);\n    if \(!card\) \{ say\(\); return; \}/);
   assert.match(app, /members\.reduce\(\(sum, one\) => sum \+ one\.floor, COLUMN_MIN\) <= window\.innerWidth/);
   assert.match(app, /const oldest = \[\.\.\.members\]\.sort\(\(a, b\) => rank\(a\) - rank\(b\)\)\[0\];/);
   assert.match(app, /if \(oldest\.kind === 'side'\) setSurfaceMode\(oldest\.surface, 'window', \{ animate: false \}\);/);

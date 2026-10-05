@@ -144,7 +144,8 @@ export function isolateGeminiSettings(settings, { imageStudio = null, memoryServ
   for (const server of [memoryServer, imageStudio, ...mcpServers]) {
     if (!server) continue;
     isolated.mcpServers ??= {};
-    isolated.mcpServers[server.name] = { command: server.command, args: server.args, env: server.env, trust: true };
+    // includeTools: only the tools the room allows are described to the model (see codexMcpOverrides).
+    isolated.mcpServers[server.name] = { command: server.command, args: server.args, env: server.env, trust: true, ...(server.tools?.length ? { includeTools: [...server.tools] } : {}) };
   }
   return isolated;
 }

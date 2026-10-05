@@ -55,6 +55,42 @@ function couldNotStart(error, { label, executable, cwd }) {
   return error;
 }
 
+// The last thing a CLI said, in words a person reads. The streaming CLIs print one JSON event per
+// line, and a raw event at the end of a failure ({"type":"item.completed","item":{…}}) is noise
+// that reads like a crash: what the agent was on is inside it, as its own text, the file it was
+// writing or the command it was running. A line that is not JSON is already words.
+export function lastWords(output) {
+  const lines = String(output ?? '').split('\n').map((line) => line.trim()).filter(Boolean).slice(-40);
+  let streamed = '';
+  for (const line of lines.reverse()) {
+    if (!line.startsWith('{')) return streamed || line;
+    let event;
+    try { event = JSON.parse(line); } catch { return streamed || line; }
+    // A reply streamed in pieces (Gemini) is read back as the sentence the pieces make.
+    if (event?.delta === true && typeof event.content === 'string') { streamed = `${event.content}${streamed}`; if (streamed.length < 200) continue; }
+    if (streamed) return streamed.trim().replace(/\s+/g, ' ');
+    const said = eventWords(event);
+    if (said) return said;
+  }
+  return streamed.trim().replace(/\s+/g, ' ') || null;
+}
+const fileName = (path) => String(path ?? '').split(/[\\/]/).filter(Boolean).at(-1);
+function eventWords(event) {
+  // Codex wraps it in item, OpenCode in part, Claude in message.content; Gemini leaves it flat.
+  const item = event?.item ?? event?.part ?? event;
+  const parts = Array.isArray(event?.message?.content) ? event.message.content : [item];
+  for (const part of parts.slice().reverse()) {
+    if (!part || typeof part !== 'object') continue;
+    const files = [...(Array.isArray(part.changes) ? part.changes.map((change) => change?.path) : []), part.input?.file_path, part.parameters?.file_path, part.state?.input?.filePath].map(fileName).filter(Boolean);
+    if (files.length) return t('writing {files}', { files: [...new Set(files)].join(', ') });
+    const command = part.command ?? part.input?.command ?? part.parameters?.command;
+    if (typeof command === 'string' && command.trim()) return t('running {command}', { command: command.trim().slice(0, 120) });
+    const text = [part.text, typeof part.content === 'string' ? part.content : null].find((one) => typeof one === 'string' && one.trim());
+    if (text) return text.trim().replace(/\s+/g, ' ');
+  }
+  return null;
+}
+
 export function runReadonlyProcess({
   executable,
   args,
@@ -111,7 +147,7 @@ export function runReadonlyProcess({
         if (settled) return;
         if (Date.now() - lastActivity < idleTimeoutMs) { armIdle(); return; }
         terminateProcessTree(child, { graceMs: killGraceMs });
-        const lastLine = `${stderr}\n${stdout}`.split('\n').map((line) => line.trim()).filter(Boolean).at(-1);
+        const lastLine = lastWords(stdout) ?? lastWords(stderr);
         const error = new Error(`${label} went silent for ${Math.round(idleTimeoutMs / 1000)}s and was stopped.${lastLine ? ` Last output: ${lastLine.slice(0, 200)}` : ''}`);
         error.code = 'IDLE';
         error.partialOutput = stdout;
@@ -137,7 +173,7 @@ export function runReadonlyProcess({
     const timer = setTimeout(() => {
       terminateProcessTree(child, { graceMs: killGraceMs });
       // The last thing the agent said is usually the reason it was slow.
-      const lastLine = `${stderr}\n${stdout}`.split('\n').map((line) => line.trim()).filter(Boolean).at(-1);
+      const lastLine = lastWords(stdout) ?? lastWords(stderr);
       const error = new Error(t('{label} did not respond before the timeout ({seconds}s).', { label, seconds: Math.round(timeoutMs / 1000) }) + (lastLine ? t(' Last output: {output}', { output: lastLine.slice(0, 200) }) : ''));
       error.code = 'TIMEOUT';
       error.partialOutput = stdout;

@@ -197,3 +197,54 @@ test('what the human sets reaches every conversation: one open beside, and one m
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
 });
+
+test('a round @madre closes hands it what each agent asked actually said, and who did not answer', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'pulse-round-'));
+  try {
+    const store = await new EventStore(join(base, 'events.jsonl')).initialize();
+    const agents = [
+      { id: 'madre', label: 'MADRE', detected: true, ready: true, adapter: 'madre-local', path: null, version: 'qwen2.5:7b', local: true },
+      { id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/x', version: '1' },
+      { id: 'gemini', label: 'Gemini', detected: true, ready: true, adapter: 'gemini-readonly', path: '/x', version: '1' },
+    ];
+    let closing = null;
+    const invokers = {
+      'madre-local': async ({ text, round }) => {
+        if (round) { closing = round; return { text: 'closed', usage: null }; }
+        return { text: 'Convoco al crew.\n\n```pulse\n@codex: ¿Qué riesgos ves?\n@gemini: ¿Qué riesgos ves?\n@madre: Resume con citas [#n] lo que el crew respondió.\n```', usage: null };
+      },
+      'codex-readonly': async () => ({ text: 'El almacenamiento local se puede perder.', usage: null }),
+      'gemini-readonly': async () => { throw new Error('Gemini did not respond before the timeout (180s).'); },
+    };
+    const room = new Room({ store, agents, projectRoot: base, invokers });
+    await room.send({ text: '@madre convoca al crew: ¿qué riesgos ves?', target: 'madre' });
+    assert.ok(closing, 'the closing turn got no round');
+    assert.deepEqual(closing.asked, ['codex', 'gemini']);
+    const codex = closing.answers.find((answer) => answer.agent === 'codex');
+    const said = (await store.readAll()).find((event) => event.type === 'message.created' && event.payload.sender === 'codex');
+    assert.equal(codex.sequence, said.sequence);
+    assert.equal(codex.text, 'El almacenamiento local se puede perder.');
+    assert.deepEqual(closing.answers.find((answer) => answer.agent === 'gemini'), { agent: 'gemini', failed: true, error: 'Gemini did not respond before the timeout (180s).' });
+  } finally {
+    await rm(base, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('a page a turn made is recorded as HTML, and still served as text outside RIPLEY', async () => {
+  const { declaredTypeFor, contentTypeFor } = await import('../src/files.mjs');
+  assert.equal(declaredTypeFor('tests.html'), 'text/html');
+  assert.equal(contentTypeFor('tests.html'), 'text/plain', 'a project page must never be served as a page in the room\'s origin');
+  assert.equal(declaredTypeFor('app.js'), 'text/javascript');
+  const base = await mkdtemp(join(tmpdir(), 'pulse-html-type-'));
+  try {
+    const root = join(base, 'p');
+    await mkdir(root);
+    const store = await new EventStore(join(base, 'events.jsonl')).initialize();
+    const room = new Room({ store, agents: codex, projectRoot: root, invokers: { 'codex-readonly': async ({ lease }) => { await writeFile(join(lease.outDir, 'tests.html'), '<p>ok</p>\n'); return { text: 'done', usage: null }; } } });
+    await room.send({ text: 'write the tests page', target: 'codex', create: true });
+    const made = (await store.readAll()).find((event) => event.type === 'artifacts.created');
+    assert.equal(made.payload.files[0].contentType, 'text/html');
+  } finally {
+    await rm(base, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});

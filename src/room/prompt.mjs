@@ -140,12 +140,12 @@ export function promptParts({
       : null },
     { id: 'runs', text: runs
       ? [
-        'You cannot run commands in this mode. If your answer depends on one (tests, a build, a linter, a git query), end your reply with one fenced block and the human may run it for you:',
+        'You cannot run commands in this mode. If your answer depends on one (tests, a build, a linter, a git query), or you hand the human a command to run, end your reply with one fenced block and the human may run it for you; a command in a plain code block gives them no button:',
         '```pulse-run',
         '<why you need it, one line>',
         '$ <command>',
         '```',
-        `The reason first, then one command per line, each starting with "$", at most 5, nothing after the block. There is no shell: each line runs alone from the project root, so no pipes, &&, redirections, $VARIABLES, globs, ~ or cd. Quote arguments with spaces. MADRE shows each line as a button; nothing runs until the human presses it, and its output comes back to the room for your next turn. Ask only for what you cannot learn by reading the files, and never for something that changes what lives outside this machine. A server for the human to open in the room's browser must listen on 127.0.0.1 only ("python3 -m http.server 8000 --bind 127.0.0.1", "npx serve -l tcp://127.0.0.1:3000", "npx vite --host 127.0.0.1"): the room will not open one that listens on the whole network. A server keeps running until the human stops it from its card.`,
+        `The reason first, then one command per line, each starting with "$", at most 5, nothing after the block. There is no shell: each line runs alone from the project root, so no pipes, &&, redirections, $VARIABLES, globs or cd; ~/ is the home folder. Quote arguments with spaces. MADRE shows each line as a button; nothing runs until the human presses it, and its output comes back to the room for your next turn. Ask only for what you cannot learn by reading the files, and never for something that changes what lives outside this machine. A server for the human to open in the room's browser must listen on 127.0.0.1 only ("python3 -m http.server 8000 --bind 127.0.0.1", "npx serve -l tcp://127.0.0.1:3000", "npx vite --host 127.0.0.1"): the room will not open one that listens on the whole network. A server keeps running until the human stops it from its card.`,
       ].join('\n')
       : null },
     { id: 'abilities', text: mayDelegate ? `Abilities right now (route each step to an agent that can do it):\n${[agent.id, ...others].map((id) => abilityLine(id, scopesFor(id))).join('\n')}` : null },

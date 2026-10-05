@@ -21,6 +21,12 @@ const TYPES = {
   '.mp4': 'video/mp4', '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
 };
 export const contentTypeFor = (name) => TYPES[extname(name).toLowerCase()] ?? 'application/octet-stream';
+// What a file IS, for the record of what a turn made. contentTypeFor is how MADRE SERVES a project
+// file, and a page is served as text on purpose: an HTML file from the project served as HTML would
+// run its scripts in the room's own origin (RIPLEY renders it, sealed, elsewhere). The record said
+// tests.html was text/plain, which is the serving rule leaking into the description.
+const DECLARED = { '.html': 'text/html', '.htm': 'text/html', '.xml': 'application/xml', '.ts': 'text/typescript', '.tsx': 'text/typescript', '.jsx': 'text/javascript' };
+export const declaredTypeFor = (name) => DECLARED[extname(name).toLowerCase()] ?? contentTypeFor(name);
 export const isImage = (name) => contentTypeFor(name).startsWith('image/');
 export const isText = (name) => /^(text\/|application\/(json|x-ndjson))/.test(contentTypeFor(name));
 

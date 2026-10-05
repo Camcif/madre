@@ -270,12 +270,9 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.equal(registry.get('composer').classList.contains('module-command'), true, 'the module typebox did not turn on');
   assert.match(registry.get('crew-label').textContent, /MODULE · REQUIERE #2/);
   const chosenTarget = registry.get('target').value;
-  const blockedModule = await globalThis.__pulse.runSlashCommand(message.value);
-  assert.deepEqual(blockedModule, { handled: true, preserve: true }, '/module silently armed CREATE instead of asking');
-  assert.equal(uiState.mode, 1, '/module changed the mode without the human');
-  registry.get('create-toggle').listeners.click[0]();
-  assert.match(registry.get('crew-label').textContent, /MODULE · CREATE/);
+  // Sent, it arms #2 for its message the way /image does, and goes.
   const moduleRequest = await globalThis.__pulse.runSlashCommand(message.value);
+  assert.match(registry.get('crew-label').textContent, /MODULE · CREATE/);
   assert.equal(moduleRequest.handled, false);
   assert.equal(moduleRequest.target, chosenTarget, '/module changed the selected agent');
   assert.match(moduleRequest.text, /un reloj local/);
@@ -470,18 +467,13 @@ test('the room says who wrote a file, and how to ask about a piece of one', asyn
   assert.match(page, /id="viewer-lang"/, 'the viewer does not say what kind of file it is reading');
 });
 
-test('/module answers in the room, and never arms the mode by itself', async () => {
+test('/module arms #2 for its message, the way /image does', async () => {
   const app = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
-  const block = app.slice(app.indexOf('function moduleModeNotice'), app.indexOf('function syncModuleComposer'));
-
-  // A refusal that only flashes is a refusal the room forgets. This one lands in the thread where
-  // every other decision of the room lands, and carries the way out with it.
-  assert.match(block, /els\.column\.append\((?:tidySystemLine\()?node\)?\)/, 'the refusal never reaches the thread');
-  assert.match(block, /ARM #2 CREATE/);
-  assert.match(block, /arm\.addEventListener\('click', \(\) => \{ setMode\(2/, 'the notice does not offer the way out');
-  // The command asks; the click grants. Writing /module must never be what arms the mode.
-  assert.ok(!/state\.create = true/.test(block), '/module arms CREATE by itself');
-  assert.match(app, /if \(name === 'module' && !state\.create\) \{\n      moduleModeNotice\(\);/);
+  const block = app.slice(app.indexOf("if (name === 'create' || name === 'image' || name === 'module') {"), app.indexOf('const known = allCommands()'));
+  // Both are asked for by name and both write a file; one stopping to ask for the chip while the
+  // other went ahead read as one rule broken.
+  assert.ok(!/moduleModeNotice|askForModuleMode/.test(app), '/module still stops to ask for the chip');
+  assert.match(block, /if \(!state\.create\) setMode\(2\);\n    if \(name === 'module'\) \{/);
 });
 
 test('a regular expression is not a comment, and a division is not a regular expression', async () => {

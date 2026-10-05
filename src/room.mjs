@@ -34,11 +34,11 @@ import { MODES, SCOPES, SCOPE_LABELS, capabilitySummary, normalizeMode, resolveS
 import { createLease, diffSnapshots, namedPaths, snapshot } from './lease.mjs';
 import { stat as statFile, readdir, copyFile, readFile as readFileBytes } from 'node:fs/promises';
 import { basename as baseName, join as joinPath } from 'node:path';
-import { contentTypeFor } from './files.mjs';
+import { declaredTypeFor } from './files.mjs';
 import { isModuleFile, sdkPaths } from './modules/index.mjs';
 import { validateAshReply } from './modules/ash-policy.mjs';
 import { parseChoice, withoutChoice } from './choices.mjs';
-import { parseRunRequest, withoutRunRequest, whyText } from './runs.mjs';
+import { parseRunRequest, withoutRunRequest, whyText, expandHome } from './runs.mjs';
 import { imageStudioFor } from './image-studio.mjs';
 import { CAPABILITIES, imageModuleState } from './capabilities.mjs';
 import { resolveReferences } from './files.mjs';
@@ -68,7 +68,10 @@ export { budgetTokens };
 // languages the crew actually speaks here.
 const CREATION_VERB = /\b(genera(r|d)?|crea(r|d)?|escrib(e|a|ir)|guarda(r)?|produce|producir|exporta(r)?|redacta(r)?|construye|create|generate|write|save|export|produce|build|render|draw|make)\b/i;
 const CREATION_OBJECT = /\b(archivo|fichero|file|pdf|md|markdown|imagen|image|png|jpe?g|svg|documento|document|docx?|csv|json|xlsx?|pptx?|html|script|carpeta|folder|reporte|report|informe|entregable|poster|logo|diagrama|diagram)\b/i;
-export const looksLikeCreation = (text) => CREATION_VERB.test(String(text ?? '')) && CREATION_OBJECT.test(String(text ?? ''));
+// Unless it says, in so many words, not to write yet: «dame un plan antes de escribir código» was
+// told it had no CREATE lease, for asking for exactly the thing that needs none.
+const NOT_YET = /\b(antes de|sin|todav[ií]a no|a[uú]n no)\s+(escribir|crear|generar|tocar|cambiar|modificar|programar|codificar)\b|\bno\s+(escribas|crees|generes|toques|cambies|modifiques|programes|edites)\b|\b(before|without)\s+(writing|creating|coding|touching|changing|editing)\b|\b(don'?t|do not|not yet)\s+(write|create|code|touch|change|edit)\b/i;
+export const looksLikeCreation = (text) => !NOT_YET.test(String(text ?? '')) && CREATION_VERB.test(String(text ?? '')) && CREATION_OBJECT.test(String(text ?? ''));
 
 // Which decisions the project is standing on, out of what the archive holds. A refuted one is
 // kept by the archive — what was once decided is part of the record — and left out here, because
@@ -748,7 +751,9 @@ export class Room {
       // Each bill teaches the room what its own words cost, so the next turn can say what it is
       // about to spend before it spends it.
       if (cost.charsPerInputToken) this.#rate = this.#rate ? this.#rate * 0.7 + cost.charsPerInputToken * 0.3 : cost.charsPerInputToken;
-      await this.#emit('turn.cost', { agent, mode, responseMessageId, ash: Boolean(cost.blocks.ash), spared: shape.spared, ...cost });
+      // Which MCP servers rode along: their tool lists go into every call the CLI makes inside the
+      // turn, so the economy can set turns with a server against turns without it.
+      await this.#emit('turn.cost', { agent, mode, responseMessageId, ash: Boolean(cost.blocks.ash), spared: shape.spared, servers: shape.servers ?? [], ...cost });
     } catch (error) {
       console.error(`MADRE could not weigh a turn: ${error.message}`);
     }
@@ -838,7 +843,7 @@ export class Room {
     // answers the press at once and keeps running; its output card comes when it is stopped.
     let opened = () => {};
     const serving = new Promise((resolve) => { opened = resolve; });
-    const finished = this.#runDesk.run({ id: `${responseMessageId}:${index}`, argv: command.argv, cwd: this.#projectRoot, onServing: (where) => opened(where) })
+    const finished = this.#runDesk.run({ id: `${responseMessageId}:${index}`, argv: expandHome(command), cwd: this.#projectRoot, onServing: (where) => opened(where) })
       .then(async (result) => {
         const changes = checkpoint ? await this.#controlDesk.changesSince(checkpoint).catch(() => null) : null;
         const status = result.stoppedBy ? `stopped (${result.stoppedBy})` : result.exitCode === null ? 'did not start' : `exit ${result.exitCode}`;
@@ -1084,6 +1089,21 @@ export class Room {
     if (ahead) await this.#emit('write.waiting', { messageId, agent: agent.id, behind: ahead.agent ?? null });
   }
 
+  // A round's answers, for the local model's closing turn: who was asked, what each one said and
+  // under which number, or that it did not answer. Handed the transcript instead, a 7B model gave
+  // one agent's point to another, left one out and quoted itself.
+  async #roundAnswers(planId) {
+    const events = (await this.#store.readAll()).filter((event) => event.payload?.planId === planId);
+    const asked = [...new Set(events.filter((event) => event.type === 'message.created' && event.payload.status === 'delegated' && event.payload.target !== event.payload.sender).map((event) => event.payload.target))];
+    const answers = asked.map((agent) => {
+      const said = events.find((event) => event.type === 'message.created' && event.payload.role === 'assistant' && event.payload.sender === agent && event.payload.status !== 'delegated');
+      if (said) return { agent, sequence: said.sequence, text: said.payload.text ?? '' };
+      const failed = events.find((event) => event.type === 'message.failed' && event.payload.target === agent);
+      return { agent, failed: true, error: failed ? String(failed.payload.error ?? '').slice(0, 160) : null };
+    });
+    return { asked, answers };
+  }
+
   // The bytes of files the turn created, for telling a copy from a new file. Images only, and only
   // a few: this compares what an image tool made, not the project.
   async #bytesOf(paths) {
@@ -1100,7 +1120,7 @@ export class Room {
         if (entry.isDirectory()) { if (level < depth) await walk(path, level + 1); continue; }
         if (!entry.isFile()) continue;
         const info = await statFile(joinPath(this.#projectRoot, path)).catch(() => null);
-        found.push({ name: baseName(path), path, size: info?.size ?? 0, contentType: contentTypeFor(path), status: 'created' });
+        found.push({ name: baseName(path), path, size: info?.size ?? 0, contentType: declaredTypeFor(path), status: 'created' });
       }
     };
     await walk(String(scratchDir).replace(/\/$/, ''), 0);
@@ -1112,7 +1132,7 @@ export class Room {
     for (const file of files) {
       if (file.status !== 'A') continue;
       const info = await statFile(joinPath(this.#projectRoot, file.path)).catch(() => null);
-      out.push({ name: baseName(file.path), path: file.path, size: info?.size ?? 0, contentType: contentTypeFor(file.path), status: 'created' });
+      out.push({ name: baseName(file.path), path: file.path, size: info?.size ?? 0, contentType: declaredTypeFor(file.path), status: 'created' });
     }
     return out.sort((a, b) => a.path.localeCompare(b.path));
   }
@@ -1495,12 +1515,12 @@ export class Room {
       const mayDelegate = allowDelegation && this.#delegation && depth === 0;
       // Tools the modules hand to this turn (a browser, say), attached to the CLI for this run only.
       const mcpServers = this.#toolsForTurn && agent.adapter !== 'madre-local'
-        ? await this.#toolsForTurn({ agent: agent.id, mode: turnMode, lease, scratchDir: lease?.scratchDir ? joinPath(this.#projectRoot, lease.scratchDir) : null }).catch(() => [])
+        ? await this.#toolsForTurn({ agent: agent.id, mode: turnMode, text, lease, scratchDir: lease?.scratchDir ? joinPath(this.#projectRoot, lease.scratchDir) : null, servers: this.#runDesk.serving().filter((one) => !one.network).map((one) => one.port) }).catch(() => [])
         : [];
       // The prompt and the shape it was built from: one is sent, the other is kept until the CLI
       // says what it cost, so the bill can be attributed to the blocks that caused it.
       const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
-      this.#promptShape.set(responseMessageId, { parts: shaped.parts, spared: shaped.spared });
+      this.#promptShape.set(responseMessageId, { parts: shaped.parts, spared: shaped.spared, servers: [this.#memoryServer?.name, ...mcpServers.map((server) => server.name)].filter(Boolean) });
       // What this turn is about to read, said while it is still reading it. The size is exact;
       // only the conversion to tokens is an estimate, and it is made at this room's own rate.
       const reading = this.#reading(shaped.parts);
@@ -1535,6 +1555,8 @@ export class Room {
         crew: others,
         delegation: mayDelegate,
         maxSteps: this.#maxPlanSteps,
+        // And for its closing turn of a round: what each agent asked actually said, with its number.
+        round: agent.id === MADRE_AGENT_ID && planId && /this is your closing turn/i.test(text) ? await this.#roundAnswers(planId) : undefined,
       });
       // Privacy: a private term in a reply is replaced before the ledger, the plan parser,
       // the archivist or any other agent can see it. The reply says how many, not which.
@@ -1622,7 +1644,7 @@ export class Room {
       }
       if (asked) await this.#emit('choice.offered', { messageId, responseMessageId, agent: agent.id, question: asked.question, options: asked.options, recommended: asked.recommended ?? undefined, modes: asked.modes ?? undefined });
       if (requested) await this.#emit('run.requested', { messageId, responseMessageId, agent: agent.id, reason: requested.reason, commands: requested.commands });
-      if (guarded.hits) await this.#emit('privacy.redacted', { agent: agent.id, messageId, responseMessageId, hits: guarded.hits, marker: this.#privacy.marker });
+      if (guarded.hits) await this.#emit('privacy.redacted', { agent: agent.id, messageId, responseMessageId, hits: guarded.hits, kinds: guarded.kinds, marker: this.#privacy.marker });
       if (artifacts.length) {
         await this.#emit('artifacts.created', { leaseId: lease.leaseId, messageId, responseMessageId, agent: agent.id, outDir: lease.relativeDir, files: artifacts });
         // A <id>.module.mjs is an agent proposing a module: the human installs it from the room, or not.

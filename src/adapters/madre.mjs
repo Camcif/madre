@@ -33,6 +33,9 @@ export function briefingFor({ prompt, text, archive }) {
     // thousands of characters spoken by Claude, Codex, Gemini and OpenCode.
     REMINDER,
     `QUESTION FROM THE HUMAN:\n${text}`,
+    // And the language last of all: rule 5 sits far above, under a transcript and a reminder in
+    // English, and a 7B model answered a Spanish question in English.
+    lang(text) === 'es' ? 'Responde en español.' : 'Answer in English.',
   ].filter(Boolean).join('\n\n');
 }
 
@@ -168,6 +171,38 @@ export function localReply(text, { requester = 'you', crew = [], delegation = fa
   return null;
 }
 
+// The closing turn of a round. Each agent gets one line, made from its own answer and cited by
+// its own number, so nobody is left out and nobody is credited with another's point; an agent that
+// did not answer is said to have not answered. The model adds at most one comparison, and it goes
+// only if every @name in it spoke in the round and every [#n] it cites is one of theirs.
+const plain = (text) => String(text ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/^#+\s*/gm, '').replace(/^\s*(?:[-*•]|\d+\.)\s+/gm, '').replace(/[*_`>]/g, '').replace(/\s+/g, ' ').trim();
+export function gist(text, max = 240) {
+  const clean = plain(text);
+  if (clean.length <= max) return clean;
+  let out = '';
+  for (const sentence of clean.match(/[^.!?…]+[.!?…]+(\s|$)/g) ?? []) {
+    if ((out + sentence).length > max) break;
+    out += sentence;
+  }
+  return (out.trim() || `${clean.slice(0, max).replace(/\s+\S*$/, '')}…`);
+}
+export function roundBullets(round, { es = true } = {}) {
+  return round.answers.map((answer) => (answer.sequence
+    ? `- @${answer.agent} [#${answer.sequence}]: ${gist(answer.text)}`
+    : `- @${answer.agent}: ${es ? 'no respondió' : 'did not answer'}${answer.error ? ` (${answer.error})` : ''}.`)).join('\n');
+}
+export function comparisonHolds(line, round) {
+  const spoke = new Set(round.answers.filter((answer) => answer.sequence).map((answer) => answer.agent));
+  const numbers = new Set(round.answers.map((answer) => answer.sequence).filter(Boolean));
+  const named = [...String(line).matchAll(/@([a-z0-9_-]+)/gi)].map((match) => match[1].toLowerCase());
+  const cited = [...String(line).matchAll(/\[#(\d+)\]/g)].map((match) => Number(match[1]));
+  // And a number written beside a name is that agent's own.
+  const owner = new Map(round.answers.filter((answer) => answer.sequence).map((answer) => [answer.sequence, answer.agent]));
+  const paired = [...String(line).matchAll(/@([a-z0-9_-]+)\s*\[#(\d+)\]/gi)].every((match) => owner.get(Number(match[2])) === match[1].toLowerCase());
+  return Boolean(String(line).trim()) && named.every((name) => spoke.has(name)) && cited.every((number) => numbers.has(number)) && paired;
+}
+const COMPARE = `You compare the answers a round of agents gave to one question. Write one or two sentences: where they agree and where they differ. Name an agent only as @name and only for what its own answer says. Cite only the [#n] you are given. No preamble, no list, no advice.`;
+
 const NO_USAGE = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0, totalTokens: 0, costUsd: 0, source: 'madre', local: true };
 
 // What the whole archive says about this request: notes first, then exact quotes.
@@ -186,12 +221,27 @@ export async function gather(memory, text, { maxChars = 7000 } = {}) {
 
 // The invoker the room calls like any adapter. `text` is the human's request; `prompt` the room's full briefing.
 export function madreInvoker({ memory, ollama, fetchImpl = globalThis.fetch }) {
-  return async ({ prompt, text = '', timeoutMs = 180000, model = null, requester = 'you', crew = [], delegation = false, maxSteps = 4 }) => {
+  return async ({ prompt, text = '', timeoutMs = 180000, model = null, requester = 'you', crew = [], delegation = false, maxSteps = 4, round = null }) => {
     const state = typeof ollama === 'function' ? ollama() : ollama;
     if (!state?.running || !state.chatModel) throw new Error('@madre needs Ollama running with a chat model. Open MODULES → OLLAMA.');
     const question = text || prompt.match(/User message: ([\s\S]*)$/)?.[1] || prompt.slice(-2000);
     const local = localReply(question, { requester, crew, delegation, maxSteps, model: model ?? state.chatModel });
     if (local) return { text: local.text, usage: { ...NO_USAGE }, grounded: { notes: 0, quotes: 0 }, synthetic: local.kind, declined: local.kind === 'declined' ? 'action' : undefined };
+    if (round?.answers?.length && CLOSING_TURN.test(question)) {
+      const es = lang(question) === 'es';
+      const asked = question.match(/[«"“]([^»"”]+)[»"”]/)?.[1] ?? null;
+      const bullets = roundBullets(round, { es });
+      const head = es ? `Lo que respondió el crew${asked ? ` a «${asked}»` : ''}:` : `What the crew answered${asked ? ` to "${asked}"` : ''}:`;
+      let usage = { ...NO_USAGE };
+      let comparison = '';
+      if (round.answers.filter((answer) => answer.sequence).length >= 2) {
+        const full = round.answers.filter((answer) => answer.sequence).map((answer) => `@${answer.agent} [#${answer.sequence}]: ${gist(answer.text, 700)}`).join('\n\n');
+        const compared = await ollamaGenerate({ host: state.host, model: model ?? state.chatModel, system: COMPARE, prompt: `${asked ? `QUESTION: ${asked}\n\n` : ''}ANSWERS:\n${full}\n\n${es ? 'Responde en español.' : 'Answer in English.'}`, fetchImpl, timeoutMs, temperature: 0.1 }).catch(() => null);
+        if (compared) usage = { ...compared.usage, local: true };
+        if (compared && comparisonHolds(compared.text, round)) comparison = plain(compared.text);
+      }
+      return { text: [head, bullets, comparison].filter(Boolean).join('\n\n'), usage, grounded: { notes: 0, quotes: round.answers.filter((answer) => answer.sequence).length } };
+    }
     const archive = await gather(memory, question);
     const briefing = briefingFor({ prompt, text: question, archive: archive.text });
     const answer = await ollamaGenerate({ host: state.host, model: model ?? state.chatModel, system: SYSTEM, prompt: briefing, fetchImpl, timeoutMs, temperature: 0.1 });

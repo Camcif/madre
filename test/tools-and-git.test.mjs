@@ -112,3 +112,69 @@ test('/git commit is the human\'s hand on the tree; /git push shows what would l
     await rm(remote, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
 });
+
+test('PLAYWRIGHT: it is turned on only if its server starts with its browser, and it reaches the servers the human started', async () => {
+  const { playwrightStarts } = await import('../src/modules/playwright.mjs');
+  const served = playwrightServerFor({ port: 4319, outputDir: '/p/o', servers: [8123, 4319] });
+  assert.equal(served.args[served.args.indexOf('--allowed-origins') + 1], 'http://127.0.0.1:4319;http://localhost:4319;http://127.0.0.1:8123;http://localhost:8123');
+  assert.match(served.brief, /the project's servers the human started \(http:\/\/127\.0\.0\.1:8123\)[\s\S]*to try an app with its data, open it on its server/);
+
+  // A server that speaks MCP; told what to answer when asked to open a page.
+  const root = await mkdtemp(join(tmpdir(), 'pulse-pw-check-'));
+  try {
+    const fake = join(root, 'server.mjs');
+    await writeFile(fake, `
+      import { createInterface } from 'node:readline';
+      const mode = process.argv[2];
+      if (mode === 'dies') { console.error('npm ERR! could not determine executable to run'); process.exit(1); }
+      const say = (message) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\\n');
+      createInterface({ input: process.stdin }).on('line', (line) => {
+        const message = JSON.parse(line);
+        if (message.method === 'initialize') say({ id: message.id, result: { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'fake' } } });
+        if (message.method === 'tools/call') say({ id: message.id, result: mode === 'nobrowser'
+          ? { isError: true, content: [{ type: 'text', text: 'Error: Browser "chromium" is not installed. Run npx @playwright/mcp install-browser.' }] }
+          : { content: [{ type: 'text', text: 'Navigated to about:blank' }] } });
+      });
+    `);
+    const run = (mode) => playwrightStarts({ command: process.execPath, args: [fake, mode], timeoutMs: 8000 });
+    assert.deepEqual(await run('ok'), { ok: true, checked: true });
+    const missing = await run('nobrowser');
+    assert.equal(missing.ok, false);
+    assert.match(missing.problem, /Browser "chromium" is not installed/);
+    const dead = await run('dies');
+    assert.equal(dead.ok, false);
+    assert.match(dead.problem, /could not determine executable to run/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a tool server costs only where it is used: the browser rides on turns that ask for one, with only the tools the room allows', async () => {
+  const { wantsBrowser } = await import('../src/modules/playwright.mjs');
+  for (const asked of ['Abre la app en el navegador y toma una captura', '¿Cómo se ve en móvil?', 'Revisa la consola de la vista previa', 'Pruébalo en el navegador', 'take a screenshot of the page', 'click through the form']) assert.ok(wantsBrowser(asked), asked);
+  for (const asked of ['Cambia el lema de la página a «Tus gastos»', 'Crea el archivo README.md', 'Explica app.js', 'fix the parser']) assert.ok(!wantsBrowser(asked), asked);
+  const server = playwrightServerFor({ port: 4319, outputDir: '/p/o' });
+  const codex = buildCodexArgs({ projectRoot: '/p', prompt: 'q', mcpServers: [server] });
+  assert.ok(codex.includes(`mcp_servers.pulse-playwright.enabled_tools=[${PLAYWRIGHT_TOOLS.map((tool) => JSON.stringify(tool)).join(', ')}]`), 'Codex was handed every tool the server lists');
+  assert.deepEqual(isolateGeminiSettings({}, { mcpServers: [server] }).mcpServers['pulse-playwright'].includeTools, PLAYWRIGHT_TOOLS);
+  // And the economy sets turns with a server against the same agent's turns without it.
+  const { economy } = await import('../src/room/economy.mjs');
+  const turn = (input, servers) => ({ type: 'turn.cost', payload: { agent: 'codex', input, output: 10, cached: 0, chars: 100, blocks: {}, servers } });
+  const read = economy([turn(500000, ['pulse-memory', 'pulse-playwright']), turn(300000, ['pulse-memory', 'pulse-playwright']), turn(60000, ['pulse-memory']), turn(40000, ['pulse-memory'])]);
+  assert.deepEqual(read.servers, [{ agent: 'codex', server: 'pulse-playwright', with: 2, without: 2, medianWith: 400000, medianWithout: 50000 }]);
+});
+
+test('PLAYWRIGHT already on: a browser that does not start is said on its card and handed to no turn', async () => {
+  const { playwrightHealth, forgetPlaywrightHealth } = await import('../src/modules/playwright.mjs');
+  forgetPlaywrightHealth();
+  let asked = 0;
+  const check = async () => { asked += 1; return { ok: false, problem: 'Browser "chrome-for-testing" is not installed' }; };
+  assert.equal(playwrightHealth({ env: {}, check }), null, 'the first look answers at once and asks in the background');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(playwrightHealth({ env: {}, check }), { ok: false, problem: 'Browser "chrome-for-testing" is not installed' });
+  assert.equal(asked, 1, 'asked again before ten minutes passed');
+  const module = moduleById('playwright');
+  const turn = await module.toolsForTurn({ env: process.env, projectRoot: '/p', settings: { enabled: true, browser: 'chromium' } }, { mode: 1, text: 'abre la página en el navegador', port: 4319 }).catch(() => null);
+  if (turn) assert.deepEqual(turn, [], 'a browser known not to start was handed to a turn');
+  forgetPlaywrightHealth();
+});

@@ -22,8 +22,19 @@ test('runs: a line splits into the argv sh would give it, and nothing sh would e
   assert.deepEqual(splitCommand("echo ''").argv, ['echo', ''], 'an empty quoted argument is still an argument');
 });
 
+test('runs: "~/" opening a word is the home folder, put in only when the line runs', async () => {
+  const { expandHome } = await import('../src/runs.mjs');
+  // The privacy guard writes every home path in a reply as ~/…, so that is how an agent names one.
+  const asked = parseRunRequest(block('Leer la guía\n$ cat ~/pulse/docs/SDK.md "~/literal" ~'));
+  const [command] = asked.commands;
+  assert.deepEqual(command.argv, ['cat', '~/pulse/docs/SDK.md', '~/literal', '~'], 'the record keeps what the human read');
+  assert.deepEqual(expandHome(command, '/home/ana'), ['cat', join('/home/ana', 'pulse/docs/SDK.md'), '~/literal', '/home/ana'], 'quoted, it stays a literal');
+  assert.deepEqual(expandHome({ argv: ['npm', 'test'] }, '/home/ana'), ['npm', 'test']);
+  assert.match(whyText(splitCommand('cat ~root/.profile')), /another user's home/);
+});
+
 test('runs: a line that needs a shell to mean what it says is refused, with the reason', () => {
-  for (const line of ['npm test && npm run build', 'ls | head', 'echo hi > out.txt', 'npm test; rm -rf x', 'echo $HOME', 'echo `id`', 'echo "$HOME"', 'ls *.js', 'cat ~/.ssh/id_rsa', 'cd src', 'FOO=1 node x.js', 'npm test # quick', 'echo "open']) {
+  for (const line of ['npm test && npm run build', 'ls | head', 'echo hi > out.txt', 'npm test; rm -rf x', 'echo $HOME', 'echo `id`', 'echo "$HOME"', 'ls *.js', 'cat ~root/.profile', 'cd src', 'FOO=1 node x.js', 'npm test # quick', 'echo "open']) {
     const split = splitCommand(line);
     assert.equal(split.argv, undefined, `${line} was accepted`);
     assert.ok(split.why, `${line} was refused without a reason`);

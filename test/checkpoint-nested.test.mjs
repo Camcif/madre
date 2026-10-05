@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile, readFile, access } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { createCheckpoint, diffCheckpoint, restoreCheckpoint, nestedRepos } from '../src/checkpoint.mjs';
+import { createCheckpoint, diffCheckpoint, restoreCheckpoint, dropCheckpoint, nestedRepos } from '../src/checkpoint.mjs';
 import { ControlDesk } from '../src/room/control.mjs';
 
 const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
@@ -97,6 +97,28 @@ test('control: a turn whose changes git cannot read still ends, says so, and kee
     assert.equal(changes.files.length, 0);
     assert.ok(changes.unreadable, 'the reason is kept');
     assert.match(changes.message, /could not read what @codex changed[\s\S]*UNDO goes back to it/);
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('checkpoint: UNDO takes away the folders the turn made for its files, and only those', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pulse-undo-folders-'));
+  try {
+    await writeFile(join(root, 'index.html'), '<h1>Phobos</h1>\n');
+    await mkdir(join(root, 'keep'));   // empty before the turn: git cannot know it, the disk does
+    const checkpoint = await createCheckpoint(root, { id: 'undo-folders' });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await mkdir(join(root, 'docs', 'deep'), { recursive: true });
+    await writeFile(join(root, 'docs', 'deep', 'comida.md'), '# Comida\n');
+    await writeFile(join(root, 'docs', 'otros.md'), '# Otros\n');
+    await writeFile(join(root, 'keep', 'note.md'), 'x\n');
+    const undone = await restoreCheckpoint(root, checkpoint);
+    assert.deepEqual(undone.removed.sort(), ['docs/deep/comida.md', 'docs/otros.md', 'keep/note.md']);
+    await assert.rejects(access(join(root, 'docs')), 'an empty folder was left behind');
+    await access(join(root, 'keep'));
+    await access(join(root, 'index.html'));
+    await dropCheckpoint(root, checkpoint);
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }

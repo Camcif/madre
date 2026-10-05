@@ -1,6 +1,6 @@
 import { mkdir, readdir, realpath, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
-import { contentTypeFor } from './files.mjs';
+import { declaredTypeFor } from './files.mjs';
 
 // A creation lease is the human saying, for one message (and the plan it may
 // start): "these agents may create files, here". MADRE makes a fresh
@@ -90,7 +90,7 @@ export function diffSnapshots(before, after, { relativeDir }) {
       name: name.split('/').pop(),
       path: `${relativeDir.split(sep).join('/')}/${name}`,
       size: info.size,
-      contentType: contentTypeFor(name),
+      contentType: declaredTypeFor(name),
       status: previous ? 'changed' : 'created',
     });
   }

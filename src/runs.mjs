@@ -22,6 +22,9 @@
 // says why. Running it through a shell instead would hand an agent's text to `sh` or `cmd.exe`
 // (WIN-016): the human approves a line, and the line that runs has to be the one they read.
 
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 export const MAX_COMMANDS = 5;
 const MAX_REASON = 300;
 const MAX_LINE = 500;
@@ -33,10 +36,14 @@ function clip(text, max) {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-// A line split into words the way sh would, without anything sh would expand. Returns
-// { argv } or { why } when the line needs a shell to mean what it says.
+// A line split into words the way sh would, without anything sh would expand but one: `~` or
+// `~/…` opening a word is the human's home folder. MADRE's privacy guard writes every home path
+// that way in the replies agents read, so an agent can only name a file there as `~/…`. Returns
+// { argv, home } (home: the words to expand when the line runs, see expandHome) or { why } when the
+// line needs a shell to mean what it says.
 export function splitCommand(line) {
   const argv = [];
+  const home = [];
   let word = '';
   let inWord = false;
   let quote = null;
@@ -65,7 +72,11 @@ export function splitCommand(line) {
     if ('|&;<>()'.includes(char)) return { why: 'uses "{char}", which needs a shell; put each command on its own line', whyArgs: { char } };
     if (char === '$' || char === '`') return { why: 'expands a variable or a command; there is no shell to expand it' };
     if (char === '*' || char === '?' || char === '[') return { why: 'uses "{char}" as a glob; there is no shell to expand it, name the files', whyArgs: { char } };
-    if (char === '~' && !inWord) return { why: 'starts a word with "~"; there is no shell to expand it, write the path' };
+    if (char === '~' && !inWord) {
+      const next = line[i + 1];
+      if (next !== undefined && next !== '/' && !/\s/.test(next)) return { why: 'names another user\'s home with "~"; there is no shell to expand it, write the path' };
+      home.push(argv.length);
+    }
     if (char === '#' && !inWord) return { why: 'carries a "#" comment, which only a shell would drop; say it in the reason' };
     word += char;
     inWord = true;
@@ -75,7 +86,14 @@ export function splitCommand(line) {
   if (!argv.length) return { why: 'is empty' };
   if (BUILTINS.has(argv[0])) return { why: '"{name}" is a shell builtin; every line already runs from the project root', whyArgs: { name: argv[0] } };
   if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(argv[0])) return { why: 'sets an environment variable, which needs a shell' };
-  return { argv };
+  return home.length ? { argv, home } : { argv };
+}
+
+// The words that run. The record keeps `~` (it is what the human read, and the home path stays
+// out of the ledger); the folder is put in only here, when the line is spawned.
+export function expandHome(command, folder = homedir()) {
+  const marked = new Set(command?.home ?? []);
+  return (command?.argv ?? []).map((word, index) => (marked.has(index) ? (word === '~' ? folder : join(folder, word.slice(2))) : word));
 }
 
 // A refusal is a template so the room can say it in the human's language; this fills it in.
@@ -102,7 +120,7 @@ export function parseRunRequest(text) {
     if (commands.length === MAX_COMMANDS) break;
     if (line.length > MAX_LINE) { commands.push({ line: clip(line, MAX_LINE), why: 'is too long to read before pressing it' }); continue; }
     const split = splitCommand(line);
-    commands.push(split.argv ? { line, argv: split.argv } : { line, why: split.why, ...(split.whyArgs ? { whyArgs: split.whyArgs } : {}) });
+    commands.push(split.argv ? { line, argv: split.argv, ...(split.home ? { home: split.home } : {}) } : { line, why: split.why, ...(split.whyArgs ? { whyArgs: split.whyArgs } : {}) });
   }
   // A request without a reason asks the human to run something on faith.
   if (!reason || !commands.length) return null;
