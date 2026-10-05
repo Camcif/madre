@@ -4,7 +4,14 @@ Todas las versiones publicadas de `@jossuealcala/madre`. Fechas en ISO.
 
 Una versión se cierra cuando está en npm: hasta entonces su sección se llama **Sin publicar** y puede crecer. Cada versión publicada tiene exactamente una etiqueta `vX.Y.Z`, una release en GitHub y una sección aquí; el parche puede llegar a dos dígitos (`0.2.10`) antes de subir el menor. Ver `docs/ROADMAP.md` para el criterio de qué sube cada número.
 
-## 0.7.3 · Sin publicar
+## 0.8.0 · Sin publicar
+
+Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventana, varias conversaciones trabajan a la vez, una segunda conversación cabe en la otra mitad y los servidores de tu proyecto viven dentro de MADRE. También trae un editor de código en el visor, y escribir un proyecto de principio a fin ya no se corta a medias.
+
+### @madre respeta la forma que le pides
+
+- **«Responde únicamente con: CANARY-071» devuelve CANARY-071.** Un equipo que usa MADRE como memoria local encontró que @madre contestaba con una memoria del archivo en vez de lo que se le dictaba. Ahora una respuesta dictada palabra por palabra se devuelve sin consultar el archivo ni el modelo, y no entra a la memoria. «Escribe únicamente: …» ya no se toma como una orden de escribir archivos.
+- **Si pides la forma, @madre la sigue.** «Responde solo con sí o no» o «en una sola palabra» reciben exactamente eso, sin citas ni explicación. El resto de las respuestas siguen citando su fuente con `[#n]`, y ahora lo hacen más seguido.
 
 ### Lo que cada turno lleva, y lo que la sala dice
 

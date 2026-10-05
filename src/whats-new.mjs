@@ -23,6 +23,68 @@ const FILE = 'whats-new.json';
 // `icon` names one of the room's 8-bit icons. `where` says where it lives, in the words the
 // screens use. `more` is the one thing nobody is told how to find.
 export const NOTES = {
+  '0.8.0': {
+    intro: {
+      es: 'Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventana, varias conversaciones trabajan a la vez y los servidores de tu proyecto viven dentro de MADRE.',
+      en: 'This version lets you arrange the room your way: everything opens beside you or in a window, several conversations work at once, and your project’s servers live inside MADRE.',
+    },
+    items: [
+      {
+        icon: 'grid',
+        title: { es: 'Todo se abre al lado o en ventana', en: 'Everything opens beside you or in a window' },
+        body: {
+          es: 'Conversaciones, Archivos, el navegador, el visor, MÓDULOS y MU/TH/UR se ponen a un lado de la conversación o flotan en una ventana que mueves y cambias de tamaño. Nada te tapa la caja de texto.',
+          en: 'Conversations, Files, the browser, the viewer, MODULES and MU/TH/UR sit beside the conversation or float in a window you move and resize. Nothing covers the message box.',
+        },
+        where: { es: 'En el encabezado de cada panel · split y ventana, junto a la ×', en: 'In the header of every panel · split and window, next to the ×' },
+      },
+      {
+        icon: 'bell',
+        title: { es: 'Varias conversaciones trabajando a la vez', en: 'Several conversations working at once' },
+        body: {
+          es: 'Mientras un agente responde, escribe en otra conversación: la primera sigue trabajando. Cuando termina una que no estás mirando, la sala te avisa, y si lo permites llega una notificación.',
+          en: 'While an agent answers, write in another conversation: the first keeps working. When one you are not watching finishes, the room tells you, and a notification arrives if you allow it.',
+        },
+        where: { es: 'MU/TH/UR › TURNOS · ahí también se activan las NOTIFICACIONES', en: 'MU/TH/UR › TURNS · NOTIFICATIONS are switched on there too' },
+      },
+      {
+        icon: 'branch',
+        title: { es: 'Dos conversaciones, una en cada mitad', en: 'Two conversations, one in each half' },
+        body: {
+          es: 'Abre una segunda conversación en la mitad derecha, en vivo, con su propia caja de texto. Arrastra el borde para repartir el ancho o intercambia las mitades.',
+          en: 'Open a second conversation in the right half, live, with its own message box. Drag the edge to share the width or swap the halves.',
+        },
+        where: { es: 'CONVERSACIONES · el botón junto a la × de cada conversación', en: 'CONVERSATIONS · the button next to the × of each conversation' },
+      },
+      {
+        icon: 'link',
+        title: { es: 'Los servidores de tu proyecto, dentro de la sala', en: 'Your project’s servers, inside the room' },
+        body: {
+          es: 'Un comando que abre un puerto sigue vivo en RUNS y se abre en SERVIDORES, que muestra solo los de este proyecto. Con SEÑALAR marcas un punto o un área de la página y se lo preguntas a un agente.',
+          en: 'A command that opens a port stays alive in RUNS and opens in SERVERS, which shows only this project’s. With POINT you mark a spot or an area of the page and ask an agent about it.',
+        },
+        where: { es: 'RUNS › ABRIR EN SERVIDORES · en SERVIDORES, SEÑALAR', en: 'RUNS › OPEN IN SERVERS · in SERVERS, POINT' },
+      },
+      {
+        icon: 'list',
+        title: { es: 'Un editor de código en el visor', en: 'A code editor in the viewer' },
+        body: {
+          es: 'Edita los archivos de texto del proyecto con números de línea, coloreado, indentación automática y los atajos de siempre, sin salir de MADRE.',
+          en: 'Edit the project’s text files with line numbers, highlighting, automatic indentation and the usual shortcuts, without leaving MADRE.',
+        },
+        where: { es: 'Abre un archivo en el visor › EDITAR', en: 'Open a file in the viewer › EDIT' },
+      },
+      {
+        icon: 'check',
+        title: { es: 'Escribir un proyecto de principio a fin', en: 'Writing a project from start to finish' },
+        body: {
+          es: 'Un turno que escribe tiene 10 minutos, y si se acaba ves lo que alcanzó a hacer y puedes reintentar con más tiempo. Si dos agentes quieren escribir, el segundo espera su turno.',
+          en: 'A writing turn has 10 minutes, and if it runs out you see what it managed to do and can retry with more time. If two agents want to write, the second waits its turn.',
+        },
+        where: { es: 'Al subir el modo a #2 o más', en: 'When you raise the mode to #2 or above' },
+      },
+    ],
+  },
   '0.7.0': {
     intro: {
       es: 'Esta versión le da forma a la memoria de la sala: ahora la ves en tres dimensiones, la lees en un tablero y cada memoria te dice cómo está.',
