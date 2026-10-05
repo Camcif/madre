@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { probeOllama, ollamaEmbedder, ollamaGenerate, ollamaInvoker, pullModel, ollamaHost } from '../src/ollama.mjs';
@@ -11,6 +11,7 @@ import { EventStore } from '../src/event-store.mjs';
 import { RoomMemory } from '../src/memory.mjs';
 import { Room } from '../src/room.mjs';
 import { createPulseServer } from '../src/server.mjs';
+import { chatLedger } from '../src/chats.mjs';
 
 const tags = { models: [
   { name: 'nomic-embed-text:latest', size: 274302450, details: { family: 'nomic-bert' } },
@@ -231,6 +232,62 @@ test('memory settings: an allow-list keeps Ollama out of the archivist chair whe
     await room.shutdown();
     memory.close();
   } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('ollama: every conversation distills locally, the one switched to and the one written to beside', async () => {
+  const probe = { running: true, host: 'http://o', models: tags.models.map((model) => ({ name: model.name, size: model.size, family: model.details.family })), embedModel: 'nomic-embed-text:latest', chatModel: 'llama3.2:3b' };
+  const root = await mkdtemp(join(tmpdir(), 'pulse-ollama-chats-'));
+  const project = join(root, 'p'); await mkdir(project);
+  // Gemini is the next cheapest archivist after Ollama: the one a room without the local
+  // invoker used to fall to, and the one that must never be called here.
+  const roster = [
+    { id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/x', version: '1' },
+    { id: 'gemini', label: 'Gemini', detected: true, ready: true, adapter: 'gemini-readonly', path: '/x', version: '1' },
+  ];
+  const paid = [];
+  const invokers = {
+    'codex-readonly': async () => ({ text: 'ok, noted', usage: null }),
+    'gemini-readonly': async ({ prompt }) => { paid.push(prompt); return { text: '{"memories":[]}', usage: null }; },
+  };
+  const previous = process.env.PULSE_DISTILL_EVERY;
+  process.env.PULSE_DISTILL_EVERY = '2';
+  const { server } = await createPulseServer({ projectRoot: project, stateRoot: root, agents: roster, invokers, ollamaProbe: async () => probe, reportFetch: fakeOllama() });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, payload) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then((response) => response.json());
+  // Each conversation keeps its own ledger; the room folder is the one directory under rooms/.
+  const roomDir = async () => join(root, 'rooms', (await readdir(join(root, 'rooms')))[0]);
+  const distilled = async (chat) => {
+    const file = chatLedger(await roomDir(), chat);
+    for (let attempt = 0; attempt < 160; attempt += 1) {
+      const lines = (await readFile(file, 'utf8').catch(() => '')).split('\n').filter(Boolean).map((line) => JSON.parse(line));
+      const found = lines.filter((event) => event.type === 'memory.distilled');
+      if (found.length) return found;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    return [];
+  };
+  try {
+    const first = (await fetch(`${base}/api/chats`).then((response) => response.json())).active;
+    // A new conversation, switched to: its room is built by mountChat.
+    const made = await post('/api/chats', {});
+    assert.ok(made.opened);
+    assert.ok((await fetch(`${base}/api/settings`).then((response) => response.json())).settings.memory.candidates.some((one) => one.id === 'ollama'), 'the switched-to room has no local archivist');
+    for (const text of ['We store amounts in cents.', 'Dates stay as YYYY-MM-DD text.']) await post('/api/messages', { text, target: 'codex' });
+    const here = await distilled(made.opened);
+    assert.ok(here.length, 'the new conversation never distilled');
+    assert.ok(here.every((event) => event.payload.agent === 'ollama' && event.payload.local), `distilled by ${JSON.stringify(here.map((event) => event.payload.agent))}`);
+    // The first one, written to beside the open one: its room is built by scopeOf.
+    for (const text of ['The categories are fixed.', 'Backups export to JSON.']) await post(`/api/messages?chat=${first}`, { text, target: 'codex' });
+    const beside = await distilled(first);
+    assert.ok(beside.length, 'the conversation beside never distilled');
+    assert.ok(beside.every((event) => event.payload.agent === 'ollama' && event.payload.local), `distilled by ${beside.map((event) => event.payload.agent)}`);
+    assert.equal(paid.length, 0, 'a provider was paid to distill');
+  } finally {
+    if (previous === undefined) delete process.env.PULSE_DISTILL_EVERY; else process.env.PULSE_DISTILL_EVERY = previous;
+    await new Promise((resolve) => server.close(resolve));
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
 });

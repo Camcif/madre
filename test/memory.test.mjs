@@ -562,6 +562,11 @@ test('NOSTROMO: the archive answers only to the project designation; forgetting 
     assert.equal(listed.memories.length, 1);
     const id = listed.memories[0].id;
 
+    // What the room remembers about a piece of code answers to the same designation, by words alone.
+    assert.equal((await fetch(`${base}/api/memory/about?text=webhook`)).status, 403);
+    const about = await fetch(`${base}/api/memory/about?designation=nostromo%20project&text=${encodeURIComponent('the webhook retry on 5xx')}`).then((response) => response.json());
+    assert.deepEqual(about.notes.map((note) => [note.kind, note.text]), [['question', 'Should the webhook retry on 5xx?']]);
+
     assert.equal((await fetch(`${base}/api/memory/${id}`, { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ designation: 'nope' }) })).status, 403);
     const forgotten = await fetch(`${base}/api/memory/${id}`, { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ designation: 'nostromo project' }) });
     assert.equal(forgotten.status, 200);

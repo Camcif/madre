@@ -3,7 +3,8 @@ import { calledByName, abduct } from './abduction.js';
 import { brandOf } from './brands.js';
 import { CONDITIONS, allConditions, detectPlatform, diagnose, fixesFor, PLATFORMS, searchConditions } from './troubleshooting.js';
 import { answerFor, INQUIRIES, STRIKES } from './inquiry.js';
-import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t } from './i18n.js';
+import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t, fill } from './i18n.js';
+import { createEditor } from './editor.js';
 import { resay } from './resay.js';
 import { familyOf, languageLabel, tokenize } from './syntax.js';
 
@@ -109,9 +110,9 @@ const els = {
 // Built-in commands live in the composer; module commands come from the
 // server (/api/commands) and run there, read-only, as fact cards.
 const CLIENT_COMMANDS = [
-  { name: 'create', title: 'CREATE', usage: '/create <what to make>', summary: t('Arm CREATE for this message: the agent may add new files to the project where they belong.'), available: true, client: true },
-  { name: 'module', title: 'MODULE', usage: '/module <what it should do>', summary: t('Build one MADRE module with the guided SDK flow: the agent writes it, then you review and install it.'), available: true, client: true },
-  { name: 'image', title: t('Image'), usage: '/image <what to draw>', summary: t('Ask for an image: arms CREATE with the image scope and routes to an agent that can generate images.'), available: true, client: true },
+  { name: 'create', title: 'CREATE', usage: `/create ${t('<what to make>')}`, summary: t('Arm CREATE for this message: the agent may add new files to the project where they belong.'), available: true, client: true },
+  { name: 'module', title: 'MODULE', usage: `/module ${t('<what it should do>')}`, summary: t('Build one MADRE module with the guided SDK flow: the agent writes it, then you review and install it.'), available: true, client: true },
+  { name: 'image', title: t('Image'), usage: `/image ${t('<what to draw>')}`, summary: t('Ask for an image: arms CREATE with the image scope and routes to an agent that can generate images.'), available: true, client: true },
   { name: 'stopall', title: t('STOP ALL'), usage: '/stopall', summary: t('Master brake: halt every plan and turn in flight. Never reaches an agent.'), available: true, client: true },
 ];
 
@@ -318,7 +319,13 @@ const formatTime = (iso) => {
 };
 
 const label = (id) => state.agents.get(id)?.label ?? brandOf(id).label ?? id;
-const isLight = () => matchMedia('(prefers-color-scheme: light)').matches;
+// The ground the room is drawn on: the theme chosen in the bar, or the system's when it follows it.
+// Asking only the system painted every agent in its dark-ground colour on a light room — MADRE's
+// green and the archivist's grey all but vanished against white.
+const isLight = () => {
+  const scheme = document.documentElement?.dataset?.scheme;
+  return scheme ? scheme === 'light' : Boolean(window.matchMedia?.('(prefers-color-scheme: light)').matches);
+};
 const agentColor = (id) => {
   const brand = brandOf(id);
   return isLight() && brand.colorLight ? brand.colorLight : brand.color;
@@ -347,88 +354,33 @@ function placeToast() {
   if (Number.isFinite(rect.top) && rect.top > 0) document.documentElement.style.setProperty('--composer-top', `${Math.round(rect.top)}px`);
   if (Number.isFinite(rect.left) && rect.width > 0) document.documentElement.style.setProperty('--composer-center', `${Math.round(rect.left + rect.width / 2)}px`);
 }
-function toast(message) {
+// Red is for what went wrong. A note — saved, or "the agent reads the disk" — speaks quietly.
+function toast(message, { tone = 'alert' } = {}) {
   placeToast();
   els.toast.textContent = message;
+  els.toast.classList?.toggle('note', tone === 'note');
   els.toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { els.toast.hidden = true; }, 6000);
 }
 
-// The room's own hover notes, in place of the browser's. Every `title` in the page keeps working as
-// written: the first time the pointer reaches an element its title is taken off (so the browser's
-// grey box never comes) and kept, and after a short pause the room shows it in its own card — first
-// sentence first, the rest under it, placed where it fits. An element whose only name was its title
-// keeps that name for screen readers.
-const TIP_DELAY = 480;
-// Buttons say nothing on hover: their drawing and their word are the whole of it, and a card
-// coming up under the pointer got in the way more than it helped. Their title still names them for
-// a screen reader. Notes on anything else (a cut-off title, a chip that quotes more than it shows)
-// still come, because they carry text the page could not fit.
-const isButtonTip = (node) => Boolean(node.matches?.('button, [role="button"], .dock-grip, .stage-grip'));
-const tipBox = el('div', 'tip');
-tipBox.setAttribute('role', 'tooltip');
-tipBox.hidden = true;
-document.body.append(tipBox);
-let tipFor = null;
-let tipTimer = null;
+// Nothing in the room speaks on hover: not a button, not a chip, not a cut-off title. Every
+// `title` in the page is taken off the first time the pointer or the focus reaches it, so the
+// browser's grey box never comes either. What it said is kept as the element's name for a screen
+// reader when the element has no words of its own, and as its description when it does — the
+// words stay reachable for whoever navigates without seeing, and stop covering the page for
+// everyone else.
 function adoptTitle(node) {
   const said = node.getAttribute('title');
   if (said === null) return;
   node.removeAttribute('title');
-  if (!said.trim()) { delete node.dataset.tip; return; }
-  node.dataset.tip = said;
+  if (!said.trim()) return;
   if (!node.hasAttribute('aria-label') && !node.textContent.trim()) node.setAttribute('aria-label', said);
+  else if (!node.hasAttribute('aria-description')) node.setAttribute('aria-description', said);
 }
-function hideTip() {
-  clearTimeout(tipTimer);
-  tipFor = null;
-  tipBox.hidden = true;
-}
-function showTip(node) {
-  if (!node.isConnected || !node.dataset.tip) return;
-  const said = node.dataset.tip.trim();
-  // The first sentence is the answer; anything after it is the detail.
-  const cut = said.search(/(?<=[.!?:·])\s+(?=\S)/);
-  const head = cut > 0 && cut < 110 ? said.slice(0, cut).replace(/\s*·$/, '') : said;
-  const rest = cut > 0 && cut < 110 ? said.slice(cut).trim() : '';
-  tipBox.replaceChildren(el('b', null, head), ...(rest ? [el('span', null, rest)] : []));
-  tipBox.hidden = false;
-  const rect = node.getBoundingClientRect();
-  const box = tipBox.getBoundingClientRect();
-  const below = rect.bottom + 8 + box.height <= innerHeight - 8;
-  const top = below ? rect.bottom + 8 : Math.max(8, rect.top - 8 - box.height);
-  const left = Math.min(innerWidth - box.width - 8, Math.max(8, rect.left + rect.width / 2 - box.width / 2));
-  tipBox.style.top = `${Math.round(top)}px`;
-  tipBox.style.left = `${Math.round(left)}px`;
-}
-document.addEventListener('pointerover', (event) => {
-  const node = event.target?.closest?.('[title], [data-tip]');
-  if (!node) return;
-  if (node.hasAttribute('title')) adoptTitle(node);
-  if (node === tipFor) return;
-  hideTip();
-  if (!node.dataset.tip) return;
-  if (isButtonTip(node)) return;
-  tipFor = node;
-  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
-});
-document.addEventListener('pointerout', (event) => { if (tipFor && !tipFor.contains(event.relatedTarget)) hideTip(); });
-document.addEventListener('pointerdown', hideTip, true);
-document.addEventListener('scroll', hideTip, true);
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideTip(); });
-// Keyboard users get the same note when a control takes the focus.
-document.addEventListener('focusin', (event) => {
-  const node = event.target?.closest?.('[title], [data-tip]');
-  if (!node || !event.target.matches?.(':focus-visible')) return;
-  if (node.hasAttribute('title')) adoptTitle(node);
-  hideTip();
-  if (!node.dataset.tip) return;
-  if (isButtonTip(node)) return;
-  tipFor = node;
-  tipTimer = setTimeout(() => showTip(node), TIP_DELAY);
-});
-document.addEventListener('focusout', hideTip);
+const takeTitle = (event) => { const node = event.target?.closest?.('[title]'); if (node) adoptTitle(node); };
+document.addEventListener('pointerover', takeTitle, true);
+document.addEventListener('focusin', takeTitle, true);
 
 function scrollToEnd() {
   els.thread.scrollTop = els.thread.scrollHeight;
@@ -565,26 +517,71 @@ const viewerUI = {
   menu: document.querySelector('#viewer-menu'),
   path: null,      // project-relative path of the open text file, if any
   from: null, to: null,
+  // The lines picked, which need not touch: a click picks one, Shift a run from the last one
+  // picked, ⌘ (Ctrl elsewhere) adds or takes one away, and a drag down the numbers a run.
+  picked: new Set(),
+  anchor: null,
+  kept: new Set(),   // what was picked before the anchor: a Shift run adds to it, as in Finder
   lineNodes: [],
 };
-function setSelection(from, to) {
-  viewerUI.from = from; viewerUI.to = to;
-  const lo = Math.min(from ?? 0, to ?? 0), hi = Math.max(from ?? 0, to ?? 0);
+// The picked lines as runs: [3, 4, 5, 9] → [[3, 5], [9, 9]].
+function pickedRuns() {
+  const lines = [...viewerUI.picked].sort((a, b) => a - b);
+  const runs = [];
+  for (const n of lines) {
+    const last = runs.at(-1);
+    if (last && n === last[1] + 1) last[1] = n; else runs.push([n, n]);
+  }
+  return runs;
+}
+function paintSelection() {
   for (const { n, ln, tx } of viewerUI.lineNodes) {
-    const on = from !== null && n >= lo && n <= hi;
+    const on = viewerUI.picked.has(n);
     ln.classList.toggle('sel', on); tx.classList.toggle('sel', on);
   }
-  const has = from !== null;
+  const runs = pickedRuns();
+  const has = runs.length > 0;
+  viewerUI.from = has ? runs[0][0] : null;
+  viewerUI.to = has ? runs[0][1] : null;
   viewerUI.selection.hidden = !has;
   viewerUI.review.hidden = !has;
-  // The button only exists once something is selected, and nobody guesses that a line number is
-  // clickable. While there is nothing selected and the file is readable as text, say how.
+  // Nobody guesses that a line number is clickable: while nothing is picked, the status line says how.
   if (viewerUI.hintSelect) viewerUI.hintSelect.hidden = has || !viewerUI.lineNodes.length;
-  if (has) viewerUI.selection.textContent = lo === hi ? `L${lo}` : `L${lo}-${hi}`;
+  if (has) viewerUI.selection.textContent = runs.map(([lo, hi]) => (lo === hi ? `L${lo}` : `L${lo}–${hi}`)).join(', ');
+}
+function setSelection(from, to) {
+  viewerUI.picked = new Set();
+  if (from !== null) {
+    const lo = Math.min(from, to ?? from), hi = Math.max(from, to ?? from);
+    for (let n = lo; n <= hi; n += 1) viewerUI.picked.add(n);
+  }
+  viewerUI.anchor = from;
+  viewerUI.kept = new Set();
+  paintSelection();
+}
+function toggleLine(n) {
+  if (viewerUI.picked.has(n)) viewerUI.picked.delete(n); else viewerUI.picked.add(n);
+  viewerUI.anchor = n;
+  viewerUI.kept = new Set(viewerUI.picked);
+  viewerUI.kept.delete(n);
+  paintSelection();
+}
+// How a press on a line picks: the platform's own key for "and this one too".
+function pickLine(n, event) {
+  const add = /Mac|iPhone|iPad/.test(navigator.platform ?? '') ? event.metaKey : event.ctrlKey;
+  if (add) toggleLine(n);
+  else if (event.shiftKey && viewerUI.anchor !== null) {
+    // From the anchor to here, on top of what was picked before it: the run moves, the rest stays.
+    const { anchor, kept } = viewerUI;
+    setSelection(anchor, n);
+    for (const one of kept) viewerUI.picked.add(one);
+    viewerUI.kept = kept;
+    paintSelection();
+  } else if (viewerUI.picked.size === 1 && viewerUI.picked.has(n)) setSelection(null, null);
+  else setSelection(n, n);
 }
 function referenceForSelection() {
-  const lo = Math.min(viewerUI.from, viewerUI.to), hi = Math.max(viewerUI.from, viewerUI.to);
-  return `!${viewerUI.path}:${lo}${hi !== lo ? `-${hi}` : ''}`;
+  return pickedRuns().map(([lo, hi]) => `!${viewerUI.path}:${lo}${hi !== lo ? `-${hi}` : ''}`).join(' ');
 }
 // "Review with @agent": the selection becomes a !file:lines reference in the
 // composer and that agent becomes the target; the human finishes the sentence.
@@ -598,7 +595,8 @@ function reviewWith(agentId) {
   els.input.value = current ? `${reference} ${current}` : `${reference} `;
   if (agentId && state.agents.get(agentId)?.ready) { els.target.value = agentId; renderPicker(); }
   hideViewerMenu();
-  viewer.dialog.close();
+  // Over the room it closes so the composer can be reached; split or floating, it stays.
+  if (viewer.dialog.matches?.(':modal')) viewer.dialog.close();
   autosize();
   els.input.focus();
   els.input.setSelectionRange(els.input.value.length, els.input.value.length);
@@ -660,18 +658,36 @@ function codeView(text, { line = null, lines = null, name = null } = {}) {
     ln.dataset.n = n; tx.dataset.n = n;
     const marked = lines ? n >= lines.from && n <= lines.to : n === line;
     if (marked) { ln.classList.add('hl'); tx.classList.add('hl'); }
-    ln.addEventListener('click', (event) => {
-      if (event.shiftKey && viewerUI.from !== null) setSelection(viewerUI.from, n);
-      else if (viewerUI.from === n && viewerUI.to === n) setSelection(null, null);
-      else setSelection(n, n);
+    // A press on the number picks; a press on the code picks only with ⌘/Ctrl or Shift, so the
+    // code itself can still be selected and copied as text.
+    ln.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      pickLine(n, event);
+      // Held and moved down the numbers: a run from where the press began.
+      if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+      const start = n;
+      const over = (moving) => {
+        const under = document.elementFromPoint(moving.clientX, moving.clientY)?.closest?.('.ln, .tx');
+        const at = Number(under?.dataset?.n);
+        if (Number.isFinite(at) && at !== viewerUI.to) { setSelection(start, at); viewerUI.anchor = start; }
+      };
+      const done = () => { window.removeEventListener('pointermove', over); window.removeEventListener('pointerup', done); };
+      window.addEventListener('pointermove', over);
+      window.addEventListener('pointerup', done);
+    });
+    tx.addEventListener('click', (event) => {
+      if (!(event.metaKey || event.ctrlKey || event.shiftKey)) return;
+      event.preventDefault();
+      window.getSelection?.()?.removeAllRanges?.();
+      pickLine(n, event);
     });
     tx.addEventListener('contextmenu', (event) => {
       event.preventDefault();
-      const lo = Math.min(viewerUI.from ?? -1, viewerUI.to ?? -1), hi = Math.max(viewerUI.from ?? -1, viewerUI.to ?? -1);
-      if (viewerUI.from === null || n < lo || n > hi) setSelection(n, n);
+      if (!viewerUI.picked.has(n)) setSelection(n, n);
       showViewerMenu(event.clientX, event.clientY);
     });
-    ln.addEventListener('contextmenu', (event) => { event.preventDefault(); if (viewerUI.from === null) setSelection(n, n); showViewerMenu(event.clientX, event.clientY); });
+    ln.addEventListener('contextmenu', (event) => { event.preventDefault(); if (!viewerUI.picked.size) setSelection(n, n); showViewerMenu(event.clientX, event.clientY); });
     viewerUI.lineNodes.push({ n, ln, tx });
     pre.append(ln, tx);
   });
@@ -680,7 +696,379 @@ function codeView(text, { line = null, lines = null, name = null } = {}) {
 
 // RIPLEY: which files the viewer can render instead of showing as source.
 const RIPLEY_KIND = (name) => (/\.(html?|xhtml)$/i.test(name ?? '') ? 'html' : /\.svg$/i.test(name ?? '') ? 'svg' : /\.(md|markdown)$/i.test(name ?? '') ? 'markdown' : null);
-const viewerMode = { button: document.querySelector('#viewer-mode'), preview: false, kind: null, text: '', src: '', line: null, lines: null };
+const viewerMode = { button: document.querySelector('#viewer-mode'), preview: false, kind: null, text: '', src: '', line: null, lines: null, mtime: null, editable: false };
+
+/* ---------- asking, in the room's own voice ---------- */
+
+// What used to come up in the browser's own grey box — leave unsaved work, overwrite the file on
+// disk, install, update or remove a module, type the designation — the room asks itself: a small
+// sheet in the room's look, or in the console's when the question comes from the console, with a
+// title that says what is at stake, the sentence that explains it and answers that are words, not
+// OK and Cancel. A question is a promise of the answer chosen, or of null when it is set aside:
+// Esc, a press outside the sheet, or its quiet answer.
+const askSheet = (() => {
+  const dialog = el('dialog', 'room-ask');
+  if (!dialog || typeof dialog.showModal !== 'function') return null;
+  dialog.setAttribute('aria-labelledby', 'room-ask-title');
+  const form = el('form', 'room-ask-card');
+  form.method = 'dialog';
+  const title = el('p', 'room-ask-title');
+  title.id = 'room-ask-title';
+  const body = el('p', 'room-ask-body');
+  const field = el('label', 'room-ask-field');
+  const input = el('input');
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  field.append(el('span', 'k', t('DESIGNATION ›')), input);
+  const actions = el('div', 'room-ask-actions');
+  form.append(title, body, field, actions);
+  dialog.append(form);
+  // A press on the dim ground around the sheet sets the question aside.
+  dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(''); });
+  // Enter in the field is the answer the field is for, whatever order the buttons stand in.
+  input.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || !askSheet.submit) return;
+    event.preventDefault();
+    dialog.close(askSheet.submit);
+  });
+  document.body?.append(dialog);
+  return { dialog, title, body, field, input, actions, settle: null, submit: null };
+})();
+function roomAsk({ title, body = '', choices, input = null, console: inConsole = false }) {
+  return new Promise((resolve) => {
+    if (!askSheet) { resolve(null); return; }
+    const sheet = askSheet;
+    sheet.settle?.(null);
+    sheet.dialog.classList.toggle('console', inConsole);
+    sheet.title.textContent = title;
+    sheet.body.textContent = body;
+    sheet.body.hidden = !body;
+    sheet.field.hidden = !input;
+    sheet.input.value = '';
+    sheet.input.placeholder = input?.placeholder ?? '';
+    sheet.actions.replaceChildren();
+    let first = null;
+    const submit = choices.find((choice) => choice.submit)?.value ?? null;
+    sheet.submit = submit;
+    for (const choice of choices) {
+      const button = el('button', `room-ask-choice${choice.tone ? ` ${choice.tone}` : ''}`, choice.label);
+      button.type = 'submit';
+      button.value = choice.value;
+      sheet.actions.append(button);
+      if (choice.focus) first = button;
+    }
+    const done = () => {
+      sheet.dialog.removeEventListener('close', done);
+      sheet.settle = null;
+      const value = sheet.dialog.returnValue || null;
+      // With a field, saying yes is saying what was typed; an empty field is not an answer.
+      resolve(input ? (value && value === submit ? (sheet.input.value.trim() || null) : null) : value);
+    };
+    sheet.settle = (value) => { sheet.dialog.removeEventListener('close', done); sheet.settle = null; resolve(value); };
+    sheet.dialog.addEventListener('close', done);
+    sheet.dialog.returnValue = '';
+    sheet.dialog.showModal();
+    // The field when there is one; otherwise the answer marked safe, so a stray Enter never says yes
+    // to something that cannot be undone.
+    (input ? sheet.input : first ?? sheet.actions.firstChild)?.focus();
+  });
+}
+
+/* ---------- asking about something on the screen ---------- */
+
+// One card for every "ask about this": the lines picked in the editor, the spot or the area marked
+// on a server's page. Who should look — the crew that is ready, the composer's agent chosen — then
+// the questions this thing itself suggests, read from what it is, and, when the archive has been
+// opened this page with the designation, what the room remembers about it; last, a way to write
+// one's own. Choosing puts the question in the composer; sending stays the human's.
+// A popover, so it stands in the page's top layer — over the viewer and MU/TH/UR when they are
+// open as sheets, which no z-index reaches.
+const askCard = el('div', 'ask-card');
+askCard.hidden = true;
+askCard.setAttribute('role', 'dialog');
+askCard.setAttribute('popover', 'manual');
+document.body?.append(askCard);
+let askCardClose = null;
+function closeAskCard() {
+  if (askCard.hidden) return;
+  askCard.hidden = true;
+  try { askCard.hidePopover?.(); } catch { /* already out of the top layer */ }
+  askCard.replaceChildren();
+  const done = askCardClose;
+  askCardClose = null;
+  done?.();
+}
+const ASK_OWN_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 15.5l.7-3.2 8.1-8.1a1.6 1.6 0 0 1 2.3 0l.2.2a1.6 1.6 0 0 1 0 2.3l-8.1 8.1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11.8 5.7l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+function openAskCard({ anchor, head, suggestions, about = '', onAsk, onClose = null }) {
+  closeAskCard();
+  askCardClose = onClose;
+  const ready = [...state.agents.values()].filter((agent) => agent.ready);
+  let chosen = ready.some((agent) => agent.id === els.target.value) ? els.target.value : ready[0]?.id ?? null;
+  const ask = (prompt) => { const id = chosen; askCardClose = null; closeAskCard(); onAsk(id, prompt); };
+
+  askCard.append(el('div', 'ask-card-head', head));
+  const crew = el('div', 'ask-crew');
+  crew.setAttribute('role', 'radiogroup');
+  crew.setAttribute('aria-label', t('Agent'));
+  for (const agent of ready) {
+    const pick = avatar(agent.id, { size: 26 });
+    pick.classList.add('ask-agent');
+    pick.setAttribute('role', 'radio');
+    pick.setAttribute('aria-label', agent.label);
+    pick.setAttribute('aria-checked', String(agent.id === chosen));
+    pick.tabIndex = 0;
+    const choose = () => { chosen = agent.id; for (const one of crew.children) one.setAttribute('aria-checked', String(one === pick)); };
+    pick.addEventListener('click', choose);
+    pick.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(); } });
+    crew.append(pick);
+  }
+  askCard.append(crew);
+  const group = (title, items) => {
+    const box = el('div', 'ask-group');
+    box.append(el('div', 'ask-group-title', title));
+    for (const words of items) {
+      const item = el('button', 'ask-item', words);
+      item.type = 'button';
+      item.addEventListener('click', () => ask(words));
+      box.append(item);
+    }
+    return box;
+  };
+  askCard.append(group(t('SUGGESTED FOR THIS'), suggestions));
+  // What the archive holds about it, when the archive is open: asked once, added when it answers.
+  const remembered = el('div', 'ask-remembered');
+  askCard.append(remembered);
+  const own = el('button', 'ask-own');
+  own.type = 'button';
+  own.innerHTML = ASK_OWN_ICON; // trusted: our own SVG
+  own.append(el('span', null, t('Ask my own question')));
+  own.addEventListener('click', () => ask(''));
+  askCard.append(own);
+  askCard.hidden = false;
+  try { askCard.showPopover?.(); } catch { /* a browser without popovers keeps it fixed in the page */ }
+
+  // Under what asked, or over it when there is no room below; always whole inside the window.
+  const place = () => {
+    const width = askCard.offsetWidth;
+    const height = askCard.offsetHeight;
+    const below = anchor.bottom + 8;
+    const top = below + height <= window.innerHeight - 12 ? below : Math.max(12, anchor.top - height - 8);
+    askCard.style.left = `${Math.round(Math.max(12, Math.min(window.innerWidth - width - 12, anchor.left)))}px`;
+    askCard.style.top = `${Math.round(top)}px`;
+  };
+  place();
+  if (about && nostromo.armed) {
+    void fetch(`/api/memory/about?designation=${encodeURIComponent(nostromoDesignation())}&text=${encodeURIComponent(about.slice(0, 1500))}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((read) => {
+        const questions = (read?.notes ?? []).map(memoryQuestion).filter(Boolean);
+        if (askCard.hidden || !questions.length) return;
+        remembered.replaceWith(group(t('FROM THE MEMORY'), questions));
+        place();
+      })
+      .catch(() => null);
+  }
+}
+document.addEventListener?.('pointerdown', (event) => { if (!askCard.hidden && !askCard.contains(event.target)) closeAskCard(); }, true);
+document.addEventListener?.('keydown', (event) => { if (event.key === 'Escape' && !askCard.hidden) closeAskCard(); });
+window.addEventListener?.('resize', () => closeAskCard());
+
+// A note the archive holds, turned into the question it raises about what is on the screen.
+function memoryQuestion(note) {
+  const said = String(note?.text ?? '').replace(/\s+/g, ' ').trim();
+  if (!said) return null;
+  const quote = said.length > 96 ? `${said.slice(0, 95).trimEnd()}…` : said;
+  if (note.kind === 'decision') return t('Does this keep to the decision: «{note}»?', { note: quote });
+  if (note.kind === 'preference') return t('Does this follow the preference: «{note}»?', { note: quote });
+  if (note.kind === 'question') return t('Does this answer the open question: «{note}»?', { note: quote });
+  return t('The archive says «{note}». Does it still hold here?', { note: quote });
+}
+
+// The questions a piece of code raises, read from its own shape: what it does with errors, with
+// the network, with time, with patterns, and what kind of file it is. Four at most, the ones it
+// raises first, filled up with the questions every piece of code can take.
+function codeSuggestions(text, family, path = '') {
+  const code = String(text ?? '');
+  const found = [];
+  const named = code.match(/^\s*(?:export\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/m)?.[1]
+    ?? code.match(/^\s*(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/m)?.[1]
+    ?? code.match(/^\s*(?:async\s+)?def\s+([A-Za-z_]\w*)/m)?.[1]
+    ?? [...code.matchAll(/^\s*(?:static\s+)?(?:async\s+)?(?:get\s+|set\s+)?(#?[A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/gm)].map((match) => match[1]).find((word) => !['if', 'for', 'while', 'switch', 'catch', 'function', 'return'].includes(word));
+  if (/\b(TODO|FIXME|HACK|XXX)\b/.test(code)) found.push(t('Resolve what the TODO in these lines asks'));
+  if (/\bcatch\s*\(|\.catch\(|\bcatch\s*\{|^\s*except\b/m.test(code)) found.push(t('What does this catch swallow, and what should it let through?'));
+  if (/\bfetch\(|\baxios\b|XMLHttpRequest|\.request\(/.test(code)) found.push(t('What happens here when the request fails or takes too long?'));
+  if (/\bawait\b|\.then\(|Promise\.(all|race|any)/.test(code)) found.push(t('Can these awaits race, or leave something half done?'));
+  if (/new RegExp\(|\/(?:\\.|[^/\n])+\/[dgimsuy]*\.(?:test|exec)\(|\.(?:match|replace|split)\(\s*\//.test(code)) found.push(t('Explain this regular expression with examples that match and that do not'));
+  if (named) found.push(t('Who calls {name}, and what breaks if it changes?', { name: named }));
+  if (family === 'css') found.push(t('Why might this style not apply, and what overrides it?'));
+  if (family === 'html') found.push(t('Is this accessible? Check labels, contrast and focus'));
+  if (family === 'json') found.push(t('What does this configure, and what reads it?'));
+  if (/(^|\/)(test|tests|spec|__tests__)\/|\.(test|spec)\.[a-z]+$/.test(path)) found.push(t('Which cases does this test miss?'));
+  for (const words of ['Explain what this does', 'Find bugs or edge cases here', 'Suggest how to improve this', 'Write tests for this']) found.push(t(words));
+  return [...new Set(found)].slice(0, 4);
+}
+
+// The questions a place on a page raises: what draws it, whether it holds at this width, whether
+// everyone can use it.
+function pageSuggestions({ kind, width }) {
+  const found = [t('What draws this, and in which file?'), t('Something looks wrong here: find why')];
+  found.push(width <= 480 ? t('What breaks here at {width} px, and how should it hold?', { width }) : t('How does this part hold up on a phone?'));
+  found.push(kind === 'area' ? t('Explain how this part is laid out, and which styles shape it') : t('Is this accessible? Check labels, contrast and focus'));
+  return found;
+}
+
+/* ---------- the editor, inside the viewer ---------- */
+
+// A project file the human can change in place. EDIT turns the read view into the editor and READ
+// turns it back; the file is written only by SAVE (⌘S), and only if it is still the file that was
+// opened. "Ask about this" puts the lines in the composer for an agent — and a viewer that was a
+// dialog over the room becomes a split so the composer is in reach and the editor stays open.
+const editing = { editor: null, button: document.querySelector('#viewer-edit') };
+const editorDirty = () => Boolean(editing.editor?.dirty());
+// The question last put in the composer from a surface, so asking again replaces it instead of
+// piling one question on another.
+let lastAsk = null;
+const askLeaveEdits = () => roomAsk({
+  title: t('UNSAVED CHANGES'),
+  body: t('There are unsaved changes in this file. Leave them?'),
+  choices: [{ value: 'stay', label: t('KEEP EDITING'), focus: true }, { value: 'leave', label: t('LEAVE THEM'), tone: 'danger' }],
+});
+async function leaveEditor({ ask = true } = {}) {
+  if (!editing.editor) return true;
+  if (ask && editorDirty() && await askLeaveEdits() !== 'leave') return false;
+  editing.editor.destroy();
+  editing.editor = null;
+  viewer.dialog.classList.remove('editing');
+  syncEditButton();
+  return true;
+}
+// READ and EDIT, one control with two positions: which one you are in is the lit one.
+const editingSeg = (() => {
+  if (!editing.button || typeof editing.button.before !== 'function') return null;
+  const seg = el('span', 'viewer-seg');
+  const read = el('button', 'viewer-seg-btn', t('READ'));
+  read.type = 'button';
+  editing.button.before(seg);
+  editing.button.className = 'viewer-seg-btn';
+  seg.append(read, editing.button);
+  read.addEventListener('click', async () => { if (editing.editor && await leaveEditor()) showViewerSource(); });
+  return { seg, read };
+})();
+function syncEditButton() {
+  if (!editing.button) return;
+  const hidden = !viewerMode.editable || viewerMode.preview;
+  if (editingSeg) editingSeg.seg.hidden = hidden; else editing.button.hidden = hidden;
+  editing.button.hidden = false;
+  editing.button.textContent = t('EDIT');
+  editing.button.setAttribute('aria-pressed', String(Boolean(editing.editor)));
+  editingSeg?.read.setAttribute('aria-pressed', String(!editing.editor));
+}
+// Under the text, the way the editor has one: what is picked, the way to ask about it, and how to
+// pick when nothing is.
+(() => {
+  if (!viewer.dialog || !viewer.body) return;
+  const bar = el('div', 'viewer-status');
+  const mod = /Mac|iPhone|iPad/.test(navigator.platform ?? '') ? '⌘' : 'Ctrl';
+  if (viewerUI.hintSelect) viewerUI.hintSelect.textContent = t('Click a number to pick a line · drag for a run · Shift for a range · {mod} for one more', { mod });
+  for (const part of [viewerUI.selection, viewerUI.review, viewerUI.hintSelect]) if (part) bar.append(part);
+  viewer.body.after?.(bar);
+})();
+async function saveEdited(content) {
+  const send = (extra = {}) => fetch('/api/files', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: viewerUI.path, content, mtimeMs: Number(viewerMode.mtime) || null, ...extra }),
+  }).then(async (response) => ({ response, result: await response.json().catch(() => ({})) }));
+  let { response, result } = await send();
+  if (response.status === 403 && result.guarded) {
+    const word = await roomAsk({
+      title: t('A FILE THE ROOM GUARDS'),
+      body: t('This file is one the room guards. Type the project\'s designation to save it.'),
+      input: { placeholder: t('the project folder\'s name') },
+      choices: [{ value: 'no', label: t('CANCEL') }, { value: 'save', label: t('SAVE'), tone: 'primary', submit: true }],
+    });
+    if (!word) return false;
+    ({ response, result } = await send({ designation: word }));
+  }
+  if (response.status === 409 && result.changed) {
+    const choice = await roomAsk({
+      title: t('THE FILE CHANGED ON DISK'),
+      body: t('It changed on disk since you opened it. Overwrite it with your version, or load the one on disk and lose your changes in the editor.'),
+      choices: [{ value: 'keep', label: t('KEEP EDITING'), focus: true }, { value: 'disk', label: t('LOAD FROM DISK') }, { value: 'overwrite', label: t('OVERWRITE'), tone: 'danger' }],
+    });
+    if (choice === 'overwrite') {
+      ({ response, result } = await send({ force: true }));
+    } else {
+      if (choice === 'disk') {
+        const fresh = await fetch(`/api/files?root=project&path=${encodeURIComponent(viewerUI.path)}`);
+        viewerMode.mtime = fresh.headers.get('x-mtime');
+        viewerMode.text = await fresh.text();
+        editing.editor?.reset(viewerMode.text);
+      }
+      return false;
+    }
+  }
+  if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? t('That could not be saved.')}`); return false; }
+  viewerMode.mtime = String(result.mtimeMs ?? '');
+  viewerMode.text = content;
+  toast(t('Saved · {path}', { path: viewerUI.path }), { tone: 'note' });
+  return true;
+}
+function askAboutLines({ from, to, prompt, dirty, agentId = null }) {
+  const reference = `!${viewerUI.path}:${from}${to !== from ? `-${to}` : ''}`;
+  // Asking again about the same file replaces the last question about it instead of piling
+  // references and questions up in the box; anything else the human wrote stays.
+  let current = els.input.value;
+  if (lastAsk?.prompt) current = current.replace(lastAsk.prompt, ' ');
+  const same = new RegExp(`(^|\\s)!${viewerUI.path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:\\d+(?:-\\d+)?`, 'g');
+  current = current.replace(same, ' ').replace(/\s{2,}/g, ' ').trim();
+  els.input.value = [reference, prompt, current].filter(Boolean).join(' ') + (prompt ? '' : ' ');
+  lastAsk = { prompt };
+  if (agentId && state.agents.get(agentId)?.ready) { els.target.value = agentId; renderPicker(); }
+  if (dirty) toast(t('Unsaved changes: the agent reads the file as it is on disk. Save first (⌘S) to ask about your version.'), { tone: 'note' });
+  // A dialog over the room would keep the composer out of reach: it becomes the room's split.
+  const surface = surfaces.find((one) => one.key === 'viewer');
+  if (surface && modeOf(surface) === 'base') setSurfaceMode(surface, 'split');
+  autosize();
+  els.input.focus();
+  els.input.setSelectionRange(els.input.value.length, els.input.value.length);
+}
+// The editor asks the room to ask: the room's own card, with questions read from the lines.
+function askAboutCode({ from, to, text, anchor, dirty }) {
+  openAskCard({
+    anchor,
+    head: from === to ? t('Line {n}', { n: from }) : t('Lines {from}–{to}', { from, to }),
+    suggestions: codeSuggestions(text, familyOf(viewerUI.path ?? '')?.id ?? null, viewerUI.path ?? ''),
+    about: `${viewerUI.path ?? ''} ${text}`,
+    onAsk: (agentId, prompt) => askAboutLines({ from, to, prompt, dirty, agentId }),
+  });
+}
+function openEditor(line = null) {
+  if (editing.editor || !viewerMode.editable) return;
+  const name = viewerUI.path ?? '';
+  editing.editor = createEditor({
+    text: viewerMode.text, name, family: familyOf(name), tokenize, t, fill,
+    onSave: saveEdited, onAsk: askAboutCode,
+  });
+  viewer.body.replaceChildren(editing.editor.node);
+  viewer.dialog.classList.add('editing');
+  setSelection(null, null);
+  if (viewerUI.hintSelect) viewerUI.hintSelect.hidden = true;
+  syncEditButton();
+  requestAnimationFrame(() => editing.editor?.focus(line ?? viewerUI.from ?? null));
+}
+editing.button?.addEventListener('click', async () => {
+  if (editing.editor) { if (await leaveEditor()) showViewerSource(); }
+  else openEditor();
+});
+// Closing the viewer, or opening another file in it, never drops unsaved work without asking.
+viewer.dialog?.addEventListener('cancel', (event) => {
+  if (!editorDirty()) return;
+  event.preventDefault();
+  void askLeaveEdits().then((answer) => { if (answer === 'leave') { void leaveEditor({ ask: false }); viewer.dialog.close(); } });
+});
+viewer.dialog?.addEventListener('close', () => leaveEditor({ ask: false }));
+window.addEventListener?.('beforeunload', (event) => { if (editorDirty()) { event.preventDefault(); event.returnValue = ''; } });
 
 function showViewerSource() {
   if (ripley.nav) ripley.nav.hidden = true;
@@ -783,7 +1171,9 @@ const browser = {
   back: document.querySelector('#browser-back'),
   reload: document.querySelector('#browser-reload'),
   servers: document.querySelector('#browser-servers'),
+  point: document.querySelector('#browser-point'),
   portsMenu: document.querySelector('#browser-ports-menu'),
+  lastPorts: [],
   where: document.querySelector('#browser-where'),
   sizes: document.querySelector('#browser-sizes'),
   tabs: [],
@@ -792,6 +1182,8 @@ const browser = {
   stage: null,
 };
 
+// Point and ask, over the page: held beside the browser because leaving a page or a tab ends it.
+const pointing = { on: false, tool: 'dot', layer: null, hint: null, mark: null, card: null, observer: null };
 const BROWSER_WIDTHS = [['AUTO', null], ['390', 390], ['768', 768], ['1280', 1280]];
 const browserTab = () => browser.tabs.find((tab) => tab.id === browser.active) ?? null;
 
@@ -847,6 +1239,7 @@ function browserRenderTabs() {
 }
 
 async function browserOpen(url, { tab = null } = {}) {
+  setPointing(false);
   const allowed = await browserAllows(url);
   if (!allowed.ok) { toast(allowed.why); return; }
   const target = tab ?? browserTab();
@@ -886,6 +1279,7 @@ function browserNewTab(url = 'about:blank') {
 }
 
 function browserSelect(id) {
+  setPointing(false);
   if (browser.active === id) return;
   browser.active = id;
   const tab = browserTab();
@@ -970,8 +1364,14 @@ function browserMountFrame() {
 
 function browserShow() {
   if (!browser.dialog) return;
-  browser.dialog.hidden = false;
-  document.querySelector('.shell')?.classList.add('with-browser');
+  const show = () => {
+    browser.dialog.hidden = false;
+    // Floating, it is a window over the room and asks the grid for no column.
+    if (browserFloating()) { placeBrowserWindow(browserWindow.box ?? browserWindowBox()); bringWindowForward(browser.dialog); }
+    else { noteBeside('browser'); document.querySelector('.shell')?.classList.add('with-browser'); }
+    layoutPanels();
+  };
+  if (browser.dialog.hidden) void morph('dock', show); else show();
   browser.button?.setAttribute('aria-pressed', 'true');
   if (!browser.tabs.length) browserNewTab();
   else { browserMountFrame(); const tab = browserTab(); if (browser.frame && tab) browser.frame.src = tab.url; browserRenderTabs(); }
@@ -980,10 +1380,16 @@ function browserShow() {
 // Closing drops the frame, and with it the renderer the page was using. The tabs survive as
 // addresses — reopening puts the active one back without having kept a process alive meanwhile.
 function browserHide() {
-  if (browser.dialog) browser.dialog.hidden = true;
-  document.querySelector('.shell')?.classList.remove('with-browser');
+  const body = browser.body;
+  setPointing(false);
+  const hide = () => {
+    if (browser.dialog) browser.dialog.hidden = true;
+    document.querySelector('.shell')?.classList.remove('with-browser');
+    body?.replaceChildren();
+    layoutPanels();
+  };
+  if (browser.dialog && !browser.dialog.hidden) void morph('dock', hide); else hide();
   browser.button?.setAttribute('aria-pressed', 'false');
-  browser.body?.replaceChildren();
   browser.frame = null;
   browser.stage = null;
   portsMenuShown(false);
@@ -1005,13 +1411,40 @@ async function browserServers() {
   let read;
   try { read = await fetch('/api/ports').then((response) => response.json()); }
   catch { menu.replaceChildren(el('div', 'ports-note', t('COULD NOT READ THE PORTS'))); browser.servers?.setAttribute('data-live', 'no'); return; }
-  menu.replaceChildren();
+  paintPorts(read);
+}
+
+// This project's servers, and only them. The servers sentinel says when the list changes, so an
+// open menu redraws itself and the lamp on the button follows without anyone asking again.
+function openPort(found) {
+  portsMenuShown(false);
+  const url = `http://127.0.0.1:${found.port}/`;
+  // A server that sets frame-ancestors is right to, and RIPLEY cannot and should not override
+  // it. The honest move is a real tab, not a grey rectangle with a broken-document icon.
+  if (found.framable === false) {
+    const current = browserTab();
+    if (!current || current.url !== 'about:blank') browserNewTab('about:blank');
+    const tab = browserTab();
+    if (tab) { tab.url = url; tab.title = `:${found.port}`; }
+    if (browser.where) browser.where.textContent = url.replace(/^https?:\/\//, '');
+    browserRenderTabs();
+    browserRefused(url, { why: t('This server answers with a rule that forbids any page from putting it inside a frame — your own dev server may be setting it without you noticing. RIPLEY neither can nor should override it.') });
+    return;
+  }
+  const current = browserTab();
+  if (current && current.url !== 'about:blank') browserNewTab(url); else void browserOpen(url);
+}
+
+function paintPorts(read) {
+  const menu = browser.portsMenu;
+  if (!menu) return;
   // The answer's own words when it refuses. Reading `?.ports ?? []` straight past an error turned
-  // «RIPLEY is off» into «nothing is answering on this computer», which is a different thing and
-  // sends the human to look at their server instead of at the switch.
+  // «RIPLEY is off» into «nothing is answering», which sends the human to look at their server
+  // instead of at the switch.
   if (read?.error) {
     browser.servers?.setAttribute('data-live', 'no');
-    menu.append(el('div', 'ports-note', read.error));
+    if (menu.hidden) return;
+    menu.replaceChildren(el('div', 'ports-note', read.error));
     const go = el('button', 'ports-row');
     go.type = 'button';
     go.append(el('b', null, '⚙'), el('span', null, t('OPEN MODULES')));
@@ -1021,49 +1454,291 @@ async function browserServers() {
   }
   const ports = read?.ports ?? [];
   const wider = read?.wider ?? [];
+  browser.lastPorts = ports;
   // The lamp on the button keeps what the reading found, so the state survives the menu closing.
   browser.servers?.setAttribute('data-live', ports.length ? 'yes' : 'no');
-  if (!ports.length && !wider.length) { menu.append(el('div', 'ports-note', t('NOTHING IS ANSWERING ON THIS COMPUTER · START YOUR SERVER AND OPEN THIS AGAIN'))); return; }
+  if (menu.hidden) return;
+  menu.replaceChildren(el('div', 'ports-head', t('THIS PROJECT\'S SERVERS')));
+  if (!ports.length && !wider.length) menu.append(el('div', 'ports-empty', t('Nothing started from this project is answering. Start your dev server inside the project folder and it shows up here by itself.')));
   for (const found of ports) {
-    const row = el('button', 'ports-row');
+    const row = el('button', `ports-row${found.framable === false ? ' refuses' : ''}`);
     row.type = 'button';
     // A server that sends no Content-Type used to leave the separator hanging: «:5173 node · 200 · ».
     const kind = found.html ? '' : (found.contentType ?? '').trim();
     const what = `${found.command} · ${found.status}${kind ? ` · ${kind}` : ''}`;
-    row.append(el('b', null, `:${found.port}`), el('span', null, found.framable === false ? t('{what} · refuses to be framed', { what }) : what));
-    if (found.here) { row.classList.add('here'); row.append(el('span', 'ports-here', t('THIS PROJECT'))); }
-    if (found.framable === false) row.classList.add('refuses');
-    row.addEventListener('click', () => {
-      portsMenuShown(false);
-      // A server that sets frame-ancestors is right to, and RIPLEY cannot and should not override
-      // it. The honest move is a real tab, not a grey rectangle with a broken-document icon.
-      if (found.framable === false) {
-        const url = `http://127.0.0.1:${found.port}/`;
-        const current = browserTab();
-        if (!current || current.url !== 'about:blank') browserNewTab('about:blank');
-        const tab = browserTab();
-        if (tab) { tab.url = url; tab.title = `:${found.port}`; }
-        if (browser.where) browser.where.textContent = url.replace(/^https?:\/\//, '');
-        browserRenderTabs();
-        browserRefused(url, { why: t('This server answers with a rule that forbids any page from putting it inside a frame — your own dev server may be setting it without you noticing. RIPLEY neither can nor should override it.') });
-        return;
-      }
-      const url = `http://127.0.0.1:${found.port}/`;
-      const current = browserTab();
-      if (current && current.url !== 'about:blank') browserNewTab(url); else void browserOpen(url);
-    });
+    row.append(el('i', 'ports-lamp'), el('b', null, `:${found.port}`), el('span', null, found.framable === false ? t('{what} · refuses to be framed', { what }) : what));
+    row.addEventListener('click', () => openPort(found));
     menu.append(row);
   }
-  // Found and not offered. Node and python bind every interface by default, so this is the common
-  // case — and before this it was discarded without a word, which is what made a busy computer
-  // report as an empty one.
+  // Found and not offered: Node and python bind every interface by default, and saying nothing
+  // about it made a running server read as no server at all.
   for (const one of wider) {
     const row = el('div', 'ports-row wider');
-    row.append(el('b', null, `:${one.port}`), el('span', null, t('{command} · listens on the whole network', { command: one.command })));
-    row.title = t('RIPLEY only opens what is bound to 127.0.0.1. Start it with --host 127.0.0.1 (or listen(port, "127.0.0.1")) and it will show up above.');
+    row.append(el('i', 'ports-lamp'), el('b', null, `:${one.port}`), el('span', null, t('{command} · listens on the whole network · start it on 127.0.0.1 to open it here', { command: one.command })));
     menu.append(row);
   }
-  menu.append(el('div', 'ports-note', t('ONLY WHAT LISTENS ON THIS COMPUTER AND ANSWERS HTTP · MADRE RUNS NOTHING TO FIND THEM')));
+  const foot = read?.others
+    ? t('{n} more listening on this computer, from other folders · not shown', { n: read.others })
+    : t('ONLY WHAT THIS PROJECT STARTED · THE SENTINEL WATCHES IT');
+  menu.append(el('div', 'ports-note', foot));
+}
+
+/* ---------- point and ask, on the project's own server ---------- */
+
+// Point at what is on the screen and ask about it. A toolbox over the page: a point, for one spot,
+// and an area, dragged over a part. What the room can honestly hand an agent goes with the question
+// — which of the project's servers, the process serving it, the address opened, how wide the view
+// is and exactly where the mark is. The page comes from another origin and the room cannot look
+// inside it, so it does not pretend to: the agent is told what was marked and where, and finds in
+// the project what draws it. The question lands in the composer with the agent chosen; sending
+// stays the human's, as with every other question asked from a surface.
+const POINT_DOT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.2" fill="currentColor"/></svg>';
+const POINT_AREA_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="4.5" width="13" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2.2"/></svg>';
+// The layer covers the frame exactly, wherever the frame stands inside the stage.
+function pointFit() {
+  if (!pointing.layer || !browser.frame || !browser.stage) return;
+  const stage = browser.stage.getBoundingClientRect();
+  const frame = browser.frame.getBoundingClientRect();
+  Object.assign(pointing.layer.style, { left: `${frame.left - stage.left}px`, top: `${frame.top - stage.top}px`, width: `${frame.width}px`, height: `${frame.height}px` });
+}
+function pointClear() {
+  closeAskCard();
+  pointing.mark?.node?.remove();
+  pointing.card?.remove();
+  pointing.mark = null;
+  pointing.card = null;
+}
+function pointTool(id) {
+  pointing.tool = id;
+  pointClear();
+  for (const button of pointing.layer?.querySelectorAll('.point-tool') ?? []) button.setAttribute('aria-pressed', String(button.dataset.tool === id));
+  pointing.layer?.classList.toggle('area', id === 'area');
+  if (pointing.hint) pointing.hint.textContent = id === 'dot' ? t('Press on the page where you mean') : t('Drag over the part you mean');
+}
+function setPointing(on) {
+  if (on === pointing.on) return;
+  const tab = browserTab();
+  if (on && (!browser.stage || !browser.frame || !tab || tab.url === 'about:blank')) {
+    toast(t('Open one of the project\'s servers first, then point at it.'), { tone: 'note' });
+    return;
+  }
+  pointing.on = on;
+  browser.point?.setAttribute('aria-pressed', String(on));
+  if (!on) {
+    closeAskCard();
+    pointing.observer?.disconnect();
+    pointing.layer?.remove();
+    Object.assign(pointing, { layer: null, hint: null, mark: null, card: null, observer: null });
+    return;
+  }
+  const layer = el('div', 'point-layer');
+  const tools = el('div', 'point-tools');
+  tools.setAttribute('role', 'toolbar');
+  tools.setAttribute('aria-label', t('Point and ask'));
+  const tool = (id, icon, word) => {
+    const button = el('button', 'point-tool');
+    button.type = 'button';
+    button.dataset.tool = id;
+    button.innerHTML = icon; // trusted: our own SVG
+    button.append(el('span', null, word));
+    button.addEventListener('click', (event) => { event.stopPropagation(); pointTool(id); });
+    return button;
+  };
+  const close = closeMark('button', 'point-close', t('Stop pointing'));
+  close.addEventListener('click', (event) => { event.stopPropagation(); setPointing(false); });
+  tools.append(tool('dot', POINT_DOT_ICON, t('SPOT')), tool('area', POINT_AREA_ICON, t('AREA')), el('span', 'point-sep'), close);
+  const hint = el('div', 'point-hint');
+  layer.append(tools, hint);
+  browser.stage.append(layer);
+  pointing.layer = layer;
+  pointing.hint = hint;
+  pointTool(pointing.tool);
+  pointFit();
+  pointing.observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => pointFit()) : null;
+  pointing.observer?.observe(browser.stage);
+  layer.addEventListener('pointerdown', pointDown);
+}
+function pointDown(event) {
+  if (event.button !== 0 || event.target.closest('.point-tools, .point-card')) return;
+  event.preventDefault();
+  pointClear();
+  const layer = pointing.layer;
+  const box = layer.getBoundingClientRect();
+  const at = (moving) => ({ x: Math.round(Math.max(0, Math.min(box.width, moving.clientX - box.left))), y: Math.round(Math.max(0, Math.min(box.height, moving.clientY - box.top))) });
+  const start = at(event);
+  const dot = (x, y) => {
+    const node = el('div', 'point-dot');
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+    layer.append(node);
+    pointing.mark = { kind: 'dot', node, x, y };
+    pointAsk();
+  };
+  if (pointing.tool === 'dot') { dot(start.x, start.y); return; }
+  const node = el('div', 'point-area');
+  layer.append(node);
+  pointing.mark = { kind: 'area', node, x1: start.x, y1: start.y, x2: start.x, y2: start.y };
+  const draw = () => {
+    const mark = pointing.mark;
+    Object.assign(node.style, { left: `${Math.min(mark.x1, mark.x2)}px`, top: `${Math.min(mark.y1, mark.y2)}px`, width: `${Math.abs(mark.x2 - mark.x1)}px`, height: `${Math.abs(mark.y2 - mark.y1)}px` });
+  };
+  draw();
+  try { layer.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+  const move = (moving) => { const now = at(moving); pointing.mark.x2 = now.x; pointing.mark.y2 = now.y; draw(); };
+  const up = () => {
+    layer.removeEventListener('pointermove', move);
+    layer.removeEventListener('pointerup', up);
+    layer.removeEventListener('pointercancel', up);
+    const mark = pointing.mark;
+    if (!mark) return;
+    // A drag too short to be an area was a press: it marks the spot.
+    if (Math.abs(mark.x2 - mark.x1) < 8 && Math.abs(mark.y2 - mark.y1) < 8) { node.remove(); dot(mark.x1, mark.y1); return; }
+    pointAsk();
+  };
+  layer.addEventListener('pointermove', move);
+  layer.addEventListener('pointerup', up);
+  layer.addEventListener('pointercancel', up);
+}
+// Beside the mark, the room's card for asking about something on the screen: who should look,
+// the questions the place raises, and one's own.
+function pointAsk() {
+  const mark = pointing.mark;
+  const layer = pointing.layer;
+  if (!mark || !layer) return;
+  const box = layer.getBoundingClientRect();
+  const area = mark.kind === 'area' ? { x: Math.min(mark.x1, mark.x2), y: Math.min(mark.y1, mark.y2), w: Math.abs(mark.x2 - mark.x1), h: Math.abs(mark.y2 - mark.y1) } : null;
+  const anchor = area
+    ? { left: box.left + area.x, top: box.top + area.y, bottom: box.top + area.y + area.h }
+    : { left: box.left + mark.x - 7, top: box.top + mark.y - 7, bottom: box.top + mark.y + 7 };
+  const url = browserTab()?.url ?? '';
+  openAskCard({
+    anchor,
+    head: area ? t('AREA · {w} × {h} PX', { w: area.w, h: area.h }) : t('POINT · X {x} · Y {y}', { x: mark.x, y: mark.y }),
+    suggestions: pageSuggestions({ kind: mark.kind, width: Math.round(box.width) }),
+    about: url,
+    onAsk: (agentId, prompt) => { void pointSend(agentId, prompt); },
+  });
+}
+// The part of the page the picture is of, in the layer's coordinates: an area is its own picture;
+// a spot is the dot with what surrounds it, as much of it as the page has.
+const POINT_AROUND = { width: 480, height: 320 };
+function pointRegion(mark, box) {
+  if (mark.kind === 'area') return { left: Math.min(mark.x1, mark.x2), top: Math.min(mark.y1, mark.y2), width: Math.max(1, Math.abs(mark.x2 - mark.x1)), height: Math.max(1, Math.abs(mark.y2 - mark.y1)) };
+  const width = Math.min(box.width, POINT_AROUND.width);
+  const height = Math.min(box.height, POINT_AROUND.height);
+  return { left: Math.max(0, Math.min(box.width - width, mark.x - width / 2)), top: Math.max(0, Math.min(box.height - height, mark.y - height / 2)), width, height };
+}
+// What was pointed at, as a picture. The browser asks to share this tab — its own question, one no
+// page can draw or skip — one frame is taken, what was pointed at is cut out of it without the
+// toolbox, and the capture stops at once. Declined, or a browser without the means, and the
+// question goes without it. The browser's own crop (Region Capture) is not used: in Chrome it
+// handed back the part as a white frame, while the tab's frame carries the page.
+async function pointCapture(port) {
+  const layer = pointing.layer;
+  const mark = pointing.mark;
+  if (!layer || !mark || !navigator.mediaDevices?.getDisplayMedia) return null;
+  layer.classList.add('capturing');
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'browser' }, audio: false, preferCurrentTab: true, selfBrowserSurface: 'include', surfaceSwitching: 'exclude' });
+    const [track] = stream.getVideoTracks();
+    const surface = track?.getSettings?.().displaySurface;
+    // Another window or the whole screen is not this page: cropping it would attach a wrong picture.
+    if (!track || (surface && surface !== 'browser')) return null;
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+    await video.play();
+    await new Promise((resolve) => setTimeout(resolve, 160));
+    // Measured once the browser has asked: its sharing bar may have moved the page.
+    const box = layer.getBoundingClientRect();
+    const part = pointRegion(mark, box);
+    const sx = video.videoWidth / window.innerWidth;
+    const sy = video.videoHeight / window.innerHeight;
+    if (!sx || !sy) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(part.width * sx));
+    canvas.height = Math.max(1, Math.round(part.height * sy));
+    canvas.getContext('2d')?.drawImage(video, (box.left + part.left) * sx, (box.top + part.top) * sy, part.width * sx, part.height * sy, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    return blob ? new File([blob], `madre-${port ?? 'page'}-${Date.now()}.png`, { type: 'image/png' }) : null;
+  } catch { return null; }
+  finally {
+    for (const one of stream?.getTracks() ?? []) one.stop();
+    layer.classList.remove('capturing');
+  }
+}
+// In the composer, one line that says where, drawn as a chip — the server and its process, the
+// address, the view's width, the mark — the question under it, and the picture attached.
+async function pointSend(agentId, prompt) {
+  const mark = pointing.mark;
+  const layer = pointing.layer;
+  if (!mark || !layer) return;
+  const width = Math.round(layer.getBoundingClientRect().width);
+  const url = browserTab()?.url ?? '';
+  const port = browserPortOf(url);
+  const server = browser.lastPorts.find((one) => one.port === port);
+  let path = url;
+  try { const parsed = new URL(url); path = `${parsed.pathname}${parsed.search}`; } catch { /* the address as it was opened */ }
+  const name = port ? `:${port}${server?.command ? ` (${server.command})` : ''}` : url;
+  const capture = await pointCapture(port);
+  const where = mark.kind === 'dot'
+    ? t('point at ({x}, {y})', { x: mark.x, y: mark.y })
+    : t('area {w}×{h} at ({x}, {y})', { w: Math.abs(mark.x2 - mark.x1), h: Math.abs(mark.y2 - mark.y1), x: Math.min(mark.x1, mark.x2), y: Math.min(mark.y1, mark.y2) });
+  const line = `⌖ ${name} ${path} · ${t('view {width} px', { width })} · ${where}${capture ? ` · ${t('capture attached')}` : ''}`;
+  let current = els.input.value;
+  if (lastAsk?.point) current = current.replace(lastAsk.point, '');
+  if (lastAsk?.prompt) current = current.replace(lastAsk.prompt, ' ');
+  current = current.replace(/\s{2,}/g, ' ').trim();
+  els.input.value = `${line}\n${[prompt, current].filter(Boolean).join(' ')}`;
+  // A new spot replaces the last one's picture too, while it still waits in the composer.
+  if (lastAsk?.capture) { state.pending = state.pending.filter((item) => item.name !== lastAsk.capture); renderPendingAttachments(); }
+  lastAsk = { prompt, point: line, capture: capture?.name ?? null };
+  if (agentId && state.agents.get(agentId)?.ready) { els.target.value = agentId; renderPicker(); }
+  setPointing(false);
+  if (capture) void addFiles([capture]);
+  else if (navigator.mediaDevices?.getDisplayMedia) toast(t('No capture: the tab was not shared. The question goes with where you pointed.'), { tone: 'note' });
+  autosize();
+  els.input.focus();
+  els.input.setSelectionRange(els.input.value.length, els.input.value.length);
+}
+browser.point?.addEventListener('click', () => setPointing(!pointing.on));
+document.addEventListener?.('keydown', (event) => {
+  if (!pointing.on || event.key !== 'Escape') return;
+  // Esc takes back the mark and its card first; with nothing marked, it puts the tool away.
+  if (pointing.mark) pointClear(); else setPointing(false);
+});
+
+// What the sentinel saw happen to one of the project's servers.
+function serverStopped({ port, command }) {
+  toast(t('MU/TH/UR › your server :{port} ({command}) stopped.', { port, command }));
+  const tab = browserTab();
+  if (!tab || !browser.body || browserPortOf(tab.url) !== port) return;
+  // The page stays where it was, dimmed, with what happened over it; when the server comes back
+  // the frame loads again by itself.
+  tab.waiting = port;
+  browser.body.querySelector('.browser-down')?.remove();
+  const card = el('div', 'browser-down');
+  const inner = el('div', 'browser-down-card');
+  inner.append(el('i', 'ports-lamp off'), el('h4', null, t(':{port} stopped', { port })), el('p', null, t('The sentinel saw {command} stop answering. Start it again and this page comes back on its own.', { command })));
+  card.append(inner);
+  browser.body.append(card);
+}
+function serverStarted({ port }) {
+  const tab = browserTab();
+  if (!tab || tab.waiting !== port) return;
+  delete tab.waiting;
+  const card = browser.body?.querySelector('.browser-down');
+  card?.classList.add('leaving');
+  setTimeout(() => card?.remove(), 260);
+  if (browser.frame) browser.frame.src = tab.url;
+}
+function browserPortOf(url) {
+  try {
+    const parsed = new URL(url);
+    return ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname) ? Number(parsed.port || 80) : null;
+  } catch { return null; }
 }
 
 // The edge between the conversation and the browser. The dock is a grid column, so a drag just
@@ -1141,6 +1816,25 @@ function ripleyShowError({ message, source, line }) {
   while (ripley.errors.children.length > 3) ripley.errors.firstChild.remove();
   ripley.errors.hidden = false;
 }
+// The page reached for its storage. In the sealed frame it has none (an opaque origin keeps no
+// localStorage, cookies or IndexedDB), so an app that keeps its data there looks broken here when
+// it is not. Said once per page, with the place where it can be tried with its data: the project's
+// own server, opened from SERVIDORES.
+function ripleyShowStorage({ what }) {
+  if (!ripley.errors || !viewerMode.preview || ripley.errors.querySelector('.err-row.storage')) return;
+  const row = el('div', 'err-row storage');
+  row.append(el('span', 'msg', t('This sealed preview keeps no data ({what}): the page cannot remember anything here. To try it with its data, open it from SERVERS on the project\'s own server.', { what })));
+  const open = el('button', null, t('OPEN SERVERS'));
+  open.type = 'button';
+  open.addEventListener('click', () => {
+    viewer.dialog.close();
+    browserShow();
+    if (browser.portsMenu?.hidden) void browserServers();
+  });
+  row.append(open);
+  ripley.errors.prepend(row);
+  ripley.errors.hidden = false;
+}
 window.addEventListener?.('message', (event) => {
   const data = event.data;
   if (!data || data.ripley !== 1 || !ripley.frame || event.source !== ripley.frame.contentWindow) return;
@@ -1154,6 +1848,8 @@ window.addEventListener?.('message', (event) => {
     }
   } else if (data.type === 'error') {
     ripleyShowError(data);
+  } else if (data.type === 'storage') {
+    ripleyShowStorage({ what: String(data.what ?? 'localStorage').slice(0, 20) });
   }
 });
 ripley.back?.addEventListener('click', () => {
@@ -1213,17 +1909,31 @@ function syncViewerMode() {
   viewerMode.button.textContent = viewerMode.preview ? 'SOURCE' : 'PREVIEW';
   viewerMode.button.title = viewerMode.preview ? t('Show the file as text') : t('Render with RIPLEY in a sealed frame');
 }
-viewerMode.button?.addEventListener('click', () => { viewerMode.preview = !viewerMode.preview; syncViewerMode(); if (viewerMode.preview) showViewerPreview(); else showViewerSource(); });
+viewerMode.button?.addEventListener('click', async () => { if (!await leaveEditor()) return; viewerMode.preview = !viewerMode.preview; syncViewerMode(); syncEditButton(); if (viewerMode.preview) showViewerPreview(); else showViewerSource(); });
 
+// The file's name the way a path reads at a glance: the folders quiet, the file itself clear.
+function paintViewerPath(text) {
+  const said = String(text ?? '');
+  const cut = said.lastIndexOf('/');
+  viewer.path.replaceChildren();
+  // The folder is cut from its start so the part next to the file stays; the marks keep its
+  // slashes where they are written while the box runs right to left to do that.
+  if (cut > 0) viewer.path.append(el('span', 'dir', `\u200e${said.slice(0, cut + 1)}\u200e`));
+  viewer.path.append(el('b', 'file', cut >= 0 ? said.slice(cut + 1) : said));
+  viewer.path.setAttribute?.('aria-label', said);
+}
 async function openViewer({ root = 'project', path = null, url = null, label = null, line = null, lines = null }) {
+  if (!await leaveEditor()) return;
   const src = url ?? `/api/files?root=${root}&path=${encodeURIComponent(path)}`;
-  viewer.path.textContent = label ?? (root === 'project' ? `/${path}` : path);
+  paintViewerPath(label ?? path);
   viewer.open.href = src;
   viewer.body.replaceChildren(el('div', null, t('loading…')));
   viewerUI.path = root === 'project' ? path : null;
   setSelection(null, null);
   viewerMode.kind = null;
+  viewerMode.editable = false;
   syncViewerMode();
+  syncEditButton();
   if (!viewer.dialog.open) viewer.dialog.showModal();
   
   try {
@@ -1231,21 +1941,25 @@ async function openViewer({ root = 'project', path = null, url = null, label = n
     if (!response.ok) { const err = await response.json().catch(() => ({})); viewer.body.replaceChildren(el('div', 'err', err.error ?? `HTTP ${response.status}`)); return; }
     const type = response.headers.get('content-type') ?? '';
     const kind = RIPLEY_KIND(path ?? label ?? '');
-    if (type.startsWith('image/') && kind !== 'svg') { const img = el('img'); img.src = src; img.alt = viewer.path.textContent; viewer.body.replaceChildren(img); return; }
+    if (type.startsWith('image/') && kind !== 'svg') { const img = el('img'); img.src = src; img.alt = viewer.path.getAttribute?.('aria-label') ?? ''; viewer.body.replaceChildren(img); return; }
     if (type === 'application/pdf' || type.startsWith('video/') || type.startsWith('audio/')) {
       const frame = el(type === 'application/pdf' ? 'iframe' : type.startsWith('video/') ? 'video' : 'audio');
       frame.src = src; if (frame.tagName !== 'IFRAME') frame.controls = true;
       viewer.body.replaceChildren(frame); return;
     }
     const text = await response.text();
-    Object.assign(viewerMode, { kind, text, src, line, lines, preview: Boolean(kind) && state.ripley && !line && !lines });
+    // Text of this project, small enough to edit: the editor is offered. Attachments and frames
+    // are read, never written.
+    const editable = root === 'project' && Boolean(path) && !url && response.headers.has('x-mtime') && text.length < 2 * 1024 * 1024 && !text.includes('\u0000');
+    Object.assign(viewerMode, { kind, text, src, line, lines, preview: Boolean(kind) && state.ripley && !line && !lines, mtime: response.headers.get('x-mtime'), editable });
     syncViewerMode();
+    syncEditButton();
     if (viewerMode.preview) showViewerPreview(); else showViewerSource();
   } catch (error) {
     viewer.body.replaceChildren(el('div', 'err', error.message));
   }
 }
-viewer.close.addEventListener('click', () => viewer.dialog.close());
+viewer.close.addEventListener('click', async () => { if (await leaveEditor()) viewer.dialog.close(); });
 
 function codeBlock(lines, lang) {
   const wrapper = el('div', `codeblock${lang ? ' has-lang' : ''}`);
@@ -1395,7 +2109,7 @@ export function renderMarkdown(text) {
 /* ---------- agents bar, picker & onboarding ---------- */
 
 const fmtWindow = (minutes) => (!Number.isFinite(Number(minutes)) ? 'window' : Number(minutes) % 1440 === 0 ? `${Number(minutes) / 1440}d` : Number(minutes) % 60 === 0 ? `${Number(minutes) / 60}h` : `${minutes}m`);
-const fmtReset = (iso) => { if (!iso) return ''; const date = new Date(iso); if (Number.isNaN(date.getTime())) return ''; const sameDay = date.toDateString() === new Date().toDateString(); return sameDay ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : date.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }); };
+const fmtReset = (iso) => { if (!iso) return ''; const date = new Date(iso); if (Number.isNaN(date.getTime())) return ''; const sameDay = date.toDateString() === new Date().toDateString(); return sameDay ? date.toLocaleTimeString(language(), { hour: '2-digit', minute: '2-digit' }) : date.toLocaleString(language(), { weekday: 'short', hour: '2-digit', minute: '2-digit' }); };
 // An official window whose reset time has passed counts as empty until the CLI reports again.
 function liveOfficial(agent) {
   if (!Number.isFinite(agent.officialPercent)) return null;
@@ -1412,8 +2126,8 @@ function ringPercent(agent) {
 }
 
 // The crew in one button, for when the bar has no room for five spheres. It says how many are
-// ready, names them all in its title, and opens CONNECTIONS — the place that already holds the
-// detail each sphere stands for.
+// ready and opens what the spheres open: the crew card lists every agent the way its sphere shows
+// it, and a row is that agent's own card — the same one a sphere opens, with a way back.
 const agentsCompact = document.querySelector('#agents-compact');
 const agentsCount = document.querySelector('#agents-count');
 function renderAgentsCompact() {
@@ -1426,8 +2140,7 @@ function renderAgentsCompact() {
     : t('Crew');
 }
 agentsCompact?.addEventListener('click', () => {
-  document.querySelector('#mother-button')?.click();
-  setTimeout(() => document.querySelector('#mother-settings-button')?.click(), 60);
+  if (!pop.hidden && pop.dataset.from === 'crew') closeAgentPop(); else openCrewPop(agentsCompact);
 });
 
 function renderAgents() {
@@ -1453,6 +2166,26 @@ function renderAgents() {
     ].filter(Boolean).join('\n');
     els.agents.append(node);
   }
+}
+
+/* ---------- what the room may do, said once ---------- */
+
+// What agents may write and where what they read can go used to sit under the composer on two
+// lines, on every screen, forever. It is said once now, on one line, on the first visit, and goes
+// after a while or with the first message.
+const SAFETY_SEEN = 'madre.safety.seen';
+const safetyLine = document.querySelector('#safety');
+function foldSafety() {
+  if (!safetyLine || safetyLine.hidden || safetyLine.classList.contains('folding')) return;
+  try { localStorage.setItem(SAFETY_SEEN, '1'); } catch { /* a private window sees it again; no harm */ }
+  const done = () => { safetyLine.hidden = true; safetyLine.classList.remove('folding'); };
+  if (reducedMotion()) done(); else { safetyLine.classList.add('folding'); setTimeout(done, 420); }
+}
+let safetySeen = true;
+try { safetySeen = Boolean(localStorage.getItem(SAFETY_SEEN)); } catch { /* no storage: never shown twice in one page anyway */ }
+if (safetyLine && !safetySeen) {
+  safetyLine.hidden = false;
+  setTimeout(foldSafety, 9000);
 }
 
 function renderPicker() {
@@ -1542,6 +2275,10 @@ function rememberModel(id, model) {
 
 async function toggleModelMenu(id, anchor) {
   if (!modelMenu.hidden && modelMenuFor === id) { closeModelMenu(); return; }
+  // One of the composer's menus at a time: the one just chosen is the one on screen, never half
+  // under another left open before it.
+  closeEffortMenu();
+  closeModeMenu();
   modelMenuFor = id;
   paint(modelMenu, id);
   modelMenu.replaceChildren(el('div', 'model-menu-title', t('loading models…')));
@@ -1597,6 +2334,7 @@ const EFFORT_WORDS = {
   high: { label: 'High', hint: 'Thinks it through. For design calls and tricky bugs.' },
   xhigh: { label: 'Extra high', hint: 'Longer reasoning for hard, multi-step problems.' },
   max: { label: 'Max', hint: 'Everything it has. The slowest and the most expensive.' },
+  ultra: { label: 'Ultra', hint: 'Its deepest reasoning, and it hands parts of the task out on its own.' },
 };
 const effortMenu = el('div', 'model-menu effort-menu');
 effortMenu.hidden = true;
@@ -1606,8 +2344,20 @@ let effortsAsked = false;
 
 function takeEfforts(models) {
   for (const [id, info] of Object.entries(models ?? {})) {
-    state.efforts[id] = { levels: Array.isArray(info.efforts) ? info.efforts : [], default: info.effortDefault ?? null };
+    state.efforts[id] = { levels: Array.isArray(info.efforts) ? info.efforts : [], default: info.effortDefault ?? null, model: info.default ?? null, byModel: info.effortsByModel ?? null, shared: info.effortsShared ?? null };
   }
+}
+// The ladder for the model the next turn runs on. Codex's levels are each model's: the chosen one's,
+// the CLI default's, or — for a name its cache does not list — the ones all its models share, which
+// is what the room lets through.
+function effortInfo(id) {
+  const info = state.efforts[id];
+  if (!info?.byModel) return info;
+  const model = state.chosenModel[id] ?? info.model;
+  const own = model ? info.byModel[model] : null;
+  if (own) return { ...info, levels: own.levels, default: own.default };
+  const levels = info.shared ?? info.levels;
+  return { ...info, levels, default: levels.includes(info.default) ? info.default : null };
 }
 
 // Asked once per page: the chip has to know whether to exist before anyone opens a menu. The
@@ -1630,8 +2380,8 @@ function effortMeter(levels, level, { ghost = false } = {}) {
 function effortLabel(level) { return t(EFFORT_WORDS[level]?.label ?? level); }
 
 function renderEffortChip(id) {
-  const info = state.efforts[id];
-  if (!info) { ensureEfforts(); return null; }
+  if (!state.efforts[id]) { ensureEfforts(); return null; }
+  const info = effortInfo(id);
   if (!info.levels.length) return null;
   const chosen = info.levels.includes(state.chosenEffort[id]) ? state.chosenEffort[id] : null;
   const shown = chosen ?? info.default;
@@ -1653,67 +2403,185 @@ function rememberEffort(id, level) {
   try { localStorage.setItem('pulse.chosenEffort', JSON.stringify(state.chosenEffort)); } catch { /* private mode */ }
 }
 
+// The menu is a slider, not a list: the levels stand on one track from faster to deeper, and the
+// hand moves the thumb along it — dragged, it follows the pointer and settles on the nearest level
+// when let go; clicked, it goes there; the arrows step it. What a level means, and what it costs
+// in time and money, is read above the track as it moves. "Auto" sits apart: it is not a level,
+// it is letting the CLI decide, and the thumb shows that level hollow.
+function effortScore(levels, level) {
+  const at = levels.indexOf(level);
+  return at < 0 ? 0 : (at + 1) / levels.length;
+}
+
 function toggleEffortMenu(id, anchor) {
   if (!effortMenu.hidden && effortMenuFor === id) { closeEffortMenu(); return; }
   modelMenu.hidden = true; modelMenuFor = null;
   closeModeMenu();
-  const info = state.efforts[id];
+  const info = effortInfo(id);
   if (!info?.levels.length) return;
   effortMenuFor = id;
   paint(effortMenu, id);
   effortMenu.replaceChildren();
+  const levels = info.levels;
+  const last = levels.length - 1;
+  let chosen = levels.includes(state.chosenEffort[id]) ? state.chosenEffort[id] : null;
+  const shownAt = () => levels.indexOf(chosen ?? info.default ?? levels[Math.floor(levels.length / 2)]);
+
+  const head = el('div', 'effort-head');
   const title = el('div', 'model-menu-title');
-  title.append(el('b', null, `@${id}`), t(' · effort for this request'));
-  effortMenu.append(title);
-  const chosen = info.levels.includes(state.chosenEffort[id]) ? state.chosenEffort[id] : null;
-  const ladder = el('div', 'effort-ladder');
-  ladder.setAttribute('role', 'menu');
-  const options = [null, ...info.levels];
-  for (const level of options) {
-    const current = level === chosen;
-    const option = el('button', `effort-option${current ? ' current' : ''}${level === null ? ' auto' : ''}${level === info.levels.at(-1) ? ' peak' : ''}`);
-    option.type = 'button';
-    option.setAttribute('role', 'menuitemradio');
-    option.setAttribute('aria-checked', String(current));
-    const body = el('span', 'body');
-    if (level === null) {
-      body.append(
-        el('span', 'name', t('Default')),
-        el('span', 'hint', info.default ? t('Sends nothing: the CLI uses its own setting, {level} right now.', { level: effortLabel(info.default) }) : t('Sends nothing: the CLI uses its own setting.')),
-      );
-      option.append(effortMeter(info.levels, info.default, { ghost: true }), body);
-    } else {
-      body.append(el('span', 'name', effortLabel(level)), el('span', 'hint', t(EFFORT_WORDS[level]?.hint ?? '')));
-      option.append(effortMeter(info.levels, level), body);
-    }
-    const tag = current ? t('NOW') : level !== null && level === info.default ? t('CLI') : '';
-    if (tag) {
-      const label = el('span', 'tag', tag);
-      if (current) label.append(el('span', 'dot'));
-      option.append(label);
-    }
-    option.addEventListener('click', () => { rememberEffort(id, level); closeEffortMenu(); renderPicker(); els.input.focus(); });
-    ladder.append(option);
+  title.append(el('b', null, `@${id}`), t(' · how much it thinks'));
+  const auto = el('button', 'effort-auto');
+  auto.type = 'button';
+  auto.append(el('i', 'auto-dot'), el('span', 'name', t('AUTO')), el('span', 'hint', info.default ? effortLabel(info.default) : t('the CLI decides')));
+  head.append(title, auto);
+
+  // What the level under the thumb means, read before anything is chosen.
+  const readout = el('div', 'effort-readout');
+  const name = el('div', 'name');
+  const hint = el('div', 'hint');
+  const meters = el('div', 'meters');
+  // Not `.bar`, `.meter`: those are the room's header and another gauge, and a gauge here that
+  // took their styles was as tall as the header and as wide as nothing.
+  const meter = (word) => {
+    const row = el('div', 'effort-gauge');
+    const track = el('span', 'effort-gauge-track');
+    track.append(el('i'));
+    row.append(el('span', 'what', word), track);
+    meters.append(row);
+    return track.firstChild;
+  };
+  const speed = meter(t('Speed'));
+  const cost = meter(t('Cost'));
+  readout.append(name, hint, meters);
+
+  const slider = el('div', 'effort-slider');
+  slider.tabIndex = 0;
+  slider.setAttribute('role', 'slider');
+  slider.setAttribute('aria-label', t('Effort'));
+  slider.setAttribute('aria-valuemin', '0');
+  slider.setAttribute('aria-valuemax', String(last));
+  slider.style.setProperty('--stops', String(levels.length));
+  const rail = el('div', 'rail');
+  const fill = el('span', 'fill');
+  const thumb = el('span', 'thumb');
+  rail.append(fill);
+  levels.forEach((level, index) => {
+    const tick = el('span', `tick${level === info.default ? ' cli' : ''}`);
+    tick.style.setProperty('--at', String(index / last));
+    rail.append(tick);
+  });
+  rail.append(thumb);
+  const labels = el('div', 'labels');
+  levels.forEach((level, index) => {
+    const word = el('button', 'stop', effortLabel(level));
+    word.type = 'button';
+    word.tabIndex = -1;
+    word.style.setProperty('--at', String(index / last));
+    word.addEventListener('pointerenter', () => { if (!dragging) describe(index); });
+    word.addEventListener('pointerleave', () => { if (!dragging) describe(shownAt()); });
+    word.addEventListener('click', () => commit(index));
+    labels.append(word);
+  });
+  const ends = el('div', 'effort-ends');
+  ends.append(el('span', null, t('faster')), el('span', null, t('deeper')));
+  slider.append(rail, labels, ends);
+
+  effortMenu.append(head, readout, slider, el('div', 'model-note', t('It stays for every message to this agent until you change it.')));
+
+  // Where the thumb stands (0..1), and how the words above it read.
+  function placeThumb(fraction, { live = false } = {}) {
+    slider.classList.toggle('live', live);
+    slider.style.setProperty('--pos', String(Math.max(0, Math.min(1, fraction))));
   }
-  effortMenu.append(ladder);
-  effortMenu.append(el('div', 'model-note', t('More effort is a slower, longer answer, and on a metered plan a more expensive one. It applies to every message to this agent until you change it.')));
+  function describe(index) {
+    const level = levels[index];
+    if (!level) return;
+    if (name.dataset.level !== level) {
+      name.dataset.level = level;
+      name.textContent = effortLabel(level);
+      hint.textContent = t(EFFORT_WORDS[level]?.hint ?? '');
+      readout.classList.remove('turn');
+      void readout.offsetWidth;
+      readout.classList.add('turn');
+    }
+    speed.style.width = `${Math.round((1 - effortScore(levels, level) + 1 / levels.length) * 100)}%`;
+    cost.style.width = `${Math.round(effortScore(levels, level) * 100)}%`;
+    for (const [i, word] of [...labels.children].entries()) word.classList.toggle('on', i === index);
+    for (const tick of rail.querySelectorAll('.tick')) tick.classList.toggle('under', Number(tick.style.getPropertyValue('--at')) * last === index);
+    // The colour gains strength with the level: a faint tint for the least thinking, the agent's
+    // full colour and a wider halo for the most.
+    effortMenu.style.setProperty('--strength', String(last ? index / last : 1));
+    slider.setAttribute('aria-valuenow', String(index));
+    slider.setAttribute('aria-valuetext', effortLabel(level));
+  }
+  function paintChoice() {
+    const at = shownAt();
+    slider.classList.toggle('auto', chosen === null);
+    auto.classList.toggle('current', chosen === null);
+    auto.setAttribute('aria-pressed', String(chosen === null));
+    placeThumb(at / last);
+    describe(at);
+  }
+  // Chosen at once: the chip under the menu changes while the menu stays, so the human sees what
+  // they set and can keep moving it.
+  function commit(index) {
+    // Only a real level or Auto: a reading taken from a track that is not on screen is neither.
+    if (index !== null && !levels[index]) { paintChoice(); return; }
+    chosen = index === null ? null : levels[index];
+    rememberEffort(id, chosen);
+    paintChoice();
+    renderPicker();
+  }
+  auto.addEventListener('click', () => commit(null));
+
+  let dragging = false;
+  const at = (event) => {
+    const box = rail.getBoundingClientRect();
+    if (!box.width || !Number.isFinite(event.clientX)) return Number(slider.style.getPropertyValue('--pos')) || 0;
+    return Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
+  };
+  rail.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    dragging = true;
+    slider.focus({ preventScroll: true });
+    try { rail.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+    placeThumb(at(event), { live: true });
+    describe(Math.round(at(event) * last));
+    const move = (moving) => { placeThumb(at(moving), { live: true }); describe(Math.round(at(moving) * last)); };
+    const drop = (up) => {
+      rail.removeEventListener('pointermove', move);
+      rail.removeEventListener('pointerup', drop);
+      rail.removeEventListener('pointercancel', drop);
+      dragging = false;
+      commit(Math.round(at(up) * last));
+    };
+    rail.addEventListener('pointermove', move);
+    rail.addEventListener('pointerup', drop);
+    rail.addEventListener('pointercancel', drop);
+  });
+  slider.addEventListener('keydown', (event) => {
+    const current = chosen === null ? -1 : levels.indexOf(chosen);
+    const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[event.key];
+    if (step) { event.preventDefault(); commit(Math.max(0, Math.min(last, (current < 0 ? shownAt() : current) + step))); }
+    else if (event.key === 'Home') { event.preventDefault(); commit(null); }
+    else if (event.key === 'End') { event.preventDefault(); commit(last); }
+    else if (event.key === 'Enter') { event.preventDefault(); closeEffortMenu(); els.input.focus(); }
+  });
+
+  paintChoice();
   effortMenu.hidden = false;
   const rect = anchor.getBoundingClientRect();
-  const width = effortMenu.offsetWidth || 340;
+  const width = effortMenu.offsetWidth || 400;
   const height = effortMenu.offsetHeight || 300;
   effortMenu.style.left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left))}px`;
   effortMenu.style.top = `${Math.max(12, rect.top - height - 10)}px`;
-  ladder.querySelector('.effort-option.current, .effort-option')?.focus({ preventScroll: true });
+  slider.focus({ preventScroll: true });
 }
 function closeEffortMenu() { effortMenu.hidden = true; effortMenuFor = null; }
+// Placed against its chip when it opened; a window that changes size leaves it pointing nowhere.
+window.addEventListener?.('resize', () => { if (!effortMenu.hidden) closeEffortMenu(); });
 document.addEventListener('click', (event) => { if (!effortMenu.hidden && !effortMenu.contains(event.target) && !event.target.closest('.picker')) closeEffortMenu(); });
-effortMenu.addEventListener('keydown', (event) => {
-  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-  event.preventDefault();
-  const items = [...effortMenu.querySelectorAll('.effort-option')];
-  const at = items.indexOf(document.activeElement);
-  items[(at + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
-});
 
 /* ---------- mode menu: how far this message may go ---------- */
 
@@ -1814,6 +2682,7 @@ const override = {
   frame: document.querySelector('#override .override-frame'),
   agent: null,
   then: null,     // called once armed, by whoever opened it for something more than arming
+  cancelled: null, // called when the human walks away from it, to put back what they wrote
   raise: false,   // the agent is capped below the mode: arming also raises MAX MODE in CONNECTIONS
   mode: 3,        // #3 CONTROL or #4 AIRLOCK
   stage: 'designation',   // AIRLOCK asks twice: the designation, then the word AIRLOCK
@@ -1825,12 +2694,14 @@ const OVERRIDE_BRIEF = {
     + (raise ? t(' THIS ALSO RAISES @{id} MAX MODE TO #{n} IN CONNECTIONS.', { id, n: 4 }) : '') + t(' TYPE THE PROJECT DESIGNATION, THEN THE WORD AIRLOCK.'),
 };
 function projectDesignation() { return (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? ''; }
-function openOverride(id, { raise = false, mode = 3, then = null } = {}) {
+function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null } = {}) {
   if (!override.dialog) return;
   override.agent = id;
-  // What to do once it is armed. The composer's own road arms and waits for the human to send;
-  // the way up on an agent's card sends its permission right away.
+  // What to do once it is armed. The chip's road arms and waits for the human to send; a #3 or #4
+  // typed in a message that was sent, and the way up on an agent's card, send right away.
   override.then = then;
+  // And what to put back when the human walks away from it.
+  override.cancelled = cancelled;
   override.raise = raise;
   override.mode = mode;
   override.stage = 'designation';
@@ -1844,7 +2715,14 @@ function openOverride(id, { raise = false, mode = 3, then = null } = {}) {
   override.dialog.showModal();
   override.input.focus();
 }
-override.cancel?.addEventListener('click', () => { override.then = null; override.dialog.close(); });
+function overrideWalkedAway() {
+  const back = override.cancelled;
+  override.then = null;
+  override.cancelled = null;
+  back?.();
+}
+override.cancel?.addEventListener('click', () => { overrideWalkedAway(); override.dialog.close(); });
+override.dialog?.addEventListener('cancel', () => overrideWalkedAway());
 override.form?.addEventListener('submit', (event) => {
   event.preventDefault();
   const typed = override.input.value.trim();
@@ -1877,6 +2755,7 @@ override.form?.addEventListener('submit', (event) => {
   const mode = override.mode;
   const then = override.then;
   override.then = null;
+  override.cancelled = null;
   setTimeout(async () => {
     override.dialog.close();
     if (raise) {
@@ -2585,7 +3464,8 @@ function renderThinking(event) {
     const next = pool[phraseIndex];
     if (status.textContent !== next) { status.textContent = next; status.style.animation = 'none'; void status.offsetWidth; status.style.animation = ''; }
   };
-  const limitMs = state.timeouts[agent] ?? 180000;
+  // The limit the room holds this turn to, said with its start; older records fall back to the setting.
+  const limitMs = event.payload.timeoutMs ?? state.timeouts[agent] ?? 180000;
   const limit = Math.round(limitMs / 1000);
   let timer = null;
   let wasConnected = false;
@@ -3062,13 +3942,15 @@ function renderControlStarted(event) {
   return node;
 }
 function renderControlChanged(event) {
-  const { agent, checkpointId, files = [], stat, forbiddenReverted = [], message } = event.payload;
-  const node = el('div', `system control changed${files.length ? '' : ' quiet'}`);
+  const { agent, checkpointId, files = [], stat, forbiddenReverted = [], message, unreadable = null } = event.payload;
+  const node = el('div', `system control changed${files.length || unreadable ? '' : ' quiet'}`);
   node.id = `control-${checkpointId}`;
   node.style.setProperty('--agent', agentColor(agent));
   const head = el('div', 'head');
-  head.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), el('span', null, (files.length === 1 ? t(' changed 1 file') : files.length ? t(' changed {n} files', { n: files.length }) : t(' changed nothing')).trim()));
+  head.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), el('span', null, (unreadable ? t('could not read what changed') : files.length === 1 ? t(' changed 1 file') : files.length ? t(' changed {n} files', { n: files.length }) : t(' changed nothing')).trim()));
   node.append(head);
+  // The turn finished; only the reading of it did not. The checkpoint is still the way back.
+  if (unreadable) node.append(el('div', 'forbidden', t('Git could not list the changes ({reason}). The checkpoint from before the turn is still there.', { reason: unreadable.slice(0, 160) })));
   if (files.length) {
     const list = el('ul', 'files');
     for (const file of files.slice(0, 40)) {
@@ -3086,7 +3968,7 @@ function renderControlChanged(event) {
     if (stat) { const pre = el('pre', 'stat', stat.split('\n').slice(-1)[0]); pre.title = stat; node.append(pre); }
   }
   if (forbiddenReverted.length) node.append(el('div', 'forbidden', t('{n} writes into forbidden zones reverted: {where}', { n: forbiddenReverted.length, where: forbiddenReverted.join(', ') })));
-  if (files.length) {
+  if (files.length || unreadable) {
     const undo = el('button', 'undo', t('UNDO · RESTORE CHECKPOINT'));
     undo.type = 'button';
     undo.title = t('Put the project back exactly as it was before this CONTROL turn.');
@@ -3463,14 +4345,42 @@ function renderRunRequest(event) {
 
 // The state of one line of a run request, from the events that follow it: running, ran, failed.
 // A line that ran can be pressed again; tests are run more than once.
-function markRun({ responseMessageId, index }, status) {
+function markRun({ responseMessageId, index }, status, where = null) {
   const button = document.querySelector(`.run-request[data-run="${CSS.escape(String(responseMessageId))}"] .run-line[data-index="${Number(index)}"]`);
   if (!button || button.classList.contains('refused')) return;
-  button.classList.remove('running', 'ran', 'failed');
+  button.classList.remove('running', 'serving', 'ran', 'failed');
   if (status) button.classList.add(status);
-  button.disabled = status === 'running';
+  button.disabled = status === 'running' || status === 'serving';
   const tag = button.querySelector('.choice-tag');
-  if (tag) tag.textContent = { running: t('RUNNING'), ran: t('RUN AGAIN'), failed: t('RUN AGAIN') }[status] ?? t('RUN');
+  if (tag) tag.textContent = { running: t('RUNNING'), serving: t('SERVING'), ran: t('RUN AGAIN'), failed: t('RUN AGAIN') }[status] ?? t('RUN');
+  // While it is alive, a line of its own under it: where it serves, and the two things a person
+  // does with a running command: look at it, or stop it. It goes when the command ends.
+  let live = button.nextElementSibling?.classList.contains('run-live') ? button.nextElementSibling : null;
+  if (status !== 'running' && status !== 'serving') { live?.remove(); return; }
+  if (!live) { live = el('div', 'run-live'); button.after(live); }
+  live.replaceChildren();
+  if (status === 'serving' && where?.port) {
+    live.append(el('span', 'where', where.network
+      ? t('serving on :{port} · listens on the whole network, so the room will not open it', { port: where.port })
+      : t('serving on :{port}', { port: where.port })));
+    if (!where.network) {
+      const open = el('button', 'run-open', t('OPEN IN SERVERS'));
+      open.type = 'button';
+      open.addEventListener('click', () => { browserShow(); void browserOpen(`http://127.0.0.1:${where.port}/`); });
+      live.append(open);
+    }
+  }
+  const stop = el('button', 'run-stop', t('STOP'));
+  stop.type = 'button';
+  stop.addEventListener('click', async () => {
+    stop.disabled = true;
+    try {
+      const response = await fetch('/api/runs/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ responseMessageId, index: Number(index) }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+    } catch (error) { toast(`MU/TH/UR › ${resay(error.message)}`); stop.disabled = false; }
+  });
+  live.append(stop);
 }
 
 function renderAlert(event) {
@@ -3593,14 +4503,71 @@ function renderPlanEvent(event) {
 }
 
 function renderFailure(event) {
-  const { messageId, target, error, recovered } = event.payload;
+  const { messageId, target, error, recovered, partial = null, timeout = null } = event.payload;
   recordFailure({ time: event.timestamp, agent: target, error, recovered });
   removeThinking(messageId);
   const node = el('div', `system fail${recovered ? ' recovered' : ''}`);
   node.append(el('span', 'label', recovered ? t('{label} · turn recovered after restart', { label: label(target) }) : t('{label} could not answer', { label: label(target) })));
   node.append(resay(error));
+  // What the turn left before it was cut short, listed like any turn's and with its way back.
+  if (partial) node.append(partialWork(partial));
+  // Cut by the clock: one press raises this agent's limit and puts the request back in the box,
+  // told what already exists. Sending it again is the human's.
+  if (timeout && state.agents.has(target)) node.append(retryLonger({ messageId, target, timeout, partial }));
   state.lastSender = null;
   return node;
+}
+
+function partialWork(partial) {
+  const wrap = el('div', 'partial');
+  const created = partial.created ?? [];
+  const changed = (partial.files ?? []).filter((file) => file.status !== 'A');
+  wrap.append(el('span', 'label', partial.unreadable
+    ? t('what it left could not be read ({reason})', { reason: partial.unreadable.slice(0, 120) })
+    : t('before it stopped it left {n} {files} in the project', { n: created.length + changed.length, files: created.length + changed.length === 1 ? t('file') : t('files') })));
+  if (created.length) wrap.append(artifactTiles(created));
+  if (changed.length) {
+    const list = el('ul', 'files');
+    for (const file of changed.slice(0, 20)) list.append(el('li', null, `${{ M: t('modified'), D: t('deleted'), R: t('renamed') }[file.status] ?? file.status} · ${file.path}`));
+    wrap.append(list);
+  }
+  if (partial.existingReverted?.length) wrap.append(el('div', 'note', t('{n} changes to existing files were put back: CREATE only adds.', { n: partial.existingReverted.length })));
+  const undo = el('button', 'undo', t('UNDO · RESTORE CHECKPOINT'));
+  undo.type = 'button';
+  undo.addEventListener('click', async () => {
+    undo.disabled = true;
+    try {
+      const response = await fetch(`/api/control/${partial.checkpointId}/undo`, { method: 'POST' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+      undo.textContent = t('RESTORED');
+    } catch (error) { toast(`MU/TH/UR › ${error.message}`); undo.disabled = false; }
+  });
+  wrap.append(undo);
+  return wrap;
+}
+
+function retryLonger({ messageId, target, timeout, partial }) {
+  const seconds = nextTimeoutSeconds(timeout.ms);
+  const retry = el('button', 'retry-longer', t('RETRY WITH MORE TIME · {n}s', { n: seconds }));
+  retry.type = 'button';
+  retry.addEventListener('click', async () => {
+    retry.disabled = true;
+    try { await saveSettingNow({ timeouts: { [target]: seconds * 1000 } }, t('@{agent} timeout is now {n}s.', { agent: target, n: seconds })); }
+    catch (error) { toast(t('The setting was not saved: {error}', { error: error.message })); retry.disabled = false; return; }
+    const asked = state.userMessages.get(messageId);
+    const exist = [...(partial?.created ?? []), ...(partial?.files ?? []).filter((file) => file.status === 'M')].map((file) => file.path);
+    const note = exist.length ? t('You were cut off by the time limit. These files already exist: {files}. Finish what is missing; do not start over.', { files: [...new Set(exist)].join(', ') }) : '';
+    if (els.target.value !== target) { els.target.value = target; renderPicker(); }
+    els.input.value = [asked?.text ?? '', note].filter(Boolean).join('\n\n');
+    // CREATE comes back by itself; CONTROL and AIRLOCK ask for their keys again, from the chip.
+    if ((asked?.mode ?? 1) === 2) setMode(2);
+    else if ((asked?.mode ?? 1) >= 3) toast(t('MU/TH/UR › #{n} needs its keys again: choose it on the mode chip before sending.', { n: asked.mode }));
+    autosize();
+    els.input.focus();
+    retry.textContent = t('IN THE BOX · SEND IT WHEN READY');
+  });
+  return retry;
 }
 
 function applyUsage(event) {
@@ -3714,6 +4681,11 @@ function renderEventNode(event) {
       if (event.payload.role === 'user' && !replaying) setTimeout(() => void loadChats(), 600);
       // The room refused to hand this agent a model that is not its own. Forget it here too, or
       // the chip keeps offering it and every message pays for the same mistake.
+      if (event.payload.effortIgnored && !replaying) {
+        const { target, effortIgnored } = event.payload;
+        if (state.chosenEffort[target] === effortIgnored) { rememberEffort(target, null); renderPicker(); }
+        toast(t('MU/TH/UR › @{agent} cannot think at {effort} with this model; it answers at its default.', { agent: target, effort: effortLabel(effortIgnored) }));
+      }
       if (event.payload.modelIgnored && !replaying) {
         const { target, modelIgnored } = event.payload;
         if (state.chosenModel[target] === modelIgnored) { rememberModel(target, null); renderPicker(); }
@@ -3771,6 +4743,9 @@ void renderOpenQuestions(); return;
     }
     case 'mother.alert': node = renderMotherAlert(event); break;
     case 'sentinel.report': state.reports.set(event.payload.id, { ...event.payload }); if (!replaying) { renderMotherSentinel(); toast(t('MU/TH/UR › {what} was recorded by the sentinel. Open MU/TH/UR to report it.', { what: event.payload.kind === 'crash' ? t('a crash') : t('an unknown condition') })); } return;
+    case 'servers.changed': paintPorts(event.payload); return;
+    case 'server.stopped': if (!replaying) serverStopped(event.payload); return;
+    case 'server.started': if (!replaying) serverStarted(event.payload); return;
     case 'sentinel.sent': { const report = state.reports.get(event.payload.id); if (report) report.sent = { ok: event.payload.ok, status: event.payload.status ?? null, error: event.payload.error ?? null, at: event.timestamp }; if (!replaying) renderMotherSentinel(); return; }
     case 'limit.warning': node = renderWarning(event); break;
     case 'limit.cleared': node = renderCleared(event); break;
@@ -3792,6 +4767,16 @@ void renderOpenQuestions(); return;
     case 'chat.activity': onChatActivity(event.payload); return;
     case 'run.requested': node = renderRunRequest(event); break;
     case 'run.started': markRun(event.payload, 'running'); return;
+    case 'run.serving': markRun(event.payload, 'serving', event.payload); return;
+    case 'write.waiting': {
+      // Two turns writing the project at once could not be told apart afterwards; the second waits.
+      const { agent, behind } = event.payload;
+      node = el('div', 'system note');
+      node.append(behind
+        ? t('@{agent} waits for @{behind} to finish writing in the project · one turn writes at a time', { agent, behind })
+        : t('@{agent} waits for the turn writing in the project · one turn writes at a time', { agent }));
+      break;
+    }
     case 'room.alert': node = renderAlert(event); break;
     case 'ash.validated': if (event.payload.ok) return; node = renderAshValidation(event); break;
     case 'room.stopped': node = renderHalted(event); break;
@@ -3850,6 +4835,10 @@ function applyTheme(mode) {
   else rootElement.dataset.theme = mode;
   const systemLight = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches;
   rootElement.dataset.scheme = mode === 'auto' ? (systemLight ? 'light' : 'dark') : mode;
+  // Whatever was already painted in an agent's colour takes the colour of the new ground.
+  for (const node of document.querySelectorAll?.('[data-agent]') ?? []) {
+    if (node.style?.getPropertyValue?.('--agent')) node.style.setProperty('--agent', agentColor(node.dataset.agent));
+  }
   if (themeButton) {
     themeButton.dataset.theme = mode;
     themeButton.title = mode === 'auto' ? t('Theme · auto (follows the system)') : mode === 'light' ? t('Theme · light') : t('Theme · dark');
@@ -3862,7 +4851,9 @@ themeButton?.addEventListener('click', () => {
   themeMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
   try { localStorage.setItem('pulse.theme', themeMode); } catch { /* no storage */ }
   applyTheme(themeMode);
-  toast(t('Theme · {mode}', { mode: themeMode === 'auto' ? t('auto, following the system') : t(themeMode) }));
+  renderAgents();
+  renderPicker();
+  toast(t('Theme · {mode}', { mode: themeMode === 'auto' ? t('auto, following the system') : t(themeMode) }), { tone: 'note' });
 });
 // The half on the right has no bar of its own: it follows the theme and the language the left
 // half chooses, the moment they are chosen.
@@ -3962,7 +4953,7 @@ for (const button of document.querySelectorAll?.('button') ?? []) {
 // rebuilt, and a tree that folds itself shut hides exactly the thing the human just made.
 // `reveal` is that thing, lit once when its row is drawn again.
 const tree = { open: false, loaded: new Map(), openDirs: new Set(), reveal: null };
-const formatSize = (bytes) => bytes == null ? '' : bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+const formatSize = (bytes) => bytes == null ? '' : bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB` : bytes < 1024 ** 3 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 const CODE_EXT = /\.(m?[jt]sx?|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|zsh|css|scss|html?|json|ya?ml|toml|sql|md)$/i;
 
 async function loadTreeLevel(path, list) {
@@ -4237,9 +5228,841 @@ function treeNode(path, entry) {
   return item;
 }
 
+/* ---------- the panels beside the conversation ---------- */
+
+// The two buttons every surface carries in its header, beside its ×: split, and window. Declared
+// before the surfaces are built, which happens while this file is still being read.
+const FLOAT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.25 12.25v-6.5a2.5 2.5 0 0 1 2.5-2.5h6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect class="ic-f" x="6.25" y="6.25" width="10.5" height="10.5" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const SPLIT_LEFT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-h" d="M4.6 5.6h4.6v8.8H4.6z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const SPLIT_RIGHT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-h" d="M10.8 5.6h4.6v8.8h-4.6z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+
+/* ---------- surfaces: everything that can stand beside the conversation ---------- */
+
+// The conversations and the files, the file viewer, MODULES and MU/TH/UR are all surfaces, and
+// every one of them is shown in one of three ways, chosen only by the two buttons in its header:
+//
+//   base    — what it has always been: a panel at its edge, or a dialog over the room;
+//   split   — it takes its side of the room, about half of it, and the conversation narrows to
+//             the other half: nothing is covered;
+//   window  — it floats over the room, carried by its header and sized from its edges.
+//
+// Pressing the lit button gives the surface back its base. One split per side: a second one sends
+// the first to a window rather than closing it. While the panels and the splits fit beside a
+// readable column, the column moves out of their way (the --rail-* properties); when they do not,
+// the one opened last keeps its place and the other floats over the thread with a veil behind it,
+// because covering what you are reading is only acceptable while it is plainly temporary.
+//
+// Read from the DOM, never from `tree` or `chats`: the first setTree runs while this file is still
+// being evaluated, before the conversations' state exists.
+const PANEL_MIN = 260;
+const PANEL_MAX = 560;
+const COLUMN_MIN = 560;
+const SPLIT_MIN = 380;
+const RAIL = 20;
+const PANEL_GAP = 24;
+const shellBox = document.querySelector('.shell');
+const threadBox = document.querySelector('.shell > .thread');
+const byId = (id) => () => document.querySelector(id);
+const surfaces = [
+  { key: 'chats', kind: 'panel', side: 'left', prop: '--chats-w', node: () => els.chats, head: '.tree-head', before: '.tree-close', close: () => setChats(false) },
+  { key: 'tree', kind: 'panel', side: 'right', prop: '--tree-w', node: () => els.tree, head: '.tree-head', before: '.tree-close', close: () => setTree(false) },
+  { key: 'viewer', kind: 'dialog', side: 'right', node: byId('#viewer'), head: '.viewer-head', before: '#viewer-close', close: () => document.querySelector('#viewer')?.close() },
+  { key: 'modules', kind: 'dialog', side: 'right', node: byId('#modules'), head: '.mother-head', before: '#modules-close', close: () => document.querySelector('#modules')?.close() },
+  { key: 'mother', kind: 'dialog', side: 'right', node: byId('#mother'), head: '.mother-head', before: '#mother-close', close: () => document.querySelector('#mother')?.close() },
+];
+const panelSides = surfaces.filter((one) => one.kind === 'panel');
+const surfaceOrder = [];
+const panelLeaving = new WeakMap();
+const docked = new Set();
+const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+
+// How each surface is shown, and where each window was. Windows remembered before the modes
+// existed come back as windows.
+const surfaceModes = (() => { try { return JSON.parse(localStorage.getItem('pulse.surfaces') ?? '{}') ?? {}; } catch { return {}; } })();
+const windowBoxes = (() => { try { return JSON.parse(localStorage.getItem('pulse.panelWindows') ?? '{}') ?? {}; } catch { return {}; } })();
+for (const [key, saved] of Object.entries(windowBoxes)) if (saved?.window && !surfaceModes[key]) surfaceModes[key] = 'window';
+function rememberSurfaces() {
+  try {
+    localStorage.setItem('pulse.surfaces', JSON.stringify(surfaceModes));
+    localStorage.setItem('pulse.panelWindows', JSON.stringify(windowBoxes));
+  } catch { /* no storage */ }
+}
+const modeOf = (surface) => surfaceModes[surface.key] ?? 'base';
+function isWindow(surface) { return modeOf(surface) === 'window'; }
+function isSplit(surface) { return modeOf(surface) === 'split'; }
+
+// What is centred on the column, and glides with it when something docks or leaves.
+const COLUMN_PARTS = '.shell > .thread .thread-inner, .shell > .composer, .shell > .onboarding, .shell > .safety, .shell > .colophon';
+// On screen, not merely un-hidden: below their widths the stylesheet takes both panels away, and
+// a panel counted as open there floated an invisible card and veiled the thread behind nothing.
+const panelShown = (surface) => {
+  const node = surface.node();
+  if (!node || node.classList.contains('leaving')) return false;
+  if (surface.kind === 'dialog') return Boolean(node.open) && node.getClientRects().length > 0;
+  return !node.hidden && node.getClientRects().length > 0;
+};
+const panelWidth = (surface) => (panelShown(surface) ? surface.node().getBoundingClientRect().width : 0);
+
+// What a split is, the way the browser's dock is: a full-height card at the window's edge — the
+// conversations on the left, anything else on the right — and the whole room (bar, thread,
+// composer) moves over to make room for it. Its width is the human's, dragged from its inner edge.
+const SIDE_GAP = 10;
+const SIDE_MIN = 300;
+const sideWidths = (() => { try { return JSON.parse(localStorage.getItem('pulse.sides') ?? '{}') ?? {}; } catch { return {}; } })();
+function rememberSides() { try { localStorage.setItem('pulse.sides', JSON.stringify(sideWidths)); } catch { /* no storage */ } }
+function sideWidthFor(surface) {
+  const saved = Number(sideWidths[surface.key]);
+  if (Number.isFinite(saved) && saved >= SIDE_MIN) return saved;
+  const vw = window.innerWidth;
+  if (surface.key === 'chats') return Math.max(SIDE_MIN, Math.min(420, vw * .24));
+  if (surface.key === 'tree') return Math.max(SIDE_MIN, Math.min(460, vw * .26));
+  return Math.max(420, Math.min(880, vw * .42));
+}
+const splitOn = (side) => surfaces.find((one) => one.side === side && isSplit(one) && (one.kind === 'dialog' ? one.node()?.open : !one.node()?.hidden) && !one.node()?.classList.contains('leaving'));
+
+// The conversation open in the right half of the window, if any. Declared before the room's
+// layout, which keeps a floor for it, and before the list, which draws the button that opens it.
+const split = {
+  chat: null,
+  box: document.querySelector('#split'),
+  frame: document.querySelector('#split-frame'),
+  title: document.querySelector('#split-title'),
+  grip: document.querySelector('#split-grip'),
+  swap: document.querySelector('#split-swap'),
+  close: document.querySelector('#split-close'),
+  float: document.querySelector('#split-float'),
+};
+
+// The conversation in the window is the one thing that never steps aside: it is never a window,
+// and nothing standing beside it — a split at either side, the browser's dock, the second
+// conversation — may narrow it below a readable column. Each of those keeps a floor of its own;
+// what is left over is shared, and when even their floors do not fit, the oldest of them gives way
+// and floats as a window. The newest is the one being looked at.
+const DOCK_MIN = 320;
+const HALF_MIN = 360;
+const besideOrder = [];
+function noteBeside(key) {
+  const at = besideOrder.indexOf(key);
+  if (at >= 0) besideOrder.splice(at, 1);
+  besideOrder.push(key);
+}
+function besideNow() {
+  const members = [];
+  for (const side of ['left', 'right']) {
+    const one = splitOn(side);
+    if (one) members.push({ key: one.key, kind: 'side', floor: SIDE_MIN + 2 * SIDE_GAP, surface: one });
+  }
+  // Below 900px the browser and the second conversation stack under the conversation instead.
+  if (window.innerWidth > 900) {
+    if (browser.dialog && !browser.dialog.hidden && !browserFloating()) members.push({ key: 'browser', kind: 'dock', floor: DOCK_MIN + 12 });
+    if (split.chat && split.box && !split.box.hidden) members.push({ key: 'half', kind: 'half', floor: HALF_MIN + 12 });
+  }
+  return members;
+}
+let givingWay = false;
+function giveWay() {
+  if (givingWay) return false;
+  const members = besideNow();
+  if (members.length < 2 || members.reduce((sum, one) => sum + one.floor, COLUMN_MIN) <= window.innerWidth) return false;
+  const rank = (one) => besideOrder.indexOf(one.key);
+  const oldest = [...members].sort((a, b) => rank(a) - rank(b))[0];
+  givingWay = true;
+  try {
+    if (oldest.kind === 'side') setSurfaceMode(oldest.surface, 'window', { animate: false });
+    else if (oldest.kind === 'dock') setBrowserFloating(true, { animate: false });
+    else { const id = split.chat; closeSplit({ animate: false }); openConvWindow(id, { animate: false }); }
+  } finally { givingWay = false; }
+  return true;
+}
+// The browser's dock and the second conversation are columns of the page's own grid: when the
+// splits at the sides leave the grid too narrow for them and a readable conversation, they narrow
+// toward their floors, each in proportion to what it has above its floor.
+function fitGridBeside() {
+  if (!shellBox || window.innerWidth <= 900) return;
+  const dockOn = Boolean(browser.dialog && !browser.dialog.hidden && !browserFloating());
+  const halfOn = Boolean(split.chat && split.box && !split.box.hidden);
+  if (!dockOn && !halfOn) return;
+  const grid = shellBox.clientWidth - (parseFloat(getComputedStyle(shellBox).paddingLeft) || 0) - (parseFloat(getComputedStyle(shellBox).paddingRight) || 0);
+  let dock = dockOn ? browser.dialog.getBoundingClientRect().width : 0;
+  let half = halfOn ? split.box.getBoundingClientRect().width : 0;
+  const room = grid - COLUMN_MIN - (dockOn ? 12 : 0) - (halfOn ? 12 : 0);
+  if (dock + half <= room + 1) return;
+  const over = dock + half - room;
+  const spare = Math.max(0, dock - DOCK_MIN) + Math.max(0, half - HALF_MIN);
+  if (dockOn) dock = Math.max(DOCK_MIN, dock - over * (Math.max(0, dock - DOCK_MIN) / (spare || 1)));
+  if (halfOn) half = Math.max(HALF_MIN, half - over * (Math.max(0, half - HALF_MIN) / (spare || 1)));
+  if (dockOn) shellBox.style.setProperty('--dock', `${Math.round(dock)}px`);
+  if (halfOn) shellBox.style.setProperty(shellBox.classList.contains('with-browser') ? '--split-3' : '--split', `${Math.round(half)}px`);
+}
+
+const glides = new WeakMap();
+function layoutPanels() {
+  if (!shellBox || !threadBox || SPLIT_CHAT) return;
+  for (let tries = 0; tries < 3 && giveWay(); tries += 1) { /* one at a time, oldest first */ }
+  // The sides first: they change how wide the room is.
+  const sides = { left: splitOn('left'), right: splitOn('right') };
+  const width = { left: 0, right: 0 };
+  for (const side of ['left', 'right']) {
+    const surface = sides[side];
+    if (!surface) continue;
+    const other = side === 'left' ? width.left : 0;
+    // Never so wide that the room is left without a readable column, nor the browser's dock and the
+    // second conversation without their floors.
+    const grid = besideNow().filter((one) => one.kind !== 'side').reduce((sum, one) => sum + one.floor, 0);
+    const room = window.innerWidth - other - COLUMN_MIN - grid - 3 * SIDE_GAP;
+    width[side] = Math.round(Math.max(SIDE_MIN, Math.min(sideWidthFor(surface), room)));
+    const node = surface.node();
+    applyWindowBox(node, { x: side === 'left' ? SIDE_GAP : window.innerWidth - SIDE_GAP - width[side], y: SIDE_GAP, w: width[side], h: window.innerHeight - 2 * SIDE_GAP });
+  }
+  const sideLeft = width.left ? `${width.left + 2 * SIDE_GAP}px` : '';
+  const sideRight = width.right ? `${width.right + 2 * SIDE_GAP}px` : '';
+
+  // Then what stands at the column's edges inside the room: the panels in their base.
+  const beside = panelSides
+    .filter((one) => panelShown(one) && modeOf(one) === 'base')
+    .sort((a, b) => surfaceOrder.indexOf(b.key) - surfaceOrder.indexOf(a.key));
+  const room = threadBox.getBoundingClientRect().width - (parseFloat(sideLeft) || 0) + (parseFloat(shellBox.style.getPropertyValue('--side-l')) || 0) - (parseFloat(sideRight) || 0) + (parseFloat(shellBox.style.getPropertyValue('--side-r')) || 0);
+  const need = (one) => one.node().getBoundingClientRect().width;
+  // The one opened last is the one being looked at: it is offered the room first.
+  let free = room - 2 * RAIL;
+  docked.clear();
+  for (const one of beside) {
+    const wants = need(one) + PANEL_GAP;
+    if (free - wants >= COLUMN_MIN) { docked.add(one.key); free -= wants; }
+  }
+  const onSide = (side) => beside.filter((one) => one.side === side && docked.has(one.key));
+  const sideOffset = (side) => onSide(side).reduce((sum, one) => sum + need(one) + PANEL_GAP, RAIL);
+  // What did not fit floats over the conversation, just inside whatever is docked on its side.
+  for (const one of panelSides) {
+    const node = one.node();
+    if (!node) continue;
+    const floatingPanel = beside.includes(one) && !docked.has(one.key);
+    node.style.setProperty(one.side === 'left' ? 'margin-left' : 'margin-right', floatingPanel ? `${sideOffset(one.side)}px` : '');
+  }
+  const left = `${Math.round(sideOffset('left'))}px`;
+  const right = `${Math.round(sideOffset('right'))}px`;
+  const moved = shellBox.style.getPropertyValue('--rail-l') !== left || shellBox.style.getPropertyValue('--rail-r') !== right
+    || shellBox.style.getPropertyValue('--side-l') !== sideLeft || shellBox.style.getPropertyValue('--side-r') !== sideRight;
+  // The column takes its new width at once — its lines wrap one time, not on every frame of the
+  // way — and is then drawn from where it stood, so what the eye follows is a glide and never
+  // text re-wrapping under it. Not while a grip is held (the hand is the animation then), and not
+  // on the first layout, when nothing was on screen to glide from.
+  const glide = moved && shellBox.dataset.railsSet && !shellBox.classList.contains('resizing-panel') && !reducedMotion();
+  const parts = glide ? [...document.querySelectorAll(COLUMN_PARTS)].filter((node) => node.getClientRects().length) : [];
+  const before = parts.map((node) => node.getBoundingClientRect());
+  if (moved) {
+    // The composer's own width transition (CREATE, ASH) would run a second movement on top.
+    shellBox.classList.add('rails-snap');
+    shellBox.style.setProperty('--rail-l', left);
+    shellBox.style.setProperty('--rail-r', right);
+    if (sideLeft) shellBox.style.setProperty('--side-l', sideLeft); else shellBox.style.removeProperty('--side-l');
+    if (sideRight) shellBox.style.setProperty('--side-r', sideRight); else shellBox.style.removeProperty('--side-r');
+    requestAnimationFrame(() => requestAnimationFrame(() => shellBox.classList.remove('rails-snap')));
+  }
+  shellBox.dataset.railsSet = '1';
+  parts.forEach((node, index) => {
+    const was = before[index];
+    const now = node.getBoundingClientRect();
+    const dx = (was.left + was.width / 2) - (now.left + now.width / 2);
+    if (Math.abs(dx) < 1 || typeof node.animate !== 'function') return;
+    // A second layout in the same moment (the browser docking, then the grid making room for it)
+    // replaces the glide in flight instead of stacking a second one on it.
+    glides.get(node)?.cancel();
+    glides.set(node, node.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.22, 1, .36, 1)' }));
+  });
+  let over = false;
+  for (const one of panelSides) {
+    const floating = beside.includes(one) && !docked.has(one.key);
+    one.node()?.classList.toggle('floating', floating);
+    over ||= floating;
+  }
+  shellBox.classList.toggle('panels-over', over);
+  fitGridBeside();
+}
+
+// The inner edge of a split is its handle, the way the browser's dock has one.
+function sideGrip(surface) {
+  const node = surface.node();
+  if (!node || !shellBox) return;
+  const grip = el('div', `side-grip ${surface.side}`);
+  grip.setAttribute('aria-hidden', 'true');
+  node.append(grip);
+  grip.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || !isSplit(surface)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    try { grip.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+    shellBox.classList.add('resizing-panel');
+    holdingWindow('sizing-window', true);
+    let frame = 0;
+    const move = (moving) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        sideWidths[surface.key] = Math.round(surface.side === 'left' ? moving.clientX - SIDE_GAP : window.innerWidth - SIDE_GAP - moving.clientX);
+        layoutPanels();
+      });
+    };
+    const done = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', done);
+      grip.removeEventListener('pointercancel', done);
+      shellBox.classList.remove('resizing-panel');
+      holdingWindow('sizing-window', false);
+      rememberSides();
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', done);
+    grip.addEventListener('pointercancel', done);
+  });
+  grip.addEventListener('dblclick', () => { delete sideWidths[surface.key]; rememberSides(); layoutPanels(); });
+}
+
+// Shown at once, so the panel's own arrival plays; put away the way it came, and only then hidden.
+function showPanel(key, open) {
+  const panel = panelSides.find((one) => one.key === key);
+  const node = panel?.node();
+  if (!node) return;
+  clearTimeout(panelLeaving.get(node));
+  if (open) {
+    const arriving = node.hidden || node.classList.contains('leaving');
+    node.classList.remove('leaving');
+    node.hidden = false;
+    noteShown(panel);
+    if (arriving && !reducedMotion()) {
+      node.classList.add('entering');
+      panelLeaving.set(node, setTimeout(() => node.classList.remove('entering'), 900));
+    }
+    layoutPanels();
+    return;
+  }
+  if (node.hidden) return;
+  node.classList.remove('entering');
+  if (reducedMotion()) { node.hidden = true; layoutPanels(); return; }
+  node.classList.add('leaving');
+  layoutPanels();
+  panelLeaving.set(node, setTimeout(() => { node.hidden = true; node.classList.remove('leaving'); layoutPanels(); }, 220));
+}
+// The surface shown last is the one in front, and the first offered the room.
+function noteShown(surface) {
+  surfaceOrder.splice(0, surfaceOrder.length, ...surfaceOrder.filter((one) => one !== surface.key), surface.key);
+  if (isWindow(surface)) bringWindowForward(surface.node());
+}
+
+function rememberPanelWidths() {
+  const widths = Object.fromEntries(panelSides.map((panel) => [panel.key, shellBox?.style.getPropertyValue(panel.prop) || null]));
+  try { localStorage.setItem('pulse.panels', JSON.stringify(widths)); } catch { /* no storage */ }
+}
+
+// The inner edge of a panel at its edge is its handle. It may grow only as far as the column keeps
+// its floor; split or floating, the room decides its width and the handle steps aside.
+function panelGrip(panel) {
+  const node = panel.node();
+  if (!node || !shellBox) return;
+  const grip = el('div', 'panel-grip');
+  grip.tabIndex = 0;
+  grip.setAttribute('role', 'separator');
+  grip.setAttribute('aria-orientation', 'vertical');
+  grip.setAttribute('aria-label', panel.key === 'chats' ? t('Resize the conversations panel') : t('Resize the files panel'));
+  node.append(grip);
+  const widest = () => {
+    const width = threadBox?.getBoundingClientRect().width ?? window.innerWidth;
+    if (!docked.has(panel.key)) return Math.min(PANEL_MAX, width / 2);
+    const others = surfaces.filter((one) => one !== panel && docked.has(one.key)).reduce((sum, one) => sum + panelWidth(one) + PANEL_GAP, 0);
+    return Math.max(PANEL_MIN, Math.min(PANEL_MAX, width - 2 * RAIL - PANEL_GAP - others - COLUMN_MIN));
+  };
+  const resize = (px) => {
+    const width = Math.round(Math.max(PANEL_MIN, Math.min(widest(), px)));
+    shellBox.style.setProperty(panel.prop, `${width}px`);
+    grip.setAttribute('aria-valuenow', String(width));
+    layoutPanels();
+  };
+  grip.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || modeOf(panel) !== 'base') return;
+    event.preventDefault();
+    try { grip.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+    shellBox.classList.add('resizing-panel');
+    grip.classList.add('active');
+    const box = node.getBoundingClientRect();
+    let frame = 0;
+    const move = (moving) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => resize(panel.side === 'left' ? moving.clientX - box.left : box.right - moving.clientX));
+    };
+    const done = () => {
+      grip.removeEventListener('pointermove', move);
+      shellBox.classList.remove('resizing-panel');
+      grip.classList.remove('active');
+      rememberPanelWidths();
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', done, { once: true });
+    grip.addEventListener('pointercancel', done, { once: true });
+  });
+  grip.addEventListener('dblclick', () => { shellBox.style.removeProperty(panel.prop); rememberPanelWidths(); requestAnimationFrame(layoutPanels); });
+  grip.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const wider = (event.key === 'ArrowRight') === (panel.side === 'left');
+    resize(panelWidth(panel) + (wider ? 1 : -1) * (event.shiftKey ? 64 : 16));
+    rememberPanelWidths();
+  });
+}
+
+/* ---------- windows ---------- */
+
+// What every window in the room shares — a floating surface, a conversation opened as a window,
+// the browser: a box always whole inside the browser window (a header is never out of reach),
+// one window in front of the others, and sides and corners that size it.
+const WINDOW_MIN_W = 260;
+const WINDOW_MIN_H = 220;
+const WINDOW_INSET = 8;
+function clampWindowBox(box, { minW = WINDOW_MIN_W, minH = WINDOW_MIN_H } = {}) {
+  const w = Math.round(Math.max(minW, Math.min(box.w, window.innerWidth - 2 * WINDOW_INSET)));
+  const h = Math.round(Math.max(minH, Math.min(box.h, window.innerHeight - 2 * WINDOW_INSET)));
+  const x = Math.round(Math.max(WINDOW_INSET, Math.min(window.innerWidth - w - WINDOW_INSET, box.x)));
+  const y = Math.round(Math.max(WINDOW_INSET, Math.min(window.innerHeight - h - WINDOW_INSET, box.y)));
+  return { x, y, w, h };
+}
+function applyWindowBox(node, box) {
+  node.style.left = `${Math.round(box.x)}px`;
+  node.style.top = `${Math.round(box.y)}px`;
+  node.style.width = `${Math.round(box.w)}px`;
+  node.style.height = `${Math.round(box.h)}px`;
+}
+// The windows are a stack: the one touched last is on top, the one before it under it, and so on —
+// not one window "in front" and every other one tied behind it. Their layer is 30–49; every menu
+// the composer opens (mode, model, effort, the agent's card, /) lives above all of them, at 70.
+const WINDOW_LAYER = 30;
+const windowStack = [];
+const WINDOW_SELECTOR = '.tree.window, .surface.window, .conv-window, .browser-dock.window';
+function bringWindowForward(node) {
+  if (!node) return;
+  // A window asked for is a window wanted back: every one returns from the edge.
+  if (windowsAside) setWindowsAside(false);
+  for (let i = windowStack.length - 1; i >= 0; i -= 1) {
+    const one = windowStack[i];
+    if (one === node || !one.isConnected || !one.matches(WINDOW_SELECTOR)) { windowStack.splice(i, 1); if (one !== node) { one.style.removeProperty('z-index'); one.classList.remove('front'); } }
+  }
+  windowStack.push(node);
+  windowStack.forEach((one, index) => {
+    one.style.zIndex = String(WINDOW_LAYER + Math.min(index, 19));
+    one.classList.toggle('front', index === windowStack.length - 1);
+  });
+}
+// A window that stops being one leaves the stack and its layer.
+function dropWindow(node) {
+  const at = windowStack.indexOf(node);
+  if (at >= 0) windowStack.splice(at, 1);
+  node?.style.removeProperty('z-index');
+  node?.classList.remove('front');
+}
+// Whatever window the pointer presses comes to the front — its header, its edge, its body.
+document.addEventListener?.('pointerdown', (event) => {
+  const win = event.target?.closest?.(WINDOW_SELECTOR);
+  if (win) bringWindowForward(win);
+}, true);
+/* ---------- the room shown: windows to the edges ---------- */
+
+// A press in the conversation's own box says «this, now». Every window lying over the conversation
+// slides to its nearer edge, one just after another, the way a desktop is shown, and leaves a strip
+// of itself in view so it is plain where it went. A press anywhere outside the box — a strip, the
+// thread, the bar — opening any window, or the keyboard reaching into one brings them all back to
+// where they were. The menus the box opens (mode, model, effort, an agent's card) are the box's. Only a translate moves: the
+// windows are not laid out again on the way, and nothing about them is lost.
+const ASIDE_PEEK = 30;
+let windowsAside = false;
+let asideSettle = 0;
+function overTheRoom(node) {
+  const box = node.getBoundingClientRect();
+  const room = threadBox?.getBoundingClientRect();
+  if (!room?.width || !box.width) return false;
+  return box.right > room.left + 8 && box.left < room.right - 8;
+}
+function setWindowsAside(on) {
+  if (on === windowsAside) return;
+  clearTimeout(asideSettle);
+  if (on) {
+    const moving = [...document.querySelectorAll(WINDOW_SELECTOR)].filter((node) => !node.hidden && node.getClientRects().length && overTheRoom(node));
+    if (!moving.length) return;
+    windowsAside = true;
+    moving.forEach((node, index) => {
+      const box = node.getBoundingClientRect();
+      const toLeft = box.left + box.width / 2 < window.innerWidth / 2;
+      node.style.setProperty('--aside-x', `${Math.round(toLeft ? ASIDE_PEEK - box.right : window.innerWidth - ASIDE_PEEK - box.left)}px`);
+      node.style.setProperty('--aside-delay', `${index * 40}ms`);
+      node.dataset.aside = toLeft ? 'left' : 'right';
+      node.classList.add('aside-moving', 'aside');
+    });
+  } else {
+    windowsAside = false;
+    for (const node of document.querySelectorAll('.aside')) {
+      node.style.setProperty('--aside-delay', '0ms');
+      node.classList.remove('aside');
+      delete node.dataset.aside;
+    }
+  }
+  document.documentElement.classList.toggle('windows-aside', windowsAside);
+  // Once there, the strips answer the pointer at once; once back, the windows move only by hand.
+  asideSettle = setTimeout(() => {
+    for (const node of document.querySelectorAll('.aside-moving')) {
+      node.style.setProperty('--aside-delay', '0ms');
+      if (!node.classList.contains('aside')) node.classList.remove('aside-moving');
+    }
+  }, 760);
+}
+if (!SPLIT_CHAT) {
+  document.querySelector('#composer .field')?.addEventListener('pointerdown', () => setWindowsAside(true));
+  document.addEventListener?.('pointerdown', (event) => {
+    if (windowsAside && !event.target?.closest?.('#composer, .model-menu, .agent-pop, .slash-menu')) setWindowsAside(false);
+  }, true);
+  document.addEventListener?.('focusin', (event) => { if (windowsAside && event.target?.closest?.('.aside')) setWindowsAside(false); });
+  window.addEventListener?.('resize', () => { if (windowsAside) setWindowsAside(false); });
+}
+
+// A window held by the pointer: the frames under it stop taking the pointer while it lasts, or
+// the first one it crosses swallows the drag.
+const holdingWindow = (kind, on) => document.documentElement.classList.toggle(kind, on);
+
+function windowEdgesFor(node, { active = () => true, box, place, done, minW = WINDOW_MIN_W, minH = WINDOW_MIN_H }) {
+  for (const side of ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']) {
+    const edge = el('div', `win-edge ${side}`);
+    edge.setAttribute('aria-hidden', 'true');
+    node.append(edge);
+    edge.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || !active()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      try { edge.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+      bringWindowForward(node);
+      holdingWindow('sizing-window', true);
+      const start = { ...box() };
+      const fromX = event.clientX;
+      const fromY = event.clientY;
+      // A size is laid out once per frame, however fast the pointer reports.
+      let frame = 0;
+      const move = (moving) => {
+        const dx = moving.clientX - fromX;
+        const dy = moving.clientY - fromY;
+        const next = { ...start };
+        if (side.includes('e')) next.w = start.w + dx;
+        if (side.includes('s')) next.h = start.h + dy;
+        if (side.includes('w')) { next.w = Math.max(minW, start.w - dx); next.x = start.x + start.w - next.w; }
+        if (side.includes('n')) { next.h = Math.max(minH, start.h - dy); next.y = start.y + start.h - next.h; }
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => place(next));
+      };
+      const finish = () => {
+        cancelAnimationFrame(frame);
+        edge.removeEventListener('pointermove', move);
+        edge.removeEventListener('pointerup', finish);
+        edge.removeEventListener('pointercancel', finish);
+        holdingWindow('sizing-window', false);
+        done?.();
+      };
+      edge.addEventListener('pointermove', move);
+      edge.addEventListener('pointerup', finish);
+      edge.addEventListener('pointercancel', finish);
+    });
+  }
+}
+
+const windowFloor = (surface) => (surface.kind === 'dialog' ? { minW: 420, minH: 320 } : { minW: WINDOW_MIN_W, minH: WINDOW_MIN_H });
+function placeWindow(surface, box) {
+  const node = surface.node();
+  if (!node) return;
+  const placed = clampWindowBox(box, windowFloor(surface));
+  applyWindowBox(node, placed);
+  windowBoxes[surface.key] = { window: true, ...placed };
+}
+function raiseWindow(surface) {
+  if (isWindow(surface)) bringWindowForward(surface.node());
+}
+
+// Where a window opens when it has never been one: a panel just off its edge, shorter than the
+// column; a dialog in the middle of the room, smaller than the room.
+function windowBoxFor(surface) {
+  const saved = windowBoxes[surface.key];
+  if (saved?.w && saved?.h) return saved;
+  if (surface.kind === 'dialog' || !threadBox) {
+    const w = Math.min(980, Math.max(420, window.innerWidth * .62));
+    const h = Math.min(820, Math.max(320, window.innerHeight * .78));
+    return { x: (window.innerWidth - w) / 2, y: Math.max(64, (window.innerHeight - h) / 2), w, h };
+  }
+  const room = threadBox.getBoundingClientRect();
+  const set = parseFloat(shellBox?.style.getPropertyValue(surface.prop) ?? '');
+  const vw = window.innerWidth;
+  const width = Number.isFinite(set) ? set : surface.key === 'chats' ? Math.max(320, Math.min(460, vw / 2 - 468)) : Math.max(300, Math.min(460, vw / 2 - 476));
+  const left = surface.side === 'left' ? room.left + RAIL : room.right - RAIL - width;
+  return { x: left + (surface.side === 'left' ? 36 : -36), y: room.top + 42, w: width, h: Math.min(room.height - 28, 620) };
+}
+
+// First, last, invert, play: the surface is moved to where it now belongs at once, then drawn from
+// where it was, so docking, splitting and floating read as one movement and not as a jump.
+//
+// One scale for both sides, never two: a split is tall and narrow and a window short and wide, and
+// scaling each axis on its own stretched every line of text in it for the length of the move. The
+// box travels from centre to centre and grows or shrinks evenly, by no more than a sixth, and comes
+// in through a short fade — the content is already laid out at its new size and only arrives.
+function flipPanel(node, change) {
+  const first = node.getBoundingClientRect();
+  change();
+  if (reducedMotion() || typeof node.animate !== 'function' || node.hidden) return;
+  const last = node.getBoundingClientRect();
+  if (!first.width || !last.width || !first.height || !last.height) return;
+  const dx = (first.left + first.width / 2) - (last.left + last.width / 2);
+  const dy = (first.top + first.height / 2) - (last.top + last.height / 2);
+  const even = Math.sqrt((first.width * first.height) / (last.width * last.height));
+  const scale = Math.min(1.16, Math.max(0.86, even));
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(scale - 1) < .01) return;
+  node.animate([
+    { transformOrigin: '50% 50%', transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: .55 },
+    { transformOrigin: '50% 50%', opacity: 1, offset: .55 },
+    { transformOrigin: '50% 50%', transform: 'none', opacity: 1 },
+  ], { duration: 460, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+}
+
+// A dialog is modal only in its base: split or floating, the room behind it stays in reach. Going
+// from one to the other closes it and opens it again, and that close is not a close — whatever the
+// dialog does when it is really closed (dropping a frame, forgetting a selection) must not run.
+const DIALOG = typeof HTMLDialogElement === 'function' ? HTMLDialogElement.prototype : null;
+function reseatDialog(node, modal) {
+  if (!DIALOG || !node?.open) return;
+  if (node.matches(':modal') === modal) return;
+  // Its opening flourish is for opening; reseated, it must not play again.
+  node.classList.add('no-intro');
+  DIALOG.close.call(node);
+  if (modal) DIALOG.showModal.call(node); else DIALOG.show.call(node);
+}
+function seatDialog(surface) {
+  const node = surface.node();
+  if (!DIALOG || !node || typeof node.showModal !== 'function' || node.dataset.seated) return;
+  node.dataset.seated = '1';
+  node.classList.add('surface');
+  if (isWindow(surface)) node.classList.add('window');
+  if (isSplit(surface)) node.classList.add('split');
+  // Every caller still asks for showModal; the dialog answers in the way it is shown now.
+  node.showModal = function showInItsMode() {
+    if (modeOf(surface) === 'base') { if (!this.open) DIALOG.showModal.call(this); }
+    else {
+      if (!this.open) DIALOG.show.call(this);
+      if (isWindow(surface)) placeWindow(surface, windowBoxFor(surface));
+    }
+    noteShown(surface);
+    layoutPanels();
+  };
+  // Back to its base the moment it is really closed — through its own close(), which reseating
+  // never calls — so the next opening is what it always was whatever the browser's timing.
+  const backToBase = () => {
+    node.classList.remove('floating', 'no-intro');
+    dropWindow(node);
+    // A dialog splits or floats because a button said so, this time. The next time it opens it is
+    // what it always was — opening a file must never divide the room by itself. Where its window
+    // stood is kept for the next time the window button is pressed.
+    if (modeOf(surface) !== 'base') {
+      surfaceModes[surface.key] = 'base';
+      node.classList.remove('split', 'window');
+      for (const property of ['left', 'top', 'width', 'height']) node.style.removeProperty(property);
+      rememberSurfaces();
+      for (const paint of surfacePaints.get(surface.key) ?? []) paint();
+    }
+    requestAnimationFrame(layoutPanels);
+  };
+  node.close = function closeForReal(...args) {
+    DIALOG.close.apply(this, args);
+    backToBase();
+  };
+  // The browser says `close` when it gets round to it, which can be after the dialog was shown
+  // again in another way. A close that arrives while the dialog is open was a change of how it is
+  // shown, and is nobody else's business; one that arrives while it is closed is a close (Escape
+  // closes without calling close(), so that one is caught here).
+  node.addEventListener('close', (event) => {
+    if (node.open) { event.stopImmediatePropagation(); return; }
+    backToBase();
+  }, true);
+}
+
+function setSurfaceMode(surface, next, { animate = true } = {}) {
+  const node = surface.node();
+  if (!node || modeOf(surface) === next) return;
+  if (next === 'split') noteBeside(surface.key);
+  // One split per side: the one already there goes to a window, nothing closes.
+  if (next === 'split') {
+    for (const other of surfaces) if (other !== surface && other.side === surface.side && isSplit(other)) setSurfaceMode(other, 'window', { animate: false });
+  }
+  surfaceModes[surface.key] = next;
+  rememberSurfaces();
+  // The one just changed is the one being looked at: it is offered the room first.
+  if (panelShown(surface)) surfaceOrder.splice(0, surfaceOrder.length, ...surfaceOrder.filter((one) => one !== surface.key), surface.key);
+  const change = () => {
+    node.classList.toggle('window', next === 'window');
+    node.classList.toggle('split', next === 'split');
+    node.classList.remove('floating');
+    if (next !== 'window') dropWindow(node);
+    for (const property of ['left', 'top', 'width', 'height']) node.style.removeProperty(property);
+    if (surface.kind === 'dialog') reseatDialog(node, next === 'base');
+    if (next === 'window') { placeWindow(surface, windowBoxFor(surface)); bringWindowForward(node); }
+    layoutPanels();
+  };
+  if (animate && panelShown(surface)) flipPanel(node, change); else change();
+  for (const paint of surfacePaints.get(surface.key) ?? []) paint();
+}
+
+// The two buttons, as one small group: split on the surface's own side, and window. The lit one
+// is how it is shown now; pressing it gives the surface back its base.
+const surfacePaints = new Map();
+// The surface's own close button joins the cluster: same size, same drawing, after a hairline.
+// It keeps its element, its listeners and its name for a screen reader; only its face changes.
+function joinClose(group, close) {
+  if (!close) return;
+  const said = close.getAttribute?.('aria-label') || String(close.textContent ?? '').replace(/[×✕]/g, '').trim() || t('Close');
+  // The conversations panel's ×: drawn, and a quarter turn under the pointer, in every window.
+  close.className = 'surface-mode close x-close x-only';
+  close.replaceChildren?.(xIcon());
+  close.setAttribute?.('aria-label', said);
+  close.removeAttribute?.('title');
+  group.append(el('span', 'surface-sep'), close);
+}
+function modeButtons({ side = 'right', split, window: floating, close = null }) {
+  const group = el('span', 'surface-modes');
+  const make = (icon, which) => {
+    const button = el('button', `surface-mode ${which}`);
+    button.type = 'button';
+    button.innerHTML = icon; // trusted: our own SVG strings
+    group.append(button);
+    return button;
+  };
+  const splitButton = make(side === 'left' ? SPLIT_LEFT_ICON : SPLIT_RIGHT_ICON, 'split');
+  const windowButton = make(FLOAT_ICON, 'window');
+  splitButton.addEventListener('click', (event) => { event.stopPropagation(); split.run(); paint(); });
+  windowButton.addEventListener('click', (event) => { event.stopPropagation(); floating.run(); paint(); });
+  function paint() {
+    const splitOn = Boolean(split.on());
+    const windowOn = Boolean(floating.on());
+    splitButton.setAttribute('aria-pressed', String(splitOn));
+    windowButton.setAttribute('aria-pressed', String(windowOn));
+    splitButton.setAttribute('aria-label', split.label(splitOn));
+    windowButton.setAttribute('aria-label', floating.label(windowOn));
+  }
+  paint();
+  joinClose(group, close);
+  return { group, paint };
+}
+
+function surfaceButtons(surface) {
+  const node = surface.node();
+  const before = node?.querySelector(surface.before);
+  if (!before) return;
+  const anchor = el('span', 'surface-anchor');
+  before.before(anchor);
+  const { group, paint } = modeButtons({
+    close: before,
+    side: surface.side,
+    split: { on: () => isSplit(surface), run: () => setSurfaceMode(surface, isSplit(surface) ? 'base' : 'split'), label: (on) => (on ? t('Give it back its place') : t('Split the room with it')) },
+    window: { on: () => isWindow(surface), run: () => setSurfaceMode(surface, isWindow(surface) ? 'base' : 'window'), label: (on) => (on ? t('Give it back its place') : t('Float it as a window')) },
+  });
+  anchor.replaceWith(group);
+  // In a console header the window's controls are the header's own, beside the title, not the
+  // last of the console's buttons: a narrow window wraps those buttons onto their own line and
+  // the controls stay at the top right, where every window keeps them.
+  if (group.parentElement?.matches?.('.mother-actions')) node.querySelector(surface.head)?.append(group);
+  surfacePaints.set(surface.key, [...(surfacePaints.get(surface.key) ?? []), paint]);
+}
+
+// A window is carried by its header's empty part, and only while it is a window.
+function carrySurface(surface) {
+  const node = surface.node();
+  const head = node?.querySelector(surface.head);
+  if (!head) return;
+  node.addEventListener('pointerdown', () => { if (isWindow(surface)) raiseWindow(surface); });
+  // A console's header is stuck to the top of its window; it takes a ground only while something
+  // is scrolled under it.
+  const frame = node.querySelector('.mother-frame');
+  if (frame && head.matches?.('.mother-head')) frame.addEventListener('scroll', () => head.classList.toggle('stuck', frame.scrollTop > 2), { passive: true });
+  carryWindowBy(head, node, { active: () => isWindow(surface), box: () => windowBoxes[surface.key], place: (box) => placeWindow(surface, box), done: rememberSurfaces });
+  windowEdgesFor(node, { active: () => isWindow(surface), box: () => windowBoxes[surface.key], place: (box) => placeWindow(surface, box), done: rememberSurfaces, ...windowFloor(surface) });
+}
+
+if (shellBox && !SPLIT_CHAT) {
+  for (const surface of surfaces) {
+    const node = surface.node();
+    if (!node) continue;
+    if (surface.kind === 'dialog') { if (modeOf(surface) !== 'base') surfaceModes[surface.key] = 'base'; seatDialog(surface); }
+    else {
+      node.classList.toggle('window', isWindow(surface));
+      node.classList.toggle('split', isSplit(surface));
+    }
+    if (isWindow(surface) && windowBoxes[surface.key]?.w) placeWindow(surface, windowBoxes[surface.key]);
+    carrySurface(surface);
+    surfaceButtons(surface);
+    sideGrip(surface);
+  }
+  // A window resized changes how wide a split may be; the thread's own observer does not see it
+  // when the sides absorb the change.
+  window.addEventListener?.('resize', () => layoutPanels());
+  // A smaller window keeps every floating surface whole inside it.
+  window.addEventListener?.('resize', () => {
+    for (const surface of surfaces) if (isWindow(surface) && windowBoxes[surface.key]) placeWindow(surface, windowBoxes[surface.key]);
+  });
+  try {
+    const widths = JSON.parse(localStorage.getItem('pulse.panels') ?? '{}') ?? {};
+    for (const panel of panelSides) if (/^\d+px$/.test(widths[panel.key] ?? '')) shellBox.style.setProperty(panel.prop, widths[panel.key]);
+  } catch { /* no storage */ }
+  for (const panel of panelSides) panelGrip(panel);
+  const scrim = el('div', 'panel-scrim');
+  scrim.setAttribute('aria-hidden', 'true');
+  scrim.addEventListener('click', () => { for (const surface of surfaces) if (surface.node()?.classList.contains('floating')) surface.close(); });
+  shellBox.append(scrim);
+  if (typeof ResizeObserver === 'function' && threadBox) new ResizeObserver(() => layoutPanels()).observe(threadBox);
+}
+
+// A drag is not a click. A press that travelled — reaching for an edge, carrying a window — and
+// was let go over a row's button used to press that button, which is how pulling at the
+// conversations panel opened a split. Inside the panels and windows, a click that moved further
+// than a tremble is dropped. Keyboard presses carry no position and are never touched.
+let pressedAt = null;
+document.addEventListener?.('pointerdown', (event) => { pressedAt = { x: event.clientX, y: event.clientY }; }, true);
+document.addEventListener?.('click', (event) => {
+  if (!pressedAt || event.detail === 0) return;
+  const travelled = Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y);
+  if (travelled > 6 && event.target?.closest?.('.tree, .surface, .conv-window, .browser-dock, .split-dock')) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}, true);
+
+// One way for the room to change its arrangement in front of the human: the stylesheet names
+// what moves for each kind (data-morph) and the browser animates between the two states. Where
+// it cannot, or the human asked for less motion, the change simply happens.
+function morph(kind, change) {
+  if (!document.startViewTransition || reducedMotion() || document.visibilityState === 'hidden') {
+    return Promise.resolve(change());
+  }
+  const root = document.documentElement;
+  root.dataset.morph = kind;
+  // The conversation and its box are lifted into the transition so they can move, and whatever is
+  // lifted is drawn above everything left behind — the windows over the room included, which is how
+  // the thread used to paint across a window for the length of the change. Every window on screen
+  // is lifted too, in its own layer and in its own order, and holds still above the room.
+  const held = [...document.querySelectorAll(`${WINDOW_SELECTOR}, .tree.floating, .tree.split, dialog.surface.split`)]
+    .filter((node) => !node.hidden && node.getClientRects().length && getComputedStyle(node).viewTransitionName === 'none');
+  held.forEach((node, index) => {
+    node.style.setProperty('view-transition-name', `madre-held-${index}`);
+    node.style.setProperty('view-transition-class', 'madre-held');
+  });
+  const transition = document.startViewTransition(change);
+  // A transition that another one interrupts is skipped, and says so by rejecting: the change
+  // itself still happened, so there is nothing to report.
+  transition.ready.catch(() => {});
+  transition.finished.catch(() => {}).finally(() => {
+    if (root.dataset.morph === kind) delete root.dataset.morph;
+    for (const node of held) { node.style.removeProperty('view-transition-name'); node.style.removeProperty('view-transition-class'); }
+  });
+  return transition.updateCallbackDone.catch(() => {});
+}
+
 function setTree(open) {
   tree.open = open;
-  els.tree.hidden = !open;
+  showPanel('tree', open);
   els.treeButton.setAttribute('aria-pressed', String(open));
   try { localStorage.setItem('pulse.tree', open ? 'open' : 'closed'); } catch { /* no storage */ }
   if (open && !els.treeBody.childElementCount) {
@@ -4260,17 +6083,11 @@ try { if (!SPLIT_CHAT && localStorage.getItem('pulse.tree') === 'open') setTree(
 // opens begins. Opening one is a reload, because a conversation is a different record of the
 // same room and the page is built from a record.
 const chats = { open: false, list: [], active: null, working: false, unread: new Set() };
-// The conversation open in the right half of the window, if any. Declared beside the list because
-// the list draws the button that opens it.
-const split = {
-  chat: null,
-  box: document.querySelector('#split'),
-  frame: document.querySelector('#split-frame'),
-  title: document.querySelector('#split-title'),
-  grip: document.querySelector('#split-grip'),
-  swap: document.querySelector('#split-swap'),
-  close: document.querySelector('#split-close'),
-};
+// Conversations open as windows over the room, by id. Declared beside the list because the list
+// draws the buttons that open them, and it can be drawn before either is used.
+const convWindows = new Map();
+const WINDOW_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.25 12.25v-6.5a2.5 2.5 0 0 1 2.5-2.5h6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect class="ic-f" x="6.25" y="6.25" width="10.5" height="10.5" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const SWAP_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h11.5M12.5 4l3 3-3 3M16 13H4.5M7.5 10l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const SPLIT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-k" d="M10 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
 function whenWords(iso) {
@@ -4287,12 +6104,30 @@ function whenWords(iso) {
 // One drawing per conversation, in the bar's own hand: 20×20, a 1.6 stroke, round ends.
 const UPDATE_GLYPH = '<svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.6v9.4M6.4 9.4 10 13l3.6-3.6M3.6 13.4v1a2 2 0 0 0 2 2h8.8a2 2 0 0 0 2-2v-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CHAT_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M3.5 6a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 16.5 6v4.6a2.5 2.5 0 0 1-2.5 2.5H9.4l-3.6 3v-3A2.5 2.5 0 0 1 3.5 10.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// What the list shows, as one string: the same string twice is the same list, and drawing it again
+// would only restart the rows' arrival under the human's eyes.
+let chatsDrawn = '';
 function renderChats() {
   if (!els.chatsBody) return;
+  const drawing = JSON.stringify([
+    document.documentElement.lang, chats.active, split.chat, [...convWindows.keys()], [...chats.unread],
+    chats.list.map((chat) => [chat.id, chat.title, chat.working, chat.messages, whenWords(chat.updatedAt)]),
+  ]);
+  if (drawing === chatsDrawn && els.chatsBody.childElementCount) {
+    paintChatsButton();
+    paintTitle();
+    paintConvWindows();
+    return;
+  }
+  chatsDrawn = drawing;
+  // A list that changes while the panel is already on screen is replaced in place; only the list
+  // the panel opened with arrives a row at a time.
+  if (els.chatsBody.childElementCount && els.chats && !els.chats.hidden) els.chatsBody.classList.add('steady');
   els.chatsBody.replaceChildren();
   if (els.chatsCount) els.chatsCount.textContent = chats.list.length ? `· ${chats.list.length}` : '';
-  for (const chat of chats.list) {
+  for (const [index, chat] of chats.list.entries()) {
     const row = el('div', 'chat-row');
+    row.style.setProperty('--i', String(index));
     const open = el('button', `chat${chat.id === chats.active ? ' on' : ''}${chat.working ? ' working' : ''}${chats.unread.has(chat.id) ? ' unread' : ''}`);
     open.type = 'button';
     // The bubble before the name gives its place up to what is happening: a spinner at work, a
@@ -4322,6 +6157,7 @@ function renderChats() {
       if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'the conversation was not deleted.'}`); return; }
       if (chat.id === chats.active) { window.location.reload(); return; }
       if (chat.id === split.chat) closeSplit();
+      if (convWindows.has(chat.id)) closeConvWindow(chat.id);
       chats.list = result.chats ?? chats.list;
       chats.active = result.active ?? chats.active;
       renderChats();
@@ -4330,19 +6166,29 @@ function renderChats() {
     // which is already there.
     if (!SPLIT_CHAT && split.box && chat.id !== chats.active) {
       const beside = chat.id === split.chat;
-      const half = el('button', `chat-split${beside ? ' on' : ''}`);
+      const floating = convWindows.has(chat.id);
+      const full = !canOpenBeside(chat.id);
+      const ways = el('span', 'chat-beside');
+      const half = el('button', `chat-split${beside ? ' on' : ''}${full && !split.chat ? ' full' : ''}`);
       half.type = 'button';
       half.innerHTML = SPLIT_ICON; // trusted: our own SVG string
-      half.title = beside ? t('Close the split') : t('Open this conversation in the other half of the window');
-      half.setAttribute('aria-label', half.title);
+      half.setAttribute('aria-label', beside ? t('Close the split') : t('Open this conversation in the other half of the window'));
       half.setAttribute('aria-pressed', String(beside));
       half.addEventListener('click', (event) => { event.stopPropagation(); if (beside) closeSplit(); else openSplit(chat.id); });
-      row.append(open, half, drop);
+      const win = el('button', `chat-window${floating ? ' on' : ''}${full ? ' full' : ''}`);
+      win.type = 'button';
+      win.innerHTML = WINDOW_ICON; // trusted: our own SVG string
+      win.setAttribute('aria-label', floating ? t('Close this window') : t('Open this conversation in a window'));
+      win.setAttribute('aria-pressed', String(floating));
+      win.addEventListener('click', (event) => { event.stopPropagation(); if (floating) closeConvWindow(chat.id); else openConvWindow(chat.id); });
+      ways.append(half, win);
+      row.append(open, ways, drop);
     } else row.append(open, drop);
     els.chatsBody.append(row);
   }
   paintChatsButton();
   paintTitle();
+  paintConvWindows();
   paintSplit();
 }
 
@@ -4458,34 +6304,44 @@ async function loadChats() {
     chats.list = payload.chats ?? [];
     chats.active = payload.active ?? null;
     if (split.chat && !chats.list.some((chat) => chat.id === split.chat)) closeSplit();
+    for (const id of [...convWindows.keys()]) if (!chats.list.some((chat) => chat.id === id)) closeConvWindow(id);
     renderChats();
   } catch { /* the panel simply shows what it had */ }
 }
 
-async function openChat(id) {
+async function openChat(id, { beside = null } = {}) {
   if (id === chats.active) { setChats(false); return; }
   // Leaving a conversation at work is the moment to ask once for a system notification, while
   // the click still counts as the human's: it is how they hear that it finished.
   const leavingBusy = chats.list.find((chat) => chat.id === chats.active)?.working;
   if (leavingBusy) void askForNotifications();
   chats.unread.delete(id);
-  // One conversation is never on screen twice: opening the one beside closes the split.
-  if (id === split.chat) closeSplit();
   const response = await fetch(`/api/chats/${id}`, { method: 'POST' });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'that conversation could not be opened.'}`); return; }
   const payload = await fetch('/api/state').then((one) => one.json()).catch(() => null);
   if (!payload) { window.location.reload(); return; }
-  await paintConversation(payload);
+  // Everything slow happens before the transition starts: the screen is held still while the new
+  // conversation is painted, and it has to be held for a paint, never for the network.
+  await morph(beside ? 'swap' : 'switch', async () => {
+    // One conversation is never on screen twice: opening the one beside closes the split.
+    if (id === split.chat && !beside) closeSplit({ animate: false });
+    if (convWindows.has(id)) closeConvWindow(id, { animate: false });
+    await paintConversation(payload);
+    if (beside) openSplit(beside, { animate: false });
+  });
   setChats(false);
 }
 
 function setChats(open) {
   chats.open = open;
-  els.chats.hidden = !open;
+  if (open && els.chats?.hidden) els.chatsBody?.classList.remove('steady');
+  showPanel('chats', open);
   // The handle is how a closed panel is opened. Once it is open, the panel has its own way out
   // and the handle would only stand on top of it.
-  if (els.chatsButton) els.chatsButton.hidden = open;
+  // It comes back once the panel has gone, not while it is still sliding out over the same corner.
+  if (open) { if (els.chatsButton) els.chatsButton.hidden = open; }
+  else setTimeout(() => { if (!chats.open && els.chatsButton) els.chatsButton.hidden = false; }, reducedMotion() ? 0 : 200);
   els.chatsButton?.setAttribute('aria-pressed', String(open));
   try { localStorage.setItem('pulse.chats', open ? 'open' : 'closed'); } catch { /* no storage */ }
   if (open) void loadChats();
@@ -4521,25 +6377,35 @@ function paintSplit() {
 function rememberSplit() {
   try { localStorage.setItem('pulse.split', split.chat ?? ''); } catch { /* no storage */ }
 }
-function openSplit(id) {
+function openSplit(id, { animate = true } = {}) {
   if (SPLIT_CHAT || !split.box || !id || id === chats.active) return;
   if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
+  // Taking the split's place replaces what it shows, so only an empty split needs room.
+  if (!split.chat && !canOpenBeside(id)) { besideFull(); return; }
+  if (convWindows.has(id)) closeConvWindow(id, { animate: false });
+  const arriving = split.box.hidden;
   split.chat = id;
   chats.unread.delete(id);
-  split.box.hidden = false;
-  document.querySelector('.shell')?.classList.add('with-split');
+  const show = () => { split.box.hidden = false; noteBeside('half'); document.querySelector('.shell')?.classList.add('with-split'); layoutPanels(); };
+  if (animate && arriving) void morph('split', show); else show();
   if (split.frame) split.frame.src = `/?pane=split&chat=${encodeURIComponent(id)}`;
   rememberSplit();
   paintSplit();
   renderChats();
 }
-function closeSplit() {
+function closeSplit({ animate = true } = {}) {
   if (!split.box) return;
+  const leaving = !split.box.hidden;
   split.chat = null;
-  split.box.hidden = true;
-  document.querySelector('.shell')?.classList.remove('with-split');
-  // Dropping the page drops its stream, and the server lets that conversation's room go.
-  split.frame?.setAttribute('src', 'about:blank');
+  // Dropping the page drops its stream, and the server lets that conversation's room go. After
+  // the pane has been seen leaving: blanking it first would slide out an empty card.
+  const hide = () => {
+    split.box.hidden = true;
+    document.querySelector('.shell')?.classList.remove('with-split');
+    split.frame?.setAttribute('src', 'about:blank');
+    layoutPanels();
+  };
+  if (animate && leaving) void morph('split', hide); else hide();
   rememberSplit();
   renderChats();
 }
@@ -4548,10 +6414,19 @@ async function swapSplit() {
   const left = chats.active;
   const right = split.chat;
   if (!left || !right) return;
-  await openChat(right);
-  if (chats.active === right) openSplit(left);
+  // One movement, not two: the halves cross in a single transition, after both are fetched.
+  await openChat(right, { beside: left });
 }
 split.close?.addEventListener('click', () => closeSplit());
+if (split.float && !SPLIT_CHAT) {
+  const modes = modeButtons({
+    side: 'right',
+    split: { on: () => true, run: () => {}, label: () => t('In the other half of the window') },
+    window: { on: () => false, run: () => { const id = split.chat; if (!id) return; closeSplit(); openConvWindow(id); }, label: () => t('Float it as a window') },
+    close: split.close,
+  });
+  split.float.replaceWith?.(modes.group);
+}
 split.swap?.addEventListener('click', () => { void swapSplit(); });
 // The edge between the halves, dragged the way the browser's edge is: the frame stops taking the
 // pointer while it lasts, or it swallows the drag the moment the cursor crosses into it.
@@ -4575,6 +6450,276 @@ split.grip?.addEventListener('pointerdown', (event) => {
   }, { once: true });
 });
 
+/* ---------- conversations as windows ---------- */
+
+// Any conversation but the open one can float over the room as a window of its own: the same
+// page the split shows, live, with its composer. It is carried by its header, sized from any side
+// or corner, brought forward by a touch, and remembered where it was left.
+//
+// How many at once is the question that matters here. Every conversation on screen holds its own
+// live line to the room, and a browser keeps only six lines open to one server; past three
+// conversations at once, what is left is not enough for the rest of the page to load. So the
+// open one has company of two at most — the split and a window, or two windows — and the room
+// says why when that is the reason nothing opened.
+const MAX_BESIDE = 2;
+const CONV_MIN_W = 360;
+const CONV_MIN_H = 320;
+function besideCount() { return (split.chat ? 1 : 0) + convWindows.size; }
+// A conversation already beside the open one may change how it is shown; a new one needs room.
+function canOpenBeside(id) { return id === split.chat || convWindows.has(id) || besideCount() < MAX_BESIDE; }
+function besideFull() {
+  toast(t('MU/TH/UR › two conversations are already open beside this one. Close one to open another: past three at once they crowd each other, and each keeps its own line open to the room.'));
+}
+function rememberConvWindows() {
+  const kept = [...convWindows.entries()].map(([id, win]) => ({ id, ...win.box }));
+  try { localStorage.setItem('pulse.convWindows', JSON.stringify(kept)); } catch { /* no storage */ }
+}
+function paintConvWindows() {
+  for (const [id, win] of convWindows) {
+    const here = chats.list.find((chat) => chat.id === id);
+    win.title.textContent = here?.title ?? '';
+    win.node.setAttribute('aria-label', here?.title ?? t('Conversation'));
+    win.node.classList.toggle('working', Boolean(here?.working));
+  }
+}
+// A new window opens a step down and to the right of the last one, so none hides another.
+function nextConvBox() {
+  const n = convWindows.size;
+  const w = Math.min(560, Math.max(CONV_MIN_W, window.innerWidth * .36));
+  const h = Math.min(680, Math.max(CONV_MIN_H, window.innerHeight - 200));
+  return { x: window.innerWidth / 2 - w / 2 + n * 36, y: 96 + n * 32, w, h };
+}
+function placeConvWindow(win, box) {
+  win.box = clampWindowBox(box, { minW: CONV_MIN_W, minH: CONV_MIN_H });
+  applyWindowBox(win.node, win.box);
+}
+
+function openConvWindow(id, { box = null, animate = true } = {}) {
+  if (SPLIT_CHAT || !id || id === chats.active) return;
+  if (convWindows.has(id)) { bringWindowForward(convWindows.get(id).node); return; }
+  if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
+  if (!canOpenBeside(id)) { besideFull(); return; }
+  if (id === split.chat) closeSplit();
+  chats.unread.delete(id);
+
+  const node = el('section', `conv-window${animate && !reducedMotion() ? ' entering' : ''}`);
+  node.setAttribute('role', 'dialog');
+  const head = el('header', 'conv-head');
+  const spin = el('span', 'split-spin');
+  spin.setAttribute('aria-hidden', 'true');
+  const title = el('span', 'conv-title');
+  const action = (icon, label, run) => {
+    const button = el('button', 'split-action');
+    button.type = 'button';
+    button.innerHTML = icon; // trusted: our own SVG strings
+    button.setAttribute('aria-label', label);
+    button.addEventListener('click', (event) => { event.stopPropagation(); run(); });
+    return button;
+  };
+  const frame = el('iframe', 'conv-frame');
+  frame.title = t('Conversation');
+  frame.src = `/?pane=split&chat=${encodeURIComponent(id)}`;
+  const win = { node, title, frame, box: null };
+  // The same two buttons as every surface: here the window is lit, and either one gives the
+  // conversation back its base, which for a second conversation is the other half of the room.
+  const modes = modeButtons({
+    side: 'right',
+    split: { on: () => false, run: () => moveConvWindowToSplit(id), label: () => t('Move it to the other half of the window') },
+    window: { on: () => true, run: () => moveConvWindowToSplit(id), label: () => t('Move it to the other half of the window') },
+    close: action('×', t('Close this window'), () => closeConvWindow(id)),
+  });
+  head.append(
+    spin,
+    title,
+    action(SWAP_ICON, t('Make this the open conversation, and put the other one here'), () => { void promoteConvWindow(id); }),
+    modes.group,
+  );
+  node.append(head, frame);
+  windowEdgesFor(node, { box: () => win.box, place: (next) => placeConvWindow(win, next), done: rememberConvWindows, minW: CONV_MIN_W, minH: CONV_MIN_H });
+  carryWindowBy(head, node, { box: () => win.box, place: (next) => placeConvWindow(win, next), done: rememberConvWindows });
+  node.addEventListener('pointerdown', () => bringWindowForward(node));
+  node.addEventListener('animationend', () => node.classList.remove('entering'), { once: true });
+  convWindows.set(id, win);
+  placeConvWindow(win, box ?? nextConvBox());
+  document.body.append(node);
+  bringWindowForward(node);
+  rememberConvWindows();
+  renderChats();
+}
+
+function closeConvWindow(id, { animate = true } = {}) {
+  const win = convWindows.get(id);
+  if (!win) return;
+  convWindows.delete(id);
+  rememberConvWindows();
+  renderChats();
+  // Dropping the page drops its stream, and the server lets that conversation's room go — after
+  // the window has been seen leaving, not before: blanking it first would shrink an empty card.
+  const gone = () => { win.frame.src = 'about:blank'; win.node.remove(); };
+  if (!animate || reducedMotion()) { gone(); return; }
+  win.node.classList.remove('entering');
+  win.node.classList.add('leaving');
+  setTimeout(gone, 210);
+}
+
+// The window and the split trade places when the split is taken; the count never changes.
+function moveConvWindowToSplit(id) {
+  const win = convWindows.get(id);
+  if (!win) return;
+  const box = { ...win.box };
+  const before = split.chat;
+  closeConvWindow(id, { animate: false });
+  if (before) closeSplit({ animate: false });
+  openSplit(id);
+  if (before) openConvWindow(before, { box });
+}
+
+// The window becomes the open conversation, and the one that was open takes its window.
+async function promoteConvWindow(id) {
+  const win = convWindows.get(id);
+  const left = chats.active;
+  if (!win || !left) return;
+  const box = { ...win.box };
+  closeConvWindow(id, { animate: false });
+  await openChat(id);
+  if (chats.active === id) openConvWindow(left, { box });
+}
+
+// Carried by its header — only a window, only by the header's empty part (its title and its
+// subtitle are empty part: words, not controls).
+//
+// The hand moves the window on the compositor: while it is held it is only translated, so not one
+// line of what it holds is laid out again under the pointer, and it takes its real place once, where
+// it is let go. Pressing the header selects nothing, and near the room's edge it sits on the edge.
+const WINDOW_SNAP = 14;
+function carryWindowBy(head, node, { active = () => true, box, place, done }) {
+  head.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || !active() || event.target.closest('button, input, textarea, label, a, select, [role="menu"], .viewer-sizes')) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const from = { ...box() };
+    let carrying = false;
+    let frame = 0;
+    let to = null;
+    try { head.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+    bringWindowForward(node);
+    const toward = (moving) => {
+      const maxX = window.innerWidth - from.w - WINDOW_INSET;
+      const maxY = window.innerHeight - from.h - WINDOW_INSET;
+      let x = Math.max(WINDOW_INSET, Math.min(maxX, from.x + moving.clientX - startX));
+      let y = Math.max(WINDOW_INSET, Math.min(maxY, from.y + moving.clientY - startY));
+      if (x - WINDOW_INSET < WINDOW_SNAP) x = WINDOW_INSET; else if (maxX - x < WINDOW_SNAP) x = maxX;
+      if (y - WINDOW_INSET < WINDOW_SNAP) y = WINDOW_INSET; else if (maxY - y < WINDOW_SNAP) y = maxY;
+      return { ...from, x, y };
+    };
+    const move = (moving) => {
+      if (!carrying) {
+        if (Math.hypot(moving.clientX - startX, moving.clientY - startY) < 4) return;
+        carrying = true;
+        holdingWindow('carrying-window', true);
+        node.classList.add('lifted');
+      }
+      to = toward(moving);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { node.style.translate = `${to.x - from.x}px ${to.y - from.y}px`; });
+    };
+    const drop = () => {
+      cancelAnimationFrame(frame);
+      head.removeEventListener('pointermove', move);
+      head.removeEventListener('pointerup', drop);
+      head.removeEventListener('pointercancel', drop);
+      holdingWindow('carrying-window', false);
+      node.classList.remove('lifted');
+      node.style.removeProperty('translate');
+      if (carrying && to) { place(to); done?.(); }
+    };
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', drop);
+    head.addEventListener('pointercancel', drop);
+  });
+}
+
+if (!SPLIT_CHAT) {
+  // A press inside a conversation's frame never reaches this page; the frame taking the focus does.
+  window.addEventListener?.('blur', () => setTimeout(() => {
+    const holder = document.activeElement?.closest?.('.conv-window, .browser-dock.window');
+    if (holder) bringWindowForward(holder);
+  }, 0));
+  window.addEventListener?.('resize', () => { for (const win of convWindows.values()) placeConvWindow(win, win.box); });
+}
+
+/* ---------- the browser as a window ---------- */
+
+// The browser can leave its column and float over the room like the panels and the conversations,
+// by the window button in its header; the same button docks it again. Floating, it is carried by
+// its header and sized from its edges.
+const BROWSER_MIN_W = 420;
+const BROWSER_MIN_H = 320;
+const browserWindow = (() => {
+  try { return JSON.parse(localStorage.getItem('pulse.browserWindow') ?? 'null') ?? { floating: false }; } catch { return { floating: false }; }
+})();
+function rememberBrowserWindow() {
+  try { localStorage.setItem('pulse.browserWindow', JSON.stringify(browserWindow)); } catch { /* no storage */ }
+}
+function browserFloating() { return Boolean(browser.dialog?.classList.contains('window')); }
+function browserWindowBox() {
+  if (browserWindow.box?.w) return browserWindow.box;
+  const w = Math.min(900, Math.max(BROWSER_MIN_W, window.innerWidth * .52));
+  const h = Math.min(760, Math.max(BROWSER_MIN_H, window.innerHeight - 150));
+  return { x: window.innerWidth - w - 32, y: 84, w, h };
+}
+function placeBrowserWindow(box) {
+  if (!browser.dialog) return;
+  browserWindow.box = clampWindowBox(box, { minW: BROWSER_MIN_W, minH: BROWSER_MIN_H });
+  applyWindowBox(browser.dialog, browserWindow.box);
+}
+// Docked beside the conversation is the browser's split; the same pair of buttons as every
+// surface says which it is now.
+let browserModes = null;
+function paintBrowserFloat() { browserModes?.paint(); }
+function setBrowserFloating(on, { box = null, animate = true } = {}) {
+  const node = browser.dialog;
+  if (!node) return;
+  browserWindow.floating = on;
+  const change = () => {
+    node.classList.toggle('window', on);
+    const shell = document.querySelector('.shell');
+    if (on) {
+      shell?.classList.remove('with-browser');
+      placeBrowserWindow(box ?? browserWindowBox());
+      bringWindowForward(node);
+    } else {
+      for (const property of ['left', 'top', 'width', 'height']) node.style.removeProperty(property);
+      dropWindow(node);
+      if (!node.hidden) { noteBeside('browser'); shell?.classList.add('with-browser'); }
+    }
+    paintBrowserFloat();
+    layoutPanels();
+  };
+  // The page carries it from one place to the other: the dock's card becomes the window's, and the
+  // conversation narrows or widens into the room it leaves.
+  if (animate && !node.hidden) void morph('dock', change); else change();
+  rememberBrowserWindow();
+}
+
+if (!SPLIT_CHAT && browser.dialog) {
+  const node = browser.dialog;
+  const head = node.querySelector('.browser-head');
+  if (browserWindow.floating) node.classList.add('window');
+  browserModes = modeButtons({
+    side: 'right',
+    split: { on: () => !browserFloating(), run: () => { if (browserFloating()) setBrowserFloating(false); }, label: (on) => (on ? t('Beside the conversation') : t('Dock the browser beside the conversation')) },
+    window: { on: browserFloating, run: () => setBrowserFloating(!browserFloating()), label: (on) => (on ? t('Dock the browser beside the conversation') : t('Float the browser as a window')) },
+    close: browser.close,
+  });
+  document.querySelector('#browser-float')?.replaceWith?.(browserModes.group);
+  windowEdgesFor(node, { active: browserFloating, box: () => browserWindow.box, place: placeBrowserWindow, done: rememberBrowserWindow, minW: BROWSER_MIN_W, minH: BROWSER_MIN_H });
+  node.addEventListener('pointerdown', () => { if (browserFloating()) bringWindowForward(node); });
+  if (head) carryWindowBy(head, node, { active: browserFloating, box: () => browserWindow.box, place: placeBrowserWindow, done: rememberBrowserWindow });
+  window.addEventListener?.('resize', () => { if (browserFloating() && browserWindow.box) placeBrowserWindow(browserWindow.box); });
+}
+
 /* ---------- the two panes beside the conversation trade places ---------- */
 
 // With a second conversation and the browser both open, either may stand next to the open
@@ -4597,43 +6742,7 @@ function tradePanes() {
   else paintPanes();
 }
 panes.swap?.addEventListener('click', () => tradePanes());
-// Carried by the head: past a few pixels the card lifts, the other one says it will take it, and
-// letting go over it trades them. A press on a button in the head is still a press on that button.
-function carryPaneBy(head, own, other) {
-  head?.addEventListener('pointerdown', (event) => {
-    const shell = document.querySelector('.shell');
-    if (event.button !== 0 || event.target.closest('button, input, a, select, [role="menu"]')) return;
-    if (!shell?.classList.contains('with-split') || !shell.classList.contains('with-browser') || !own() || !other()) return;
-    const startX = event.clientX;
-    const startY = event.clientY;
-    let carrying = false;
-    let over = false;
-    try { head.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
-    const move = (moving) => {
-      if (!carrying && Math.hypot(moving.clientX - startX, moving.clientY - startY) < 6) return;
-      if (!carrying) { carrying = true; shell.classList.add('carrying-pane'); own().classList.add('pane-lifted'); }
-      const box = other().getBoundingClientRect();
-      over = moving.clientX >= box.left && moving.clientX <= box.right && moving.clientY >= box.top && moving.clientY <= box.bottom;
-      other().classList.toggle('pane-target', over);
-    };
-    const drop = () => {
-      head.removeEventListener('pointermove', move);
-      head.removeEventListener('pointercancel', drop);
-      shell.classList.remove('carrying-pane');
-      own()?.classList.remove('pane-lifted');
-      other()?.classList.remove('pane-target');
-      if (carrying && over) tradePanes();
-    };
-    head.addEventListener('pointermove', move);
-    head.addEventListener('pointerup', drop, { once: true });
-    head.addEventListener('pointercancel', drop, { once: true });
-  });
-}
-if (!SPLIT_CHAT) {
-  carryPaneBy(browser.dialog?.querySelector('.browser-head'), () => browser.dialog, () => split.box);
-  carryPaneBy(split.box?.querySelector('.split-head'), () => split.box, () => browser.dialog);
-  paintPanes();
-}
+if (!SPLIT_CHAT) paintPanes();
 
 /* ---------- easter egg: hold the scroll at the end of the record ---------- */
 
@@ -4772,6 +6881,32 @@ try {
   const remembered = SPLIT_CHAT ? null : localStorage.getItem('pulse.split');
   if (remembered && remembered !== chats.active && chats.list.some((chat) => chat.id === remembered)) openSplit(remembered);
   else if (remembered) rememberSplit();
+} catch { /* no storage */ }
+// MADRE started since this tab last saw it: the logo draws itself again. A reload of the same
+// running room keeps it still (the class was set in the page's head before the first frame).
+try {
+  const seen = sessionStorage.getItem('madre.boot');
+  if (initial.boot && seen !== initial.boot) {
+    sessionStorage.setItem('madre.boot', initial.boot);
+    if (seen) {
+      const logo = document.querySelector('.brand-logo');
+      document.documentElement.classList.remove('logo-still');
+      // A fresh copy restarts its drawing: the same node would keep its finished animation.
+      logo?.replaceWith(logo.cloneNode(true));
+    }
+  }
+} catch { /* no storage: it draws on every load, as before */ }
+document.querySelector('#reload-button')?.addEventListener('click', () => window.location.reload());
+
+// The windows, as they were left, within the same limit.
+try {
+  const kept = SPLIT_CHAT ? [] : JSON.parse(localStorage.getItem('pulse.convWindows') ?? '[]') ?? [];
+  for (const one of kept) {
+    if (one?.id && one.id !== chats.active && one.id !== split.chat && chats.list.some((chat) => chat.id === one.id) && besideCount() < MAX_BESIDE) {
+      openConvWindow(one.id, { box: one, animate: false });
+    }
+  }
+  rememberConvWindows();
 } catch { /* no storage */ }
 if (els.treeRoot) els.treeRoot.textContent = `/ ${initial.projectRoot.split('/').filter(Boolean).at(-1) ?? ''}`;
 state.budget = Number.isFinite(initial.softTokenBudget) && initial.softTokenBudget > 0 ? initial.softTokenBudget : null;
@@ -4991,7 +7126,12 @@ function renderHighlight() {
   const text = els.input.value;
   const agents = knownAgentIds();
   const commands = allCommands();
-  const html = escapeHtml(text).replace(/(^|[\s(,;:])([@/!#])([\w][\w./-]*(?::\d+(?:-\d+)?)?)/g, (whole, lead, sigil, name) => {
+  // A place pointed at on a server's page: its own chip, the whole first line, nothing inside it read
+  // as a command or a file — its address has slashes in it.
+  const point = text.match(/^⌖ [^\n]*/)?.[0] ?? '';
+  const [, server = '', more = ''] = point.match(/^⌖ (\S+(?: \([^)]*\))?)(.*)$/) ?? [];
+  const pointHtml = point ? `<span class="chip point"><span class="sig">⌖ </span><span class="base">${escapeHtml(server)}</span><span class="dir">${escapeHtml(more)}</span></span>` : '';
+  const html = pointHtml + escapeHtml(text.slice(point.length)).replace(/(^|[\s(,;:])([@/!#])([\w][\w./-]*(?::\d+(?:-\d+)?)?)/g, (whole, lead, sigil, name) => {
     const key = name.toLowerCase();
     if (sigil === '#') {
       if (!/^[0-4]$/.test(name)) return whole;
@@ -5003,7 +7143,11 @@ function renderHighlight() {
     }
     if (sigil === '!') {
       if (!/\.[A-Za-z0-9]{1,8}(?::\d+(?:-\d+)?)?$/.test(name)) return whole;
-      return `${lead}<span class="chip file">!${escapeHtml(name)}</span>`;
+      // The same characters, read by part: where it lives quiet, the file itself clear, the lines
+      // in the accent. Nothing is added and nothing is widened — the caret underneath keeps its place.
+      const parts = name.match(/^(.*\/)?([^/]*?)(:\d+(?:-\d+)?)?$/) ?? [];
+      const [, dir = '', base = name, lines = ''] = parts;
+      return `${lead}<span class="chip file"><span class="sig">!</span>${dir ? `<span class="dir">${escapeHtml(dir)}</span>` : ''}<span class="base">${escapeHtml(base)}</span>${lines ? `<span class="lines">${escapeHtml(lines)}</span>` : ''}</span>`;
     }
     if (sigil === '@') {
       if (!agents.includes(key)) return whole;
@@ -5061,16 +7205,20 @@ function renderMenu() {
   if (found.kind === '!') return fileMenu(found);
   if (found.kind === '#') {
     const cap = ceilingFor(els.target.value);
-    const items = [0, 1, 2, 3, 4].filter((n) => String(n).startsWith(found.query)).map((n) => ({ key: `#${n} ${MODES[n].label}`, insert: `#${n} `, what: n > cap ? t("{hint} · above @{agent}'s max mode", { hint: MODES[n].hint, agent: els.target.value }) : MODES[n].hint, off: n > cap }));
+    const items = [0, 1, 2, 3, 4].filter((n) => String(n).startsWith(found.query)).map((n) => ({ key: `#${n} ${MODES[n].label}`, insert: `#${n} `, what: n > cap ? t("{hint} · above @{agent}'s max mode", { hint: MODES[n].hint, agent: els.target.value }) : MODES[n].hint, off: n > cap, mode: n }));
     if (!items.length) return closeMenu();
     return showMenu(items, { ...found, hint: t('MODE · ↑↓ · TAB OR ENTER') });
   }
   const items = found.kind === '@'
-    ? knownAgentIds().filter((id) => id.startsWith(found.query)).map((id) => ({ key: `@${id}`, insert: `@${id} `, what: state.agents.get(id)?.ready ? label(id) : t('{label} · not ready', { label: label(id) }), color: brandOf(id).color, off: !state.agents.get(id)?.ready }))
+    ? knownAgentIds().filter((id) => id.startsWith(found.query)).map((id) => ({ key: `@${id}`, insert: `@${id} `, what: state.agents.get(id)?.ready ? label(id) : t('{label} · not ready', { label: label(id) }), color: brandOf(id).color, off: !state.agents.get(id)?.ready, agent: id }))
     // A command matches while you are still typing it AND once you have typed past it: somebody
     // reaching for /module types /modules about as often, and an empty menu reads as "no such
     // thing" rather than "close, try again".
-    : allCommands().filter((item) => item.name.startsWith(found.query) || found.query.startsWith(item.name)).map((item) => ({ key: item.usage ?? `/${item.name}`, insert: `/${item.name} `, what: item.available ? item.summary : t('{title} is not available here · see MODULES', { title: item.title }), off: !item.available }));
+    // Grouped and in that order: the room's own commands, then what the modules add, then what
+    // cannot run here — so the arrows walk them as they are read.
+    : allCommands().filter((item) => item.name.startsWith(found.query) || found.query.startsWith(item.name))
+      .map((item) => ({ key: item.usage ?? `/${item.name}`, insert: `/${item.name} `, what: item.available ? t(item.summary ?? '') : t('{title} is not available here · see MODULES', { title: item.title }), off: !item.available, glyph: item.name, group: !item.available ? 'off' : item.client ? 'room' : 'modules' }))
+      .sort((a, b) => COMMAND_GROUPS.indexOf(a.group) - COMMAND_GROUPS.indexOf(b.group));
   if (found.kind === '/' && items.length === 1 && items[0].insert === '/module ') return showMenu([...items, ...moduleStarters()], { ...found, hint: t('MODULE · ↑↓ · TAB OR ENTER · pick one and edit it') });
   if (!items.length) return closeMenu();
   showMenu(items, found);
@@ -5099,6 +7247,25 @@ function moduleStarters() {
   ].map(([icon, shape, what]) => ({ key: '/module', insert: `/module ${what}`, what, icon, shape, starter: true }));
 }
 
+// What each command looks like at a glance: a small drawing, so a list of seven reads as seven
+// different things before a word is read. A module's own command gets the slash.
+const COMMAND_GROUPS = ['room', 'modules', 'off'];
+const COMMAND_GROUP_WORDS = { room: 'THIS ROOM', modules: 'FROM THE MODULES', off: 'NOT AVAILABLE HERE' };
+const COMMAND_GLYPHS = {
+  create: '<path d="M6 3.5h5.5L15 7v9.5H6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10.5 9.5v5M8 12h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  module: '<path d="M8.1 3.2h3.8v1.6a1.5 1.5 0 0 0 3 0V3.2h1.9v3.6h-1.4a1.5 1.5 0 0 0 0 3h1.4v3.6h-3.6v-1.5a1.5 1.5 0 0 0-3 0v1.5H6.8V9.8H5.4a1.5 1.5 0 0 1 0-3h1.4V3.2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+  image: '<rect x="3.5" y="4.5" width="13" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8.5" r="1.4" fill="currentColor"/><path d="M4 14l4-4 3 3 2-2 3 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+  stopall: '<rect x="4.5" y="4.5" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="8" y="8" width="4" height="4" rx=".8" fill="currentColor"/>',
+  git: '<circle cx="6.5" cy="5.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="6.5" cy="14.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="13.5" cy="8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 7.3v5.4M13.5 9.8c0 2.6-2.4 3-5.4 3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  ahp: '<path d="M10 3.3l5.5 2.2v4.1c0 3.4-2.3 5.9-5.5 7.1-3.2-1.2-5.5-3.7-5.5-7.1V5.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.6 10.2l1.7 1.7 3.2-3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  slash: '<path d="M12.5 3.5l-5 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+};
+function commandGlyph(name) {
+  const glyph = el('span', 'glyph');
+  glyph.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${COMMAND_GLYPHS[name] ?? COMMAND_GLYPHS.slash}</svg>`; // trusted: our own SVG strings
+  return glyph;
+}
+
 function showMenu(items, found) {
   Object.assign(menu, { items, index: Math.min(menu.index, items.length - 1), kind: found.kind, start: found.start, end: found.end });
   els.slashMenu.replaceChildren();
@@ -5118,17 +7285,39 @@ function showMenu(items, found) {
       button.append(pixelIcon(item.icon, 'pixel-icon starter-icon'), el('span', 'idea', item.what), el('span', `shape ${item.shape}`, shape.label));
       button.title = `/module ${item.what} · ${shape.about}`;
     } else {
+      // A tile that says what kind of thing it is, the name with how it is written beside it, and
+      // under them what it does. The written form is a quiet chip, never a line of its own.
       const [name, ...rest] = String(item.key).split(' ');
       const args = rest.join(' ');
-      button.append(el('span', 'key', name), el('span', 'what', item.what));
-      if (args) button.append(el('span', 'args', args));
-      // No hover note: the row already shows the command, what it does and how it is written.
+      let glyph;
+      if (item.agent) { glyph = el('span', 'glyph agent'); glyph.append(avatar(item.agent, { size: 22 })); }
+      else if (Number.isInteger(item.mode)) { glyph = el('span', `glyph mode m${item.mode}`, `#${item.mode}`); }
+      else glyph = commandGlyph(item.glyph ?? '');
+      const head = el('span', 'line');
+      head.append(el('span', 'key', name));
+      if (args) head.append(el('span', 'args', args));
+      const body = el('span', 'body');
+      body.append(head, el('span', 'what', item.what));
+      // `cmd`, not `row`: `.row` is a message in the thread, and its margins and width came along.
+      button.classList.add('cmd');
+      button.append(glyph, body);
     }
     button.addEventListener('mousedown', (event) => { event.preventDefault(); pickMenu(index); });
+    // Each group of commands under its own name.
+    if (item.group && item.group !== items[index - 1]?.group) els.slashMenu.append(el('div', 'group', t(COMMAND_GROUP_WORDS[item.group])));
     els.slashMenu.append(button);
   });
-  els.slashMenu.append(el('div', 'hint', found.hint ?? (found.kind === '@' ? 'MENTION · ↑↓ · TAB OR ENTER' : 'COMMAND · ↑↓ · TAB OR ENTER')));
+  const keys = el('div', 'hint keys');
+  const said = found.hint ?? (found.kind === '@' ? t('MENTION · ↑↓ · TAB OR ENTER') : t('COMMAND · ↑↓ · TAB OR ENTER'));
+  const [what] = said.split(' · ');
+  keys.append(el('span', 'what', what), el('kbd', null, '↑↓'), el('span', null, t('move')), el('kbd', null, 'Tab'), el('span', null, t('choose')), el('kbd', null, 'Esc'), el('span', null, t('close')));
+  els.slashMenu.append(keys);
   els.slashMenu.hidden = false;
+  // Anchored to the box's left edge; on a narrow window it slides back so its right edge stays in.
+  els.slashMenu.style.translate = '';
+  const over = (els.slashMenu.getBoundingClientRect?.().right ?? 0) - (window.innerWidth - 12);
+  if (over > 0) els.slashMenu.style.translate = `${-Math.ceil(over)}px 0`;
+  els.slashMenu.querySelector('.item[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' });
 }
 function pickMenu(index = menu.index) {
   const item = menu.items[index];
@@ -5408,6 +7597,7 @@ els.composer.addEventListener('drop', (event) => { const files = [...(event.data
 
 els.composer.addEventListener('submit', async (event) => {
   event.preventDefault();
+  foldSafety();
   const text = els.input.value.trim();
   const ready = state.pending.filter((item) => item.id && !item.uploading);
   if (!text && !ready.length) return;
@@ -5445,10 +7635,25 @@ els.composer.addEventListener('submit', async (event) => {
     const wanted = Number(modeToken[2]);
     outgoing = outgoing.replace(/(^|\s)#[0-4](?=\s|$)/, '$1').replace(/\s{2,}/g, ' ').trim();
     if (wanted >= 3) {
-      const scopes = state.capabilities[target]?.scopes;
-      els.input.value = outgoing;
+      // The override names the agent that will act: the one the message is addressed to, which is
+      // its leading @mention when it has one, as on sending. It used to name the chip's, so
+      // «@claude #3 …» with the chip on @gemini armed CONTROL for Gemini, and «#4 @codex …» with
+      // the chip on @claude opened the airlock for Claude.
+      const bare = text.replace(/(^|\s)#[0-4](?=\s|$)/, '$1').replace(/\s{2,}/g, ' ').trim();
+      const mentioned = bare.match(/^@([a-z0-9_-]+)\b/i)?.[1]?.toLowerCase();
+      const who = mentioned && state.agents.has(mentioned) ? mentioned : target;
+      if (who !== target) { els.target.value = who; renderPicker(); }
+      const scopes = state.capabilities[who]?.scopes;
+      els.input.value = bare;
       autosize();
-      openOverride(target, { mode: wanted, raise: wanted > ceilingFor(target) && Boolean(scopes?.write?.capable) });
+      // The human pressed send: once the keys are in, the message goes. Cancelled, the field gets
+      // back exactly what was written, #n included.
+      openOverride(who, {
+        mode: wanted,
+        raise: wanted > ceilingFor(who) && Boolean(scopes?.write?.capable),
+        then: () => els.composer.requestSubmit(),
+        cancelled: () => { els.input.value = text; autosize(); els.input.focus(); },
+      });
       return;
     }
     setMode(wanted);
@@ -5471,6 +7676,15 @@ els.composer.addEventListener('submit', async (event) => {
   // and the effort are the ones chosen for THAT agent; the chip's would be another agent's.
   const mention = outgoing.match(/^@([a-z0-9_-]+)\b/i)?.[1]?.toLowerCase();
   const addressed = mention && state.agents.has(mention) ? mention : target;
+  // CONTROL and AIRLOCK are armed for one agent. A message that ends up addressed to another one
+  // is asked for again, for that one; the keys typed for @gemini never open the project to @claude.
+  if (state.mode >= 3 && state.modeArmedFor && addressed && addressed !== state.modeArmedFor) {
+    const wanted = state.mode;
+    const scopes = state.capabilities[addressed]?.scopes;
+    if (els.target.value !== addressed) { els.target.value = addressed; renderPicker(); }
+    openOverride(addressed, { mode: wanted, raise: wanted > ceilingFor(addressed) && Boolean(scopes?.write?.capable), then: () => els.composer.requestSubmit() });
+    return;
+  }
   els.input.disabled = true;
   els.send.disabled = true;
   try {
@@ -6095,7 +8309,13 @@ function removeModuleButton(item, { className = 'remove-module', text = t('UNINS
   remove.type = 'button';
   remove.title = t('Delete module file {file}', { file: item.file });
   remove.addEventListener('click', async () => {
-    if (!window.confirm(t("Remove {name}? Its file {file} is deleted. MADRE's own modules cannot be removed.", { name: item.name, file: item.file }))) return;
+    const answer = await roomAsk({
+      console: true,
+      title: t('UNINSTALL {name}', { name: item.name }),
+      body: t("Remove {name}? Its file {file} is deleted. MADRE's own modules cannot be removed.", { name: item.name, file: item.file }),
+      choices: [{ value: 'keep', label: t('KEEP IT'), focus: true }, { value: 'remove', label: t('UNINSTALL'), tone: 'danger' }],
+    });
+    if (answer !== 'remove') return;
     remove.disabled = true;
     try {
       const response = await fetch(`/api/extensions/${item.id}`, { method: 'DELETE' });
@@ -6317,7 +8537,13 @@ modules.file?.addEventListener('change', async () => {
   modules.file.value = '';
   if (!file) return;
   if (!/\.m?js$/.test(file.name)) { toast(t('MU/TH/UR › a module is a .mjs file.')); return; }
-  if (!window.confirm(t('Install {name}?', { name: file.name }) + '\n\n' + t('A module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and keeps to the house rules before installing it — it cannot check what it intends. Install it only if you trust where it came from.'))) return;
+  const install = await roomAsk({
+    console: true,
+    title: t('Install {name}?', { name: file.name }),
+    body: t('A module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and keeps to the house rules before installing it — it cannot check what it intends. Install it only if you trust where it came from.'),
+    choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'install', label: t('INSTALL'), tone: 'primary' }],
+  });
+  if (install !== 'install') return;
   let text;
   try { text = await file.text(); } catch (error) { toast(t('That file could not be read: {error}', { error: error.message })); return; }
   modules.add.disabled = true;
@@ -6353,7 +8579,13 @@ async function refreshModuleFile(item, button) {
   if (!looked.ok) { toast(`MU/TH/UR › ${looked.result.error ?? 'that module could not be checked.'}`); button.disabled = false; return; }
   const { origin, current, candidate, same } = looked.result;
   if (same) { toast(t('MU/TH/UR › {name} is already {version} · {from}', { name: item.name, version: current ?? t('what is published'), from: origin.from })); button.disabled = false; return; }
-  if (!window.confirm(t('Update {name}?', { name: item.name }) + `\n\n${current ?? t('unversioned')} → ${candidate ?? t('unversioned')}\n` + t('From {from}', { from: origin.from }) + '\n\n' + t('It loads and keeps to the house rules. What it intends, only you can judge.'))) { button.disabled = false; return; }
+  const update = await roomAsk({
+    console: true,
+    title: t('Update {name}?', { name: item.name }),
+    body: `${current ?? t('unversioned')} → ${candidate ?? t('unversioned')}\n${t('From {from}', { from: origin.from })}\n\n${t('It loads and keeps to the house rules. What it intends, only you can judge.')}`,
+    choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'update', label: t('UPDATE'), tone: 'primary' }],
+  });
+  if (update !== 'update') { button.disabled = false; return; }
   const done = await ask(true);
   if (!done.ok) { toast(`MU/TH/UR › ${done.result.error ?? 'the module was not updated.'}`); button.disabled = false; return; }
   modules.items = done.result.extensions ?? modules.items;
@@ -6451,10 +8683,10 @@ async function renderEconomy() {
   // different kinds have no shape to draw, and drawing one anyway is how a panel starts lying.
   const strip = el('div', 'economy-strip');
   for (const [value, label, hint] of [
-    [count(read.turns), t('TURNS WEIGHED'), t('every turn this room has been billed for')],
-    [count(totals.input), t('INPUT CHARGED'), t('tokens the CLIs charged as fresh reading')],
+    [count(read.billed ?? read.turns), t('TURNS WEIGHED'), t('every turn this room has been billed for')],
+    [count((totals.input ?? 0) + (totals.created ?? 0)), t('INPUT CHARGED'), t('fresh reading, plus what was written into a cache (billed too) · the cache read back is apart')],
     [count(totals.output), t('OUTPUT CHARGED'), t('tokens written back · the dearer half')],
-    [count(saved.tokens), t('NEVER CHARGED'), t('read back from a cache, plus what was never sent')],
+    [count(saved.tokens), t('NOT CHARGED IN FULL'), t('read back from a cache (a fraction of the price, or of the plan) plus what was never sent')],
     [pct(totals.cacheShare), t('CAME FROM CACHE'), t('of everything read, the share nobody charged twice')],
     [totals.charsPerInputToken ? totals.charsPerInputToken.toFixed(2) : '—', t('CHARACTERS PER TOKEN'), t('what MADRE wrote against what the CLIs were charged for reading · not a tokenizer')],
   ]) {
@@ -6467,9 +8699,9 @@ async function renderEconomy() {
 
   // 1 · The only money on this screen.
   const first = el('div', 'card-block');
-  first.append(cardHead('free', t('NEVER CHARGED FOR')));
+  first.append(cardHead('free', t('NOT CHARGED IN FULL')));
   first.append(el('div', 'economy-headline', count(saved.tokens)));
-  first.append(el('p', 'unit-note', t('tokens this room never paid for')));
+  first.append(el('p', 'unit-note', t('tokens read back from a cache at a fraction of their price, or never sent at all')));
   metrics(first, [
     [t('FROM THE CACHE'), count(saved.cachedTokens), t('the CLI said it read these back instead of charging them again · measured')],
     [t('NEVER SENT'), count(saved.unsentTokens), t('briefing a turn had no use for · estimated from characters, not measured')],
@@ -6527,7 +8759,7 @@ async function renderEconomy() {
   fourth.append(cardHead('grid', t('BY AGENT')));
   const table = el('table', 'economy-table');
   const head = el('tr');
-  for (const column of [t('AGENT'), t('TURNS'), t('INPUT'), t('OUTPUT'), t('CACHE'), t('CACHED %'), t('CHARS / TOKEN')]) head.append(el('th', null, column));
+  for (const column of [t('AGENT'), t('TURNS'), t('INPUT'), t('CACHE WRITTEN'), t('OUTPUT'), t('CACHE'), t('CACHED %'), t('CHARS / TOKEN')]) head.append(el('th', null, column));
   const thead = el('thead');
   thead.append(head);
   table.append(thead);
@@ -6535,7 +8767,7 @@ async function renderEconomy() {
   for (const agent of read.agents) {
     const row = el('tr');
     row.append(el('th', null, String(agent.agent).toUpperCase()));
-    for (const cell of [count(agent.turns), count(agent.input), count(agent.output), count(agent.cached), pct(agent.cacheShare), agent.charsPerInputToken ? agent.charsPerInputToken.toFixed(2) : '—']) {
+    for (const cell of [count(agent.turns), count(agent.input), agent.created ? count(agent.created) : '—', count(agent.output), count(agent.cached), pct(agent.cacheShare), agent.charsPerInputToken ? agent.charsPerInputToken.toFixed(2) : '—']) {
       row.append(el('td', null, String(cell)));
     }
     body.append(row);
@@ -7014,7 +9246,54 @@ function capabilityBadges(id) {
   return wrap;
 }
 
-function openAgentPop(id, anchor) {
+// Where a card stands: under what opened it, inside the window.
+function placeAgentPop(anchor) {
+  pop.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  const width = pop.offsetWidth || 260;
+  pop.style.top = `${rect.bottom + 10}px`;
+  pop.style.left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2))}px`;
+  document.querySelectorAll('.agents .avatar.open, #agents-compact.open').forEach((node) => node.classList.remove('open'));
+  anchor.classList.add('open');
+}
+
+// The crew, from the one button that stands for the spheres: each agent as its sphere shows it —
+// ring, name, how much of its window is spent — and a press opens that agent's card. CONNECTIONS,
+// where all of it is set, is one press further.
+function openCrewPop(anchor) {
+  const all = [...state.agents.values()];
+  pop.style.removeProperty('--agent');
+  delete pop.dataset.agent;
+  pop.replaceChildren();
+  const head = el('div', 'head');
+  head.append(el('b', null, t('CREW')), el('span', 'vendor', t('{ready} of {total} ready', { ready: all.filter((agent) => agent.ready).length, total: all.length })));
+  pop.append(head);
+  const list = el('div', 'crew-list');
+  for (const agent of all) {
+    const shown = ringPercent(agent);
+    const row = paint(el('button', `crew-row${agent.ready ? '' : ' cold'}`), agent.id);
+    row.type = 'button';
+    const words = el('span', 'crew-words');
+    words.append(el('b', null, `@${agent.id}`), el('span', null, agent.ready ? vendorWord(agent.id) : t('no session')));
+    row.append(avatar(agent.id, { size: 24, ring: agent.ready, pct: shown, status: agent.ready ? 'ready' : agent.detected ? 'detected' : 'offline' }), words, el('span', `crew-pct${shown >= 80 ? ' hot' : ''}`, `${Math.round(shown)}%`));
+    row.addEventListener('click', (event) => { event.stopPropagation(); openAgentPop(agent.id, anchor, { back: () => openCrewPop(anchor) }); });
+    list.append(row);
+  }
+  pop.append(list);
+  const go = el('button', 'crew-go', t('⚙ CONNECTIONS IN MU/TH/UR'));
+  go.type = 'button';
+  go.addEventListener('click', () => {
+    closeAgentPop();
+    document.querySelector('#mother-button')?.click();
+    setTimeout(() => document.querySelector('#mother-settings-button')?.click(), 60);
+  });
+  pop.append(go);
+  pop.dataset.for = 'crew';
+  pop.dataset.from = 'crew';
+  placeAgentPop(anchor);
+}
+
+function openAgentPop(id, anchor, { back = null } = {}) {
   const agent = state.agents.get(id);
   if (!agent) return;
   const stats = statsFor(id);
@@ -7025,6 +9304,13 @@ function openAgentPop(id, anchor) {
   paint(pop, id);
   pop.replaceChildren();
   const head = el('div', 'head');
+  if (back) {
+    const previous = el('button', 'crew-back', '‹');
+    previous.type = 'button';
+    previous.setAttribute('aria-label', t('Back to the crew'));
+    previous.addEventListener('click', (event) => { event.stopPropagation(); back(); });
+    head.append(previous);
+  }
   head.append(avatar(id, { size: 24 }));
   head.append(el('b', null, agent.label));
   head.append(el('span', 'vendor', vendorWord(id)));
@@ -7052,26 +9338,22 @@ function openAgentPop(id, anchor) {
   row(t('turns'), String(stats.turns));
   row(t('last turn'), `${fmtMs(stats.lastTurnMs)}${stats.lastTurnTokens ? ` · ${formatTokens(stats.lastTurnTokens)} tok` : ''}`);
   if (stats.cost > 0) row(t('cost (reported)'), `$${stats.cost.toFixed(2)}`);
-  row(t('session'), session ? t(session.state.replace('-', ' ')) : agent.ready ? t('unknown') : t('not ready'), session?.state === 'signed-in' ? 'on' : session?.state === 'signed-out' ? 'off' : null);
+  row(t('session'), session ? ({ 'signed-in': t('signed in'), 'signed-out': t('signed out') }[session.state] ?? t('unknown')) : agent.ready ? t('unknown') : t('not ready'), session?.state === 'signed-in' ? 'on' : session?.state === 'signed-out' ? 'off' : null);
   if (session?.detail) row(t('via'), session.detail);
   row(t('timeout'), `${Math.round((state.timeouts[id] ?? 180000) / 1000)}s`);
   if (agent.version) row(t('version'), agent.version);
   pop.append(dl);
   pop.append(capabilityBadges(id));
   pop.append(el('div', 'foot', official === null ? t("local window, not the provider's bill · ⚙ connections in MU/TH/UR") : t('provider limit as the CLI reports it · ⚙ connections in MU/TH/UR')));
-  pop.hidden = false;
-  const rect = anchor.getBoundingClientRect();
-  const width = pop.offsetWidth || 260;
-  pop.style.top = `${rect.bottom + 10}px`;
-  pop.style.left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2))}px`;
-  document.querySelectorAll('.agents .avatar.open').forEach((node) => node.classList.remove('open'));
-  anchor.classList.add('open');
   pop.dataset.for = id;
+  pop.dataset.from = back ? 'crew' : 'sphere';
+  placeAgentPop(anchor);
 }
 function closeAgentPop() {
   pop.hidden = true;
   delete pop.dataset.for;
-  document.querySelectorAll('.agents .avatar.open').forEach((node) => node.classList.remove('open'));
+  delete pop.dataset.from;
+  document.querySelectorAll('.agents .avatar.open, #agents-compact.open').forEach((node) => node.classList.remove('open'));
 }
 els.agents.addEventListener('click', (event) => {
   const sphere = event.target.closest('.avatar');
@@ -7079,7 +9361,7 @@ els.agents.addEventListener('click', (event) => {
   const id = sphere.dataset.agent;
   if (pop.dataset.for === id && !pop.hidden) closeAgentPop(); else openAgentPop(id, sphere);
 });
-document.addEventListener('click', (event) => { if (!pop.hidden && !pop.contains(event.target) && !event.target.closest('.agents')) closeAgentPop(); });
+document.addEventListener('click', (event) => { if (!pop.hidden && !pop.contains(event.target) && !event.target.closest('.agents, #agents-compact')) closeAgentPop(); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAgentPop(); });
 
 /* ---------- ⚙ connections & settings inside MU/TH/UR ---------- */
@@ -7248,10 +9530,13 @@ async function openCore() {
   // document is built around.
   core.text = els.input?.value?.trim() ? els.input.value : (core.text ?? '');
   core.strikes = 0;
-  core.pane = 'document';
+  // It opens on the board — you and your local model — and the document is one tab away.
+  core.pane = 'board';
   core.body.hidden = true;
-  core.body.replaceChildren(renderCoreStrip(), renderCoreTabs(), renderCorePanes(), renderCoreConsole());
+  core.body.replaceChildren(renderCoreTabs(), renderCoreStrip(), renderCorePanes(), renderCoreConsole());
+  showPane(core.pane);
   core.dialog.showModal();
+  void fillCoreBoard();
   typeLines(core.boot, CORE_BOOT, () => { core.body.hidden = false; core.console?.field?.focus(); });
   // What has left this machine is about the room rather than about this turn, so it is read
   // once per visit.
@@ -7285,12 +9570,186 @@ async function loadCore() {
 
 const paneInto = (id, node) => { core.paneNodes[id]?.replaceChildren(node); };
 
+/* ---------- pane · your core ---------- */
+
+// The first thing the core shows, as a board in the console's own pieces — the tiles, cards and
+// meters of MEMORY: the person the room speaks for, and the model on this computer that keeps the
+// room's memory. Who has a session and how much of each limit is spent; what the local model is,
+// what it runs on and how well it knows this room; what the archive holds; and the settings that
+// decide who reads it. Every figure comes from what the room already holds (its agents and their
+// sessions) or from a route it already has (/api/ollama, /api/maturity, /api/memory/dashboard,
+// /api/settings), and every switch calls one. What nobody has measured says so.
+const SESSION_WORDS = { 'signed-in': t('SIGNED IN'), 'signed-out': t('SIGNED OUT') };
+async function fillCoreBoard() {
+  const pane = core.paneNodes.board;
+  if (!pane) return;
+  const read = (url) => fetch(url).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  const [olla, grown, dash, settings] = await Promise.all([read('/api/ollama'), read('/api/maturity'), read('/api/memory/dashboard'), read('/api/settings')]);
+  const o = olla?.ollama ?? null;
+  const d = dash?.dashboard ?? null;
+  const m = grown?.maturity ?? null;
+  const v = grown?.verdict ?? null;
+  core.local = o ? { running: Boolean(o.running), chatModel: o.chatModel ?? null } : null;
+  drawCoreTabs();
+  const board = el('div', 'mem-dash core-board');
+
+  // You: the sessions, the room's window, and each agent's limit.
+  const crew = [...state.agents.values()].filter((agent) => agent.detected && !agent.local);
+  const signed = crew.filter((agent) => sessionOf(agent) === 'signed-in');
+  const spent = crew.reduce((sum, agent) => sum + (agent.tokens ?? 0), 0);
+  const ever = crew.reduce((sum, agent) => sum + (agent.rawTokens ?? 0), 0);
+  board.append(brewHead(t('YOU'), (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? null));
+  const you = el('div', 'mem-kpis');
+  memTile(you, { label: t('SIGNED IN'), value: `${signed.length}/${crew.length}`, sub: signed.length ? signed.map((agent) => `@${agent.id}`).join(' · ') : t('NOBODY YET') });
+  memTile(you, { label: t('ROOM WINDOW'), value: formatTokens(spent) || '0', sub: state.budget ? t('OF {budget} TOKENS · 5H', { budget: formatTokens(state.budget) }) : t('NO BUDGET SET'), meter: state.budget ? Math.min(1, spent / state.budget) : null });
+  memTile(you, { label: t('ALL-TIME IN ROOM'), value: formatTokens(ever) || '0', sub: t('TOKENS THE CREW HAS SPENT HERE') });
+  board.append(you);
+  if (crew.length) {
+    const grid = el('div', 'mem-grid');
+    const card = memCard(grid, t('BY AGENT'), 'span-12');
+    for (const agent of crew) {
+      const official = liveOfficial(agent);
+      const shown = ringPercent(agent);
+      const row = el('div', `mem-signal${shown >= 80 ? ' hot' : ''}`);
+      const top = el('div', 'top');
+      top.append(el('b', null, `@${agent.id.toUpperCase()} · ${SESSION_WORDS[sessionOf(agent)] ?? t('SESSION UNKNOWN')}`), el('span', null, `${Math.round(shown)}%`));
+      const facts = [
+        official === null ? (state.budget ? t('LOCAL 5H WINDOW') : null) : t("PROVIDER'S {window} LIMIT", { window: fmtWindow(agent.officialWindows?.primary?.windowMinutes ?? 300) }),
+        agent.officialResetAt ? t('RESETS {when}', { when: fmtReset(agent.officialResetAt) }) : null,
+        agent.rawTokens ? t('{n} TOKENS IN THE ROOM', { n: formatTokens(agent.rawTokens) }) : null,
+        agent.version ?? null,
+      ].filter(Boolean);
+      row.append(top, memMeter(shown / 100), el('span', 'detail', facts.join(' · ')));
+      card.append(row);
+    }
+    board.append(grid);
+  }
+
+  // The local model: what runs, what it is given, and when it was last asked.
+  const localHead = brewHead(t('YOUR LOCAL MODEL'), o ? (o.running ? t('RUNNING') : t('OFF')) : t('UNAVAILABLE'));
+  board.append(localHead);
+  if (!o) board.append(el('p', 'note', t('OLLAMA IS NOT WIRED IN THIS ROOM · OPEN MODULES → OLLAMA')));
+  else {
+    // When it was read and the way to read it again, at the end of its own heading.
+    const head = el('span', 'brew-actions');
+    head.append(el('span', 'when', t('READ {time}', { time: formatTime(new Date().toISOString()) })));
+    if (!o.running && o.binary) {
+      const start = el('button', 'primary', t('START OLLAMA'));
+      start.type = 'button';
+      start.addEventListener('click', async () => { start.disabled = true; await fetch('/api/ollama/start', { method: 'POST' }).catch(() => null); await fillCoreBoard(); });
+      head.append(start);
+    }
+    const recheck = el('button', null, t('RECHECK'));
+    recheck.type = 'button';
+    recheck.addEventListener('click', async () => { recheck.disabled = true; await fetch('/api/ollama/probe', { method: 'POST' }).catch(() => null); await fillCoreBoard(); });
+    head.append(recheck);
+    localHead.append(head);
+
+    const local = el('div', 'mem-kpis');
+    memTile(local, { label: t('SERVER'), value: o.running ? (o.version ? `v${o.version}` : t('ON')) : t('OFF'), sub: o.running ? o.host : (o.error ?? t('not running')) });
+    memTile(local, { label: t('CHAT'), value: o.madreModel ?? o.chatModel ?? '—', sub: o.madreModel ? t('TRAINED FOR THIS ROOM') : t('NOT TRAINED FOR THIS ROOM YET') }).classList.add('word');
+    memTile(local, { label: t('EMBEDDINGS'), value: o.embedModel ?? '—', sub: d?.vectors ? t('{n} WITH A VECTOR', { n: memFmt((d.vectors.memories ?? 0) + (d.vectors.entries ?? 0)) }) : t('RECALL MATCHES WORDS ONLY') }).classList.add('word');
+    const measured = state.localModel?.checked;
+    memTile(local, { label: t('MEASURED HERE'), value: measured ? `${measured.matched}/${measured.n}` : '—', sub: measured ? t('LANDED WHERE THE CREW DID · {verdict}', { verdict: measured.passed ? t('READY') : t('NOT YET') }) : t('NOT MEASURED YET'), meter: measured?.n ? measured.matched / measured.n : null });
+    board.append(local);
+
+    const models = o.models ?? [];
+    if (models.length) {
+      const grid = el('div', 'mem-grid');
+      const card = memCard(grid, t('INSTALLED · {n}', { n: models.length }), 'span-12');
+      const largest = Math.max(1, ...models.map((model) => model.size || 0));
+      for (const model of models) {
+        const row = el('div', 'mem-signal');
+        const top = el('div', 'top');
+        top.append(el('b', null, model.name), el('span', null, formatSize(model.size || 0)));
+        const role = [model.name === o.madreModel ? '@MADRE' : null, model.name === o.chatModel ? t('CHAT') : null, model.name === o.embedModel ? t('EMBEDDINGS') : null].filter(Boolean);
+        const facts = [...role, model.details?.parameter_size, model.details?.quantization_level, model.family].filter(Boolean);
+        row.append(top, memMeter((model.size || 0) / largest));
+        if (facts.length) row.append(el('span', 'detail', facts.join(' · ')));
+        card.append(row);
+      }
+      board.append(grid);
+    }
+  }
+
+  // How well it knows this room: the stage, the archive's figures, what it is made of, the tests.
+  board.append(brewHead(t('THE QUALITY'), m?.stage?.label ?? null));
+  if (!m || !v || !d) board.append(el('p', 'note', t('NOTHING TO READ YET: THE ROOM HAS NO ARCHIVE.')));
+  else {
+    const figures = el('div', 'mem-kpis');
+    memTile(figures, { label: t('MATURITY'), value: memPct(m.score), sub: m.stage.label, meter: m.score, title: m.stage.says });
+    memTile(figures, { label: t('EXCHANGES'), value: memFmt(d.totals.entries), sub: memWeek(d.weeks.entries) });
+    memTile(figures, { label: t('MEMORIES'), value: memFmt(d.totals.memories), sub: memWeek(d.weeks.memories) });
+    memTile(figures, { label: t('WAITING'), value: memFmt(d.totals.pending), sub: d.totals.pending ? t('EXCHANGES NOBODY HAS DISTILLED YET') : t('THE ARCHIVIST IS UP TO DATE') });
+    board.append(figures, memVerdict(m, v));
+    const grid = el('div', 'mem-grid');
+    memSignals(memCard(grid, t('WHAT THE ARCHIVE IS MADE OF'), 'span-12'), m);
+    memCard(grid, t('THE THREE TESTS'), 'span-12').append(examsBlock(grown.exams ?? null, { pass: d.pass ?? null }));
+    board.append(grid);
+  }
+
+  // Who reads the archive, and what the local model is given to do.
+  board.append(brewHead(t('SETTINGS')));
+  const grid = el('div', 'mem-grid');
+  if (o) {
+    const does = memCard(grid, t('WHAT THE LOCAL MODEL DOES'), 'span-6');
+    const role = (key, word, said) => {
+      const label = el('label', 'core-role');
+      const box = el('input');
+      box.type = 'checkbox';
+      box.checked = o.settings?.[key] !== false;
+      box.addEventListener('change', async () => {
+        box.disabled = true;
+        const response = await fetch('/api/ollama/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [key]: box.checked }) }).catch(() => null);
+        if (!response?.ok) { box.checked = !box.checked; toast(t('MU/TH/UR › that could not be changed.')); }
+        box.disabled = false;
+      });
+      const words = el('span', 'core-role-words');
+      words.append(el('b', null, word), el('span', 'detail', said));
+      label.append(box, words);
+      return label;
+    };
+    does.append(
+      role('embeddings', t('EMBEDDINGS'), t('Turns each memory into a vector, so recall finds it by meaning.')),
+      role('archivist', t('ARCHIVIST'), t('Distils the exchanges into memories, on this computer.')),
+      role('agent', '@MADRE', t('Answers in the room as the fifth agent.')),
+    );
+  }
+  const mem = settings?.settings?.memory;
+  if (mem) {
+    const reads = memCard(grid, t('WHO READS THE ARCHIVE'), o ? 'span-6' : 'span-12');
+    const save = async (patch, said) => { try { await saveSettingNow({ memory: patch }, said); } catch (error) { toast(`MU/TH/UR › ${error.message}`); } };
+    const archivist = el('select');
+    for (const [value, text] of [['auto', t('AUTO')], ...mem.candidates.map((one) => [one.id, one.label])]) {
+      const option = el('option', null, text);
+      option.value = value;
+      if (value === (mem.archivist ?? 'auto')) option.selected = true;
+      archivist.append(option);
+    }
+    archivist.addEventListener('change', () => save({ archivist: archivist.value }, t('archivist: {what}.', { what: archivist.options[archivist.selectedIndex].textContent })));
+    const embed = el('select');
+    for (const [value, text] of [['auto', t('AUTO · Ollama if running, else Gemini')], ['ollama', `OLLAMA · ${t('local')}${mem.ollama?.embedModel ? ` · ${mem.ollama.embedModel}` : t(' · no model yet')}`], ['gemini', t('GEMINI · needs your key')], ['off', t('OFF · words only')]]) {
+      const option = el('option', null, text);
+      option.value = value;
+      if (value === (mem.embedProvider ?? 'auto')) option.selected = true;
+      embed.append(option);
+    }
+    embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('embeddings: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
+    const field = (word, control) => { const label = el('label', 'core-field'); label.append(el('span', 'k', word), control); return label; };
+    reads.append(field(t('ARCHIVIST'), archivist), field(t('EMBEDDINGS'), embed));
+    if (mem.envWins) reads.append(el('p', 'note', t('AN ENVIRONMENT VARIABLE IS SETTING SOME OF THIS, AND IT WINS OVER WHAT YOU CHOOSE HERE.')));
+  }
+  if (grid.childElementCount) board.append(grid);
+  paneInto('board', board);
+}
+
 /* ---------- the strip: who it goes to, at what mode, around what ---------- */
 
 // Built once per visit and never rebuilt, so what you are typing survives every rebuild of the
 // panes underneath it.
 function renderCoreStrip() {
   const strip = el('div', 'core-strip');
+  core.strip = strip;
 
   const pick = el('div', 'core-pick');
   pick.append(el('span', 'k', t('TO')));
@@ -7343,11 +9802,15 @@ function renderCoreStrip() {
 /* ---------- the panes ---------- */
 
 const CORE_TABS = [
+  { id: 'board', label: t('YOUR CORE') },
   { id: 'document', label: t('DOCUMENT') },
   { id: 'launch', label: t('LAUNCH') },
   { id: 'egress', label: t('WHAT LEFT') },
   { id: 'console', label: 'MU/TH/UR' },
 ];
+// The strip — who it goes to, at what mode, around what — is about the next turn, so it shows
+// with the two panes that are about the next turn and nowhere else.
+const CORE_STRIP_PANES = new Set(['document', 'launch']);
 
 function renderCoreTabs() {
   const tabs = el('nav', 'core-tabs');
@@ -7376,6 +9839,7 @@ function drawCoreTabs() {
     document: briefing ? t('{n} BLOCKS · {ch} CH', { n: briefing.parts.length, ch: briefing.chars.toLocaleString() }) + tokens : t('READING…'),
     launch: briefing?.launch ? (briefing.launch.local ? t('NO PROCESS') : t('@{agent} · {n} ARGS', { agent: briefing.agent, n: briefing.launch.args.length })) : '—',
     egress: core.outbound ? t('{n} ADDRESSES · {on} ON', { n: core.outbound.destinations.length, on }) : '—',
+    board: core.local ? (core.local.running ? (core.local.chatModel ?? t('NO CHAT MODEL')) : t('LOCAL MODEL OFF')) : t('READING…'),
     console: core.history.length ? t('{n} ASKED', { n: core.history.length }) : t('ASK ME'),
   };
   for (const button of core.tabs.children) {
@@ -7405,6 +9869,7 @@ function renderCorePanes() {
 function showPane(id) {
   core.pane = id;
   for (const [name, pane] of Object.entries(core.paneNodes)) pane.hidden = name !== id;
+  if (core.strip) core.strip.hidden = !CORE_STRIP_PANES.has(id);
   drawCoreTabs();
   if (core.panes) core.panes.scrollTop = 0;
 }
@@ -7855,6 +10320,30 @@ function memActivity(card, dash) {
   table.append(grid);
 }
 
+// The one sentence about the figures, and the next thing to do about them.
+function memVerdict(m, v) {
+  const verdict = el('div', `mem-verdict stage-${m.stage.id}`);
+  const says = el('p', 'says');
+  says.append(el('b', null, v.headline ?? m.stage.label), ` ${v.says}`);
+  const next = el('p', 'maturity-next');
+  next.append(el('b', null, t('NEXT')), ` ${v.next.text}`);
+  if (v.next.where) next.append(el('span', 'where', ` → ${v.next.where}`));
+  verdict.append(says, next);
+  return verdict;
+}
+
+// What the archive is made of, one meter per signal, the weakest marked.
+function memSignals(card, m) {
+  for (const signal of m.signals) {
+    const row = el('div', `mem-signal${signal.id === m.weakest ? ' weakest' : ''}`);
+    const top = el('div', 'top');
+    top.append(el('b', null, signal.label), el('span', null, memPct(signal.value)));
+    row.append(top, memMeter(signal.value), el('span', 'detail', signal.detail));
+    row.title = signal.next;
+    card.append(row);
+  }
+}
+
 async function drawMemoryDashboard(box) {
   // A refresh keeps the frame it has and dims it, instead of blanking the screen under the reader.
   if (box.childElementCount) box.classList.add('loading');
@@ -7890,26 +10379,11 @@ async function drawMemoryDashboard(box) {
   memTile(kpis, { label: t('MATURITY'), value: memPct(m.score), sub: m.stage.label, meter: m.score, title: m.stage.says });
   box.append(kpis);
 
-  const verdict = el('div', `mem-verdict stage-${m.stage.id}`);
-  const says = el('p', 'says');
-  says.append(el('b', null, v.headline ?? m.stage.label), ` ${v.says}`);
-  const next = el('p', 'maturity-next');
-  next.append(el('b', null, t('NEXT')), ` ${v.next.text}`);
-  if (v.next.where) next.append(el('span', 'where', ` → ${v.next.where}`));
-  verdict.append(says, next);
-  box.append(verdict);
+  box.append(memVerdict(m, v));
 
   const grid = el('div', 'mem-grid');
   memActivity(memCard(grid, t('ACTIVITY · LAST {n} DAYS', { n: dash.days.length }), 'span-7'), dash);
-  const made = memCard(grid, t('WHAT THE ARCHIVE IS MADE OF'), 'span-5');
-  for (const signal of m.signals) {
-    const row = el('div', `mem-signal${signal.id === m.weakest ? ' weakest' : ''}`);
-    const top = el('div', 'top');
-    top.append(el('b', null, signal.label), el('span', null, memPct(signal.value)));
-    row.append(top, memMeter(signal.value), el('span', 'detail', signal.detail));
-    row.title = signal.next;
-    made.append(row);
-  }
+  memSignals(memCard(grid, t('WHAT THE ARCHIVE IS MADE OF'), 'span-5'), m);
 
   const kinds = memCard(grid, t('BY KIND'), 'span-3');
   memBars(kinds, Object.entries(dash.kinds).map(([kind, n]) => ({ label: kindWord(kind), n, swatch: `var(--mem-${kind}, var(--ph))` })));
@@ -8169,10 +10643,15 @@ function connectionCard(agent) {
   title.append(el('div', 'vendor', brandOf(agent.id).vendor));
   head.append(title);
   const busy = settingsUI.data.loggingIn === agent.id;
-  const tag = el('span', `session${busy ? ' busy' : session?.state === 'signed-in' ? ' on' : session?.state === 'signed-out' ? ' off' : ''}`,
-    busy ? t('SIGNING IN') : !agent.detected ? t('NOT INSTALLED') : session ? t(session.state.toUpperCase().replace('-', ' ')) : t('UNKNOWN'));
-  head.append(tag);
-  card.append(head);
+  // How the connection is, as a light in the card's corner: lit green with a session, red without
+  // one, amber and breathing while it signs in, hollow when the CLI is not here. Its name is the
+  // light's own, for whoever does not see the colour.
+  const lamp = busy ? 'busy' : !agent.detected ? 'absent' : session?.state === 'signed-in' ? 'on' : session?.state === 'signed-out' ? 'off' : 'unknown';
+  const said = busy ? t('SIGNING IN') : !agent.detected ? t('NOT INSTALLED') : session ? ({ 'signed-in': t('SIGNED IN'), 'signed-out': t('SIGNED OUT') }[session.state] ?? t('UNKNOWN')) : t('UNKNOWN');
+  const dot = el('span', `conn-dot ${lamp}`);
+  dot.setAttribute('role', 'img');
+  dot.setAttribute('aria-label', said);
+  card.append(dot, head);
   const meta = el('div', 'meta');
   meta.append(agent.detected ? `${agent.version ?? t('version unknown')} · ${agent.path}` : (agent.login?.install ?? []).join(' · '));
   if (session?.detail) meta.append(el('div', null, t('session: {detail}', { detail: session.detail })));
@@ -8615,8 +11094,14 @@ function renderSettings() {
       t('A path like /Users/yourname carries who you are into every reply that quotes it. The path still reads, it just stops naming you.'));
     const row = el('div', 'full dataset-row');
     purge.addEventListener('click', async () => {
-      const designation = window.prompt(t('PURGE ROOM · Every private term already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project designation to confirm:'));
-      if (designation === null) return;
+      const designation = await roomAsk({
+        console: true,
+        title: t('PURGE ROOM'),
+        body: t('Every private term already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project designation to confirm.'),
+        input: { placeholder: t('the project folder\'s name') },
+        choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'purge', label: t('PURGE'), tone: 'danger', submit: true }],
+      });
+      if (!designation) return;
       purge.disabled = true;
       try {
         const payload = await fetch('/api/privacy/purge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ designation }) }).then((response) => response.json());
@@ -8881,7 +11366,11 @@ function paintLegend() {
 
 async function openNostromo() {
   if (!nostromo.dialog) return;
-  mother.dialog?.close?.();
+  // MU/TH/UR in its base is a sheet over the room and gives way to NOSTROMO. Split or floating it
+  // is a window of the room: it stays where it was, under NOSTROMO, and is there as it was left
+  // when NOSTROMO is. Closing it would also have sent it back to its base.
+  const motherSurface = surfaces.find((one) => one.key === 'mother');
+  if (!motherSurface || modeOf(motherSurface) === 'base') mother.dialog?.close?.();
   nostromo.dialog.showModal();
   // A dialog hands focus to its first focusable child, and with COLD, ASK and RECENTER hidden
   // that was LEAVE: you pressed Enter to come in and the next Enter threw you out. The map is
@@ -9952,8 +12441,13 @@ function magmaMap(rows = MAGMA_H) {
 // Written for speed: it runs on the largest body on screen, so every read of the map is shared
 // between the channels that use the same place, and the limb is worked out once per size.
 const magmaLimbs = new Map();
-function shadeMagma(out, table, map, { turn, flow, beat = 0, blasts = [] }) {
+// `tilt` is how far the human has turned the view up or down. The sun is a body in that same
+// space: dragged, it turns with everything else instead of spinning in place on its own axis, so
+// each pixel reads the map where that point of the body faces after the view's turn is undone.
+function shadeMagma(out, table, map, { turn, flow, beat = 0, blasts = [], tilt = 0 }) {
   out.fill(0);
+  const cosTilt = Math.cos(tilt);
+  const sinTilt = Math.sin(tilt);
   const crustShift = (((turn / (Math.PI * 2)) % 1) + 1) % 1 * MAGMA_W;
   const lavaShift = (((flow / (Math.PI * 2)) % 1) + 1) % 1 * MAGMA_W;
   const cells = table.cells;
@@ -9969,8 +12463,15 @@ function shadeMagma(out, table, map, { turn, flow, beat = 0, blasts = [] }) {
   const seamWidth = 0.07 + 0.025 * beat;
   for (let i = 0, j = 0; i < cells.length; i += 7, j += 1) {
     const nx = cells[i + 1], ny = cells[i + 2], mu = cells[i + 3];
-    const base = cells[i + 4] * scale;
-    const v = Math.min(MAGMA_H - 1.001, cells[i + 5] * rowScale);
+    let base = cells[i + 4] * scale;
+    let v = Math.min(MAGMA_H - 1.001, cells[i + 5] * rowScale);
+    if (tilt) {
+      const wy = ny * cosTilt + mu * sinTilt;
+      const wz = mu * cosTilt - ny * sinTilt;
+      base = (Math.atan2(nx, wz) / (Math.PI * 2)) * MAGMA_W;
+      const lat = Math.asin(Math.max(-1, Math.min(1, wy)));
+      v = Math.max(0, Math.min(MAGMA_H - 1.001, ((lat / Math.PI + 0.5) * ALBEDO_H - 0.5) * rowScale));
+    }
     const r0 = v | 0;
     const fv = v - r0;
     const top = r0 * MAGMA_W;
@@ -10039,7 +12540,7 @@ function magmaBlasts(t, { alarm = 0, reduced = false } = {}) {
 
 // The body's face, painted into a buffer of its own and laid on the disc. Null where there is no
 // pixel buffer, or until the map is whole: the star is drawn the older way until then.
-function magmaFace(radius, pixels, t, { turn, beat, alarm, reduced }) {
+function magmaFace(radius, pixels, t, { turn, beat, alarm, reduced, tilt = 0 }) {
   if (typeof ImageData !== 'function') return null;
   const map = magmaMap(12);
   if (!map) return null;
@@ -10063,6 +12564,7 @@ function magmaFace(radius, pixels, t, { turn, beat, alarm, reduced }) {
     flow: turn * 0.82 + flowTime * 0.018,
     beat,
     blasts: magmaBlasts(t, { alarm, reduced }),
+    tilt,
   });
   magmaSprite.paint.putImageData(magmaSprite.image, 0, 0);
   return magmaSprite.canvas;
@@ -10756,7 +13258,7 @@ function drawNostromo(t) {
 
   // Molten rock, painted pixel by pixel wherever there is a buffer to paint into: plates of
   // crust, cracks running white-hot, lava flowing under them, bursts going off inside.
-  const magma = magmaFace(R, cam.scale * dpr, t, { turn: spin - yaw, beat, alarm, reduced: nostromo.reduced });
+  const magma = magmaFace(R, cam.scale * dpr, t, { turn: spin - yaw, beat, alarm, reduced: nostromo.reduced, tilt: nostromo.pitch ?? 0 });
   if (magma) ctx.drawImage(magma, -R, -R, R * 2, R * 2);
   else {
     // The skin, wrapped on. Each row of the disc takes the slice of the strip belonging to its

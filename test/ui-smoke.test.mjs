@@ -309,27 +309,35 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.ok(body.querySelector('.core-tabs'), 'the tabs are missing');
   assert.ok(body.querySelector('.console-line'), 'the prompt is missing');
   const panes = body.querySelector('.core-panes');
-  assert.deepEqual(panes.children.map((pane) => pane.dataset.pane), ['document', 'launch', 'egress', 'console']);
-  assert.deepEqual(panes.children.map((pane) => pane.hidden), [false, true, true, true], 'more than one pane is showing');
+  // It opens on the board — you and your local model — and the strip about the next turn waits
+  // for the panes that are about the next turn.
+  assert.deepEqual(panes.children.map((pane) => pane.dataset.pane), ['board', 'document', 'launch', 'egress', 'console']);
+  assert.deepEqual(panes.children.map((pane) => pane.hidden), [false, true, true, true, true], 'more than one pane is showing');
+  assert.equal(body.querySelector('.core-strip').hidden, true, 'the strip about the next turn shows on the board');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  // Nothing wired answers here but the verdict, and the board says what it could not read
+  // instead of drawing figures nobody measured.
+  assert.match(panes.children[0].textContent, /TÚ[\s\S]*TU MODELO LOCAL[\s\S]*OLLAMA[\s\S]*LA CALIDAD[\s\S]*NO HAY NADA QUE LEER/);
   // Each one filled from the room, and each one with its own `==>` sections.
   // In the language MADRE speaks, which is the point of reading it here rather than in the
   // catalogue: the page, the panes and the words all came up together.
-  assert.match(panes.children[0].textContent, /EL DOCUMENTO[\s\S]*MEMORIES[\s\S]*LO QUE CARGA/);
-  assert.match(panes.children[1].textContent, /EL LANZAMIENTO[\s\S]*\/usr\/local\/bin\/codex/);
-  assert.match(panes.children[2].textContent, /LO QUE SALIÓ DE ESTA COMPUTADORA[\s\S]*the npm registry/);
+  assert.match(panes.children[1].textContent, /EL DOCUMENTO[\s\S]*MEMORIES[\s\S]*LO QUE CARGA/);
+  assert.match(panes.children[2].textContent, /EL LANZAMIENTO[\s\S]*\/usr\/local\/bin\/codex/);
+  assert.match(panes.children[3].textContent, /LO QUE SALIÓ DE ESTA COMPUTADORA[\s\S]*the npm registry/);
   // An inquiry that is already a pane opens it rather than printing it twice.
   const prompt = body.querySelector('.console-line');
   const ask = async (text) => { prompt.querySelector('INPUT').value = text; await prompt.listeners.submit[0]({ preventDefault() {} }); };
   await ask('launch');
   assert.equal(core.pane, 'launch');
+  assert.equal(body.querySelector('.core-strip').hidden, false, 'the strip is gone from the launch it decides');
   // Everything else is answered in her own pane, and the count only moves on what she cannot read.
   await ask('weight');
   assert.equal(core.pane, 'console');
-  assert.match(panes.children[3].textContent, /CARACTERES EN 2 BLOQUES/);
+  assert.match(panes.children[4].textContent, /CARACTERES EN 2 BLOQUES/);
   assert.equal(core.strikes, 0);
   await ask('delete the archive');
   assert.equal(core.strikes, 1);
-  assert.match(panes.children[3].textContent, /INTENTOS ANTES DE QUE ESTA INTERFAZ SE CIERRE/);
+  assert.match(panes.children[4].textContent, /INTENTOS ANTES DE QUE ESTA INTERFAZ SE CIERRE/);
   registry.get('core').close();
 
 

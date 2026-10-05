@@ -297,6 +297,10 @@ test('economy: a turn the room answered itself is counted, never priced', async 
   // The scale beside the count is what the OTHER turns cost. A counterfactual price for these
   // ones would be a number nobody measured, which is the one thing this reading never prints.
   assert.equal(read.free.paidOutputMedian, 300, 'the median took the free turns into account');
+  // And what was charged is only what had a bill: @madre reports what its model read, on this computer.
+  assert.equal(read.billed, 3);
+  assert.equal(read.totals.input, 30, 'the local turns were added to the input charged');
+  assert.deepEqual(read.agents.map((agent) => agent.agent).sort(), ['claude', 'codex', 'gemini']);
   assert.ok(!('saved' in read.free) && !('wouldHaveCost' in read.free), 'the room put a price on a turn it never paid');
 });
 
@@ -324,3 +328,39 @@ test('economy: a difference smaller than the room\'s own noise is not reported a
   assert.equal(real.agents[0].readable, true, 'a difference far outside the spread went unreported');
   assert.ok(real.agents[0].share > 0.7);
 })
+
+test('economy: every turn\'s input means fresh reading, whichever CLI reported it, and the cache is counted once', async () => {
+  const { freshInput, budgetTokens } = await import('../src/room/budget.mjs');
+  // Codex and Gemini count the cache inside the input; Claude and OpenCode beside it.
+  assert.equal(freshInput({ source: 'codex-json', inputTokens: 21548, cachedInputTokens: 8064 }), 13484);
+  assert.equal(freshInput({ source: 'gemini-json', inputTokens: 212212, cachedInputTokens: 154707 }), 57505);
+  assert.equal(freshInput({ source: 'claude-json', inputTokens: 30, cachedInputTokens: 391132 }), 30);
+  assert.equal(freshInput({ source: 'opencode-json', inputTokens: 845, cachedInputTokens: 14976 }), 845);
+  // The budget weighs Gemini's cache at a tenth too now, as it always did Codex's.
+  assert.equal(budgetTokens({ source: 'gemini-json', inputTokens: 1000, cachedInputTokens: 900, outputTokens: 10 }), 100 + 10 + 90);
+
+  const parts = [{ id: 'room', text: 'x'.repeat(100) }];
+  const codex = turnCost(parts, { source: 'codex-json', inputTokens: 1000, cachedInputTokens: 800, outputTokens: 50 });
+  assert.equal(codex.input, 200);
+  assert.equal(codex.basis, 'fresh');
+  assert.equal(codex.cacheShare, 0.8);
+  const claude = turnCost(parts, { source: 'claude-json', inputTokens: 10, cachedInputTokens: 800, cacheCreationInputTokens: 300, outputTokens: 50 });
+  assert.equal(claude.input, 10);
+  assert.equal(claude.created, 300);
+
+  // A turn weighed before this, with Codex's cache still inside its input, is read as it was written.
+  const legacy = { agent: 'codex', input: 1000, cached: 800, output: 50, chars: 100, blocks: { room: 100 } };
+  const read = economy([{ type: 'turn.cost', payload: legacy }, { type: 'turn.cost', payload: { ...claude, agent: 'claude' } }]);
+  assert.equal(read.totals.input, 200 + 10);
+  assert.equal(read.totals.created, 300);
+  assert.equal(read.totals.cached, 1600);
+  assert.equal(read.agents.find((one) => one.agent === 'codex').input, 200);
+  assert.equal(read.agents.find((one) => one.agent === 'claude').created, 300);
+
+  // The room's economy is every conversation's, and the card no longer says one is the room.
+  const server = await readFile(join(import.meta.dirname, '..', 'src', 'server.mjs'), 'utf8');
+  assert.match(server, /for \(const chat of \(await listChats\(roomDir\)\)\.chats\) \{\n\s+const text = await readFile\(chatLedger\(roomDir, chat\.id\), 'utf8'\)/);
+  const app = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /count\(\(totals\.input \?\? 0\) \+ \(totals\.created \?\? 0\)\), t\('INPUT CHARGED'\)/);
+  assert.ok(!/t\('NEVER CHARGED'\)/.test(app), 'cache read back is billed at a fraction, not never');
+});

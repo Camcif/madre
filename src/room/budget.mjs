@@ -2,14 +2,26 @@
 // providers' short windows), raw totals for the record, and the seeding of the
 // usage sentinel from the ledger on start.
 
-// What a turn costs against MADRE's local budget. Cache reads are close to
-// free at every provider, so they weigh a tenth; Codex counts cached tokens
-// inside its input, so they are taken out before weighing.
+// Which CLIs count what they read back from a cache INSIDE the input they report: Codex
+// (input_tokens includes cached_input_tokens) and Gemini (its prompt count includes the cached
+// part; stream-json even prints both). Claude and OpenCode report the cache beside the input.
+// Summed as if they were all the same, the economy called 2.1 M tokens «charged as fresh» in a
+// room where the fresh reading was 0.36 M, and counted the same cache twice.
+export const INPUT_HOLDS_CACHE = new Set(['codex-json', 'gemini-json']);
+const num = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+export function freshInput(usage = {}) {
+  const input = num(usage.inputTokens);
+  return INPUT_HOLDS_CACHE.has(usage.source) ? Math.max(0, input - num(usage.cachedInputTokens)) : input;
+}
+
+// What a turn costs against MADRE's local budget. Cache reads are close to free at every
+// provider, so they weigh a tenth, and they are taken out of the input first where a CLI counts
+// them inside it.
 export function budgetTokens(usage = {}) {
   if (usage.local) return 0;
-  const n = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+  const n = num;
   const cached = n(usage.cachedInputTokens);
-  const input = usage.source === 'codex-json' ? Math.max(0, n(usage.inputTokens) - cached) : n(usage.inputTokens);
+  const input = freshInput(usage);
   const fresh = input + n(usage.cacheCreationInputTokens) + n(usage.outputTokens) + n(usage.reasoningTokens);
   if (!fresh && !cached) return n(usage.totalTokens);
   return Math.round(fresh + cached * 0.1);

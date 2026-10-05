@@ -149,8 +149,18 @@ test('a mode typed into the message goes through the same door as the chip', asy
   // CONTROL with no override at all while clicking #3 opened the dialog — the same mode, two
   // prices. The ceiling is still the server's to enforce (room.modeCheck); this is the ceremony.
   assert.match(send, /if \(wanted >= 3\) \{/, 'a typed #3 or #4 arms itself without the override');
-  assert.match(send, /openOverride\(target, \{ mode: wanted/);
-  assert.match(send, /els\.input\.value = outgoing;/, 'the message is lost while the override is answered');
+  // It names the agent the message is FOR — the leading @mention, as on sending — not the chip's.
+  assert.match(send, /const mentioned = bare\.match\(\/\^@\(\[a-z0-9_-\]\+\)\\b\/i\)/);
+  assert.match(send, /const who = mentioned && state\.agents\.has\(mentioned\) \? mentioned : target;/);
+  assert.match(send, /openOverride\(who, \{\n        mode: wanted,/);
+  assert.match(send, /els\.input\.value = bare;/, 'the message is lost while the override is answered');
+  // The human pressed send: armed, it goes; walked away from, the field gets back what was written.
+  assert.match(send, /then: \(\) => els\.composer\.requestSubmit\(\),/);
+  assert.match(send, /cancelled: \(\) => \{ els\.input\.value = text;/);
+  assert.match(app, /override\.dialog\?\.addEventListener\('cancel', \(\) => overrideWalkedAway\(\)\);/);
+  // And an armed CONTROL or AIRLOCK belongs to the agent it was armed for: a message that ends up
+  // addressed to another one is asked for again, for that one.
+  assert.match(app, /if \(state\.mode >= 3 && state\.modeArmedFor && addressed && addressed !== state\.modeArmedFor\) \{/);
   assert.ok(!/setMode\(Number\(modeToken\[2\]\)\)/.test(send), 'the old straight-to-setMode path is still there');
 
   // The chip that renders #n in the field agrees with what the field accepts.

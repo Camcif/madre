@@ -285,6 +285,15 @@ test('nostromo 3d: MOTHER is molten rock: dark plates, white-hot cracks, a darke
   let differ = 0;
   for (let i = 0; i < face.length; i += 4) if (Math.abs(face[i] - turned[i]) > 20) differ += 1;
   assert.ok(differ > 500, `turning barely moved the crust (${differ} pixels)`);
+
+  // Dragged up or down, the sun turns with the view instead of spinning in place on its own axis;
+  // left alone, it is exactly what it was.
+  const level = paint({ tilt: 0 });
+  assert.deepEqual([...level], [...face], 'no tilt changed the resting face');
+  const tilted = paint({ tilt: 0.6 });
+  let moved = 0;
+  for (let i = 0; i < face.length; i += 4) if (Math.abs(face[i] - tilted[i]) > 20) moved += 1;
+  assert.ok(moved > 500, `tilting the view left the crust where it was (${moved} pixels)`);
 });
 
 test('nostromo 3d: choosing a dwarf turns it to face you, and the rest falls back while it is held', () => {

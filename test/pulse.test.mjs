@@ -131,6 +131,29 @@ test('extracts Codex response and token usage from JSON events', () => {
   });
 });
 
+test('Codex: two messages in one turn are two paragraphs, the thread is kept, and its own images are found', async () => {
+  const output = [
+    JSON.stringify({ type: 'thread.started', thread_id: '01a10b13-7d81-7512-9c85-2f074f554053' }),
+    JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'Voy a ubicar el lema y cambiar solo ese texto.' } }),
+    JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'Cambié el lema.' } }),
+  ].join('\n');
+  const parsed = parseCodexOutput(output);
+  assert.equal(parsed.text, 'Voy a ubicar el lema y cambiar solo ese texto.\n\nCambié el lema.', 'joined without a break: «…texto.Cambié…»');
+  assert.equal(parsed.threadId, '01a10b13-7d81-7512-9c85-2f074f554053');
+  const { codexGeneratedImages } = await import('../src/adapters/codex.mjs');
+  const home = await mkdtemp(join(tmpdir(), 'pulse-codex-home-'));
+  try {
+    await mkdir(join(home, 'generated_images', parsed.threadId), { recursive: true });
+    await writeFile(join(home, 'generated_images', parsed.threadId, 'exec-1.png'), 'png');
+    await writeFile(join(home, 'generated_images', parsed.threadId, 'notes.txt'), 'not an image');
+    assert.deepEqual(await codexGeneratedImages(parsed.threadId, { home }), [join(home, 'generated_images', parsed.threadId, 'exec-1.png')]);
+    assert.deepEqual(await codexGeneratedImages('../escape', { home }), [], 'a thread id is never a path');
+    assert.deepEqual(await codexGeneratedImages(null, { home }), []);
+  } finally {
+    await rm(home, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
 test('keeps the reason Codex reports when a JSON turn fails', () => {
   const output = [
     JSON.stringify({ type: 'error', message: 'connection retry failed' }),
@@ -212,6 +235,32 @@ test('runs Gemini from an isolated workspace under an explicit read-only policy'
   ]);
   assert.match(geminiReadonlyPolicy, /toolName = "\*"/);
   assert.match(geminiReadonlyPolicy, /toolName = \["read_file", "list_directory", "glob", "grep_search"\]/);
+});
+
+test('Gemini policy: every priority stays under 1000, or the CLI refuses the whole file and writes nothing', () => {
+  const studio = { name: 'pulse-image', tool: 'generate_image' };
+  const memory = { name: 'pulse-memory', tools: ['memory_search'] };
+  const policies = [
+    geminiPolicy({}),
+    geminiPolicy({ scopes: { web: true }, memoryServer: memory }),
+    geminiPolicy({ lease: { outDir: '/p', create: true }, imageStudio: studio, memoryServer: memory, mcpServers: [{ name: 'pulse-playwright', tools: ['browser_navigate'] }] }),
+    geminiPolicy({ lease: { outDir: '/p', control: true, realOutDir: '/private/p' }, scopes: { web: true } }),
+    geminiPolicy({ lease: { outDir: '/p', control: true, airlock: true } }),
+  ];
+  for (const policy of policies) {
+    const priorities = [...policy.matchAll(/^priority = (\d+)$/gm)].map((match) => Number(match[1]));
+    assert.ok(priorities.length > 0);
+    assert.ok(priorities.every((priority) => priority >= 0 && priority <= 999), `a priority past 999: ${priorities}`);
+  }
+  // The order is the meaning: deny all < reads < tools < writing < forbidden zones.
+  const control = geminiLeasePolicy('/p', { control: true, airlock: true });
+  const at = (pattern) => Number(control.match(pattern)[1]);
+  const denyAll = at(/toolName = "\*"\ndecision = "deny"\npriority = (\d+)/);
+  const read = at(/toolName = \["read_file", "list_directory", "glob", "grep_search"\]\ndecision = "allow"\npriority = (\d+)/);
+  const write = at(/toolName = \["write_file", "replace", "edit"\]\nargsPattern = [^\n]+\ndecision = "allow"\npriority = (\d+)/);
+  const shell = at(/toolName = "run_shell_command"\ndecision = "allow"\npriority = (\d+)/);
+  const forbidden = at(/argsPattern = [^\n]+\.git[^\n]+\ndecision = "deny"\npriority = (\d+)/);
+  assert.ok(denyAll < read && read < write && write < forbidden && shell < forbidden, { denyAll, read, write, shell, forbidden });
 });
 
 test('isolates Gemini global state and disables the launcher relaunch', async () => {
@@ -519,7 +568,8 @@ test('serves the single-room interface', async () => {
     assert.equal(response.status, 200);
     assert.match(html, /One conversation\. Every agent\./);
     assert.match(html, /Ask the room/);
-    assert.match(html, /configured model provider/);
+    // Said once, on one line, then kept behind the ? in the composer's row: never dropped.
+    assert.match(html, /may reach their provider/);
     assert.match(html, /id="onboarding"/);
     assert.match(html, /id="connection"/);
     const brands = await fetch(`http://127.0.0.1:${port}/brands.js`);
@@ -1693,7 +1743,8 @@ test('effort: offered only where the CLI takes it, and only a level it knows rea
   assert.deepEqual(EFFORTS.claude, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(EFFORTS.gemini, undefined, 'no chooser that would guess a flag');
   assert.equal(isValidEffort('claude', 'max'), true);
-  assert.equal(isValidEffort('codex', 'max'), false, 'Codex has no max');
+  assert.equal(isValidEffort('codex', 'max'), true, 'a name Codex uses; whether its model takes it is decided per turn');
+  assert.equal(isValidEffort('codex', 'none'), false);
   assert.equal(isValidEffort('claude', '--dangerously'), false);
   assert.equal(parseCodexDefaultEffort('model = "x"\nmodel_reasoning_effort = "high"'), 'high');
 
@@ -1719,6 +1770,57 @@ test('effort: offered only where the CLI takes it, and only a level it knows rea
     assert.equal(messages[1].payload.effort, 'max', 'the reply records the effort that produced it');
     assert.equal(messages[2].payload.effort, undefined);
   } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('effort: Codex offers and sends only the levels the model takes, as its own cache lists them', async () => {
+  const { parseCodexEfforts, codexLevels } = await import('../src/models.mjs');
+  const level = (effort) => ({ effort, description: effort });
+  const cache = JSON.stringify({ models: [
+    { slug: 'gpt-5.5', default_reasoning_level: 'medium', supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh'].map(level) },
+    { slug: 'gpt-5.6-sol', default_reasoning_level: 'low', supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].map(level) },
+    { slug: 'gpt-odd', supported_reasoning_levels: [level('--flag'), level('high')] },
+  ] });
+  const byModel = parseCodexEfforts(cache);
+  assert.deepEqual(byModel['gpt-5.5'], { levels: ['low', 'medium', 'high', 'xhigh'], default: 'medium' });
+  assert.deepEqual(byModel['gpt-5.6-sol'].levels, ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
+  assert.deepEqual(byModel['gpt-odd'], { levels: ['high'], default: null }, 'a name MADRE does not know never becomes a flag');
+  assert.deepEqual(parseCodexEfforts('not json'), {});
+  assert.deepEqual(codexLevels(byModel, 'gpt-5.6-sol'), ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
+  assert.deepEqual(codexLevels(byModel, 'someone-elses-name'), ['high'], 'a model the cache does not list gets what every listed one takes');
+  assert.deepEqual(codexLevels({}, 'gpt-5.5'), ['low', 'medium', 'high'], 'no cache: the levels Codex models have always taken');
+
+  // The API's refusal reads as its own sentence, not as the first line of its JSON body.
+  const body = JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: "Unsupported value: 'minimal' is not supported with the 'gpt-5.5' model." }, status: 400 }, null, 2);
+  const failed = parseCodexOutput([JSON.stringify({ type: 'error', message: body }), JSON.stringify({ type: 'turn.failed', error: { message: body } })].join('\n'));
+  assert.equal(failed.error, "Unsupported value: 'minimal' is not supported with the 'gpt-5.5' model.");
+  assert.equal(parseCodexOutput(JSON.stringify({ type: 'error', message: '{ not json' })).error, '{ not json');
+
+  const home = await mkdtemp(join(tmpdir(), 'pulse-codex-efforts-'));
+  const root = await mkdtemp(join(tmpdir(), 'pulse-codex-effort-turn-'));
+  try {
+    await mkdir(join(home, '.codex'), { recursive: true });
+    await writeFile(join(home, '.codex', 'models_cache.json'), cache);
+    await writeFile(join(home, '.codex', 'config.toml'), 'model = "gpt-5.5"\nmodel_reasoning_effort = "minimal"\n');
+    const found = await discoverModels({ agents: [{ id: 'codex', detected: true, ready: true, path: '/x' }], home });
+    assert.deepEqual(found.codex.efforts, ['low', 'medium', 'high', 'xhigh'], "the CLI default's ladder");
+    assert.equal(found.codex.effortDefault, 'medium', 'a config level its model refuses is not shown as the default');
+    assert.deepEqual(found.codex.effortsByModel['gpt-5.6-sol'], { levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default: 'low' });
+    assert.deepEqual(found.codex.effortsShared, ['high']);
+
+    const store = await new EventStore(join(root, 'events.jsonl')).initialize();
+    const agents = [{ id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/x', version: '1' }];
+    const seen = [];
+    const room = new Room({ store, agents, projectRoot: root, codexHome: home, invokers: { 'codex-readonly': async ({ effort }) => { seen.push(effort); return { text: 'ok', usage: null }; } } });
+    await room.send({ text: 'hi', target: 'codex', effort: 'minimal' });
+    await room.send({ text: 'deep', target: 'codex', model: 'gpt-5.6-sol', effort: 'max' });
+    await room.send({ text: 'deep on the default', target: 'codex', effort: 'max' });
+    assert.deepEqual(seen, [null, 'max', null]);
+    const asked = (await store.readAll()).filter((event) => event.type === 'message.created' && event.payload.role === 'user');
+    assert.deepEqual(asked.map((event) => event.payload.effortIgnored), ['minimal', undefined, 'max'], 'the room says which level it dropped');
+  } finally {
+    await rm(home, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
 });

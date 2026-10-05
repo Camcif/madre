@@ -163,7 +163,7 @@ test('core: what you type survives the rebuild it causes', async () => {
   const [app, css] = await Promise.all([read('app.js'), read('styles.css')]);
   // The controls are built once and the document is what gets replaced; rebuilding the whole
   // panel on every keystroke would take the caret with it.
-  assert.match(app, /core\.body\.replaceChildren\(renderCoreStrip\(\), renderCoreTabs\(\), renderCorePanes\(\), renderCoreConsole\(\)\)/);
+  assert.match(app, /core\.body\.replaceChildren\(renderCoreTabs\(\), renderCoreStrip\(\), renderCorePanes\(\), renderCoreConsole\(\)\)/);
   assert.match(app, /paneInto\('document', renderCoreDoc\(briefing\)\)/);
   assert.match(app, /\.\.\.\(core\.text \? \{ text: core\.text \} : \{\}\)/, 'what you would ask never reaches the document');
   // Half a sentence already in the composer is what you are about to send, so it starts there.
@@ -212,15 +212,22 @@ test('core: four panes, one at a time, and the prompt through all of them', asyn
 
   // The four things there are to see in here. They used to be one scroll, so looking for one of
   // them meant walking past the other three.
-  assert.match(app, /const CORE_TABS = \[\s*\{ id: 'document'[\s\S]*\{ id: 'launch'[\s\S]*\{ id: 'egress'[\s\S]*\{ id: 'console'/);
+  // First the board — you and your local model — then the four things the next turn is made of.
+  assert.match(app, /const CORE_TABS = \[\s*\{ id: 'board'[\s\S]*\{ id: 'document'[\s\S]*\{ id: 'launch'[\s\S]*\{ id: 'egress'[\s\S]*\{ id: 'console'/);
   assert.match(app, /for \(const \[name, pane\] of Object\.entries\(core\.paneNodes\)\) pane\.hidden = name !== id;/);
   // Each tab says what is behind it, so nobody opens a pane to find out whether it holds anything.
   assert.match(app, /button\.lastChild\.textContent = meta\[button\.dataset\.tab\] \?\? '';/);
 
-  // The frame is a terminal: head and strip and tabs above, one pane scrolling, the prompt at the
-  // bottom where a prompt goes. The panes scroll, not the whole frame.
+  // The frame is a terminal: head, tabs and the strip above, one pane scrolling, the prompt at
+  // the bottom where a prompt goes. The panes scroll, not the whole frame. Each part is placed in
+  // its own row: the strip hides on the panes it is not about, and a hidden child that held no
+  // row would pull the pane up into its track, where it had no height and was drawn over the tabs.
   assert.match(css, /\.core \.mother-frame \{ display: grid; grid-template-rows: auto auto 1fr; overflow: hidden;/);
   assert.match(css, /\.core-body \{ display: grid; grid-template-rows: auto auto minmax\(0, 1fr\) auto;/);
+  for (const [part, row] of [['core-tabs', 1], ['core-strip', 2], ['core-panes', 3], ['console-line', 4]]) {
+    assert.match(css, new RegExp(`\\.core-body > \\.${part} \\{ grid-row: ${row}; \\}`), `${part} is not held in its own row`);
+  }
+  assert.match(app, /core\.body\.replaceChildren\(renderCoreTabs\(\), renderCoreStrip\(\), renderCorePanes\(\), renderCoreConsole\(\)\)/);
   assert.match(css, /\.core-panes \{ overflow: auto; min-height: 0;/);
 
   // And it is laid out the way the terminal this room is dressed as lays out its own output:
@@ -251,4 +258,26 @@ test('core: the briefing shows the choices block exactly where a turn carries it
     assert.deepEqual([await shown(0), await shown(1), await shown(4)], [false, true, true]);
     await room.shutdown();
   } finally { await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 }); }
+});
+
+test('core: the board is you and your local model, read only from what the room already has', async () => {
+  const [app, css] = await Promise.all([read('app.js'), read('styles.css')]);
+  const board = app.slice(app.indexOf('async function fillCoreBoard()'), app.indexOf('/* ---------- the strip: who it goes to'));
+  // Every figure from a route the room already serves, and every switch calls one. A route that
+  // is not one of these is a number somebody made up for the board.
+  const routes = [...board.matchAll(/'(\/api\/[\w/.-]+)'/g)].map((match) => match[1]);
+  assert.deepEqual([...new Set(routes)].sort(), ['/api/maturity', '/api/memory/dashboard', '/api/ollama', '/api/ollama/probe', '/api/ollama/settings', '/api/ollama/start', '/api/settings']);
+  // Drawn in the pieces MEMORY is drawn with, under the core's own headings, not a look of its own.
+  for (const piece of ['memTile(', 'memCard(', 'memMeter(', 'memVerdict(m, v)', 'memSignals(', 'examsBlock(', "brewHead(t('YOU')", "brewHead(t('YOUR LOCAL MODEL')", "brewHead(t('THE QUALITY')", "brewHead(t('SETTINGS'))"]) {
+    assert.ok(board.includes(piece), `the board no longer uses ${piece}`);
+  }
+  assert.match(board, /el\('div', 'mem-dash core-board'\)/);
+  // A figure nobody measured says so instead of showing a zero.
+  assert.match(board, /t\('NOT MEASURED YET'\)/);
+  assert.match(board, /t\('NOTHING TO READ YET: THE ROOM HAS NO ARCHIVE\.'\)/);
+  // The core opens on it, and the strip about the next turn waits for the panes about the next turn.
+  assert.match(app, /core\.pane = 'board';/);
+  assert.match(app, /const CORE_STRIP_PANES = new Set\(\['document', 'launch'\]\);/);
+  assert.match(app, /if \(core\.strip\) core\.strip\.hidden = !CORE_STRIP_PANES\.has\(id\);/);
+  assert.match(css, /\.core-board \{ gap: 12px; \}/);
 });

@@ -1,3 +1,5 @@
+import { freshInput } from './budget.mjs';
+
 // What a turn actually costs, and where it went.
 //
 // Pure functions here. The room hands in the blocks a prompt was built from and what the CLI
@@ -60,7 +62,9 @@ export function turnCost(parts = [], usage = null) {
     chars += size;
   }
   const fixed = Object.entries(blocks).reduce((sum, [id, size]) => sum + (ALWAYS.has(id) ? size : 0), 0);
-  const input = Number(usage?.inputTokens ?? 0) || 0;
+  // Fresh reading only: a CLI that counts its cache inside the input has it taken out here, so
+  // every turn's `input` means the same thing whoever answered it.
+  const input = usage ? freshInput(usage) : 0;
   const cached = Number(usage?.cachedInputTokens ?? 0) || 0;
   const created = Number(usage?.cacheCreationInputTokens ?? 0) || 0;
   const output = Number(usage?.outputTokens ?? 0) || 0;
@@ -70,7 +74,7 @@ export function turnCost(parts = [], usage = null) {
   const perToken = input > 0 ? Number((chars / input).toFixed(2)) : null;
   return {
     chars, fixed, carried: chars - fixed, blocks, prefix: stablePrefix(parts),
-    input, cached, created, output,
+    input, cached, created, output, basis: 'fresh',
     cacheShare: input + cached > 0 ? Number((cached / (input + cached)).toFixed(3)) : null,
     charsPerInputToken: perToken,
   };
@@ -164,14 +168,22 @@ export function economy(events = []) {
   for (const event of events) {
     if (event?.type !== 'turn.cost') continue;
     const cost = event.payload;
-    if (cost && typeof cost === 'object') turns.push(cost);
+    if (!cost || typeof cost !== 'object') continue;
+    // Weighed before `input` meant fresh reading for everyone: Codex and Gemini had their cache
+    // inside it. Read the old record the way it was written.
+    const legacy = cost.basis !== 'fresh' && ['codex', 'gemini'].includes(cost.agent);
+    turns.push(legacy ? { ...cost, input: Math.max(0, (Number(cost.input) || 0) - (Number(cost.cached) || 0)), basis: 'fresh' } : cost);
   }
   if (!turns.length) return { turns: 0, blocks: [], agents: [], totals: null, free: { turns: 0, share: 0, paidOutputMedian: null }, ash: ashObservation([]) };
 
+  // What was charged is read from the turns that had a bill. @madre answers on this computer: it
+  // reports the tokens its model read, and those were never charged, so its turns are counted
+  // below as turns with no bill and never added to what was.
+  const billed = turns.filter((turn) => turn.agent !== 'madre');
   const blocks = new Map();
   const agents = new Map();
   const totals = { chars: 0, fixed: 0, carried: 0, prefix: 0, input: 0, cached: 0, created: 0, output: 0 };
-  for (const turn of turns) {
+  for (const turn of billed) {
     for (const key of Object.keys(totals)) totals[key] += Number(turn[key] ?? 0) || 0;
     for (const [id, size] of Object.entries(turn.blocks ?? {})) {
       const seen = blocks.get(id) ?? { id, chars: 0, turns: 0, always: ALWAYS.has(id) };
@@ -180,9 +192,9 @@ export function economy(events = []) {
       blocks.set(id, seen);
     }
     const who = turn.agent ?? 'unknown';
-    const mine = agents.get(who) ?? { agent: who, turns: 0, input: 0, cached: 0, output: 0, chars: 0 };
+    const mine = agents.get(who) ?? { agent: who, turns: 0, input: 0, cached: 0, created: 0, output: 0, chars: 0 };
     mine.turns += 1;
-    for (const key of ['input', 'cached', 'output', 'chars']) mine[key] += Number(turn[key] ?? 0) || 0;
+    for (const key of ['input', 'cached', 'created', 'output', 'chars']) mine[key] += Number(turn[key] ?? 0) || 0;
     agents.set(who, mine);
   }
 
@@ -211,7 +223,7 @@ export function economy(events = []) {
     tokens: totals.cached + tokensFor(spared),
   };
 
-  // Turns the room answered itself. @madre runs on this computer and reports no usage at all, so
+  // Turns the room answered itself. @madre runs on this computer and nothing it reads is billed, so
   // these are not a saving measured against something — they are turns with no bill. The median
   // of what a paid turn cost in THIS room is given beside them so the count has a scale, and it
   // is named as what it is: what other turns cost, not what these would have.
@@ -225,6 +237,7 @@ export function economy(events = []) {
 
   return {
     turns: turns.length,
+    billed: billed.length,
     saved,
     free: freeTurns,
     ash: ashObservation(turns),

@@ -43,6 +43,7 @@ const SAID = [
   'The plan by @{agent} has been running for {n} min.',
   ' STOPALL halts it.',
   '@{holder} still holds CONTROL; @{agent} answers read-only this turn.',
+  'Stopped while waiting for the project: another turn was writing in it.',
   '@{agent} tried to open a plan from inside a plan. It was ignored; the sequence stays under @{who}.',
   ' STOPALL if the room drifts.',
   '@{agent} is capped at #{n} {label}; raise its MAX MODE to #{wanted} in CONNECTIONS to arm {mode}.',

@@ -13,7 +13,9 @@
 // would be noise at best and an invitation to frame somebody else's service at worst.
 const SYSTEM_PORTS = new Set([22, 25, 53, 88, 139, 445, 548, 631, 5353, 7000]);
 // Processes that always listen and never serve a page worth previewing.
-const NOISE = /^(rapportd|sharingd|identityservicesd|controlce|remoted|launchd|mDNSResponder|cupsd|Spotify|Dropbox|Docker|com\.docker)/i;
+// Ollama is here because MADRE itself uses it (the local model, @madre): started from a project
+// folder it would pass for that project's server.
+const NOISE = /^(rapportd|sharingd|identityservicesd|controlce|remoted|launchd|mDNSResponder|cupsd|Spotify|Dropbox|Docker|com\.docker|ollama)/i;
 
 // One `lsof -nP -iTCP -sTCP:LISTEN` table into the ports a human might want to look at.
 // Loopback only: a line bound to * or 0.0.0.0 is reachable from the network, and this room does

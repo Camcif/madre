@@ -6,6 +6,7 @@ import { invokeOpenCode, buildOpenCodeArgs } from './adapters/opencode.mjs';
 import { parseMessage } from './router.mjs';
 import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
+import { homedir } from 'node:os';
 import { UsageSentinel } from './usage-sentinel.mjs';
 import { BLOCK_SOURCES, buildPrompt, promptParts, sparedChars } from './room/prompt.mjs';
 import { turnCost, observedRate } from './room/economy.mjs';
@@ -28,10 +29,10 @@ import { OLLAMA_ARCHIVIST } from './distiller.mjs';
 import { memoryServerForTurn } from './memory-tools.mjs';
 import { CODE000_STRIKES } from './mother.mjs';
 import { parseDirectives } from './directives.mjs';
-import { isValidModelName, isValidEffort, belongsElsewhere, MODEL_NOT_FOUND } from './models.mjs';
+import { isValidModelName, isValidEffort, belongsElsewhere, MODEL_NOT_FOUND, codexTakes } from './models.mjs';
 import { MODES, SCOPES, SCOPE_LABELS, capabilitySummary, normalizeMode, resolveScopes } from './capabilities.mjs';
 import { createLease, diffSnapshots, namedPaths, snapshot } from './lease.mjs';
-import { stat as statFile } from 'node:fs/promises';
+import { stat as statFile, readdir, copyFile, readFile as readFileBytes } from 'node:fs/promises';
 import { basename as baseName, join as joinPath } from 'node:path';
 import { contentTypeFor } from './files.mjs';
 import { isModuleFile, sdkPaths } from './modules/index.mjs';
@@ -96,6 +97,10 @@ export function openQuestions(notes = [], { dismissed = [], limit = 3 } = {}) {
     .slice(0, limit)
     .map((note) => ({ id: note.id, text: note.text, carried: Number(note.recalled ?? 0) }));
 }
+
+// A turn's time limit when the human set none: reading answers, writing builds.
+export const READING_TIMEOUT_MS = 180000;
+export const WRITING_TIMEOUT_MS = 600000;
 
 export class Room {
   #store;
@@ -166,7 +171,13 @@ export class Room {
     // one holder of the working tree across all of them, and an UNDO that works from any.
     controlDesk = null,
     escalationMs = Number(process.env.PULSE_ESCALATION_MS ?? 180000),
+    // Where Codex keeps its config and its models' cache: the levels each model takes.
+    codexHome = homedir(),
+    // The desk that runs what the human pressed; tests hand in one that sees ports they choose.
+    runDesk = null,
   }) {
+    this.#codexHome = codexHome;
+    if (runDesk) this.#runDesk = runDesk;
     this.#store = store;
     this.#agents = agents;
     this.#projectRoot = projectRoot;
@@ -231,6 +242,7 @@ export class Room {
   // because the tokens were really spent.
   // CONTROL (#3): one holder per room, every turn between two checkpoints.
   #controlDesk;
+  #codexHome;
   control() { return this.#controlDesk.status(); }
   async undoControl(checkpointId) {
     const result = await this.#controlDesk.undo(checkpointId);
@@ -426,6 +438,9 @@ export class Room {
   // at work at all — a plan between two of its steps has no turn running and is not finished.
   turnsRunning() { return this.#turns.size; }
   busy() { return this.#turns.size > 0 || this.#inflight.size > 0 || this.#plans.size > 0; }
+  // A command the human ran is still alive here (a server, say). Not «working», but a reason to
+  // keep this room open rather than close it under the process.
+  hasLiveRuns() { return this.#runDesk.busy || this.#runDesk.serving().length > 0; }
 
   // The decisions this project is standing on, newest first.
   //
@@ -445,6 +460,16 @@ export class Room {
   decisions({ limit = 3 } = {}) {
     if (!this.#memory) return [];
     return settledDecisions(this.#memory.memories({ kind: 'decision', limit: limit * 4 }), { limit });
+  }
+
+  // The notes the archive holds about something on the human's screen — the lines they selected,
+  // the page they pointed at — so a question can be offered from what the room already knows.
+  // Matched by words only: opening a menu sends nothing to an embedding provider. Read without
+  // counting as a recall, because nothing was recalled into a turn.
+  notesAbout(text, { limit = 3 } = {}) {
+    if (!this.#memory || !String(text ?? '').trim()) return [];
+    const notes = this.#memory.recallMemories(String(text).slice(0, 2000), { limit, maxChars: 900, queryVector: null, fallback: false, track: false, cascade: false });
+    return notes.filter((note) => note.kind !== 'aberration').map((note) => ({ id: note.id, kind: note.kind, text: note.text }));
   }
 
   memoryResearch() {
@@ -795,7 +820,7 @@ export class Room {
     const command = request?.commands?.[index];
     if (!command) return { ok: false, status: 404, error: 'That command request is not in this room.' };
     if (!command.argv) return { ok: false, status: 422, error: `That line does not run: it ${whyText(command)}.` };
-    if (this.#runBusy) return { ok: false, status: 409, error: 'A command is already running; wait for it or STOPALL.' };
+    if (this.#runBusy || this.#runDesk.busy) return { ok: false, status: 409, error: 'A command is already running; wait for it or STOPALL.' };
     if (this.#controlDesk.holder) return { ok: false, status: 409, error: `@${this.#controlDesk.holder.agent} holds ${MODES[this.#controlDesk.holder.mode ?? 3].label} of this project; run it when the turn ends.` };
     // Taken before the first await below: two presses in a row must not both get through.
     this.#runBusy = true;
@@ -809,18 +834,36 @@ export class Room {
     try {
       checkpoint = await this.#controlDesk.photograph({ id: `${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-run-${responseMessageId.slice(0, 8)}-${index}`, label: `MADRE run @${request.agent}`, command: command.line });
     } catch { /* no photograph, no UNDO: the command still runs, and the card says so */ }
-    const result = await this.#runDesk.run({ argv: command.argv, cwd: this.#projectRoot });
-    const changes = checkpoint ? await this.#controlDesk.changesSince(checkpoint).catch(() => null) : null;
-    const status = result.stoppedBy ? `stopped (${result.stoppedBy})` : result.exitCode === null ? 'did not start' : `exit ${result.exitCode}`;
-    const event = await this.#emit('command.output', {
-      name: 'run',
-      title: `$ ${command.line} · ${status} · ${(result.durationMs / 1000).toFixed(1)}s · asked by @${request.agent}`,
-      text: `${result.text || '(no output)'}${changes?.files.length ? `\n\nFiles changed: ${changes.files.map((file) => `${file.status} ${file.path}`).join(', ')}` : ''}`,
-      ok: result.ok,
-      args: [],
-      run: { ...run, exitCode: result.exitCode, durationMs: result.durationMs, stoppedBy: result.stoppedBy, checkpointId: checkpoint?.id, files: changes?.files.length ? changes.files.slice(0, 40) : undefined },
-    });
-    return { ok: true, status: 200, result: { ok: result.ok, exitCode: result.exitCode, sequence: event.sequence } };
+    // The first of two things: the command ends, or it opens a port and becomes a server. A server
+    // answers the press at once and keeps running; its output card comes when it is stopped.
+    let opened = () => {};
+    const serving = new Promise((resolve) => { opened = resolve; });
+    const finished = this.#runDesk.run({ id: `${responseMessageId}:${index}`, argv: command.argv, cwd: this.#projectRoot, onServing: (where) => opened(where) })
+      .then(async (result) => {
+        const changes = checkpoint ? await this.#controlDesk.changesSince(checkpoint).catch(() => null) : null;
+        const status = result.stoppedBy ? `stopped (${result.stoppedBy})` : result.exitCode === null ? 'did not start' : `exit ${result.exitCode}`;
+        const event = await this.#emit('command.output', {
+          name: 'run',
+          title: `$ ${command.line} · ${status} · ${(result.durationMs / 1000).toFixed(1)}s · asked by @${request.agent}`,
+          text: `${result.text || '(no output)'}${changes?.files.length ? `\n\nFiles changed: ${changes.files.map((file) => `${file.status} ${file.path}`).join(', ')}` : ''}`,
+          ok: result.ok,
+          args: [],
+          run: { ...run, exitCode: result.exitCode, durationMs: result.durationMs, stoppedBy: result.stoppedBy, served: result.serving ?? undefined, checkpointId: checkpoint?.id, files: changes?.files.length ? changes.files.slice(0, 40) : undefined },
+        });
+        return { ...result, sequence: event.sequence };
+      });
+    const first = await Promise.race([finished.then((ended) => ({ ended })), serving.then((where) => ({ where }))]);
+    if (first.where) {
+      await this.#emit('run.serving', { ...run, ...first.where });
+      finished.catch(() => null);
+      return { ok: true, status: 200, result: { serving: first.where } };
+    }
+    return { ok: true, status: 200, result: { ok: first.ended.ok, exitCode: first.ended.exitCode, sequence: first.ended.sequence } };
+  }
+
+  // The human pressed STOP on one running command's card.
+  stopRun({ responseMessageId, index }) {
+    return this.#runDesk.stop('STOP', `${responseMessageId}:${Number(index)}`);
   }
 
   ashEnabled() {
@@ -851,8 +894,11 @@ export class Room {
     };
   }
 
-  timeoutFor(agentId) {
-    return this.#agentTimeouts[agentId] ?? this.#agentTimeouts.default ?? 180000;
+  // How long a turn may run. One that writes gets longer unless the human said otherwise: the first
+  // «write me the app» in an empty project ran past 180 s and was cut with two files of three on
+  // disk. What the human set, for one agent or for all of them, always wins.
+  timeoutFor(agentId, { writing = false } = {}) {
+    return this.#agentTimeouts[agentId] ?? this.#agentTimeouts.default ?? (writing ? WRITING_TIMEOUT_MS : READING_TIMEOUT_MS);
   }
 
   // A process that died mid-turn leaves `agent.started` without a closing
@@ -887,6 +933,8 @@ export class Room {
     this.#archivist.stop();
     this.#vectors.stop();
     this.#shuttingDown = true;
+    // A server a command started does not outlive the room that started it.
+    this.#runDesk.stop('MADRE is shutting down');
     this.#escalation.settleAll(null, 'stopped');
     for (const plan of this.#plans.values()) plan.stopped = 'MADRE is shutting down';
     for (const { controller } of this.#turns.values()) controller.abort('MADRE is shutting down');
@@ -923,8 +971,14 @@ export class Room {
     const modelIgnored = model && (redirected || belongsElsewhere(parsed.target, model)) ? model : null;
     const chosenModel = modelIgnored ? null : (model || null);
     // An effort the target's CLI does not take is dropped, not refused: the composer remembers it
-    // per agent, so a stale one should cost the human nothing but the flag.
-    const chosenEffort = !redirected && isValidEffort(parsed.target, effort) ? effort : null;
+    // per agent, so a stale one should cost the human nothing but the flag. Codex's levels are the
+    // model's, so a level its model does not take is dropped the same way, and the room says so.
+    let chosenEffort = !redirected && isValidEffort(parsed.target, effort) ? effort : null;
+    let effortIgnored = null;
+    if (chosenEffort && parsed.target === 'codex' && !(await codexTakes(chosenModel, chosenEffort, { home: this.#codexHome }))) {
+      effortIgnored = chosenEffort;
+      chosenEffort = null;
+    }
     // What the human wrote, sent as they wrote it. Ash used to rewrite this line before it left
     // the room; it does not any more, so there is no original to keep beside an abbreviation.
     const text2 = parsed.text || `(${files.length} attached file${files.length === 1 ? '' : 's'})`;
@@ -947,6 +1001,7 @@ export class Room {
       model: chosenModel,
       modelIgnored: modelIgnored ?? undefined,
       effort: chosenEffort ?? undefined,
+      effortIgnored: effortIgnored ?? undefined,
       attachments: files.length ? files.map((file) => ({ id: file.id, name: file.name, fileName: file.fileName, size: file.size, contentType: file.contentType })) : undefined,
       references: references.length ? references.map(({ excerpt, ...reference }) => reference) : undefined,
       create: create === true ? true : undefined,
@@ -1023,6 +1078,35 @@ export class Room {
   }
 
   // Artifacts from a #2 turn: the files the checkpoint saw appear, as the room shows them.
+  // Said once, when a writing turn has to wait for the one already writing in the project.
+  async #sayWaitingToWrite({ messageId, agent }) {
+    const ahead = this.#controlDesk.writer();
+    if (ahead) await this.#emit('write.waiting', { messageId, agent: agent.id, behind: ahead.agent ?? null });
+  }
+
+  // The bytes of files the turn created, for telling a copy from a new file. Images only, and only
+  // a few: this compares what an image tool made, not the project.
+  async #bytesOf(paths) {
+    const images = paths.filter((path) => /\.(png|jpe?g|webp|gif)$/i.test(path)).slice(0, 16);
+    return (await Promise.all(images.map((path) => readFileBytes(joinPath(this.#projectRoot, path)).catch(() => null)))).filter(Boolean);
+  }
+
+  async #draftedIn(scratchDir, { depth = 2 } = {}) {
+    const found = [];
+    const walk = async (relative, level) => {
+      const entries = await readdir(joinPath(this.#projectRoot, relative), { withFileTypes: true }).catch(() => []);
+      for (const entry of entries) {
+        const path = `${relative}/${entry.name}`;
+        if (entry.isDirectory()) { if (level < depth) await walk(path, level + 1); continue; }
+        if (!entry.isFile()) continue;
+        const info = await statFile(joinPath(this.#projectRoot, path)).catch(() => null);
+        found.push({ name: baseName(path), path, size: info?.size ?? 0, contentType: contentTypeFor(path), status: 'created' });
+      }
+    };
+    await walk(String(scratchDir).replace(/\/$/, ''), 0);
+    return found.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
   async #artifactsFrom(files) {
     const out = [];
     for (const file of files) {
@@ -1157,7 +1241,9 @@ export class Room {
         await this.#alert('plan-long', `The plan by @${plan.orchestrator} has been running for ${Math.round((Date.now() - plan.startedAt) / 60000)} min. STOPALL halts it.`, `plan-long:${plan.planId}`);
       }
     }
-    await this.#emit('agent.started', { messageId, agent: agent.id, handoffId, planId });
+    // The limit this turn will be held to, said with its start so the room counts down from the
+    // real number and not from a default it guessed.
+    await this.#emit('agent.started', { messageId, agent: agent.id, handoffId, planId, timeoutMs: this.timeoutFor(agent.id, { writing: Number(mode) >= 2 || Boolean(lease) }) });
     const controller = new AbortController();
     const turn = { controller, promise: null, planId, agent: agent.id, startedAt: Date.now() };
     turn.promise = this.#runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall, memories, handoffId, signal: controller.signal, model, effort, attachments, references, lease, ash, mode, escalation });
@@ -1335,7 +1421,9 @@ export class Room {
       if (this.#controlDesk.holder) {
         await this.#alert('control-busy', `@${this.#controlDesk.holder.agent} still holds CONTROL; @${agent.id} answers read-only this turn.`, `control-busy:${agent.id}`);
       } else {
-        const seat = await this.#controlDesk.begin({ agent, messageId, enabledScopes: enabled, mode });
+        await this.#sayWaitingToWrite({ messageId, agent });
+        const seat = await this.#controlDesk.begin({ agent, messageId, enabledScopes: enabled, mode, signal }).catch((error) => (error?.code === 'ABORT_ERR' ? null : Promise.reject(error)));
+        if (!seat) { await this.#emit('message.failed', { messageId, target: agent.id, planId, error: `Stopped while waiting for the project: another turn was writing in it.`, stopped: true }); return null; }
         controlRun = seat.run;
         lease = seat.lease;
         await this.#emit('control.started', seat.announcement);
@@ -1364,8 +1452,11 @@ export class Room {
       });
     }
     if (lease?.create && !controlRun) {
-      // CREATE: photograph the project now; after the turn only what appeared stays.
-      const seat = await this.#controlDesk.begin({ agent, messageId, enabledScopes: enabled, mode: 2 });
+      // CREATE: photograph the project now; after the turn only what appeared stays. Another turn
+      // writing in the project, in this conversation or another, is waited for first.
+      await this.#sayWaitingToWrite({ messageId, agent });
+      const seat = await this.#controlDesk.begin({ agent, messageId, enabledScopes: enabled, mode: 2, signal }).catch((error) => (error?.code === 'ABORT_ERR' ? null : Promise.reject(error)));
+      if (!seat) { await this.#emit('message.failed', { messageId, target: agent.id, planId, error: `Stopped while waiting for the project: another turn was writing in it.`, stopped: true }); return null; }
       createRun = seat.run;
       // The folder this turn was told to draft in, so settling it does not undo what it was
       // invited to write. Only this turn's own folder; every other `.pulse` path stays forbidden.
@@ -1429,7 +1520,7 @@ export class Room {
         projectRoot: this.#projectRoot,
         text,
         prompt: shaped.text,
-        timeoutMs: this.timeoutFor(agent.id),
+        timeoutMs: this.timeoutFor(agent.id, { writing: Boolean(lease) }),
         signal,
         model,
         effort,
@@ -1450,8 +1541,25 @@ export class Room {
       const guarded = this.#privacy?.redact(result.text ?? '') ?? { text: result.text, hits: 0 };
       if (guarded.hits) result.text = guarded.text;
       // CREATE: what appeared stays and is shown; what existed before is put back and said.
-      const createChanges = createRun ? await this.#controlDesk.settle(createRun) : null;
+      const createChanges = createRun ? await this.#controlDesk.settleOrSay(createRun) : null;
+      // Images an agent's own tool made outside the project (Codex keeps them under its home) come
+      // into this turn's draft folder, so they are kept and shown like anything the turn wrote. One
+      // the agent already copied into the project is shown there, not twice.
+      if (createRun?.scratchDir && Array.isArray(result.generatedImages)) {
+        const placed = await this.#bytesOf((createChanges?.files ?? []).filter((file) => file.status === 'A').map((file) => file.path));
+        for (const image of result.generatedImages.slice(0, 8)) {
+          const bytes = await readFileBytes(image).catch(() => null);
+          if (!bytes || placed.some((one) => one.equals(bytes))) continue;
+          await copyFile(image, joinPath(this.#projectRoot, createRun.scratchDir, baseName(image))).catch(() => null);
+        }
+      }
       const artifacts = createChanges ? await this.#artifactsFrom(createChanges.files) : lease && !lease.control ? diffSnapshots(before, await snapshot(lease.outDir), { relativeDir: lease.relativeDir }) : [];
+      // What the turn wrote in its own draft folder. The diff cannot see it in a project that ignores
+      // `.pulse/` (most do, the moment a .gitignore names it), so `/module` wrote its file there and
+      // no install card ever came. The folder is new for this turn: all of it is this turn's.
+      if (createRun?.scratchDir) {
+        for (const drafted of await this.#draftedIn(createRun.scratchDir)) if (!artifacts.some((one) => one.path === drafted.path)) artifacts.push(drafted);
+      }
       // A turn that could write, wrote nothing, and answers naming files. That is the shape of a
       // write refused without a word — a headless CLI cannot stop to ask, so what the policy does
       // not allow simply fails and the model reports the file as created. The room does not read
@@ -1468,7 +1576,7 @@ export class Room {
         if (missing.length) await this.#emit('create.missing', { messageId: responseMessageId, agent: agent.id, planId, files: missing });
       }
       // CONTROL: what really changed in the project, forbidden zones reverted on the spot.
-      const controlChanges = controlRun ? await this.#controlDesk.settle(controlRun) : null;
+      const controlChanges = controlRun ? await this.#controlDesk.settleOrSay(controlRun) : null;
       const directives = mayDelegate
         ? parseDirectives(result.text, { self: agent.id, available: others, maxSteps: this.#maxPlanSteps })
         : { steps: [], closing: null, ignored: [] };
@@ -1554,7 +1662,27 @@ export class Room {
       const plain = MODEL_NOT_FOUND.test(String(error?.message ?? error ?? ''))
         ? `${model ? `${agent.label} does not know the model \`${model}\`.` : `${agent.label} does not know the model it was asked to use.`} Choose another on the model chip beside TO @${agent.id}, or the default; permissions and modes have nothing to do with it. CLI: ${said}`
         : said;
-      await this.#emit('message.failed', { messageId, target: agent.id, planId, error: this.#privacy ? this.#privacy.redact(plain).text : plain, ...(this.#turns.get(messageId)?.stoppedByHuman ? { stopped: true } : {}) });
+      // A turn cut short (the time limit, STOP ALL, a crash) may still have written. What it left is
+      // read and kept the way any turn's is, CREATE still putting back what existed before, and the
+      // failure carries the list and its checkpoint: the first «write the app» was cut at 180 s
+      // with two files of three on disk, and the room said only that Claude did not answer.
+      let partial = null;
+      const writer = controlRun ?? createRun;
+      if (writer) {
+        const changes = await this.#controlDesk.settleOrSay(writer);
+        if (changes.files.length || changes.unreadable || changes.existingReverted.length) {
+          const created = await this.#artifactsFrom(changes.files);
+          partial = { checkpointId: changes.checkpointId, mode: changes.mode, files: changes.files, created, existingReverted: changes.existingReverted, unreadable: changes.unreadable ?? undefined };
+        }
+      }
+      const cutByClock = ['TIMEOUT', 'IDLE'].includes(error?.code);
+      await this.#emit('message.failed', {
+        messageId, target: agent.id, planId,
+        error: this.#privacy ? this.#privacy.redact(plain).text : plain,
+        ...(this.#turns.get(messageId)?.stoppedByHuman ? { stopped: true } : {}),
+        ...(cutByClock ? { timeout: { ms: this.timeoutFor(agent.id, { writing: Boolean(lease) }), writing: Boolean(lease), idle: error.code === 'IDLE' } } : {}),
+        ...(partial ? { partial } : {}),
+      });
       return null;
     } finally {
       // Release CONTROL whichever way the turn ended; the checkpoint stays for UNDO.

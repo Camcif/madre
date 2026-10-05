@@ -4,17 +4,25 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runReadonlyProcess } from './process.mjs';
 
+// Where each rule stands. The higher one wins, and Gemini CLI refuses a policy whose priorities
+// go past 999 ("priority must be <= 999 to prevent tier overflow"): a refused policy loads no rule
+// at all, and the CLI answered every lease as if it were read-only — CONTROL armed, nothing
+// written, a whole turn spent. So the ladder lives under 1000 and its order is the meaning:
+// everything denied, then reads and the web, then the room's own tool servers, then writing under
+// a lease, and above all of it MADRE's forbidden zones, which no allow may outrank.
+export const GEMINI_PRIORITY = { denyAll: 990, read: 995, tools: 996, write: 997, forbidden: 999 };
+
 export const geminiReadonlyPolicy = `[[rule]]
 toolName = "*"
 decision = "deny"
-priority = 998
+priority = ${GEMINI_PRIORITY.denyAll}
 interactive = false
 denyMessage = "MADRE consultation mode only permits local project reads."
 
 [[rule]]
 toolName = ["read_file", "list_directory", "glob", "grep_search"]
 decision = "allow"
-priority = 999
+priority = ${GEMINI_PRIORITY.read}
 interactive = false
 `;
 
@@ -44,7 +52,7 @@ export function geminiLeasePolicy(outDir, { control = false, create = false, air
 toolName = ["write_file", "replace", "edit", "run_shell_command"]
 argsPattern = '${anyRoot}/(\\.git|\\.pulse|\\.madre|\\.env|\\.claude/settings\\.local\\.json)'
 decision = "deny"
-priority = 1100
+priority = ${GEMINI_PRIORITY.forbidden}
 interactive = false
 ` : '';
   // CREATE (#2) adds files: write_file only; CONTROL (#3) also replaces and edits.
@@ -54,7 +62,7 @@ interactive = false
 [[rule]]
 toolName = "run_shell_command"
 decision = "allow"
-priority = 1000
+priority = ${GEMINI_PRIORITY.write}
 interactive = false
 ` : '';
   return `${geminiReadonlyPolicy}${commands}
@@ -62,7 +70,7 @@ interactive = false
 toolName = ${tools}
 argsPattern = '"file_path"\\s*:\\s*"${anyRoot}/'
 decision = "allow"
-priority = 1000
+priority = ${GEMINI_PRIORITY.write}
 interactive = false
 ${forbidden}`;
 }
@@ -71,7 +79,7 @@ export const geminiWebPolicy = `
 [[rule]]
 toolName = ["google_web_search", "web_fetch"]
 decision = "allow"
-priority = 999
+priority = ${GEMINI_PRIORITY.read}
 interactive = false
 `;
 
@@ -86,7 +94,7 @@ export function geminiMemoryPolicy(memoryServer) {
 [[rule]]
 toolName = [${names.map((name) => `"${name}"`).join(', ')}]
 decision = "allow"
-priority = 1000
+priority = ${GEMINI_PRIORITY.tools}
 interactive = false
 `;
 }
@@ -146,7 +154,7 @@ export function geminiImagePolicy(imageStudio) {
 [[rule]]
 toolName = ["${imageStudio.tool}", "${imageStudio.name}__${imageStudio.tool}"]
 decision = "allow"
-priority = 1000
+priority = ${GEMINI_PRIORITY.tools}
 interactive = false
 `;
 }

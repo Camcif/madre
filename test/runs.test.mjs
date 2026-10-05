@@ -234,3 +234,62 @@ test('choices: an option may say the mode it needs, in either order with the rec
   assert.equal(asked.recommended, 0);
   assert.equal(parseChoice('x\n\n```pulse-ask\n¿Qué?\n- a\n- b\n- c\n```').modes, undefined, 'a choice that is all talk carries no modes');
 });
+
+test('runs: a command that opens a port is a server: it answers at once, is not held to the limit, lets another run, and stops from its card', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pulse-runs-serve-'));
+  const logDir = await mkdtemp(join(tmpdir(), 'pulse-runs-serve-log-'));
+  try {
+    const store = await new EventStore(join(logDir, 'events.jsonl')).initialize();
+    const agents = [{ id: 'claude', label: 'Claude', detected: true, ready: true, adapter: 'claude-readonly', path: '/x', version: '1' }];
+    // The port watcher sees the server it is asked about: the run's own process.
+    let serverPid = null;
+    const desk = new RunDesk({ listening: async ({ pid }) => (pid === serverPid ? [{ port: 8000, host: '127.0.0.1', pid, group: pid }] : []) });
+    const keepAlive = 'setInterval(() => {}, 1000); console.log("Serving HTTP on 127.0.0.1 port 8000")';
+    const room = new Room({ store, agents, projectRoot: root, runDesk: desk, invokers: {
+      'claude-readonly': async () => ({ text: `Listo.\n\n\`\`\`pulse-run\nAbrir la app\n$ ${process.execPath} -e '${keepAlive}'\n$ ${process.execPath} -e 'console.log(1)'\n\`\`\``, usage: null }),
+    } });
+    room.setRuns(true);
+    await room.send({ text: 'sirve la app', target: 'claude' });
+    const { responseMessageId } = (await store.readAll()).find((event) => event.type === 'run.requested').payload;
+
+    // Find the server's pid as soon as it exists, the way lsof would.
+    const pressed = room.runRequested({ responseMessageId, index: 0, timeoutMs: 200 });
+    for (let attempt = 0; attempt < 100 && !serverPid; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const { execFileSync } = await import('node:child_process');
+      const listed = execFileSync('ps', ['-o', 'pid=,command=', '-A'], { encoding: 'utf8' }).split('\n').find((line) => line.includes('setInterval') && line.includes('Serving HTTP'));
+      if (listed) serverPid = Number(listed.trim().split(/\s+/)[0]);
+    }
+    assert.ok(serverPid, 'the server never started');
+    const answer = await pressed;
+    assert.deepEqual(answer.result.serving, { port: 8000, host: '127.0.0.1', network: false }, 'the press answers once it serves');
+    let events = await store.readAll();
+    assert.equal(events.find((event) => event.type === 'run.serving').payload.port, 8000);
+    assert.equal(events.some((event) => event.type === 'command.output'), false, 'a serving server has not ended');
+    assert.equal(room.hasLiveRuns(), true, 'the room keeps it alive');
+
+    // While it serves, another line runs.
+    const other = await room.runRequested({ responseMessageId, index: 1 });
+    assert.equal(other.status, 200);
+    assert.equal(other.result.ok, true);
+
+    // STOP on its card ends it, and its output comes back as a card that says so.
+    assert.equal(room.stopRun({ responseMessageId, index: 0 }), true);
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      events = await store.readAll();
+      if (events.filter((event) => event.type === 'command.output').length >= 2) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    const served = events.filter((event) => event.type === 'command.output').find((event) => event.payload.run.index === 0);
+    assert.ok(served, 'the stopped server never reported');
+    assert.match(served.payload.title, /stopped \(STOP\)/);
+    assert.equal(served.payload.ok, true, 'a server stopped by the human ended the way it was meant to');
+    assert.equal(served.payload.run.served.port, 8000);
+    assert.equal(room.hasLiveRuns(), false);
+    assert.equal(room.stopRun({ responseMessageId, index: 0 }), false, 'nothing left to stop');
+    await room.shutdown();
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+    await rm(logDir, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});

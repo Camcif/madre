@@ -205,8 +205,10 @@ export const CONDITIONS = [
     code: 'MU-012',
     severity: 'tunable',
     title: 'Agent did not respond before the timeout',
-    match: /did not respond before the timeout|went silent for/i,
-    diagnosis: 'The agent was still reading files or reasoning when the per-agent timeout (default 180 s) expired, or Gemini stayed silent for 90 s (PULSE_GEMINI_IDLE_MS) and was stopped after one automatic retry. Long questions over many files take longer; MADRE killed the whole process tree.',
+    // MADRE writes this one itself, in the room's language, so it is matched in both: a room in
+    // Spanish recorded «no contestó antes del tiempo límite» and filed it as unclassified.
+    match: /did not respond before the timeout|went silent for|no contestó antes del tiempo límite|se quedó callad/i,
+    diagnosis: 'The agent was still reading files or reasoning when its time limit expired (by default 180 s for a turn that reads and 600 s for one that writes), or Gemini stayed silent for 90 s (PULSE_GEMINI_IDLE_MS) and was stopped after one automatic retry. Long questions over many files take longer; MADRE killed the whole process tree. Whatever a writing turn left before it stopped is listed under the failure, with UNDO.',
     remedy: 'Press the RAISE button on this card, or type a new number in ⚙ CONNECTIONS (DEFAULT TIMEOUT · SECONDS, or the field on the agent\'s card): fields save the moment you leave them. It applies to the next turn and persists in ~/.pulse/config.json. Environment variables work too, but only for a server started after exporting them; a running room never sees a later export.',
     fixes: {
       darwin: ['# live, no restart: ⚙ CONNECTIONS → DEFAULT TIMEOUT · SECONDS → SAVE', '# at launch only (env wins over config.json):', 'PULSE_AGENT_TIMEOUT_MS=300000 PULSE_CLAUDE_TIMEOUT_MS=600000 madre start', '# or ~/.pulse/config.json → {"timeouts":{"default":300000,"claude":600000}}'],
@@ -697,13 +699,27 @@ export function said(condition) {
 }
 export const allConditions = () => CONDITIONS.map(said);
 
+// Lowercase and without accents: «limite» finds «límite», and a person types what they type.
+const fold = (text) => String(text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const AGENT_WORDS = new Set(['codex', 'claude', 'gemini', 'opencode', 'madre', 'ollama']);
+
 export function searchConditions(query) {
-  const needle = String(query ?? '').trim().toLowerCase();
+  const words = fold(query).split(/[^a-z0-9#.@_-]+/).filter(Boolean);
   const all = allConditions();
-  if (!needle) return all;
-  // Searched in the language it is read in, plus the id and the agent, which are never translated.
-  return all.filter((condition) => [condition.id, condition.title, condition.diagnosis, condition.remedy, condition.agent ?? '']
-    .join(' ').toLowerCase().includes(needle));
+  if (!words.length) return all;
+  // A symptom is a few words, not a phrase to be found whole. An agent's name narrows the list to
+  // that agent's conditions and the general ones; every other word has to appear somewhere in the
+  // condition, read in the language it is shown in, in either language's original, or in its fixes.
+  // «claude tiempo limite» used to find nothing, and only «timeout» found the timeout card.
+  const agent = words.find((word) => AGENT_WORDS.has(word.replace(/^@/, '')))?.replace(/^@/, '') ?? null;
+  const rest = words.filter((word) => !AGENT_WORDS.has(word.replace(/^@/, '')));
+  return all.filter((condition) => {
+    if (agent && condition.agent && condition.agent !== agent) return false;
+    const source = CONDITIONS.find((one) => one.id === condition.id);
+    const haystack = fold([condition.id, condition.code, condition.title, condition.diagnosis, condition.remedy, condition.agent ?? '', source?.title, source?.diagnosis, ...Object.values(condition.fixes ?? {}).flat()].join(' '));
+    if (!rest.length) return !agent || condition.agent === agent || haystack.includes(agent);
+    return rest.every((word) => haystack.includes(word));
+  });
 }
 
 export function fixesFor(condition, platform, agent = null) {

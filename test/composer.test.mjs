@@ -8,7 +8,8 @@ const read = (file) => readFile(join(import.meta.dirname, '..', 'public', file),
 test('composer: /module has a guided command and an electric pixel transition', async () => {
   const [app, css] = await Promise.all([read('app.js'), read('styles.css')]);
 
-  assert.match(app, /name: 'module'.*usage: '\/module <what it should do>'/, 'the guided module command is missing');
+  // Written in the room's language: the placeholder goes through the catalogue.
+  assert.match(app, /name: 'module'.*usage: `\/module \$\{t\('<what it should do>'\)\}`/, 'the guided module command is missing');
   assert.match(app, /name === 'module' && !state\.create/, '/module does not require CREATE explicitly');
   assert.match(app, /return \{ handled: true, preserve: true \}/, 'a rejected /module request is erased instead of preserved');
   assert.match(app, /Write exactly one <id>\.module\.mjs file for review/, '/module no longer asks for one reviewable file');

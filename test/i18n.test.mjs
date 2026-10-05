@@ -66,7 +66,7 @@ test('i18n: the catalogue says nothing the product does not say', async () => {
   // Everything that speaks: the page, the console inside the core, and the server text that
   // reaches a screen — a module saying what it is, a reading saying what it means. One
   // catalogue for both sides of the wire, so a sentence is never translated twice.
-  const files = [join(import.meta.dirname, '..', 'public', 'app.js'), join(import.meta.dirname, '..', 'public', 'inquiry.js'), join(import.meta.dirname, '..', 'public', 'index.html'), join(import.meta.dirname, '..', 'public', 'troubleshooting.js'),
+  const files = [join(import.meta.dirname, '..', 'public', 'app.js'), join(import.meta.dirname, '..', 'public', 'inquiry.js'), join(import.meta.dirname, '..', 'public', 'index.html'), join(import.meta.dirname, '..', 'public', 'troubleshooting.js'), join(import.meta.dirname, '..', 'public', 'editor.js'),
     // What the server wrote in English and the page says again in Spanish: those sentences are
     // listed there, slots and all, because they never pass through a t() of their own.
     join(import.meta.dirname, '..', 'public', 'resay.js')];
@@ -180,7 +180,7 @@ test('i18n: every word the markup shows is one the catalogue knows', async () =>
 });
 
 test("i18n: every condition MU/TH/UR holds reads in the room's language", async () => {
-  const { CONDITIONS, allConditions, diagnose } = await import('../public/troubleshooting.js');
+  const { CONDITIONS, allConditions, diagnose, searchConditions } = await import('../public/troubleshooting.js');
   const { setLanguage: setPage } = await import('../public/i18n.js');
 
   // All 51, in all three of the fields a person reads. What MATCHES a failure is not one of
@@ -224,6 +224,15 @@ test("i18n: every condition MU/TH/UR holds reads in the room's language", async 
   // The patterns come through untouched, so a failure is still recognised by what it printed.
   for (const [at, condition] of said.entries()) assert.equal(condition.match, CONDITIONS[at].match);
   assert.equal(diagnose('is not installed on this computer').some((one) => one.id === 'not-installed'), true);
+  // A failure MADRE wrote itself is recorded in the room's language, so its card matches it there
+  // too: a Spanish room filed «no contestó antes del tiempo límite» as unclassified.
+  assert.deepEqual(diagnose('Claude no contestó antes del tiempo límite (180s).', 'claude').map((one) => one.code), ['MU-012']);
+  // And the search takes a symptom as words, without accents, with an agent's name as a filter:
+  // «claude tiempo limite» found nothing and only «timeout» found the card.
+  for (const asked of ['claude tiempo limite', 'tiempo límite', 'TIEMPO LIMITE', 'timeout', 'no contestó']) {
+    assert.ok(searchConditions(asked).some((one) => one.code === 'MU-012'), `"${asked}" does not reach MU-012`);
+  }
+  assert.ok(searchConditions('gemini politica').every((one) => !one.agent || one.agent === 'gemini'));
   // And the commands are commands: they are not translated, in either language.
   assert.deepEqual(said.find((one) => one.id === 'node-version').fixes, CONDITIONS.find((one) => one.id === 'node-version').fixes);
   setPage('en');

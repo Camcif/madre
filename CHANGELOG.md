@@ -6,6 +6,172 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 0.7.3 · Sin publicar
 
+### Escribir un proyecto de principio a fin
+
+- **Gemini vuelve a escribir.** Gemini CLI rechazaba completa la política con la que MADRE le abre el proyecto en #2, #3 y #4, porque algunas prioridades pasaban de 999, y el turno terminaba sin escribir nada. Ahora todas las reglas caben en su escala.
+- **El Archivista se queda en tu máquina en todas las conversaciones.** Desde la segunda conversación, el modelo local no llegaba a las nuevas, y el Archivista destilaba sin avisar con el siguiente de la lista, que podía ser de pago. Ahora toda conversación, nueva o reabierta, usa el mismo Archivista y el mismo quinto agente.
+- **Lo que ajustas vale para todas las conversaciones abiertas.** El tiempo de un agente, MAX MODE, la memoria y los módulos que activas o apagas cambiaban solo la conversación en pantalla: una abierta en ventana o en la otra mitad seguía con lo anterior, y una conversación nueva destilaba con lo que había al abrir MADRE.
+- **La hoja de #3 y #4 nombra al agente al que escribes.** Con `#3 @gemini …` y otro agente en el selector, la hoja pide las llaves para Gemini y el turno va a Gemini. Si cancelas, tu texto vuelve a la caja como estaba.
+- **Un `git init` a mitad del turno ya no lo tira.** Si un agente crea el repositorio mientras escribe, MADRE sigue comparando contra el punto de restauración que tomó antes del turno. Si aun así no puede leer qué cambió, lo dice, el turno no se marca como fallido y **DESHACER** sigue a la mano. Los archivos que un `.gitignore` nuevo deja fuera ya no cuentan como borrados.
+- **Más tiempo para escribir, y lo que quedó si se acaba.** Un turno que escribe tiene 10 minutos y uno que lee, 3. El tiempo que fijes para un agente manda sobre los dos, y el contador de la sala cuenta desde el límite real.
+  - Si el tiempo se acaba, la falla muestra los archivos que el agente alcanzó a escribir, con **DESHACER**.
+  - **REINTENTAR CON MÁS TIEMPO** sube el límite de ese agente y deja en la caja tu pedido con la lista de lo que ya existe, para que termine lo que falta sin empezar de nuevo.
+  - MU/TH/UR reconoce el corte también en español. Su búsqueda encuentra palabras sueltas, sin importar acentos, y filtra por nombre de agente.
+- **Un turno escribe a la vez.** Si un agente está escribiendo y pides a otro que escriba, el segundo espera y la sala dice detrás de quién. Antes escribían al mismo tiempo y cada uno se llevaba en su lista archivos del otro.
+- El navegador acoplado en **AUTO** usa todo el ancho de su panel; se quedaba en 300 px.
+- **La vista sellada dice cuándo una página quiere guardar datos.** RIPLEY no permite `localStorage`, `sessionStorage`, IndexedDB ni cookies. Si la página los usa, el visor lo dice una vez y ofrece **ABRIR SERVIDORES** para probarla servida.
+- **Los servidores siguen vivos en RUNS.** Un comando que abre un puerto es un servidor y ya no se detiene a los 10 minutos. Su tarjeta dice dónde sirve, con **ABRIR EN SERVIDORES** y **DETENER**, y mientras sirve puedes pedir otro comando. Los agentes saben que el servidor escucha solo en 127.0.0.1.
+- **ECONOMÍA ya no cuenta dos veces la caché.** Codex y Gemini incluyen la caché leída dentro de la entrada, y la sala la sumaba otra vez.
+  - Ahora la **ENTRADA COBRADA** es la entrada nueva más la caché escrita.
+  - La caché leída va en **SIN COBRO COMPLETO**, y la caché escrita tiene su columna.
+  - Los turnos ya guardados se recalculan al abrir ECONOMÍA, que ahora suma todas las conversaciones del proyecto.
+  - Lo que lee @madre en tu máquina ya no se suma a lo cobrado: sus turnos se cuentan aparte, como turnos sin costo.
+- **`/module` y `/image` entregan lo que hicieron.** Un módulo que el agente deja en su borrador aparece con su tarjeta para instalar, aunque el `.gitignore` del proyecto ignore `.pulse`. Las imágenes que Codex genera se copian al borrador del turno y se ven en la conversación; si Codex ya la copió al proyecto, se muestra una sola vez.
+
+### La conversación primero, y las ventanas se apartan
+
+- **Señalar y preguntar en SERVIDORES.** El botón **SEÑALAR** pone sobre la página una caja de herramientas: **PUNTO** marca un lugar y **ÁREA** encierra una parte al arrastrar. Junto a la marca se abre la misma tarjeta de **Preguntar** del editor, con preguntas para lo que marcaste (qué dibuja y en qué archivo está, algo se ve mal aquí, cómo se sostiene a este ancho, cómo está maquetado).
+  - **Va con una captura de lo que señalaste.** Al elegir la pregunta, Chrome te pide compartir esta pestaña; ese permiso es del navegador y ninguna página puede cambiarlo ni saltarlo. MADRE toma un solo cuadro y adjunta solo lo señalado: el área tal cual, sin su marco, o el punto con lo que lo rodea (hasta 480 × 320). Luego deja de capturar. Una nueva marca reemplaza la captura anterior mientras siga en la caja. Si no compartes la pestaña, la pregunta va solo con dónde señalaste y la sala lo dice.
+  - **Una línea dice dónde.** Sobre la pregunta, en la caja de texto, aparece como chip: `⌖ :puerto (proceso) ruta · vista N px · punto en (x, y)` (o el área con su tamaño), más «captura adjunta» cuando la hay. La página viene de otro origen y la sala no lee su interior, así que no lo inventa: el agente ve la captura y busca en el proyecto qué la dibuja.
+  - Enviar sigue siendo tuyo. El primer Esc quita la marca y el segundo apaga la herramienta; cambiar de página también la apaga.
+- El menú **SERVIDORES** se dibuja completo encima de la página cuando el navegador está en ventana; antes quedaba cortado bajo la pestaña.
+- En una conversación en ventana o en la otra mitad, la caja de texto ya no roza el borde: los chips pasan a otra línea cuando no caben y la caja deja aire abajo.
+- En el editor, la banda de la línea actual coincide con su línea (estaba 14 px abajo). **PREGUNTAR** queda solo en la barra que aparece sobre la selección.
+- **Preguntar sugiere según lo que elegiste.** Las preguntas salen de las líneas: qué se traga un `catch`, qué pasa si una petición falla o tarda, si unos `await` pueden competir, una expresión regular explicada con ejemplos, quién llama a la función que estás viendo, qué pide un TODO, qué casos no cubre una prueba. También hay preguntas propias para CSS, HTML y JSON, y las generales completan hasta cuatro. Arriba eliges al agente. **HACER MI PROPIA PREGUNTA** es la acción principal de la tarjeta, con un lápiz y el mismo estilo que **Nueva conversación**: en el color de acento, flota apenas y se hunde al pulsarla. Deja la referencia en la caja para que escribas.
+  - **Con lo que la sala recuerda.** Si ya diste la designación de NOSTROMO en esta página, la tarjeta pregunta también por lo que el archivo guarda sobre esas líneas: una decisión, una preferencia, una pregunta abierta. Busca por palabras en tu máquina; no se manda nada al proveedor de embeddings.
+  - La tarjeta se ve encima del visor aunque esté como modal.
+- **Codex ya no falla con un «{».** El esfuerzo **Mínimo** se ofrecía para todos los modelos de Codex, pero ninguno de los actuales lo acepta, y la API lo rechazaba con un error que la sala mostraba solo como «{».
+  - Ahora los niveles salen de la lista de cada modelo que guarda el propio Codex: `gpt-5.5` va de Bajo a Muy alto, y los modelos que lo permiten suman **Máximo** y **Ultra**.
+  - Al cambiar de modelo, el deslizador cambia con él.
+  - Si queda guardado un nivel que el modelo no acepta, la sala lo quita, lo dice y el turno sale con el nivel por defecto.
+  - Cuando la API de OpenAI rechaza un turno, la sala muestra la frase completa del rechazo y no la primera línea de su JSON.
+- **Un menú de la caja a la vez.** Abrir modelo, esfuerzo o modo cierra el que estuviera abierto; el que elegiste ya no queda debajo del otro.
+- En **NOSTROMO**, la leyenda de los tipos de estrella va a la derecha, debajo de los botones, en la misma línea que el subtítulo.
+- **Las preguntas las hace la sala**, no el navegador: dejar cambios sin guardar, sobrescribir un archivo que cambió en disco, guardar un archivo protegido, instalar, actualizar o quitar un módulo y purgar la sala. Ahora aparece una hoja con el estilo de MADRE (o el de la consola, si la pregunta viene de MÓDULOS o MU/TH/UR). Dice qué está en juego, explica por qué y las respuestas son palabras. La opción segura queda enfocada, así que un Enter por error nunca confirma algo que no se deshace. Cuando el archivo cambió en disco, se elige en un solo paso entre seguir editando, cargar la versión del disco o sobrescribir.
+- En **CONEXIONES**, cada ficha muestra el logo y el nombre a la izquierda, y el estado de la sesión es una luz en la esquina superior: verde con sesión, roja sin ella, ámbar parpadeando mientras inicia, hueca si el CLI no está instalado. La cabecera de la ficha ya no queda centrada.
+- El **deslizador de esfuerzo** cambia la intensidad de su color con el nivel: tenue en Mínimo y con el color pleno del agente, más un halo más amplio, en Muy alto. La etiqueta **CLI** queda visible encima del pulgar aunque esté en ese nivel.
+- En **NOSTROMO**, el subtítulo va debajo del título, como en las demás cabeceras de la consola, y la leyenda se acomoda en varias líneas en vez de empujarlo.
+- **Las ventanas ya no quedan debajo de la conversación** al cambiar la sala (abrir o acoplar el navegador, abrir la segunda conversación, cambiar de conversación): antes, durante el cambio, la conversación y la caja de texto se pintaban encima de cualquier ventana abierta. Ahora cada ventana se queda en su capa, quieta, mientras la sala cambia debajo.
+- Al tocar **fuera** de la caja de texto, las ventanas apartadas regresan a donde estaban. Los menús de la caja (modo, modelo, esfuerzo, tarjetas de agente) cuentan como parte de ella.
+- Al abrir **NOSTROMO** desde MU/TH/UR en ventana o en split, MU/TH/UR se queda como estaba y vuelve a verse al salir de NOSTROMO.
+- Las **×** se ponen en escarlata pastel al pasar el cursor, como la de las conversaciones; junto a una palabra («CERRAR ×») solo cambia la marca.
+- El navegador (SERVIDORES) ya no dibuja una segunda × bajo la suya.
+- La nota de versión y **APOYAR** están debajo de la caja de texto, en su propia línea y con aire, en lugar de flotar sobre ella.
+- **Nueva conversación** lleva el color de acento y flota apenas sobre el panel; al pasar el cursor se asienta un poco y al pulsarlo se hunde y pierde la sombra.
+- En el Núcleo, MÓDULOS, MU/TH/UR y ECONOMÍA, el **subtítulo va debajo del título**. Las pestañas del Núcleo se reparten todo el ancho.
+- **Mostrar la sala:** al tocar la caja de texto de la conversación principal, las ventanas que la tapan se deslizan a su borde más cercano, una tras otra, y dejan una tira a la vista. Tocar cualquier tira, abrir una ventana o llegar a una con el teclado las regresa todas a su lugar.
+- **La conversación principal nunca se aprieta:** nunca es ventana y conserva siempre una columna legible. Los splits laterales, el navegador acoplado y la segunda conversación comparten lo que queda hasta su ancho mínimo. Si ni así caben, el más antiguo pasa a ventana. Antes, conversaciones en split más el navegador podían dejarla en una franja angosta.
+- Los cambios entre base, split y ventana ya no estiran el contenido: la ventana viaja con una sola escala y entra con un fundido breve. El navegador y la segunda conversación tampoco se deforman al cambiar de tamaño.
+- El botón de la **tripulación** está junto al indicador de en vivo y abre las mismas tarjetas que las burbujas de agente: la lista de agentes con su anillo y su consumo, y al tocar uno, su tarjeta, con «‹» para volver. CONEXIONES queda a un toque desde ahí.
+- En la lista de conversaciones, acercarse al borde para cambiar el ancho ya no despliega los iconos de la fila, y una fila solo los muestra si el cursor se detiene en ella.
+- **Nueva conversación** tiene jerarquía de acción principal: borde y fondo en el color de acento, y relleno al pasar el cursor.
+- Todas las **×** de las ventanas giran igual que la del panel de conversaciones.
+- En MÓDULOS y MU/TH/UR, los controles de ventana quedan a la misma altura que los botones de la consola.
+- El encabezado fijo de MÓDULOS, MU/TH/UR y CONEXIONES ya no tapa las líneas del fondo: solo toma el fondo de la consola cuando hay contenido debajo. La pestaña activa del Núcleo tampoco lleva caja oscura.
+- En modo claro, el verde de MADRE y los colores de cada agente se distinguen: seguían el tema del sistema y no el elegido en la barra. Al cambiar de tema se repintan.
+- El aviso bajo la caja de texto se dice una vez, en una línea, y luego se retira. Ya no hay **?** en la fila de chips: no explicaba nada que la línea no hubiera dicho y empujaba los selectores en las conversaciones angostas.
+
+### Ventanas que se comportan igual, y el Núcleo con tu modelo local
+
+- **Los mismos controles en todas las ventanas.** Conversaciones, Archivos, el navegador, el visor, MÓDULOS, MU/TH/UR y una segunda conversación llevan un solo grupo arriba a la derecha: **split**, **ventana** y **×**, en ese orden. En MÓDULOS y MU/TH/UR tiene el trazo de la consola y va junto al título.
+- **La ventana que tocas pasa al frente**, sea cual sea. Los menús de modos, modelo y esfuerzo y la tarjeta de gasto de un agente siempre quedan por encima de las ventanas.
+- **Split de lado fijo.** Conversaciones se acomoda como columna a la **izquierda** de la conversación y Archivos a la **derecha**, de arriba abajo; la conversación queda entre las dos. Su borde interior se arrastra para cambiar el ancho, y con doble clic recupera su medida.
+- En la lista de conversaciones, los iconos de cada fila **no ocupan lugar** hasta que pasas el mouse: entonces aparecen con suavidad y el título se recorre para dejarles espacio. Los de una conversación que ya está en split o en ventana se quedan a la vista.
+- La barra superior es más ancha y cabe más del nombre de la conversación.
+- En **NOSTROMO**, la superficie del sol gira con la vista cuando arrastras para explorar; ya no se queda de frente girando sobre su propio eje.
+- Los botones de acción de las tarjetas (exámenes, conexiones) quedan **siempre al pie**, aunque las tarjetas tengan alturas distintas.
+- **El Núcleo abre en TU NÚCLEO**, un tablero con las mismas fichas, tarjetas y barras de MEMORIA, bajo los `==>` de la consola:
+  - **Tú:**
+    - Cuántos agentes tienen sesión y cuáles.
+    - La ventana de tokens de la sala contra su tope, y lo gastado en la sala desde siempre.
+    - Por agente: su sesión, cuánto lleva de su límite (del proveedor o de la ventana local), cuándo se reinicia, sus tokens en la sala y su versión.
+  - **Tu modelo local:**
+    - El servidor de Ollama y su versión, el modelo de chat (y si está entrenado para esta sala), el de embeddings con cuántos vectores tiene y lo medido aquí.
+    - Cada modelo instalado con su tamaño, parámetros, cuantización y qué papel cumple.
+    - **REVISAR OTRA VEZ** y, si no corre, **ARRANCAR OLLAMA**.
+  - **La calidad:** madurez, intercambios, memorias y lo que espera destilarse; el veredicto con lo que sigue, de qué está hecho el archivo y las tres pruebas.
+  - **Ajustes:** qué hace el modelo local (embeddings, archivista, @madre, cada uno con su casilla y para qué sirve) y quién lee el archivo (archivista y proveedor de embeddings).
+  - Todo sale de lo que MADRE ya lee y mide; lo que aún no se ha medido dice «sin medir todavía».
+  - El documento, el lanzamiento, lo que salió y MU/TH/UR quedan en sus pestañas. La franja de *para quién, en qué modo y qué mandarías* aparece solo con el documento y el lanzamiento, que son lo que cambia.
+- **Las ventanas se toman y se arrastran mejor:**
+  - Tomar el encabezado ya no selecciona texto.
+  - La ventana sigue al cursor sin recalcular lo que tiene dentro, y cerca del borde de la pantalla se pega a él.
+  - En MÓDULOS y MU/TH/UR, el encabezado se queda arriba aunque bajes por el contenido, así que la ventana siempre se puede tomar.
+  - Los bordes para cambiar el tamaño son más fáciles de encontrar, sobre todo las esquinas.
+- **MÓDULOS, MU/TH/UR y CONEXIONES se acomodan al ancho de su ventana**, no al de la pantalla: una consola angosta, en split o en ventana, se ve como consola angosta.
+  - El encabezado ya no encima el título con los botones. Si no cabe en una línea, primero el subtítulo baja, y luego los botones de la consola pasan a su propio renglón. Los controles de la ventana se quedan junto al título.
+  - Los tableros, las tarjetas de conexiones, las pruebas y los formularios se reacomodan en columnas según el ancho de la ventana.
+- Las horas de reinicio de los límites se escriben en el idioma de la sala.
+- **El visor, con cabecera y pie de editor.**
+  - La ruta muestra la carpeta tenue y el archivo en negrita; si no cabe, se recorta la carpeta y nunca el nombre.
+  - **LEER / EDITAR** son un solo control.
+  - La selección, **REVISAR CON** y cómo elegir líneas van en la barra de abajo.
+- **Elegir varias líneas como en Finder:**
+  - Clic en un número elige una línea, y arrastrar por los números elige un tramo.
+  - **⇧** extiende desde la última sin soltar lo que ya sumaste.
+  - **⌘** (Ctrl en Linux y Windows) suma o quita una más, también desde el código.
+  - Las líneas sueltas se citan juntas en la caja de texto.
+- **El editor:**
+  - La barra es un grupo de iconos con su palabra, y la tecla de cada uno aparece en la barra de estado al pasar el mouse.
+  - Sobre lo que seleccionas aparece una barra pequeña con **Preguntar**, **Comentar** y **Copiar referencia**. Si la selección sube fuera de vista, la barra espera en el borde.
+  - En una ventana angosta quedan solo los iconos.
+  - Al entrar a editar, el cursor empieza arriba y no salta al final del archivo.
+- **Errores corregidos en el editor:**
+  - Por debajo de los primeros 180 px no se podía hacer clic para editar: el área de escritura heredaba el tope de altura de la caja de texto.
+  - El editor ya no se angosta al centro del visor cuando la barra cabe en menos espacio.
+- En la caja de texto, el chip de un archivo separa la carpeta (tenue), el nombre y las líneas (en el color de acento).
+- En una ventana angosta, el menú de menciones y comandos ya no se sale por la derecha ni desplaza la página.
+
+### Split y ventana en todo lo que se abre
+
+- Conversaciones, Archivos, el navegador, el visor de archivos, MÓDULOS, MU/TH/UR y una segunda conversación llevan en su encabezado los mismos **dos botones**, junto a la ×: **split** y **ventana**.
+  - **Split:** se pone a su lado de la pantalla, más o menos la mitad, y la conversación se angosta a la otra mitad sin quedar tapada.
+  - **Ventana:** flota sobre la sala; se mueve por su encabezado, cambia de tamaño desde cualquier borde o esquina y pasa al frente al tocarla.
+  - El botón encendido dice cómo está ahora; tocarlo lo devuelve a su lugar.
+- Un modal en split o en ventana deja de bloquear la sala: puedes escribir en la caja de texto mientras lo tienes abierto. Cambiar de modo no lo cierra ni le hace perder lo que tenía.
+- **Nada divide la pantalla por sí solo:** el visor, MÓDULOS y MU/TH/UR vuelven a ser lo que eran cuando los cierras. Su ventana recuerda dónde estuvo para la próxima vez que la pidas.
+- Un split por lado. Si pones otro en el mismo lado, el anterior pasa a ventana; no se cierra nada.
+- Si lo abierto no cabe junto a una conversación legible, lo último que tocaste se queda a un lado y lo demás flota sobre la conversación, nunca encima de otro split.
+
+### Un editor de código en el visor
+
+- Los archivos de texto del proyecto tienen **EDITAR**: números de línea, la línea actual resaltada, el mismo coloreado del visor y una barra de estado con línea, columna, indentación, fin de línea y si está guardado.
+- Lo de todos los días:
+  - Tab y ⇧Tab indentan y desindentan.
+  - Enter conserva la indentación.
+  - Paréntesis, corchetes y comillas se cierran solos.
+  - ⌘/ comenta según el lenguaje.
+  - ⌥↑↓ mueve líneas y ⇧⌥↑↓ las duplica.
+  - ⇧⌘K borra la línea.
+  - ⌘D selecciona la siguiente aparición.
+  - ⌘F busca (con mayúsculas, palabra completa y expresiones) y ⌥⌘F reemplaza.
+  - ⌃G va a una línea.
+  - Ajuste de línea con un botón.
+  - ⌘Z deshace todo, incluidas estas acciones.
+- **⌘S guarda.**
+  - Solo archivos que ya existen dentro del proyecto.
+  - Los protegidos (.git, .env…) piden el nombre del proyecto.
+  - Si el archivo cambió en disco desde que lo abriste, pregunta si sobrescribir o cargar la versión del disco.
+  - No te deja salir con cambios sin guardar sin avisarte.
+- **Preguntar sobre esto:** preguntas sugeridas para las líneas en las que estás, o una tuya. Las cita en la caja de texto, y si el visor estaba como modal pasa a split para que la caja quede a mano.
+
+### Esfuerzo con un deslizador, y los menús de la caja ordenados
+
+- El esfuerzo se elige con un **deslizador** de *más rápido* a *más profundo*.
+  - Lo arrastras o tocas un nivel, o lo mueves con las flechas, y queda elegido al soltar.
+  - Arriba se lee el nivel, qué significa y dos barras de velocidad y costo que se mueven con él.
+  - **AUTO** deja que decida el CLI y dice qué nivel usa.
+- El menú de **modos** tiene filas parejas: el número en su tarjeta de color, el modo actual tintado, los que están por encima del techo con el texto atenuado y su «SUBIR A» claro. Además, una sombra fina igual a la de los demás menús.
+- El menú de **comandos** (`/`) va en grupos: *De la sala*, *De los módulos* y *No disponibles aquí*. Cada comando trae su icono, cómo se escribe (en español) junto al nombre y qué hace debajo. Las teclas para moverse y elegir están al pie.
+
+### Animaciones sin fantasmas, el logo y el botón de recargar
+
+- Las transiciones ya no muestran dos copias de la pantalla encimadas: lo que cambia de lugar se mueve solo, y al cambiar de conversación la anterior se va antes de que llegue la nueva.
+- El panel de conversaciones ya no entra dos veces, y en una ventana angosta ya no se desenfoca la conversación detrás de paneles que no se ven.
+- El logo se dibuja cuando MADRE arranca o se reinicia, no en cada recarga de la página.
+- La barra tiene su propio botón **↻** para recargar.
+- El menú de comandos (`/`) dice en español la descripción de `/git` y `/ahp` y sus indicaciones.
+
 ### La sala estrena su identidad
 
 - La interfaz usa las tipografías de la marca: **Sora** para títulos, **Geist** para leer (los mensajes, las respuestas, los chips y la caja de texto, a 15 px en peso ligero) y **JetBrains Mono** para rótulos, datos y comandos. Vienen dentro de MADRE; no se descarga nada para mostrar una letra.
@@ -16,11 +182,35 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 - Primero los módulos **encendidos** y luego los **disponibles**. Cada tarjeta dice su nombre y si está encendido en una fila, y debajo qué hace, en letra de lectura. Fabricante, versión y si está al día van en una sola línea, y los botones quedan siempre al pie.
 
-### Notas propias al pasar el mouse, y la caja de texto más limpia
+### La caja de texto más limpia
 
-- Las notas que salen al dejar el mouse sobre un botón ya son de la sala y no del navegador: aparecen a medio segundo, con la idea principal primero y el detalle debajo.
 - En la caja de texto, los comandos (`/module`), los archivos y las menciones se ven en negrita de su color, sin recuadro.
 - Los paneles de conversaciones y archivos son más anchos, y con dos conversaciones abiertas lado a lado sus cajas de texto quedan a la misma altura.
+
+### Los paneles se hacen a un lado, y la sala se mueve con suavidad
+
+- Los paneles de conversaciones y de archivos cambian de ancho arrastrando su borde interior (o con las flechas del teclado). Doble clic les devuelve su ancho, y el que elijas se recuerda.
+- Al abrir un panel, la conversación se desliza para dejarle lugar en vez de quedar tapada. Si la ventana no alcanza para los dos y una columna cómoda, el último que abriste se queda a un lado y el otro flota encima con un velo detrás. Un clic en el velo lo guarda.
+- Los paneles entran y salen deslizándose, y la lista de conversaciones aparece fila por fila.
+- Todo se hace con botones: jalar un encabezado ya no despega un panel ni intercambia paneles, y un arrastre que termina sobre un botón ya no lo presiona. Así, jalar el borde del panel de conversaciones ya no abre por error la otra mitad.
+- Las **conversaciones también se abren como ventanas**. En el panel de conversaciones, cada una trae dos iconos: la otra mitad de la pantalla o una ventana propia; el encendido muestra cómo está abierta y el otro la cambia de lugar. La ventana se mueve, se redimensiona y pasa al frente al tocarla; en su encabezado puede volverse la conversación abierta (y la que estaba abierta toma su ventana), pasar a la otra mitad o cerrarse. La otra mitad también se puede soltar como ventana.
+- Junto a la conversación abierta caben **dos más**, entre la otra mitad y las ventanas. Cada conversación a la vista mantiene su propia línea abierta con la sala y el navegador sostiene pocas a la vez, así que a partir de ahí los iconos se atenúan y MU/TH/UR dice por qué no se abre otra.
+
+### El navegador muestra solo los servidores de este proyecto, y un centinela los vigila
+
+- **SERVERS** lista únicamente lo que se arrancó dentro de la carpeta del proyecto. Lo demás que escucha en la computadora (otros proyectos, Ollama, otra sala de MADRE) no aparece, solo se cuenta al pie.
+- Un **centinela de servidores** vigila mientras la sala está abierta y RIPLEY encendido. Si arrancas o detienes un servidor, la lista se actualiza sola. Si se detiene el que estás viendo, la página se atenúa y lo dice, y vuelve sola cuando el servidor regresa.
+
+### Burbujas más anchas, y el panel de conversaciones abre sin temblores
+
+- Las respuestas ocupan más ancho (la columna llega a 960 px y la burbuja a 860 px), y en el teléfono casi todo el ancho.
+- Al abrir un panel, la conversación ya no reacomoda su texto en cada cuadro de la animación: toma su ancho nuevo de una vez y se desliza a su lugar. La lista de conversaciones ya no parpadea al cargarse, y el botón que la abre reaparece cuando el panel terminó de irse.
+
+### Sin notas al pasar el mouse
+
+- Ya no aparece ninguna nota al pasar el cursor, ni en botones ni en ningún otro lugar, y tampoco la del navegador. Lo que decían sigue disponible para lectores de pantalla.
+- Cambiar de conversación ya no es un corte: la que dejas se desvanece hacia arriba y la nueva sube a su lugar. Al intercambiar las dos mitades, cada conversación cruza al otro lado. La segunda conversación y el navegador entran desde el borde mientras la conversación se angosta sin deformarse.
+- Si tu sistema pide menos movimiento, todo esto ocurre sin animación.
 
 ### La barra angosta y las preguntas abiertas se leen mejor
 

@@ -9,11 +9,42 @@ export class ControlDesk {
   #projectRoot;
   #holder = null;             // { agent, messageId, checkpoint, since }
   #checkpoints = new Map();   // id -> checkpoint (for UNDO after the turn)
+  // Every turn writing in the project right now, CREATE or CONTROL, in any conversation. Two at
+  // once cannot be told apart afterwards: each settles against its own photograph and claims, or
+  // puts back, what the other wrote. A README one conversation's OpenCode created was listed as
+  // the work of another conversation's Codex. So the project has one writer at a time.
+  #writers = new Set();
+  #waiting = [];
 
   constructor({ projectRoot }) {
     this.#projectRoot = projectRoot;
   }
   get holder() { return this.#holder; }
+  // Who is writing now, for the line that says why a turn is waiting.
+  writer() { return [...this.#writers][0] ?? null; }
+
+  // The project's one pen: taken the moment it is free, in the same tick it is seen free, so two
+  // turns can never both find it free. Waits otherwise; a stop while waiting rejects, and the
+  // turn ends having written nothing.
+  async #takePen(signal = null, agent = null) {
+    while (this.#writers.size) {
+      await new Promise((resolve, reject) => {
+        const entry = { resolve, reject };
+        this.#waiting.push(entry);
+        signal?.addEventListener?.('abort', () => {
+          this.#waiting = this.#waiting.filter((one) => one !== entry);
+          reject(Object.assign(new Error(String(signal.reason ?? 'stopped')), { code: 'ABORT_ERR' }));
+        }, { once: true });
+      });
+    }
+    const pen = { pen: true, agent };
+    this.#writers.add(pen);
+    return pen;
+  }
+  #wakeOne() {
+    if (this.#writers.size) return;
+    this.#waiting.shift()?.resolve();
+  }
   status() {
     return this.#holder ? { agent: this.#holder.agent, messageId: this.#holder.messageId, checkpointId: this.#holder.checkpoint.id, since: this.#holder.since } : null;
   }
@@ -22,14 +53,25 @@ export class ControlDesk {
   // makes the whole project writable, and what the room should announce.
   // mode 3 (CONTROL) seats one holder for the whole project; mode 2 (CREATE) takes the same
   // photograph without a seat: the project is writable for new files, and settle() puts back
-  // whatever existed before. Several #2 turns may run at once.
-  async begin({ agent, messageId, enabledScopes, mode = 3 }) {
-    const checkpoint = await createCheckpoint(this.#projectRoot, { id: `${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${messageId.slice(0, 8)}`, label: `MADRE ${mode === 3 ? 'control' : 'create'} @${agent.id}` });
+  // whatever existed before. One writing turn at a time in the project, across conversations: a
+  // second one waits for the pen (see #writers).
+  async begin({ agent, messageId, enabledScopes, mode = 3, signal = null }) {
+    const pen = await this.#takePen(signal, agent.id);
+    let checkpoint;
+    try {
+      checkpoint = await createCheckpoint(this.#projectRoot, { id: `${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${messageId.slice(0, 8)}`, label: `MADRE ${mode === 3 ? 'control' : 'create'} @${agent.id}` });
+    } catch (error) {
+      this.#writers.delete(pen);
+      this.#wakeOne();
+      throw error;
+    }
     checkpoint.agent = agent.id;
     this.#checkpoints.set(checkpoint.id, checkpoint);
     // Prevention first: .env files and MADRE's folders are read-only for the length of the turn.
     const guard = await guardForbidden(this.#projectRoot);
     const run = { agent: agent.id, messageId, checkpoint, since: new Date().toISOString(), guard, mode, scratchDir: null };
+    this.#writers.delete(pen);
+    this.#writers.add(run);
     if (mode >= 3) this.#holder = run;
     const lease = { leaseId: checkpoint.id, outDir: this.#projectRoot, relativeDir: '.', scopes: { ...enabledScopes, write: true }, control: mode >= 3, airlock: mode === 4, create: mode === 2, checkpoint };
     if (mode < 3) return { run, lease, announcement: null };
@@ -68,11 +110,24 @@ export class ControlDesk {
     return changes;
   }
 
+  // What changed, or — when git cannot say — that it could not, with the checkpoint still there
+  // for UNDO. A turn that finished is never turned into a failed one by the reading of it: its
+  // answer was lost along with the list when this threw.
+  async settleOrSay(run) {
+    try {
+      return await this.settle(run);
+    } catch (error) {
+      const reason = String(error?.stderr || error?.message || error).split('\n').map((line) => line.trim()).filter(Boolean).at(-1) ?? 'unknown error';
+      return { checkpointId: run.checkpoint.id, agent: run.agent, messageId: run.messageId, mode: run.mode ?? 3, files: [], stat: '', forbiddenReverted: [], existingReverted: [], unreadable: reason, message: `MADRE could not read what @${run.agent} changed (${reason.slice(0, 160)}). The checkpoint taken before the turn is still there: UNDO goes back to it.` };
+    }
+  }
+
   // Whichever way the turn ended, the seat is free again and the locks come off; the checkpoint stays.
   async release(run) {
     if (!run) return;
     await run.guard?.release?.();
     if (this.#holder === run) this.#holder = null;
+    if (this.#writers.delete(run)) this.#wakeOne();
   }
 
   // A photograph with no seat and no locks, for a command the human runs by hand: the human may

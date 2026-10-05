@@ -45,29 +45,37 @@ async function shadowFor(root) {
   }
   return shadows.get(canonical);
 }
-async function gitArgs(root) {
-  if (await isGitRepo(root)) return [];
-  return ['--git-dir', await shadowFor(root), '--work-tree', root];
+// Which repository a photograph lives in: null for the project's own, or the shadow's path. A
+// checkpoint keeps the answer it was taken with. Asked again after the turn, the answer changes the
+// moment an agent runs `git init` in a project that had none: the diff then looked for the
+// shadow's commits in the brand-new repository, git failed, and a turn that had done exactly what
+// it was asked was reported as failed, with no list of changes and no UNDO.
+async function repositoryFor(root) {
+  return (await isGitRepo(root)) ? null : shadowFor(root);
+}
+async function gitArgs(root, via) {
+  const dir = via === undefined ? await repositoryFor(root) : via;
+  return dir ? ['--git-dir', dir, '--work-tree', root] : [];
 }
 
-async function git(root, args, { env = {} } = {}) {
-  const { stdout } = await execFileAsync('git', ['-c', 'core.quotepath=off', ...(await gitArgs(root)), ...args], { cwd: root, env: { ...process.env, GIT_PAGER: 'cat', ...env }, maxBuffer: 16 * 1024 * 1024 });
+async function git(root, args, { env = {}, via } = {}) {
+  const { stdout } = await execFileAsync('git', ['-c', 'core.quotepath=off', ...(await gitArgs(root, via)), ...args], { cwd: root, env: { ...process.env, GIT_PAGER: 'cat', ...env }, maxBuffer: 16 * 1024 * 1024 });
   return stdout;
 }
 
 // A tree object of the working tree as it is right now: tracked and untracked
 // files, ignored ones left out. Built in a temporary index.
-export async function worktreeTree(root, { exclude = [] } = {}) {
+export async function worktreeTree(root, { exclude = [], via } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'madre-index-'));
   const index = join(dir, 'index');
   try {
     const env = { GIT_INDEX_FILE: index };
-    const extra = await gitArgs(root);
-    await git(root, ['read-tree', '--empty'], { env });
+    const extra = await gitArgs(root, via);
+    await git(root, ['read-tree', '--empty'], { env, via });
     // Every file of the working tree that git would not ignore, listed against the empty
     // index. Nested repositories come back as `dir/` entries and are left out: they are
     // photographed on their own, and `git add` would refuse one without commits anyway.
-    const listed = await git(root, ['ls-files', '-z', '--others', '--exclude-standard', '--', '.'], { env });
+    const listed = await git(root, ['ls-files', '-z', '--others', '--exclude-standard', '--', '.'], { env, via });
     const skip = new Set(exclude.map((path) => path.replace(/\/$/, '')));
     // Lock folders (MADRE's own `*.lock/`) come and go between the listing and the indexing.
     const files = listed.split('\0').filter((path) => path && !path.endsWith('/') && !/(^|\/)[^/]+\.lock\//.test(path) && ![...skip].some((dir) => path === dir || path.startsWith(`${dir}/`)));
@@ -84,7 +92,7 @@ export async function worktreeTree(root, { exclude = [] } = {}) {
         if (alive.length) await index_(alive);
       }
     }
-    return (await git(root, ['write-tree'], { env })).trim();
+    return (await git(root, ['write-tree'], { env, via })).trim();
   } finally {
     await rm(dir, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
@@ -112,11 +120,12 @@ export async function nestedRepos(root, { maxDepth = 3 } = {}) {
 }
 
 async function checkpointOne(root, { id, label, exclude = [] }) {
-  const tree = await worktreeTree(root, { exclude });
-  const head = (await git(root, ['rev-parse', '--verify', '-q', 'HEAD']).catch(() => '')).trim() || null;
-  const commit = (await git(root, ['commit-tree', tree, ...(head ? ['-p', head] : []), '-m', `${label} ${id}`], { env: { GIT_AUTHOR_NAME: 'MADRE', GIT_AUTHOR_EMAIL: 'madre@localhost', GIT_COMMITTER_NAME: 'MADRE', GIT_COMMITTER_EMAIL: 'madre@localhost' } })).trim();
-  await git(root, ['update-ref', `${CHECKPOINT_REF}/${id}`, commit]);
-  return { commit, tree, head };
+  const via = await repositoryFor(root);
+  const tree = await worktreeTree(root, { exclude, via });
+  const head = (await git(root, ['rev-parse', '--verify', '-q', 'HEAD'], { via }).catch(() => '')).trim() || null;
+  const commit = (await git(root, ['commit-tree', tree, ...(head ? ['-p', head] : []), '-m', `${label} ${id}`], { via, env: { GIT_AUTHOR_NAME: 'MADRE', GIT_AUTHOR_EMAIL: 'madre@localhost', GIT_COMMITTER_NAME: 'MADRE', GIT_COMMITTER_EMAIL: 'madre@localhost' } })).trim();
+  await git(root, ['update-ref', `${CHECKPOINT_REF}/${id}`, commit], { via });
+  return { commit, tree, head, via };
 }
 
 export async function createCheckpoint(root, { id, label = 'MADRE checkpoint' } = {}) {
@@ -131,15 +140,26 @@ export async function createCheckpoint(root, { id, label = 'MADRE checkpoint' } 
 
 // What changed since the checkpoint: name-status per file and git's --stat.
 async function diffOne(root, before, prefix = '', exclude = []) {
-  const after = await worktreeTree(root, { exclude });
+  const via = before.via;
+  const after = await worktreeTree(root, { exclude, via });
   if (after === before.tree) return { files: [], stat: '' };
-  const nameStatus = await git(root, ['diff', '--name-status', '-M', before.tree, after]);
-  const files = nameStatus.split('\n').filter(Boolean).map((line) => {
+  const nameStatus = await git(root, ['diff', '--name-status', '-M', before.tree, after], { via });
+  const listed = nameStatus.split('\n').filter(Boolean).map((line) => {
     const [status, ...rest] = line.split('\t');
     const path = prefix + rest.at(-1);
-    return { status: status[0], path, from: status[0] === 'R' ? prefix + rest[0] : undefined };
+    return { status: status[0], path, inner: rest.at(-1), from: status[0] === 'R' ? prefix + rest[0] : undefined };
   });
-  const stat = (await git(root, ['diff', '--stat=100', before.tree, after])).trim();
+  // A file the turn taught git to ignore (a new .gitignore line) drops out of the second
+  // photograph while it is still on disk, untouched. That is not a deletion, and restoring it
+  // would report a write into a forbidden zone that never happened.
+  const files = [];
+  for (const file of listed) {
+    if (file.status === 'D' && await access(join(root, file.inner)).then(() => true, () => false)) continue;
+    files.push({ status: file.status, path: file.path, from: file.from });
+  }
+  if (!files.length) return { files: [], stat: '' };
+  const only = files.length < listed.length ? ['--', ...files.flatMap((file) => [file.path.slice(prefix.length), ...(file.from ? [file.from.slice(prefix.length)] : [])])] : [];
+  const stat = (await git(root, ['diff', '--stat=100', before.tree, after, ...only], { via })).trim();
   return { files, stat: prefix && stat ? stat.split('\n').map((line) => (line.startsWith(' ') ? ` ${prefix}${line.trimStart()}` : line)).join('\n') : stat };
 }
 
@@ -160,9 +180,9 @@ export async function diffCheckpoint(root, checkpoint) {
 // Which repository a project-relative path belongs to, and the path inside it.
 function repoFor(root, checkpoint, path) {
   for (const part of checkpoint.nested ?? []) {
-    if (path.startsWith(`${part.dir}/`)) return { dir: join(root, part.dir), commit: part.commit, inner: path.slice(part.dir.length + 1) };
+    if (path.startsWith(`${part.dir}/`)) return { dir: join(root, part.dir), commit: part.commit, via: part.via, inner: path.slice(part.dir.length + 1) };
   }
-  return { dir: root, commit: checkpoint.commit, inner: path };
+  return { dir: root, commit: checkpoint.commit, via: checkpoint.via, inner: path };
 }
 
 // Put the working tree back to the checkpoint: files added since are removed,
@@ -185,12 +205,12 @@ export async function restoreCheckpoint(root, checkpoint, { paths = null } = {})
       if (file.status === 'R' && file.from) {
         await unlink(absolute).catch(() => {});
         const origin = repoFor(root, checkpoint, file.from);
-        await git(origin.dir, ['restore', '--source', origin.commit, '--worktree', '--', origin.inner]);
+        await git(origin.dir, ['restore', '--source', origin.commit, '--worktree', '--', origin.inner], { via: origin.via });
         restored.push(file.from);
         removed.push(file.path);
         continue;
       }
-      await git(repo.dir, ['restore', '--source', repo.commit, '--worktree', '--', repo.inner]);
+      await git(repo.dir, ['restore', '--source', repo.commit, '--worktree', '--', repo.inner], { via: repo.via });
       restored.push(file.path);
     }
   }
@@ -198,6 +218,6 @@ export async function restoreCheckpoint(root, checkpoint, { paths = null } = {})
 }
 
 export async function dropCheckpoint(root, checkpoint) {
-  await git(root, ['update-ref', '-d', `${CHECKPOINT_REF}/${checkpoint.id}`]).catch(() => {});
-  for (const part of checkpoint.nested ?? []) await git(join(root, part.dir), ['update-ref', '-d', `${CHECKPOINT_REF}/${checkpoint.id}`]).catch(() => {});
+  await git(root, ['update-ref', '-d', `${CHECKPOINT_REF}/${checkpoint.id}`], { via: checkpoint.via }).catch(() => {});
+  for (const part of checkpoint.nested ?? []) await git(join(root, part.dir), ['update-ref', '-d', `${CHECKPOINT_REF}/${checkpoint.id}`], { via: part.via }).catch(() => {});
 }

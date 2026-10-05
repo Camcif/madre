@@ -120,7 +120,7 @@ test('inquiry: every module the page imports is one the room will serve', async 
 
 test('inquiry: the console is in the frame, with its count on screen and its own way out', async () => {
   const [app, css] = await Promise.all([read('app.js'), read('styles.css')]);
-  assert.match(app, /core\.body\.replaceChildren\(renderCoreStrip\(\), renderCoreTabs\(\), renderCorePanes\(\), renderCoreConsole\(\)\)/);
+  assert.match(app, /core\.body\.replaceChildren\(renderCoreTabs\(\), renderCoreStrip\(\), renderCorePanes\(\), renderCoreConsole\(\)\)/);
   // An inquiry that is already a pane opens that pane instead of printing it twice.
   assert.match(app, /showPane\(CORE_PANE_FOR\[answer\.id\] \?\? 'console'\)/);
   assert.match(app, /const CORE_PANE_FOR = \{ blocks: 'document', launch: 'launch', egress: 'egress' \}/);

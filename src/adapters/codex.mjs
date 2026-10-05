@@ -1,3 +1,6 @@
+import { readdir } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { runReadonlyProcess } from './process.mjs';
 
 // With a lease, the working root is the lease directory (the only writable
@@ -50,15 +53,33 @@ export function buildCodexArgs({ projectRoot, prompt, model = null, effort = nul
   ];
 }
 
+// An API refusal reaches Codex's events as the response body, JSON in a string, and the room keeps
+// one line of a failure: what it kept was «{». The body's own sentence is the reason.
+function apiReason(message) {
+  const text = String(message ?? '').trim();
+  if (!text.startsWith('{')) return text;
+  try {
+    const body = JSON.parse(text);
+    const said = body?.error?.message ?? body?.message;
+    return typeof said === 'string' && said.trim() ? said.trim() : text;
+  } catch {
+    return text;
+  }
+}
+
 export function parseCodexOutput(output) {
   let text = '';
+  let threadId = null;
   let usage = null;
   let error = null;
   for (const line of output.split('\n').filter(Boolean)) {
     try {
       const event = JSON.parse(line);
+      if (event.type === 'thread.started' && typeof event.thread_id === 'string') threadId = event.thread_id;
       if (event.type === 'item.completed' && event.item?.type === 'agent_message') {
-        text += event.item.text ?? '';
+        // One turn can say several things («I'll look at the file.», then the answer); they are
+        // paragraphs, not one run-on line: «…ese texto.Cambié el lema…».
+        text += `${text && event.item.text ? '\n\n' : ''}${event.item.text ?? ''}`;
       }
       if (event.type === 'turn.completed' && event.usage) {
         usage = {
@@ -70,17 +91,27 @@ export function parseCodexOutput(output) {
           source: 'codex-json',
         };
       }
-      if (event.type === 'error' && typeof event.message === 'string') error = event.message;
-      if (event.type === 'turn.failed' && typeof event.error?.message === 'string') error = event.error.message;
+      if (event.type === 'error' && typeof event.message === 'string') error = apiReason(event.message);
+      if (event.type === 'turn.failed' && typeof event.error?.message === 'string') error = apiReason(event.error.message);
     } catch {
       // Ignore CLI diagnostics that are not JSON events.
     }
   }
-  return { text: text.trim(), usage, ...(error ? { error } : {}) };
+  return { text: text.trim(), usage, ...(threadId ? { threadId } : {}), ...(error ? { error } : {}) };
 }
 
-export function invokeCodex({ executable, projectRoot, prompt, timeoutMs = 120000, signal, model = null, effort = null, attachments = [], lease = null, scopes = null, memoryServer = null, mcpServers = [], onProgress = null }) {
-  return runReadonlyProcess({
+// Where Codex keeps the images its own tool made in a thread: ~/.codex/generated_images/<thread>.
+// The tool shows them in Codex's own window and nowhere else, so a `/image` run through the room
+// made the picture, said «it is shown above», and the room never saw a file.
+export async function codexGeneratedImages(threadId, { home = process.env.CODEX_HOME || join(homedir(), '.codex') } = {}) {
+  if (!threadId || !/^[A-Za-z0-9-]+$/.test(threadId)) return [];
+  const dir = join(home, 'generated_images', threadId);
+  const names = await readdir(dir).catch(() => []);
+  return names.filter((name) => /\.(png|jpe?g|webp|gif)$/i.test(name)).sort().map((name) => join(dir, name));
+}
+
+export async function invokeCodex({ executable, projectRoot, prompt, timeoutMs = 120000, signal, model = null, effort = null, attachments = [], lease = null, scopes = null, memoryServer = null, mcpServers = [], onProgress = null }) {
+  const result = await runReadonlyProcess({
     onProgress: onProgress ? (out) => onProgress({ chars: parseCodexOutput(out).text.length }) : null,
     executable,
     args: buildCodexArgs({ projectRoot, prompt, model, effort, attachments, lease, scopes, memoryServer, mcpServers }),
@@ -91,4 +122,6 @@ export function invokeCodex({ executable, projectRoot, prompt, timeoutMs = 12000
     label: 'Codex',
     parse: parseCodexOutput,
   });
+  // Under a lease, what Codex's image tool made in this thread goes back to the room to be kept.
+  return lease ? { ...result, generatedImages: await codexGeneratedImages(result.threadId) } : result;
 }

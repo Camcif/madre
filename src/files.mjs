@@ -152,7 +152,26 @@ export async function readServable(root, relative, { maxBytes = MAX_FILE_BYTES }
   if (!info || !info.isFile()) return { status: 404, error: 'Not found.' };
   if (info.size > maxBytes) return { status: 413, error: `File is larger than ${Math.round(maxBytes / 1024 / 1024)} MB.` };
   const body = await readFile(path);
-  return { status: 200, body, contentType: contentTypeFor(path), size: info.size, path };
+  return { status: 200, body, contentType: contentTypeFor(path), size: info.size, path, mtimeMs: info.mtimeMs };
+}
+
+// Writing a file the human edited in the room. Only a file that already exists inside the root,
+// only text, and only if it is still the file the editor opened: a file that changed on disk since
+// (an agent wrote it, the human saved it elsewhere) is not overwritten without being asked.
+export const MAX_EDIT_BYTES = 2 * 1024 * 1024;
+export async function writeEdited(root, relative, content, { mtimeMs = null, force = false } = {}) {
+  if (typeof content !== 'string') return { status: 400, error: 'Nothing to save.' };
+  if (Buffer.byteLength(content, 'utf8') > MAX_EDIT_BYTES) return { status: 413, error: `The editor saves files up to ${MAX_EDIT_BYTES / 1024 / 1024} MB.` };
+  const path = await resolveInside(root, relative);
+  if (!path) return { status: 404, error: 'Not found.' };
+  const info = await stat(path).catch(() => null);
+  if (!info || !info.isFile()) return { status: 404, error: 'Not found.' };
+  if (!force && Number.isFinite(Number(mtimeMs)) && Math.abs(info.mtimeMs - Number(mtimeMs)) > 1) {
+    return { status: 409, error: 'The file changed on disk since it was opened.', changed: true, mtimeMs: info.mtimeMs };
+  }
+  await writeFile(path, content, 'utf8');
+  const after = await stat(path);
+  return { status: 200, path, bytes: after.size, mtimeMs: after.mtimeMs };
 }
 
 const safeName = (name) => String(name ?? 'file').replace(/[^\w.\- ]+/g, '_').replace(/^\.+/, '').slice(0, 120) || 'file';

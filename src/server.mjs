@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access } from 'node:fs/promises';
 import { openSync, rmSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import { classifyListening, probePort, framable, parseCwds, inProject } from './ports.mjs';
+import { probePort, framable } from './ports.mjs';
 import { ControlDesk } from './room/control.mjs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,13 +25,20 @@ import { exportDataset, readiness as datasetReadiness } from './dataset.mjs';
 import { OutboundLog, outboundView, DEFAULT_REPORT_URL } from './outbound.mjs';
 import { language as roomLanguage, setLanguage as setRoomLanguage, t } from './i18n.mjs';
 
+// One per start of this process: a restart is a new one, a reload of the page is not.
+const BOOT_ID = `${process.pid}-${Date.now().toString(36)}`;
 const PACKAGE = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8').catch(() => '{}'));
 let crashHandlersInstalled = false;
 
 // RIPLEY's bridge, injected into every page it renders: reports the page's path
 // and title to the viewer and forwards runtime errors and failed resources.
 // It talks only upward through postMessage; the frame stays an opaque origin.
-export const RIPLEY_BRIDGE = '<script data-ripley>(function(){var p=location.pathname;function send(m){try{parent.postMessage(Object.assign({ripley:1},m),"*")}catch(e){}}send({type:"page",path:p,title:document.title});addEventListener("DOMContentLoaded",function(){send({type:"page",path:p,title:document.title})});addEventListener("error",function(e){if(e.target&&e.target!==window&&!e.message){var u=e.target.src||e.target.href||"";send({type:"error",message:"Failed to load "+(u||e.target.tagName.toLowerCase()),source:u,line:0});return}send({type:"error",message:String(e.message||"error"),source:e.filename||"",line:e.lineno||0})},true);addEventListener("unhandledrejection",function(e){var r=e.reason;send({type:"error",message:"Unhandled promise rejection: "+String(r&&r.message||r),source:"",line:0})})})();</script>';
+// The bridge also says, once per page, that the page reached for its storage: the sealed frame
+// has an opaque origin, so localStorage, sessionStorage, IndexedDB and cookies throw or forget, and
+// an app that keeps its data there cannot be tried in here. The access still fails exactly as it
+// did; the viewer is only told, so it can say where the page can be tried with its data. Window is
+// the global interface: browsers put its storage getters on window itself, not on its prototype.
+export const RIPLEY_BRIDGE = '<script data-ripley>(function(){var p=location.pathname;function send(m){try{parent.postMessage(Object.assign({ripley:1},m),"*")}catch(e){}}send({type:"page",path:p,title:document.title});addEventListener("DOMContentLoaded",function(){send({type:"page",path:p,title:document.title})});addEventListener("error",function(e){if(e.target&&e.target!==window&&!e.message){var u=e.target.src||e.target.href||"";send({type:"error",message:"Failed to load "+(u||e.target.tagName.toLowerCase()),source:u,line:0});return}send({type:"error",message:String(e.message||"error"),source:e.filename||"",line:e.lineno||0})},true);addEventListener("unhandledrejection",function(e){var r=e.reason;send({type:"error",message:"Unhandled promise rejection: "+String(r&&r.message||r),source:"",line:0})});var told=0;function storage(n){if(!told){told=1;send({type:"storage",what:n})}}["localStorage","sessionStorage","indexedDB"].forEach(function(n){var d=Object.getOwnPropertyDescriptor(window,n)||Object.getOwnPropertyDescriptor(Window.prototype,n);if(!d||!d.get)return;try{Object.defineProperty(window,n,{configurable:true,get:function(){storage(n);return d.get.call(window)}})}catch(e){}});var c=Object.getOwnPropertyDescriptor(Document.prototype,"cookie");if(c&&c.get&&c.set){try{Object.defineProperty(document,"cookie",{configurable:true,get:function(){storage("cookie");return c.get.call(document)},set:function(v){storage("cookie");c.set.call(document,v)}})}catch(e){}}})();</script>';
 export function injectRipleyBridge(body) {
   const text = Buffer.isBuffer(body) ? body.toString('utf8') : String(body);
   if (text.includes('data-ripley')) return Buffer.from(text);
@@ -65,8 +72,9 @@ import { discoverModels } from './models.mjs';
 import { setImageModule } from './capabilities.mjs';
 import { resolveGeminiKey } from './image-studio.mjs';
 import { commandByName, listCommands, parseCommand } from './commands.mjs';
-import { listDirectory, searchFiles, readServable, storeAttachment, resolveInside, MAX_ATTACHMENT_BYTES } from './files.mjs';
-import { planFileOp, freeCopyPath, CREATIONS } from './file-ops.mjs';
+import { listDirectory, searchFiles, readServable, storeAttachment, resolveInside, writeEdited, MAX_ATTACHMENT_BYTES } from './files.mjs';
+import { planFileOp, freeCopyPath, needsDesignation, CREATIONS } from './file-ops.mjs';
+import { ServerSentinel } from './server-sentinel.mjs';
 import { Eyecat } from './eyecat-watch.mjs';
 import { economy } from './room/economy.mjs';
 import { maturity } from './maturity.mjs';
@@ -250,6 +258,24 @@ export async function createPulseServer({
   // Ollama, when it is there: local embeddings and a local archivist. Probed at
   // start and again from MODULES; wired live, no restart.
   let ollama = { running: false, host: null, models: [], embedModel: null, chatModel: null };
+  // Every conversation's room other than the open one (see the note above mountChat); declared
+  // here because the local wiring below reaches all of them.
+  const parked = new Map();   // chatId -> { room, store, off, feed }
+  const opening = new Map();  // chatId -> the promise of its room, while it is being built
+  // What the human sets belongs to the project: it reaches the conversation on screen and every
+  // one alive beside it. A timeout raised from a conversation in a window used to change only the
+  // one on screen, and its retry ran with the old limit.
+  const liveRooms = () => [room, ...[...parked.values()].map((held) => held.room)].filter(Boolean);
+  // What the local brain lends every room of the project: the archivist that distills in Ollama
+  // and @madre. Settled once per wiring and handed to each room as it opens, beside or switched
+  // to. A room built with @madre and without the archivist's invoker distilled with the next
+  // cheapest crew member: a provider, unannounced, on every conversation but the first.
+  let localWiring = { archivist: null, madre: false };
+  function wireLocal(target) {
+    if (!target) return;
+    target.setInvoker('ollama', localWiring.archivist);
+    target.setInvoker(MADRE_ADAPTER, localWiring.madre ? madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }) : null);
+  }
   const ollamaSettings = async () => ({ enabled: true, embeddings: true, archivist: true, agent: true, ...((await readConfig(root)).modules?.ollama ?? {}) });
   // What the TRAIN card needs: where the recipe ships, the room, the model name @madre will pick up, a base that fits this machine.
   function trainingInfo() {
@@ -271,7 +297,7 @@ export async function createPulseServer({
       const embedder = createEmbedder({ key, env: embedEnvFor(await memoryConfig()), ollama: useEmbeddings ? ollama : null, ollamaEmbedder });
       if (room) room.setEmbedder(embedder); else memory.attachEmbedder(embedder);
     }
-    if (room) room.setInvoker('ollama', useArchivist ? ollamaInvoker({ host: ollama.host, model: ollama.chatModel }) : null);
+    localWiring.archivist = useArchivist ? ollamaInvoker({ host: ollama.host, model: ollama.chatModel, fetchImpl: reportFetch }) : null;
     // @madre: the fifth agent, present whenever Ollama has a chat model and the human left it on.
     const fifth = madreAgent({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }, { enabled: settings.enabled && settings.agent !== false });
     const index = agents.findIndex((agent) => agent.id === MADRE_AGENT_ID);
@@ -279,8 +305,10 @@ export async function createPulseServer({
     if (fifth.ready && index < 0) { agents.push(fifth); changed = true; }
     else if (fifth.ready && (agents[index].version !== fifth.version)) { Object.assign(agents[index], fifth); changed = true; }
     else if (!fifth.ready && index >= 0) { agents.splice(index, 1); changed = true; }
+    localWiring.madre = fifth.ready;
+    wireLocal(room);
+    for (const held of parked.values()) wireLocal(held.room);
     if (room) {
-      room.setInvoker(MADRE_ADAPTER, fifth.ready ? madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }) : null);
       if (changed) await room.record('agents.updated', { agents: agents.map((agent) => ({ id: agent.id, label: agent.label, detected: agent.detected, ready: agent.ready, version: agent.version, local: Boolean(agent.local), route: agent.route ?? null })), removed: fifth.ready ? [] : [MADRE_AGENT_ID], reason: fifth.ready ? `@madre is in the room · ${fifth.version}` : '@madre left the room: Ollama has no chat model running' });
       // That a local model is running is not the same as it being of use on this project, and
       // the second thing is the one a person needs told. Said once per model, in the room, with
@@ -314,7 +342,9 @@ export async function createPulseServer({
   // file, so a deleted or edited .pulse/mother.env is noticed.
   const mother = new MotherChannel(join(canonicalProjectRoot, '.pulse', 'mother.env'), { meta: memory ? { get: (key) => memory.metaGet(key), set: (key, value) => memory.metaSet(key, value) } : null });
   const motherOutcome = await mother.load().catch((error) => { console.error(`MADRE could not open MOTHER's channel: ${error.message}`); return null; });
-  const startupMemory = await memoryConfig();
+  // What the human last set for memory: a conversation opened later distills with it, not with
+  // what MADRE booted with.
+  let memorySettings = await memoryConfig();
   let listening = null;
   const listeningPort = () => listening?.address?.()?.port ?? Number(process.env.PULSE_PORT ?? 4317);
   // One CONTROL desk for the whole project, shared by every conversation alive at once: a single
@@ -332,13 +362,14 @@ export async function createPulseServer({
     toolsForTurn: async (turn) => modulesToolsForTurn(await moduleContext(), { ...turn, port: listeningPort(), roomDir }),
     softTokenBudget,
     contextMaxChars,
-    recallShare: Number(process.env.PULSE_RECALL_SHARE ?? startupMemory.recallShare),
-    cascade: process.env.PULSE_RECALL_CASCADE !== undefined ? process.env.PULSE_RECALL_CASCADE !== '0' : startupMemory.cascade !== false,
+    recallShare: Number(process.env.PULSE_RECALL_SHARE ?? memorySettings.recallShare),
+    cascade: process.env.PULSE_RECALL_CASCADE !== undefined ? process.env.PULSE_RECALL_CASCADE !== '0' : memorySettings.cascade !== false,
     distill: {
-      every: Number(process.env.PULSE_DISTILL_EVERY ?? startupMemory.every),
-      idleMs: Number(process.env.PULSE_DISTILL_IDLE_MS ?? startupMemory.idleMinutes * 60000),
-      agent: process.env.PULSE_DISTILL_AGENT ?? (startupMemory.archivist && startupMemory.archivist !== 'auto' ? startupMemory.archivist : null),
-      allowed: Array.isArray(startupMemory.archivists) && startupMemory.archivists.length ? startupMemory.archivists : null,
+      every: Number(process.env.PULSE_DISTILL_EVERY ?? memorySettings.every),
+      idleMs: Number(process.env.PULSE_DISTILL_IDLE_MS ?? memorySettings.idleMinutes * 60000),
+      agent: process.env.PULSE_DISTILL_AGENT ?? (memorySettings.archivist && memorySettings.archivist !== 'auto' ? memorySettings.archivist : null),
+      allowed: Array.isArray(memorySettings.archivists) && memorySettings.archivists.length ? memorySettings.archivists : null,
+      ...(typeof memorySettings.enabled === 'boolean' ? { enabled: memorySettings.enabled } : {}),
     },
     memory,
     memoryServer,
@@ -435,7 +466,9 @@ export async function createPulseServer({
       if (typeof m.cascade === 'boolean') next.cascade = m.cascade;
       if (typeof m.enabled === 'boolean') next.enabled = m.enabled;
       config.memory = next;
-      room.configureDistill({ every: next.every, idleMs: next.idleMinutes * 60000, agent: next.archivist === 'auto' ? null : next.archivist, allowed: next.archivists, recallShare: next.recallShare, cascade: next.cascade !== false, ...(typeof next.enabled === 'boolean' ? { enabled: next.enabled } : {}) });
+      memorySettings = next;
+      const distill = { every: next.every, idleMs: next.idleMinutes * 60000, agent: next.archivist === 'auto' ? null : next.archivist, allowed: next.archivists, recallShare: next.recallShare, cascade: next.cascade !== false, ...(typeof next.enabled === 'boolean' ? { enabled: next.enabled } : {}) };
+      for (const each of liveRooms()) each.configureDistill(distill);
       live.memory = true;
     }
     if (patch.scopes && typeof patch.scopes === 'object') {
@@ -449,14 +482,14 @@ export async function createPulseServer({
         if (Number.isInteger(Number(scopes.maxMode)) && Number(scopes.maxMode) >= 0 && Number(scopes.maxMode) <= 4) { config.scopes[agentId].maxMode = Number(scopes.maxMode); delete config.scopes[agentId].write; }
         if (Number.isInteger(Number(scopes.defaultMode)) && Number(scopes.defaultMode) >= 1 && Number(scopes.defaultMode) <= 2) { config.scopes[agentId].defaultMode = Number(scopes.defaultMode); delete config.scopes[agentId].alwaysCreate; }
       }
-      room.setScopes(config.scopes);
+      for (const each of liveRooms()) each.setScopes(config.scopes);
     }
     if (patch.gemini) {
       config.gemini = { ...((await readConfig(root)).gemini ?? {}) };
       if (Number(patch.gemini.idleMs) > 0) { config.gemini.idleMs = Number(patch.gemini.idleMs); process.env.PULSE_GEMINI_IDLE_MS = String(Number(patch.gemini.idleMs)); }
       if (Number.isFinite(Number(patch.gemini.retries))) { config.gemini.retries = Number(patch.gemini.retries); process.env.PULSE_GEMINI_RETRIES = String(Number(patch.gemini.retries)); }
     }
-    room.configure(live);
+    for (const each of liveRooms()) each.configure(live);
     await updateConfig(root, config);
     if (live.memory) await wireOllama({ probe: false });
     await room.record('room.settings', { changed: Object.keys(config), settings: effectiveSettings() });
@@ -729,13 +762,30 @@ export async function createPulseServer({
   // window (it has a feed of its own and takes messages addressed to it). One room per record,
   // always: opening a held conversation takes the room that is already there. When nothing is
   // running in it and nobody is watching, it closes itself.
-  const parked = new Map();   // chatId -> { room, store, off, feed }
-  const opening = new Map();  // chatId -> the promise of its room, while it is being built
   const busyChats = () => [...parked.entries()].filter(([, held]) => held.room.busy()).map(([id]) => id);
   const sayToAll = (type, payload) => {
     const event = { id: `live-${randomUUID()}`, sequence: null, live: true, timestamp: new Date().toISOString(), type, payload };
     for (const client of clients.keys()) writeEvent(client, event);
   };
+  // The servers sentinel: this project's servers, watched while a page is open and RIPLEY is on,
+  // with what comes up and what goes down said live to every page and to no ledger.
+  const serverSentinel = new ServerSentinel({
+    projectRoot: canonicalProjectRoot,
+    self: () => listening?.address?.()?.port ?? null,
+    listen: async () => (await execFileAsync('lsof', ['-nP', '-iTCP', '-sTCP:LISTEN'], { timeout: 4000, maxBuffer: 2 * 1024 * 1024 })).stdout,
+    // lsof exits 1 when one of the processes is already gone, and still prints the others.
+    cwdsOf: (pids) => execFileAsync('lsof', ['-a', '-p', pids.join(','), '-d', 'cwd', '-Fpn'], { timeout: 4000, maxBuffer: 1024 * 1024 })
+      .then((result) => result.stdout, (error) => String(error.stdout ?? '')),
+    probe: (port) => probePort(port, { fetchImpl: reportFetch }),
+    isRoom: async (port) => {
+      const answer = await reportFetch(`http://127.0.0.1:${port}/api/version`, { signal: AbortSignal.timeout(800) });
+      const said = answer.ok ? await answer.json().catch(() => null) : null;
+      return said?.name === PACKAGE.name;
+    },
+    emit: (type, payload) => sayToAll(type, payload),
+    active: async () => clients.size > 0 && await ripleyOn(),
+  });
+  if (!testMode) serverSentinel.start();
   const endClients = (feed) => { for (const client of [...feed.clients.keys()]) { feed.clients.delete(client); try { client.end(); } catch { /* already gone */ } } };
   async function closeHeld(id) {
     const held = parked.get(id);
@@ -749,7 +799,7 @@ export async function createPulseServer({
   async function releaseIfIdle(id, target = null) {
     const held = parked.get(id);
     if (!held || (target && held.room !== target)) return;
-    if (held.room.busy() || held.feed?.clients.size) return;
+    if (held.room.busy() || held.room.hasLiveRuns?.() || held.feed?.clients.size) return;
     await closeHeld(id);
   }
   // A conversation's turns starting and ending, said to every page whichever conversation it shows.
@@ -813,7 +863,7 @@ export async function createPulseServer({
           const source = await openLedger(asked);
           const events = await source.readAll();
           const opened = new Room(roomOptions({ store: source, historicalEvents: events }));
-          opened.setInvoker(MADRE_ADAPTER, madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }));
+          wireLocal(opened);
           await applyRoomSettings(opened, room);
           opened.restoreAttachments(events
             .filter((event) => event.type === 'attachment.stored')
@@ -865,7 +915,9 @@ export async function createPulseServer({
     await opening.get(id)?.catch(() => null);
     unwireRoom();
     await chatWrites.catch(() => null);
-    if (leaving && leavingBusy && chatId !== id) {
+    // A conversation with a command still alive (a server it started) is parked too, never closed
+    // under the process: its card is where that process is stopped.
+    if (leaving && (leavingBusy || leaving.hasLiveRuns?.()) && chatId !== id) {
       // Still writing its record and touching the list; only the page stops watching it.
       hold(chatId, leaving, store);
     } else if (leaving) {
@@ -886,7 +938,7 @@ export async function createPulseServer({
       store = await openLedger(id);
       historicalEvents = await store.readAll();
       room = new Room(roomOptions());
-      room.setInvoker(MADRE_ADAPTER, madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }));
+      wireLocal(room);
       await applyRoomSettings(room, leaving);
     }
     wireRoom();
@@ -1014,7 +1066,12 @@ export async function createPulseServer({
     const extension = extensionById(id);
     if (!extension) return { status: 404, body: { error: `Unknown module: ${id}.` } };
     // Built-ins are switches the module itself defines.
-    if (extension.toggle) return extension.toggle(await moduleContext(), payload);
+    if (extension.toggle) {
+      const toggled = await extension.toggle(await moduleContext(), payload);
+      // The switch flips the open conversation; the ones alive beside it follow.
+      for (const held of parked.values()) await applyRoomSettings(held.room, null);
+      return toggled;
+    }
     if (confirm !== true) return { status: 400, body: { error: t('Installing a module writes into the project; send { "confirm": true } to proceed.') } };
     if (installing) return { status: 409, body: { error: `Another install is running (${installing}).` } };
     const preflight = extension.preflight ? await extension.preflight(canonicalProjectRoot) : { ok: true, problems: [] };
@@ -1079,7 +1136,7 @@ export async function createPulseServer({
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
         return response.end(html);
       }
-      if (request.method === 'GET' && ['/app.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/routing.js', '/abduction.js'].includes(url.pathname)) {
+      if (request.method === 'GET' && ['/app.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js'].includes(url.pathname)) {
         const js = await readFile(join(publicDirectory, url.pathname.slice(1)));
         response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
         return response.end(js);
@@ -1138,6 +1195,9 @@ export async function createPulseServer({
           // Which MADRE this is. The page prints it in the corner: the one fact a bug report
           // always needs and nobody ever remembers to ask for.
           version: PACKAGE.version,
+          // Which start of this process the page is talking to. The page draws its logo when this
+          // changes — MADRE restarted — and not on every reload of the same running room.
+          boot: BOOT_ID,
           // What language this machine set MADRE to, for a browser that has never chosen. It is
           // the language the room is SPEAKING, not the one written in the file: PULSE_LANGUAGE
           // wins over the config here as it does everywhere else, and reading the file again
@@ -1264,8 +1324,25 @@ export async function createPulseServer({
           'x-content-type-options': 'nosniff',
           'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
           'content-disposition': `inline; filename="${encodeURIComponent(basename(file.path))}"`,
+          // When the editor opened it: saving checks the file is still the one it opened.
+          'x-mtime': String(file.mtimeMs ?? ''),
         });
         return response.end(file.body);
+      }
+      // The editor saves a project file. The human's own hand, so no mode and no lease — but the
+      // same two fences the file manager keeps: inside the project after following links, and the
+      // zones the room guards (.git, .pulse, .madre, a .env) ask for the project's designation.
+      if (request.method === 'PUT' && url.pathname === '/api/files') {
+        const payload = await body(request).catch(() => ({}));
+        const relative = String(payload.path ?? '').replace(/^\/+/, '');
+        if (!relative) return sendJson(response, 400, { error: t('Nothing to save.') });
+        if (needsDesignation(relative) && !designationOk(payload.designation)) {
+          return sendJson(response, 403, { error: t('This file is one the room guards. Type the project\'s designation to save it.'), guarded: true });
+        }
+        const result = await writeEdited(canonicalProjectRoot, relative, payload.content, { mtimeMs: payload.mtimeMs, force: payload.force === true });
+        if (result.status !== 200) return sendJson(response, result.status, { error: t(result.error), changed: result.changed, mtimeMs: result.mtimeMs });
+        await room.record('project.file.saved', { path: relative, bytes: result.bytes });
+        return sendJson(response, 200, { ok: true, bytes: result.bytes, mtimeMs: result.mtimeMs });
       }
       // RIPLEY: the project rendered as a site, inside a frame that runs scripts but
       // reaches nothing: an opaque origin (sandbox without same-origin), no network
@@ -1386,32 +1463,10 @@ export async function createPulseServer({
       }
       if (request.method === 'GET' && url.pathname === '/api/ports') {
         if (!(await ripleyOn())) return sendJson(response, 412, { error: t('RIPLEY is off. Enable it in MODULES to render files.') });
-        let listening = { ports: [], wider: [] };
-        try {
-          const { stdout } = await execFileAsync('lsof', ['-nP', '-iTCP', '-sTCP:LISTEN'], { timeout: 4000, maxBuffer: 2 * 1024 * 1024 });
-          listening = classifyListening(stdout, { self: request.socket.localPort });
-        } catch { return sendJson(response, 200, { ports: [], wider: [], probed: false }); }
-        const ports = [];
-        for (const found of listening.ports.slice(0, 24)) {
-          const probe = await probePort(found.port, { fetchImpl: reportFetch });
-          if (probe.ok) ports.push({ ...found, status: probe.status, html: probe.html, contentType: probe.contentType, framable: probe.framable });
-        }
-        // Which of them this project started: the process's working folder is inside the project.
-        // A badge, and first in the list — the server a human opens RIPLEY for is nearly always this one.
-        if (ports.length) {
-          try {
-            // lsof exits 1 when one of the processes is already gone, and still prints the others.
-            const stdout = await execFileAsync('lsof', ['-a', '-p', ports.map((port) => port.pid).join(','), '-d', 'cwd', '-Fpn'], { timeout: 4000, maxBuffer: 1024 * 1024 })
-              .then((result) => result.stdout, (error) => String(error.stdout ?? ''));
-            const cwds = parseCwds(stdout);
-            for (const port of ports) port.here = inProject(cwds.get(port.pid), canonicalProjectRoot) || undefined;
-            ports.sort((a, b) => Number(Boolean(b.here)) - Number(Boolean(a.here)) || a.port - b.port);
-          } catch { /* no folders, no badge: the list stands as it was */ }
-        }
-        // What is listening on every interface travels too. It is not offered — this room does not
-        // help anyone frame something reachable from the network — but saying nothing about it is
-        // what made an empty list read as «there is nothing here» when there plainly was.
-        return sendJson(response, 200, { ports, wider: listening.wider.slice(0, 8).map(({ port, command }) => ({ port, command })), probed: true });
+        // Only this project's servers, read by the servers sentinel: the same reading its watch
+        // makes, so the menu and the live updates never disagree about what is here.
+        const read = await serverSentinel.scan();
+        return sendJson(response, 200, { ...read, wider: read.wider.slice(0, 8) });
       }
       if (request.method === 'GET' && url.pathname === '/api/questions') {
         const limit = Math.min(5, Math.max(1, Number(url.searchParams.get('limit') ?? 3) || 3));
@@ -1425,8 +1480,18 @@ export async function createPulseServer({
         if (here.error) return sendJson(response, 404, here);
         return sendJson(response, 200, { decisions: here.room.decisions({ limit }) });
       }
+      // The economy of the room: every conversation's turns, not only the open one's. The card and
+      // the panel say «this room», and they used to weigh one conversation's ledger under that name.
       if (url.pathname === '/api/economy' && request.method === 'GET') {
-        return sendJson(response, 200, economy(await store.readAll()));
+        const weighed = [];
+        for (const chat of (await listChats(roomDir)).chats) {
+          const text = await readFile(chatLedger(roomDir, chat.id), 'utf8').catch(() => '');
+          for (const line of text.split('\n')) {
+            if (!line.includes('"turn.cost"')) continue;
+            try { const event = JSON.parse(line); if (event.type === 'turn.cost') weighed.push(event); } catch { /* a torn last line */ }
+          }
+        }
+        return sendJson(response, 200, { ...economy(weighed), conversations: (await listChats(roomDir)).chats.length });
       }
 
       // What left this machine: every address MADRE may reach, whether it is on today, and the
@@ -1640,6 +1705,13 @@ export async function createPulseServer({
       }
       // The MEMORY dashboard: what the archive did day by day and what it is made of. Counts
       // only, no text of any memory, so it is read like /api/maturity, without the designation.
+      // What the archive says about something on the screen, for the questions a surface offers.
+      // Memory text, so behind the designation like the archive itself.
+      if (request.method === 'GET' && url.pathname === '/api/memory/about') {
+        if (!designationOk(url.searchParams.get('designation'))) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
+        if ((room.motherStatus()?.lockedForMs ?? 0) > 0) return sendJson(response, 423, { notes: [] });
+        return sendJson(response, 200, { notes: room.notesAbout(url.searchParams.get('text') ?? '', { limit: 3 }) });
+      }
       if (request.method === 'GET' && url.pathname === '/api/memory/dashboard') {
         return sendJson(response, 200, { dashboard: memoryDashboard({ activity: room.memoryActivity(), stats: room.memoryStats() }) });
       }
@@ -1945,6 +2017,15 @@ export async function createPulseServer({
       }
       // One line of a ```pulse-run, pressed by the human. The body names the request and the line;
       // the command itself is read from the room's record, never from the page.
+      // STOP on one running command's card: a server, or anything still at it.
+      if (request.method === 'POST' && url.pathname === '/api/runs/stop') {
+        const payload = await body(request).catch(() => ({}));
+        const index = Number(payload.index);
+        if (typeof payload.responseMessageId !== 'string' || !Number.isInteger(index) || index < 0) return sendJson(response, 400, { error: t('Name the request and the line to run.') });
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        return here.room.stopRun({ responseMessageId: payload.responseMessageId, index }) ? sendJson(response, 202, { stopped: true }) : sendJson(response, 404, { error: t('That command is not running.') });
+      }
       if (request.method === 'POST' && url.pathname === '/api/runs') {
         const payload = await body(request).catch(() => ({}));
         const index = Number(payload.index);
@@ -2107,6 +2188,7 @@ export async function createPulseServer({
   const nativeClose = server.close.bind(server);
   server.close = (callback) => {
     clearInterval(poller);
+    serverSentinel.stop();
     clearTimeout(embedKick);
     unwatchOutbound();
     // In-flight agent processes are killed and their turns recorded as failed
