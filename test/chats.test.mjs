@@ -132,8 +132,9 @@ test('chats: the panel is the files panel on the other edge, and its handle is i
   assert.match(css, /\.chats-button:hover,\n:root\[data-theme="light"\]|:root\[data-theme="light"\] \.chats-button:hover/);
   // The handle sits in the canvas, under the bar, where the conversation it opens begins.
   assert.match(css, /\.chats-button \{[^}]*grid-row: 3[^}]*justify-self: start/);
-  // Never both edges at once on a narrow screen.
-  assert.match(css, /@media \(max-width: 1100px\) \{ \.chats-button \{ display: none; \} \}/);
+  // Never both edges at once on a narrow screen: the files step out below 1180px, and the
+  // handle stays at every width: on a narrow window it is carried and opened on the canvas too.
+  assert.doesNotMatch(css, /\.chats-button \{ display: none; \}/);
 
   // Opening one is a reload: a conversation is a different record of the same room, and the page
   // is built from a record.
@@ -257,8 +258,10 @@ test('windows: a header is held without selecting, carried on the compositor, an
   // it takes its real place once, where it is let go.
   assert.match(carry, /node\.style\.translate = `\$\{to\.x - from\.x\}px \$\{to\.y - from\.y\}px`/);
   assert.match(carry, /node\.style\.removeProperty\('translate'\);\n      if \(carrying && to\) \{ place\(to\); done\?\.\(\); \}/);
-  // Near the room's edge it sits on the edge.
-  assert.match(carry, /if \(x - WINDOW_INSET < WINDOW_SNAP\) x = WINDOW_INSET;/);
+  // Near the room's edge it sits on the edge, from either side of it, and past an edge it keeps
+  // enough header on screen to be taken back.
+  assert.match(carry, /if \(Math\.abs\(x - WINDOW_INSET\) < WINDOW_SNAP\) x = WINDOW_INSET;/);
+  assert.match(carry, /WINDOW_REACH - from\.w/);
   // A size is laid out once a frame, however fast the pointer reports.
   assert.match(app, /frame = requestAnimationFrame\(\(\) => place\(next\)\);/);
   // The console's header is the window's handle, so it stays on top at any depth of its content,
@@ -350,8 +353,10 @@ test('windows: a change of the room never paints the conversation across a windo
   assert.match(morph, /node\.style\.setProperty\('view-transition-name', `madre-held-\$\{index\}`\);/);
   assert.match(morph, /node\.style\.removeProperty\('view-transition-name'\);/);
   assert.match(css, /::view-transition-group\(\.madre-held\) \{ animation: none; \}/);
-  // A press outside the composer brings the windows back; the composer's own menus do not.
-  assert.match(app, /if \(windowsAside && !event\.target\?\.closest\?\.\('#composer, \.model-menu, \.agent-pop, \.slash-menu'\)\) setWindowsAside\(false\);/);
+  // A press on something that does a thing brings the windows back; the composer's own menus do
+  // not; a press on the desktop itself toggles them, aside and back.
+  assert.match(app, /if \(!windowsAside \|\| target\?\.closest\?\.\('#composer, \.model-menu, \.agent-pop, \.slash-menu'\)\) return;/);
+  assert.match(app, /addEventListener\?\.\('click', \(event\) => \{ if \(deskPress\(event\)\) setWindowsAside\(!windowsAside, \{ always: true \}\); \}\);/);
   // NOSTROMO opened from MU/TH/UR as a window leaves it as it was.
   assert.match(app, /if \(!motherSurface \|\| modeOf\(motherSurface\) === 'base'\) mother\.dialog\?\.close\?\.\(\);/);
   // The servers' close is the cluster's ×, not a second one drawn after it.

@@ -21,51 +21,51 @@
           <span id="project" class="project" title="Project room"></span>
         </div>
         <div id="connection" class="connection" data-state="connecting" title="Live updates">
-          <span class="connection-icon" aria-hidden="true"><svg class="bar-glyph" viewBox="0 0 20 20"><path d="M6.4 6.4a5.1 5.1 0 0 0 0 7.2M13.6 6.4a5.1 5.1 0 0 1 0 7.2M3.9 3.9a8.6 8.6 0 0 0 0 12.2M16.1 3.9a8.6 8.6 0 0 1 0 12.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="connection-dot"></span></span><span class="connection-label">connecting</span>
+          <span class="connection-icon" aria-hidden="true"><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="1.7" fill="currentColor"/><path d="M6.7 6.7a4.7 4.7 0 0 0 0 6.6M13.3 6.7a4.7 4.7 0 0 1 0 6.6M4.2 4.2a8.2 8.2 0 0 0 0 11.6M15.8 4.2a8.2 8.2 0 0 1 0 11.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="connection-dot"></span></span><span class="connection-label">connecting</span>
         </div>
         <div id="agents" class="agents" aria-label="Agents"></div>
         <button id="agents-compact" class="bar-icon agents-compact" type="button" title="Crew" aria-label="Crew">
-          <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="6.5" width="13" height="9" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="7.6" cy="11" r="1.25" fill="currentColor"/><circle cx="12.4" cy="11" r="1.25" fill="currentColor"/><path d="M10 3.4v3.1M6.2 15.5v1.3M13.8 15.5v1.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="7" r="2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 16.4a4.8 4.8 0 0 1 9.6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.6 4.6a2.6 2.6 0 0 1 0 5M14.4 12.3a4.6 4.6 0 0 1 2.4 4.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span id="agents-count" class="bar-count"></span>
         </button>
         <button id="update-pill" class="stop-all update-pill" type="button" hidden title="A newer MADRE is on npm"></button>
         <button id="stop-all" class="stop-all" type="button" title="STOPALL · halt every plan and every agent turn" hidden>
-          <svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M7.2 2.9h5.6l4.3 4.3v5.6l-4.3 4.3H7.2l-4.3-4.3V7.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="7.7" y="7.7" width="4.6" height="4.6" rx=".9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>STOP ALL
+          <svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="4" y="4" width="12" height="12" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>STOP ALL
         </button>
         <button id="modules-button" class="mother-button" type="button" title="Modules · optional integrations for this project" aria-haspopup="dialog" aria-pressed="false">
-          <span class="mother-glyph modules-glyph" aria-hidden="true"></span><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M8.1 3.2h3.8v1.6a1.5 1.5 0 0 0 3 0V3.2h1.9v3.6h-1.4a1.5 1.5 0 0 0 0 3h1.4v3.6h-3.6v-1.5a1.5 1.5 0 0 0-3 0v1.5H6.8V9.8H5.4a1.5 1.5 0 0 1 0-3h1.4V3.2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>MODULES<span id="modules-count" class="modules-count" hidden></span>
+          <span class="mother-glyph modules-glyph" aria-hidden="true"></span><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M2.75 8.45a2.2 2.2 0 0 1 2.2-2.2h2a1.9 1.9 0 1 1 2.6 0h2a2.2 2.2 0 0 1 2.2 2.2v2a1.9 1.9 0 1 1 0 2.6v2a2.2 2.2 0 0 1-2.2 2.2h-2a1.9 1.9 0 1 0-2.6 0h-2a2.2 2.2 0 0 1-2.2-2.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>MODULES<span id="modules-count" class="modules-count" hidden></span>
         </button>
         <button id="mother-button" class="mother-button" type="button" title="Troubleshooting · MU/TH/UR" aria-haspopup="dialog" aria-pressed="false">
           <span class="mother-glyph" aria-hidden="true"></span><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle class="ic-disc" cx="10" cy="10" r="9"/><path class="ic-k" d="M1.8 10h3.4l1.6-4.6 2.6 9.2 2-4.6h1.5l1.3-2.6 1.2 2.6h2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>MU/TH/UR<span id="mother-count" class="mother-count" hidden></span>
         </button>
-        <button id="lang-button" class="tree-button lang-button" type="button" data-language="es" aria-label="Language"><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M2.8 5h7.4M6.5 3.2V5M8.6 5c-.5 2.9-2.4 5.3-5.2 6.6M4.6 7.6c.9 1.6 2.3 2.8 4 3.5M10.4 16.8l3.1-7.6 3.1 7.6M11.4 14.4h4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="lang-code">EN</span></button>
-        <button id="reload-button" class="tree-button reload-button" type="button" aria-label="Reload the page">
-          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M14.4 3.4v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <button id="custom-button" class="tree-button custom-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="custom-pop" aria-label="Personalize MADRE">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h6M14 6h2.5M3.5 14h2.5M10.5 14h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-f" cx="11.8" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-f" cx="8.2" cy="14" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button id="theme-button" class="tree-button theme-button" type="button" title="Theme · auto (follows the system)" data-theme="auto" aria-label="Theme">
-          <svg class="t-auto" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 3.8v12.4A6.2 6.2 0 0 0 10 3.8z" fill="currentColor"/></svg>
-          <svg class="t-light" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-          <svg class="t-dark" viewBox="0 0 20 20" aria-hidden="true"><path d="M15.5 12.4A6.5 6.5 0 0 1 7.6 4.5a6.5 6.5 0 1 0 7.9 7.9z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <button id="reload-button" class="tree-button reload-button" type="button" aria-label="Reload the page">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.76-4.24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.1 3.6v3.6h-3.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <button id="browser-button" class="tree-button" type="button" aria-pressed="false" aria-controls="browser" title="Browser · local servers and the web" aria-label="Browser">
-          <svg viewBox="0 0 20 20" aria-hidden="true"><circle class="ic-f" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-k" d="M2.8 10h14.4M10 2.8c1.9 2 2.9 4.5 2.9 7.2s-1 5.2-2.9 7.2c-1.9-2-2.9-4.5-2.9-7.2s1-5.2 2.9-7.2z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle class="ic-ring" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle class="ic-f" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-k" d="M2.9 10h14.2M10 2.8c1.9 2 2.9 4.6 2.9 7.2s-1 5.2-2.9 7.2c-1.9-2-2.9-4.6-2.9-7.2s1-5.2 2.9-7.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-ring" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <button id="tree-button" class="tree-button" type="button" title="Project files panel" aria-pressed="false" aria-controls="tree">
-          <svg viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path class="ic-k" d="M12 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.7"/><path class="ic-k" d="M13.8 7h1.6M13.8 9.6h1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".7"/></svg>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M2.75 6.5A2.25 2.25 0 0 1 5 4.25h2.6c.55 0 1.05.24 1.4.65l.9 1.1H15a2.25 2.25 0 0 1 2.25 2.25v5.75A2.25 2.25 0 0 1 15 16.25H5a2.25 2.25 0 0 1-2.25-2.25z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-k" d="M3.1 8.6h13.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </header>
+      <!-- Arriving from RELOAD: the curtain that drew the logo before the page went is put back
+           before the first frame, so the room never flashes between the two; app.js lifts it. -->
+      <script>try { if (sessionStorage.getItem('madre.curtain')) { sessionStorage.removeItem('madre.curtain'); var curtain = document.createElement('div'); curtain.className = 'reload-curtain arrived'; curtain.id = 'reload-curtain'; var logo = document.querySelector('.brand-logo'); if (logo) curtain.appendChild(logo.cloneNode(true)); document.body.appendChild(curtain); } } catch (e) {}</script>
       <button id="chats-button" class="chats-button" type="button" aria-pressed="false" aria-controls="chats" title="Conversations in this project" aria-label="Conversations">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M3.2 5.2a1.8 1.8 0 0 1 1.8-1.8h7.6a1.8 1.8 0 0 1 1.8 1.8v4.4a1.8 1.8 0 0 1-1.8 1.8H7.6L4.4 13.8v-2.4h-.4a1.8 1.8 0 0 1-1.8-1.8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.6 14.2h3.1l3.2 2.4v-2.4h.4a1.8 1.8 0 0 0 1.8-1.8V8.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" opacity=".55"/></svg>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M3.25 6a2.5 2.5 0 0 1 2.5-2.5h8.5a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5H9.2l-2.75 2.2c-.4.32-.95.04-.95-.47V14.5h-.25a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-k" d="M7 7.9h6M7 10.6h3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <aside id="chats" class="tree chats" aria-label="Conversations" hidden>
         <header class="tree-head">
           <span class="tree-title">CONVERSATIONS <span id="chats-count" class="tree-root"></span></span>
-          <button id="chats-close" class="tree-close" type="button" aria-label="Close conversations"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.6 5.6l8.8 8.8M14.4 5.6l-8.8 8.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button id="chats-close" class="tree-close" type="button" aria-label="Close conversations"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </header>
         <div id="chats-body" class="tree-body chats-body"></div>
         <div class="chats-new">
           <button id="chats-new" class="chats-new-button" type="button" title="Start another conversation in this project. The memory stays.">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 16.5 6v4.6a2.5 2.5 0 0 1-2.5 2.5H9.4l-3.6 3v-3A2.5 2.5 0 0 1 3.5 10.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 6v4.6M7.7 8.3h4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10.4 3.75H5.75a2.5 2.5 0 0 0-2.5 2.5v6a2.5 2.5 0 0 0 2.5 2.5h.5v1.93c0 .45.48.73.9.42l3.1-2.35h4.1a2.5 2.5 0 0 0 2.5-2.5V10.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15.1" cy="4.9" r="3.15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.1 3.45v2.9M13.65 4.9h2.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             NEW CONVERSATION
           </button>
         </div>
@@ -187,13 +187,13 @@
       </section>
 
       <form id="composer" class="composer">
-        <div id="picker" class="picker" role="radiogroup" aria-label="Agent"></div>
         <select id="target" aria-label="Agent" class="visually-hidden"></select>
         <div id="attachments" class="attachments" hidden></div>
         <div id="free-offer" class="free-offer" hidden></div>
         <div id="openq" class="openq" hidden></div>
         <div class="field">
           <div id="reply-quote" class="reply-quote" hidden></div>
+          <div id="picker" class="picker crew" role="radiogroup" aria-label="Agent"></div>
           <span id="crew-label" class="crew-label" aria-hidden="true">HUMAN ›</span>
           <div class="editor">
             <div id="highlight" class="highlight" aria-hidden="true"></div>
@@ -201,20 +201,21 @@
             <div id="slash-menu" class="slash-menu" role="listbox" hidden></div>
           </div>
           <button id="create-toggle" type="button" class="create-toggle" aria-pressed="false" title="Creation lease: let the agent create files for this request, only inside .pulse/out/" hidden>
-            <svg class="lock closed" viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 8.5V6a3.5 3.5 0 017 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="4.5" y="8.5" width="11" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-            <svg class="lock open" viewBox="0 0 20 20" aria-hidden="true"><path d="M13.5 8.5V5.5a3.5 3.5 0 00-6.7-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="4.5" y="8.5" width="11" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="12.5" r="1.2" fill="currentColor"/></svg>
+            <svg class="lock closed" viewBox="0 0 20 20" aria-hidden="true"><path d="M6.8 8.6V6.7a3.2 3.2 0 0 1 6.4 0v1.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="4.4" y="8.6" width="11.2" height="8.2" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="12.7" r="1.1" fill="currentColor"/></svg>
+            <svg class="lock open" viewBox="0 0 20 20" aria-hidden="true"><path d="M13.2 8.6V6.5a3.2 3.2 0 0 0-6.2-1.15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="4.4" y="8.6" width="11.2" height="8.2" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="12.7" r="1.1" fill="currentColor"/></svg>
             <span class="create-word">CREATE</span>
             <span id="create-scopes" class="create-scopes" hidden></span>
           </button>
           <button id="ash-toggle" type="button" class="ash-toggle" aria-pressed="false" title="Ash: ask every agent for compact prose. Nothing you write is altered." hidden>ash</button>
           <button id="attach" type="button" class="attach" title="Attach an image or file (or drop it here)" aria-label="Attach">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M13.5 6.5l-6 6a2.1 2.1 0 003 3l6.5-6.5a4 4 0 00-5.7-5.7L4.8 9.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.4 9.6l-5.8 5.8a3.6 3.6 0 0 1-5.1-5.1l6.6-6.6a2.4 2.4 0 0 1 3.4 3.4l-6.5 6.5a1.2 1.2 0 0 1-1.7-1.7l5.8-5.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <input id="file-input" type="file" multiple hidden>
           <button type="submit" aria-label="Send">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 16V5m0 0l-4.5 4.5M10 5l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15.4V4.9M5.6 9.3 10 4.9l4.4 4.4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
+        <div id="pick-options" class="picker pick-options"></div>
       </form>
       <p id="safety" class="safety" hidden>Agents write only when you raise the mode · what they read may reach their provider.</p>
       <small id="colophon" class="colophon" aria-label="MADRE version"></small>
@@ -340,7 +341,7 @@
             <button id="browser-back" class="nav" type="button" title="Back" aria-label="Back" disabled>‹</button>
             <button id="browser-reload" class="nav" type="button" title="Reload" aria-label="Reload">↻</button>
             <button id="browser-servers" class="nav ports" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="This project's servers"><i class="ports-dot" aria-hidden="true"></i><span>SERVERS</span><i class="ports-caret" aria-hidden="true"></i></button>
-            <button id="browser-point" class="nav point" type="button" aria-pressed="false" aria-label="Point and ask"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="1.7" fill="currentColor"/><path d="M10 1.8v3M10 15.2v3M1.8 10h3M15.2 10h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>POINT</span></button>
+            <button id="browser-point" class="nav point" type="button" aria-pressed="false" aria-label="Point and ask"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.4 3.9v11.4c0 .5.6.75.95.4l2.5-2.4 1.95 4.1c.17.37.6.52.96.35l.9-.43c.36-.17.5-.6.33-.96l-1.95-4.1h3.45c.5 0 .74-.6.38-.94L6.36 3.5c-.36-.33-.96-.08-.96.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>POINT</span></button>
           </span>
           <div id="browser-ports-menu" class="ports-menu" role="menu" hidden></div>
           <span id="browser-where" class="browser-where"></span>
@@ -395,5 +396,12 @@
       </dialog>
     </div>
     <script type="module" src="/app.js"></script>
+    <dialog id="custom" class="surface window custom-window" aria-label="Personalize MADRE">
+      <header class="custom-head">
+        <span class="custom-title">PERSONALIZE</span>
+        <span class="custom-sub">HOW MADRE LOOKS TO YOU</span>
+      </header>
+      <div id="custom-body" class="custom-body"></div>
+    </dialog>
   </body>
 </html>

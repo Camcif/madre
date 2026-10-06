@@ -1168,6 +1168,13 @@ export async function createPulseServer({
         ['/assets/brand/OFL-Sora.txt', 'text/plain; charset=utf-8'],
         ['/assets/brand/OFL-JetBrainsMono.txt', 'text/plain; charset=utf-8'],
         ['/assets/brand/madre-favicon.svg', 'image/svg+xml'],
+        // The conversation's wallpapers (PERSONALIZE): five pictures, encoded by hand from their
+        // masters (cwebp), whose light and dark, layer or mesh and intensity are layers in the CSS.
+        ['/assets/wallpapers/jarrito.webp', 'image/webp'],
+        ['/assets/wallpapers/canela.webp', 'image/webp'],
+        ['/assets/wallpapers/paraiso.webp', 'image/webp'],
+        ['/assets/wallpapers/ventura.webp', 'image/webp'],
+        ['/assets/wallpapers/magna.webp', 'image/webp'],
       ]);
       if (request.method === 'GET' && brandAssets.has(url.pathname)) {
         const file = await readFile(join(publicDirectory, url.pathname.slice(1)));

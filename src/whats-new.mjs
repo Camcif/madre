@@ -39,6 +39,15 @@ export const NOTES = {
         where: { es: 'En el encabezado de cada panel · split y ventana, junto a la ×', en: 'In the header of every panel · split and window, next to the ×' },
       },
       {
+        icon: 'gear',
+        title: { es: 'MADRE a tu gusto', en: 'MADRE the way you like it' },
+        body: {
+          es: 'Elige el acento, el fondo, el tamaño de las burbujas y del texto de la conversación, y el idioma. Seis acentos y seis fondos, cada uno pensado para tema claro y oscuro; sobre un fondo, la respuesta toma un velo de su color.',
+          en: 'Choose the accent, the wallpaper, the size of the bubbles and of the conversation’s text, and the language. Six accents and six wallpapers, each made for light and dark themes; over a wallpaper, the reply takes a veil of its colour.',
+        },
+        where: { es: 'El botón PERSONALIZAR de la barra, junto a MU/TH/UR', en: 'The PERSONALIZE button in the bar, next to MU/TH/UR' },
+      },
+      {
         icon: 'bell',
         title: { es: 'Varias conversaciones trabajando a la vez', en: 'Several conversations working at once' },
         body: {

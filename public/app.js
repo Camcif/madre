@@ -49,6 +49,27 @@ if (SPLIT_CHAT) {
   }
 }
 
+// The motion engine's one dial. Every movement the interface makes — in styles.css and here — is
+// written at its old length and multiplied by --motion-scale, so the whole room speeds up or slows
+// down together and one hand never moves at a different pace from another. Read once, lazily: the
+// stylesheet is in place before anything moves.
+let motionScale = null;
+// The chooser's chevron: one drawing for every menu that opens downward, in the same round line.
+const ICON_CHEVRON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 6.2 8 10l3.8-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function chevron(className = 'chev') {
+  const mark = el('span', `${className} chev-icon`);
+  mark.innerHTML = ICON_CHEVRON;
+  return mark;
+}
+
+function motion(ms) {
+  if (motionScale == null) {
+    const read = Number.parseFloat(globalThis.getComputedStyle?.(document.documentElement)?.getPropertyValue('--motion-scale'));
+    motionScale = Number.isFinite(read) && read > 0 ? read : 1;
+  }
+  return Math.round(ms * motionScale);
+}
+
 // Before anything is written on the screen. The constants below are sentences, and a sentence
 // chosen in the wrong language stays wrong for the life of the page.
 let chosenLanguage = null;
@@ -72,6 +93,7 @@ const els = {
   thread: document.querySelector('#messages'),
   column: document.querySelector('#thread-inner'),
   crewLabel: document.querySelector('#crew-label'),
+  pickOptions: document.querySelector('#pick-options'),
   onboarding: document.querySelector('#onboarding'),
   bridgeCrew: document.querySelector('#bridge-crew'),
   emptyStarts: document.querySelector('#empty-starts'),
@@ -252,7 +274,7 @@ const el = (tag, className, text) => {
 // Every way to close something closes the same way: one × drawn as a line, not a letter, that
 // turns a quarter and thickens under the pointer — the one the conversations panel already had.
 // A labelled button keeps its words («CLOSE ×» says what it closes); only its × becomes the mark.
-const X_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5.6 5.6l8.8 8.8M14.4 5.6l-8.8 8.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const X_ICON = '<svg focusable="false" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function xIcon() {
   const mark = el('span', 'x-icon');
   mark.innerHTML = X_ICON; // trusted: our own SVG
@@ -330,6 +352,14 @@ const agentColor = (id) => {
   const brand = brandOf(id);
   return isLight() && brand.colorLight ? brand.colorLight : brand.color;
 };
+// An agent's colour set inline on a line of the room, remembered by whose it is: the ground can
+// change under it (the theme), and a colour picked for the dark ground all but vanished on the
+// light one — @MADRE's green on white, in a handoff drawn before the switch.
+function tint(node, id, prop = '--agent') {
+  node.dataset[{ '--agent': 'tint', '--from': 'tintFrom', '--to': 'tintTo' }[prop]] = id;
+  node.style.setProperty(prop, agentColor(id));
+  return node;
+}
 function paint(node, id) {
   node.dataset.agent = id;
   node.style.setProperty('--agent', agentColor(id));
@@ -817,7 +847,7 @@ function closeAskCard() {
   askCardClose = null;
   done?.();
 }
-const ASK_OWN_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 15.5l.7-3.2 8.1-8.1a1.6 1.6 0 0 1 2.3 0l.2.2a1.6 1.6 0 0 1 0 2.3l-8.1 8.1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11.8 5.7l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const ASK_OWN_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.7 4.5a1.95 1.95 0 0 1 2.8 2.8l-8.3 8.3-3.6.9.9-3.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.5 5.7l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function openAskCard({ anchor, head, suggestions, about = '', onAsk, onClose = null }) {
   closeAskCard();
   askCardClose = onClose;
@@ -1511,8 +1541,8 @@ function paintPorts(read) {
 // inside it, so it does not pretend to: the agent is told what was marked and where, and finds in
 // the project what draws it. The question lands in the composer with the agent chosen; sending
 // stays the human's, as with every other question asked from a surface.
-const POINT_DOT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.2" fill="currentColor"/></svg>';
-const POINT_AREA_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="4.5" width="13" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2.2"/></svg>';
+const POINT_DOT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><path d="M10 2v2.6M10 15.4V18M2 10h2.6M15.4 10H18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const POINT_AREA_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4.75h6M7 15.25h6M4.75 7v6M15.25 7v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="3" width="3.5" height="3.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="13.5" y="3" width="3.5" height="3.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="13.5" width="3.5" height="3.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="13.5" y="13.5" width="3.5" height="3.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // The layer covers the frame exactly, wherever the frame stands inside the stage.
 function pointFit() {
   if (!pointing.layer || !browser.frame || !browser.stage) return;
@@ -1750,7 +1780,7 @@ function serverStarted({ port }) {
   delete tab.waiting;
   const card = browser.body?.querySelector('.browser-down');
   card?.classList.add('leaving');
-  setTimeout(() => card?.remove(), 260);
+  setTimeout(() => card?.remove(), motion(260));
   if (browser.frame) browser.frame.src = tab.url;
 }
 function browserPortOf(url) {
@@ -2207,11 +2237,24 @@ if (safetyLine && !safetySeen) {
   setTimeout(foldSafety, 9000);
 }
 
+// The crew lives in one round button at the left of the box you write in: the agent you are
+// writing to. Under the pointer (or pressed, on a touch screen) the rest of the crew rises above it
+// in a column, and choosing one puts it in the button and in the line of the box (HUMAN › @AGENT).
+// What that agent will do with the message — mode, model, effort — sits in a row under the box.
 function renderPicker() {
   els.picker.replaceChildren();
+  els.pickOptions?.replaceChildren?.();
   const ready = [...state.agents.values()].filter((agent) => agent.ready);
-  if (!ready.length) return;
+  if (!ready.length) { updateCrewLabel(); return; }
   if (!els.target.value || !ready.some((agent) => agent.id === els.target.value)) els.target.value = ready[0].id;
+  const stack = el('div', 'crew-stack');
+  const orb = el('button', 'crew-orb');
+  orb.type = 'button';
+  orb.setAttribute('aria-haspopup', 'true');
+  orb.setAttribute('aria-label', t('Choose who you write to'));
+  orb.title = t('Choose who you write to');
+  orb.append(avatar(els.target.value, { size: 34 }));
+  orb.addEventListener('click', (event) => { event.stopPropagation(); els.picker.classList.toggle('open'); });
   for (const agent of ready) {
     const pick = avatar(agent.id, { size: 30 });
     pick.classList.add('pick');
@@ -2229,15 +2272,17 @@ function renderPicker() {
       els.input.focus();
     };
     pick.title = els.target.value === agent.id ? t('{label} · click again to choose its model', { label: agent.label }) : agent.label;
-    pick.addEventListener('click', choose);
-    pick.addEventListener('keydown', (event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); choose(); } });
-    els.picker.append(pick);
+    // Under the pointer, the provider's name comes out of the sphere.
+    const vendor = brandOf(agent.id).vendor;
+    if (vendor) pick.append(el('span', 'pick-vendor', t(vendor)));
+    pick.addEventListener('click', (event) => { event.stopPropagation(); els.picker.classList.remove('open'); choose(); });
+    pick.addEventListener('keydown', (event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); els.picker.classList.remove('open'); choose(); } });
+    stack.append(pick);
   }
+  els.picker.append(stack, orb);
   const current = state.agents.get(els.target.value);
   if (current) {
     const text = paint(el('span', 'pick-label'), current.id);
-    text.append(t('to '));
-    text.append(el('b', null, `@${current.id}`));
     if (current.local) {
       const note = el('span', 'pick-note', t('memory · never writes'));
       const measured = state.localModel?.checked;
@@ -2250,7 +2295,7 @@ function renderPicker() {
     const shown = state.typedPending ?? state.mode;
     const modeChip = el('button', `mode-chip m${shown}${state.typedPending ? ' pending' : ''}`);
     modeChip.type = 'button';
-    modeChip.append(el('b', null, `#${shown}`), `${MODES[shown].label} ▾`);
+    modeChip.append(el('b', null, `#${shown}`), el('span', 'word', MODES[shown].label), chevron());
     modeChip.title = state.typedPending
       ? t('#{n} {label} is written in the message: its keys are asked for when you send it.', { n: shown, label: MODES[shown].label })
       : t('Permission mode for this message · {hint}', { hint: MODES[state.mode].hint });
@@ -2262,7 +2307,8 @@ function renderPicker() {
     const chosen = state.chosenModel[current.id];
     const choices = state.models[current.id]?.models ?? null;
     if (!current.local && (choices === null || choices.length)) {
-      const modelChip = el('button', 'model-chip', chosen ? `${chosen} ▾` : t('default model ▾'));
+      const modelChip = el('button', 'model-chip');
+      modelChip.append(el('span', 'word', chosen ?? t('default model')), chevron());
       modelChip.type = 'button';
       modelChip.title = t('Choose the model for this agent');
       modelChip.addEventListener('click', (event) => { event.stopPropagation(); toggleModelMenu(current.id, modelChip); });
@@ -2270,8 +2316,9 @@ function renderPicker() {
     }
     const effortChip = renderEffortChip(current.id);
     if (effortChip) text.append(effortChip);
-    els.picker.append(text);
+    (els.pickOptions ?? els.picker).append(text);
   }
+  updateCrewLabel();
   if (typeof renderCreateScopes === 'function') renderCreateScopes();
   if (typeof renderHighlight === 'function') renderHighlight();
 }
@@ -2412,7 +2459,7 @@ function renderEffortChip(id) {
   const shown = chosen ?? info.default;
   const chip = el('button', `effort-chip${chosen ? ' set' : ''}${shown === info.levels.at(-1) ? ' peak' : ''}`);
   chip.type = 'button';
-  chip.append(effortMeter(info.levels, shown, { ghost: !chosen }), el('span', 'word', chosen ? effortLabel(chosen) : t('effort')), el('span', 'caret', '▾'));
+  chip.append(effortMeter(info.levels, shown, { ghost: !chosen }), el('span', 'word', chosen ? effortLabel(chosen) : t('effort')), chevron('caret'));
   chip.title = chosen
     ? `${t('Effort for this agent · {level}', { level: effortLabel(chosen) })}\n${t(EFFORT_WORDS[chosen]?.hint ?? '')}`
     : info.default
@@ -3193,24 +3240,30 @@ function renderAssistantMessage(event) {
   const bubble = el('div', 'bubble');
   bubble.append(renderMarkdown(text));
   if (event.payload.artifacts?.length) bubble.append(artifactTiles(event.payload.artifacts));
-  bubble.append(bubbleActions({ text, sender, sequence: event.sequence, messageId: delegated ? null : messageId }));
-  col.append(bubble);
+  // What the reply recalled, what it cost and what can be done with it travel inside it, on a
+  // foot of its own: the memory as dots on the left; rate, copy and reply (shown under the pointer)
+  // and the bill on the right. The notes themselves open under the foot only when asked for.
+  const foot = el('div', 'bubble-foot');
   const used = attachMemoryUsed(event.payload);
-  if (used) col.append(used);
-  const needs = attachModeAsk(event.payload, { sequence: event.sequence });
-  if (needs) col.append(needs);
+  if (used) foot.append(used.toggle);
+  foot.append(bubbleActions({ text, sender, sequence: event.sequence, messageId: delegated ? null : messageId }));
   const stamp = el('div', 'stamp');
   stamp.id = `usage-${messageId}`;
   stamp.append(el('span', null, formatTime(event.timestamp)));
-  col.append(stamp);
+  foot.append(stamp);
+  bubble.append(foot);
+  if (used) bubble.append(used.list);
+  col.append(bubble);
+  const needs = attachModeAsk(event.payload, { sequence: event.sequence });
+  if (needs) col.append(needs);
   node.append(col);
   state.lastSender = sender;
   return node;
 }
 
 // Two quiet icons at the end of a reply: copy it, or answer it through the agent you choose.
-const ICON_COPY = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 5.5V3.9A1.4 1.4 0 0 0 9.1 2.5H3.9A1.4 1.4 0 0 0 2.5 3.9v5.2a1.4 1.4 0 0 0 1.4 1.4h1.6" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
-const ICON_DONE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_COPY = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.2" y="3.3" width="9.6" height="10.9" rx="2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><rect x="5.7" y="1.8" width="4.6" height="2.8" rx="1.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.8 8.1h4.4M5.8 10.6h2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_DONE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.4 8.6l3 2.9 6.2-6.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_REPLY = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 3.5 2.5 7.5l4 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 7.5h5.7a4.5 4.5 0 0 1 4.5 4.5v.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
 function iconButton(svg, title, className) {
   const button = el('button', `act ${className}`);
@@ -3222,8 +3275,10 @@ function iconButton(svg, title, className) {
 }
 const ICON_GOOD = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 7.5v5.5H3.2a.7.7 0 0 1-.7-.7V8.2a.7.7 0 0 1 .7-.7h2.3Zm0 0 2.6-4.6a1.3 1.3 0 0 1 2.4.8L10 6.8h2.6a1.3 1.3 0 0 1 1.3 1.5l-.8 3.9a1.3 1.3 0 0 1-1.3 1H5.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
 const ICON_BAD = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 8.5V3H12.8a.7.7 0 0 1 .7.7v4.1a.7.7 0 0 1-.7.7h-2.3Zm0 0-2.6 4.6a1.3 1.3 0 0 1-2.4-.8L6 9.2H3.4a1.3 1.3 0 0 1-1.3-1.5l.8-3.9A1.3 1.3 0 0 1 4.2 3h6.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
-const ICON_PREFER = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.6l1.6 3.3 3.6.5-2.6 2.5.6 3.6L8 10.8l-3.2 1.7.6-3.6L2.8 6.4l3.6-.5Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
-const ICON_NEVER = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.4 11.6 11.6 4.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+const ICON_PREFER = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7.45 2.7c.22-.45.88-.45 1.1 0l1.3 2.65 2.92.43c.5.07.7.69.34 1.04l-2.12 2.06.5 2.9c.09.5-.44.88-.89.65L8 11.06l-2.6 1.37c-.45.23-.98-.15-.89-.65l.5-2.9-2.12-2.06c-.36-.35-.16-.97.34-1.04l2.92-.43z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// An open question: a circle and its question mark, in the same round line as the rest.
+const ICON_ASK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.3 6.4a1.75 1.75 0 1 1 2.55 1.55c-.5.27-.85.62-.85 1.2v.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 11.2v.05" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+const ICON_NEVER = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12 12 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // The human's verdict on a reply, and the only place in the room where four of them are said.
 // Two of them are the everyday act; the other two are the same thing meant harder, so they are
@@ -3574,15 +3629,32 @@ function warnUnknownModuleFields(installed) {
   if (unknown.length) setTimeout(() => toast(t('MU/TH/UR › {name} declares {fields}, which this MADRE does not know. A typo, or a field from a newer version.', { name: installed.name, fields: unknown.join(', ') })), 2600);
 }
 
-// The archivist reports: which agent read which stretch of the room and how many notes it kept.
-// module · @codex wrote read-mail.module.mjs · INSTALL FOR EVERY ROOM · INSTALL FOR THIS PROJECT · LATER
+// A claim the room makes about a turn, in three tiers: «KIND · @agent» as its title, what
+// happened as one sentence in plain case, and what you can do about it as buttons on a row of
+// their own. Run together as one uppercase sentence, centred, the title, the file name and the
+// buttons broke wherever the width fell, and the eye could not tell which part was which.
+function claimHead(node, kind, who) {
+  const head = el('b', 'claim-head');
+  head.append(kind);
+  if (who) head.append(' · ', el('span', 'who', who));
+  node.classList.add('claim');
+  node.append(head);
+  return node;
+}
+
+// module · @codex
+// Wrote read-mail.module.mjs.
+// [INSTALL FOR EVERY ROOM] [INSTALL FOR THIS PROJECT]
+// Read it first: a module runs inside MADRE with your permissions.
 function renderModuleProposed(event) {
   const { agent, path, name, responseMessageId } = event.payload;
   const node = el('div', 'system module-proposed');
-  node.style.setProperty('--agent', agentColor(agent));
-  node.append(t('module · '), el('b', 'who', `@${agent}`), t(' wrote '));
+  tint(node, agent);
+  claimHead(node, t('MODULE'), `@${agent}`);
   const link = el('a', 'file-link', name ?? path); link.href = '#'; link.addEventListener('click', (ev) => { ev.preventDefault(); void openViewer({ root: 'project', path, label: `/${path}` }); });
-  node.append(link, t(' · read it, then '));
+  const said = el('span', 'claim-body');
+  said.append(t('Wrote '), link);
+  node.append(said);
   const install = async (scope, button) => {
     button.disabled = true;
     try {
@@ -3593,9 +3665,11 @@ function renderModuleProposed(event) {
       modules.items = payload.extensions ?? modules.items; if (modules.dialog.open) renderModules();
     } catch (error) { toast(t('The module was not installed: {error}', { error: error.message })); button.disabled = false; }
   };
-  const everyRoom = el('button', 'act-link', t('INSTALL FOR EVERY ROOM')); everyRoom.type = 'button'; everyRoom.addEventListener('click', () => install('user', everyRoom));
-  const thisProject = el('button', 'act-link', t('INSTALL FOR THIS PROJECT')); thisProject.type = 'button'; thisProject.addEventListener('click', () => install('project', thisProject));
-  node.append(everyRoom, ' · ', thisProject, t(' · a module runs inside MADRE with your permissions'));
+  const everyRoom = el('button', 'claim-act', t('INSTALL FOR EVERY ROOM')); everyRoom.type = 'button'; everyRoom.addEventListener('click', () => install('user', everyRoom));
+  const thisProject = el('button', 'claim-act', t('INSTALL FOR THIS PROJECT')); thisProject.type = 'button'; thisProject.addEventListener('click', () => install('project', thisProject));
+  const acts = el('span', 'claim-acts');
+  acts.append(everyRoom, thisProject);
+  node.append(acts, el('span', 'claim-note', t('Read it first: a module runs inside MADRE with your permissions.')));
   // An agent asked to fix a module writes a new file beside the old one; the room keeps running
   // the copy that was installed until this one is. The card says so, or a fixed module looks
   // installed while the broken one keeps answering.
@@ -3605,7 +3679,7 @@ function renderModuleProposed(event) {
     if (!current) return;
     everyRoom.textContent = t('REPLACE FOR EVERY ROOM');
     thisProject.textContent = t('REPLACE FOR THIS PROJECT');
-    node.append(el('span', 'replaces', t('{name} {version} is already installed for {where}; it keeps running until this file replaces it.', { name: current.name, version: current.version ? `v${current.version}` : '', where: current.origin === 'project' ? t('this project') : t('every room') }).replace(/\s+/g, ' ')));
+    node.append(el('span', 'claim-note replaces', t('{name} {version} is already installed for {where}; it keeps running until this file replaces it.', { name: current.name, version: current.version ? `v${current.version}` : '', where: current.origin === 'project' ? t('this project') : t('every room') }).replace(/\s+/g, ' ')));
   });
   if (responseMessageId) node.dataset.for = responseMessageId;
   return node;
@@ -3620,9 +3694,10 @@ function installedModules() {
 function renderModuleInstalledOrRemoved(event) {
   const { name, origin, by } = event.payload;
   const node = el('div', 'system module-proposed');
-  node.append(t('module · '), el('b', 'who', name), event.type === 'extension.installed'
-    ? t(' installed for {where} by {who} · switch it on in MODULES', { where: origin === 'project' ? t('this project') : t('every room'), who: !by || by === 'you' ? t('you') : `@${by}` })
-    : t(' removed by {who}', { who: !by || by === 'you' ? t('you') : `@${by}` }));
+  claimHead(node, t('MODULE'), name);
+  node.append(el('span', 'claim-body', event.type === 'extension.installed'
+    ? t('Installed for {where} by {who}. Switch it on in MODULES.', { where: origin === 'project' ? t('this project') : t('every room'), who: !by || by === 'you' ? t('you') : `@${by}` })
+    : t('Removed by {who}.', { who: !by || by === 'you' ? t('you') : `@${by}` })));
   return node;
 }
 
@@ -3690,11 +3765,12 @@ function renderPrivacy(event) {
   const node = el('div', 'system memory privacy');
   if (event.type === 'privacy.purged') {
     const { events, entries, memories } = event.payload;
-    node.append(t('privacy · '), el('b', 'who', t('PURGE')), ' · ', t('{events} events · {entries} indexed exchanges · {memories} memories rewritten with the marker', { events, entries, memories }));
+    claimHead(node, t('PRIVACY'), t('PURGE'));
+    node.append(el('span', 'claim-body', t('{events} events · {entries} indexed exchanges · {memories} memories rewritten with the marker', { events, entries, memories })));
     return node;
   }
   const { agent, hits, marker, kinds = null } = event.payload;
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   // What was hidden, by kind: a term you named, a key, your user folder. A notice from before the
   // room told them apart says only how many.
   const said = kinds ? [
@@ -3702,26 +3778,29 @@ function renderPrivacy(event) {
     kinds.secrets ? (kinds.secrets === 1 ? t('1 key or token hidden') : t('{n} keys or tokens hidden', { n: kinds.secrets })) : null,
     kinds.paths ? t('your user folder hidden as ~') : null,
   ].filter(Boolean) : [hits === 1 ? t('1 private detail hidden') : t('{n} private details hidden', { n: hits })];
-  node.append(t('privacy · '), el('b', 'who', `@${agent}`), ' · ', said.join(' · '));
+  claimHead(node, t('PRIVACY'), `@${agent}`);
+  const sentence = said.join(' · ');
+  node.append(el('span', 'claim-body', sentence.charAt(0).toUpperCase() + sentence.slice(1)));
   return node;
 }
 
 function renderDistilled(event) {
   const { agent, added, considered, fromSequence, throughSequence, remaining, error, skipped, total, next } = event.payload;
   const node = el('div', `system memory${error ? ' warn' : ''}`);
-  node.style.setProperty('--agent', agentColor(agent));
-  node.append(t('memory · '));
-  node.append(el('b', 'who', `@${agent}`));
+  tint(node, agent);
+  claimHead(node, t('MEMORY'), `@${agent}`);
   if (error) {
     // One calm sentence; the whole record waits in the tooltip.
     const first = String(error).split(/\s+last output:|\s+stderr:/i)[0].replace(/\s+/g, ' ').trim();
     const brief = el('span', 'brief', first.length > 120 ? `${first.slice(0, 119)}…` : first);
     brief.title = String(error).slice(0, 2000);
-    node.append(t(' could not distil #{from}–#{through}: ', { from: fromSequence, through: throughSequence }), brief, skipped ? t(' · batch skipped') : next ? t(' · @{agent} takes the next run', { agent: next }) : t(' · will retry'));
+    const said = el('span', 'claim-body');
+    said.append(t('Could not distil #{from}–#{through}: ', { from: fromSequence, through: throughSequence }), brief);
+    node.append(said, el('span', 'claim-note', skipped ? t('The batch was skipped.') : next ? t('@{agent} takes the next run.', { agent: next }) : t('It will retry.')));
   } else {
-    node.append(t(' read {considered} exchanges (#{from}–#{through}) · kept {added} memories', { considered, from: fromSequence, through: throughSequence, added })
-      + (Number.isFinite(total) ? t(' · {n} in the archive', { n: total }) : '')
-      + (remaining ? t(' · {n} waiting', { n: remaining }) : ''));
+    node.append(el('span', 'claim-body', t('Read {considered} exchanges (#{from}–#{through}) and kept {added} memories.', { considered, from: fromSequence, through: throughSequence, added })));
+    const after = [Number.isFinite(total) ? t('{n} in the archive', { n: total }) : null, remaining ? t('{n} waiting', { n: remaining }) : null].filter(Boolean);
+    if (after.length) node.append(el('span', 'claim-note', after.join(' · ')));
   }
   return node;
 }
@@ -3756,7 +3835,7 @@ function attachModeAsk(payload, { sequence = null } = {}) {
   if (!state.agents.get(agent)?.ready) return null;
   const label = MODES[wanted]?.label ?? '';
   const card = el('div', 'mode-ask');
-  card.style.setProperty('--agent', agentColor(agent));
+  tint(card, agent);
   const what = el('div', 'mode-what');
   what.append(el('b', 'who', `@${agent}`), t(' asks for #{n} {label} to go on', { n: wanted, label }));
   const why = el('div', 'mode-why', wanted >= 3
@@ -3837,10 +3916,27 @@ function attachMemoryUsed(payload) {
   const used = payload.recalled ?? [];
   if (!used.length) return null;
   const hint = el('div', 'memory-hint used');
-  hint.style.setProperty('--agent', agentColor(payload.sender));
+  hint.hidden = true;
   const carried = used.filter((note) => note.via === 'cascade').length;
-  hint.append(el('span', 'lead', t('◉ memory used · {n}', { n: used.length }) + (carried ? t(' · {n} by association', { n: carried }) : '')));
   const visible = used.slice(0, 3);
+  // The foot's half: one dot per note shown, in its kind's colour, hollow when it came along by
+  // association, and the count. Pressing it opens the notes.
+  const toggle = el('button', 'mem-used');
+  toggle.type = 'button';
+  toggle.title = t('Show the memories this reply used');
+  toggle.setAttribute('aria-expanded', 'false');
+  const dots = el('span', 'dots');
+  for (const note of visible) {
+    const dot = el('i', note.via === 'cascade' ? 'carried' : null);
+    dot.style.setProperty('--kind', MEMORY_COLORS[note.kind] ?? MEMORY_COLORS.fact);
+    dots.append(dot);
+  }
+  toggle.append(dots, el('span', 'count', t('memory used · {n}', { n: used.length }) + (carried ? t(' · {n} by association', { n: carried }) : '')), chevron());
+  toggle.addEventListener('click', (event) => {
+    event.stopPropagation();
+    hint.hidden = !hint.hidden;
+    toggle.setAttribute('aria-expanded', String(!hint.hidden));
+  });
   for (const [index, note] of visible.entries()) {
     // The kind travels as a dot, not as a word. Those five colours were chosen for NOSTROMO's
     // dark star map — `fact` is #dfeeff, a near-white blue — so printing the word in them left
@@ -3862,7 +3958,7 @@ function attachMemoryUsed(payload) {
       hint.append(pill);
     }
   }
-  return hint;
+  return { toggle, list: hint };
 }
 
 // A memory the agent saved on request shows up under its bubble: one pill per note, in the kind's colour.
@@ -3871,9 +3967,11 @@ function attachMemoryHint(event) {
   const bubbleRow = document.getElementById(`msg-${responseMessageId}`);
   const col = bubbleRow?.querySelector?.('.col');
   if (!col || !notes.length) return;
-  col.querySelector?.('.memory-hint')?.remove?.();
+  // A note saved replaces the one saved before it, never the memory the reply used: that one
+  // lives inside the bubble now.
+  for (const child of [...(col.children ?? [])]) if (child.classList?.contains('memory-hint')) child.remove();
   const hint = el('div', 'memory-hint');
-  hint.style.setProperty('--agent', agentColor(agent));
+  tint(hint, agent);
   hint.append(el('span', 'lead', t('◉ memory saved')));
   for (const note of notes.slice(0, 3)) {
     const pill = el('button', `pill ${note.kind}`);
@@ -3885,8 +3983,8 @@ function attachMemoryHint(event) {
     hint.append(pill);
   }
   if (notes.length > 3) hint.append(el('span', 'more', `+${notes.length - 3}`));
-  const stamp = col.querySelector?.('.stamp');
-  if (stamp && typeof col.insertBefore === 'function') col.insertBefore(hint, stamp); else col.append(hint);
+  const bubble = col.querySelector?.('.bubble');
+  if (bubble && typeof bubble.after === 'function') bubble.after(hint); else col.append(hint);
 }
 
 // MOTHER speaking to the crew: the room sees the code, the agents get the words in their prompt.
@@ -3915,8 +4013,8 @@ function renderForgotten(event) {
 function renderHandoff(event) {
   const { fromAgent, toAgent, messageCount, omittedMessages, kind } = event.payload;
   const node = el('div', 'system handoff');
-  node.style.setProperty('--from', agentColor(fromAgent));
-  node.style.setProperty('--to', agentColor(toAgent));
+  tint(node, fromAgent, '--from');
+  tint(node, toAgent, '--to');
   node.append(t('handoff '));
   node.append(el('b', 'from', `@${fromAgent}`));
   node.append(' → ');
@@ -3968,7 +4066,7 @@ function renderWarning(event) {
 function renderPlanIgnored(event) {
   const { orchestrator, reasons = [] } = event.payload;
   const node = el('div', 'system plan failed');
-  node.style.setProperty('--agent', agentColor(orchestrator));
+  tint(node, orchestrator);
   node.append(el('b', null, t('plan · ')));
   node.append(t("@{agent}'s plan block was not run · {why} · ask again and it will fix the block", { agent: orchestrator, why: [...new Set(reasons)].join(' · ') }));
   state.lastSender = null;
@@ -4005,7 +4103,7 @@ function renderLeaseRefused(event) {
 function renderCreateMissing(event) {
   const { agent, files = [] } = event.payload;
   const node = el('div', 'system memory warn');
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   node.append(t('create · '), el('b', 'who', `@${agent}`));
   node.append(t(' · this reply names {n} file(s) that are not on disk: {files}', { n: files.length, files: files.slice(0, 4).join(', ') + (files.length > 4 ? '…' : '') }));
   node.append(t(' · nothing was written this turn'));
@@ -4015,7 +4113,7 @@ function renderCreateMissing(event) {
 function renderCreateReverted(event) {
   const { agent, existing = [], forbidden = [] } = event.payload;
   const node = el('div', 'system memory warn');
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   node.append(t('create · '), el('b', 'who', `@${agent}`));
   if (existing.length) node.append(t(' · {n} existing files put back, CREATE only adds: {files}', { n: existing.length, files: existing.slice(0, 4).join(', ') + (existing.length > 4 ? '…' : '') }));
   if (forbidden.length) node.append(t(' · {n} writes into forbidden zones reverted', { n: forbidden.length }));
@@ -4026,7 +4124,7 @@ function renderCreateReverted(event) {
 function renderControlStarted(event) {
   const { agent, commit, message } = event.payload;
   const node = el('div', 'system control');
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   node.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), t(' holds the project · checkpoint '), el('code', null, (commit ?? '').slice(0, 7)));
   node.title = message;
   if (!replaying) toast(t('MU/TH/UR › @{agent} holds CONTROL. Checkpoint taken; UNDO will be one click.', { agent }));
@@ -4037,7 +4135,7 @@ function renderControlChanged(event) {
   const { agent, checkpointId, files = [], stat, forbiddenReverted = [], message, unreadable = null } = event.payload;
   const node = el('div', `system control changed${files.length || unreadable ? '' : ' quiet'}`);
   node.id = `control-${checkpointId}`;
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   const head = el('div', 'head');
   head.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), el('span', null, (unreadable ? t('could not read what changed') : files.length === 1 ? t(' changed 1 file') : files.length ? t(' changed {n} files', { n: files.length }) : t(' changed nothing')).trim()));
   node.append(head);
@@ -4082,7 +4180,7 @@ function renderControlChanged(event) {
 function renderControlReverted(event) {
   const { agent, checkpointId, restored = [], removed = [], message } = event.payload;
   const node = el('div', 'system control reverted');
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   const { command } = event.payload;
   node.append(el('b', null, command ? '/run' : t('CONTROL')), command
     ? t('project restored to the checkpoint before the command · {restored} restored · {removed} removed', { restored: restored.length, removed: removed.length })
@@ -4099,7 +4197,7 @@ function renderLeaseMissing(event) {
   const { agent, requester, text } = event.payload;
   const message = `${t('@{agent} was asked to create something but no CREATE lease is active.', { agent })}${requester && requester !== 'you' ? t(' Permission written by @{who} inside the conversation does not count.', { who: requester }) : ''}${t(' It will answer read-only.')}`;
   const node = el('div', 'system lease missing');
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   node.append(el('b', null, t('MU/TH/UR › ')));
   node.append(message);
   const actions = el('span', 'actions');
@@ -4135,7 +4233,7 @@ function renderModeRequest(event) {
   const { requestId, agent, orchestrator, mode, step, totalSteps, text, expiresAt, message } = event.payload;
   const node = el('div', 'system escalation');
   node.id = `mode-request-${requestId}`;
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   const head = el('div', 'head');
   head.append(el('b', null, t('MU/TH/UR › ')), el('b', 'who', `@${agent}`), t(' asks '), el('span', `badge mode m${mode}`, `#${mode} ${MODES[mode].label}`), t(" for step {step}/{total} of @{who}'s plan", { step, total: totalSteps, who: orchestrator }));
   node.append(head);
@@ -4196,7 +4294,7 @@ function settleModeRequest(event) {
 function renderLease(event) {
   const { agent, outDir, scopes = [], unavailable = [], standing = false, escalated = null } = event.payload;
   const node = el('div', 'system lease');
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   const { delegated = false, scratchDir = null, grantedBy = null } = event.payload;
   node.append(el('b', null, standing ? t('default #2 · ') : escalated ? `${t('#2 granted on request')}${escalated === 'plan' ? t(' · whole plan') : ''} · ` : delegated ? t('#2 by @{who} · ', { who: grantedBy }) : t('create · ')));
   // The verbs were translated and the sentence holding them was not: «@CODEX MAY CREA, GENERA
@@ -4228,7 +4326,9 @@ function attachArtifacts(event) {
   const { responseMessageId, files = [] } = event.payload;
   const bubble = document.getElementById(`msg-${responseMessageId}`)?.querySelector('.bubble');
   if (!bubble || bubble.querySelector('.artifacts')) return;
-  bubble.append(artifactTiles(files));
+  // Above the reply's foot, with the rest of what it says.
+  const foot = bubble.querySelector('.bubble-foot');
+  if (foot && foot.parentNode === bubble && typeof bubble.insertBefore === 'function') bubble.insertBefore(artifactTiles(files), foot); else bubble.append(artifactTiles(files));
   // Something new exists in the project: show it, so the human sees what
   // changed and can quote lines back to an agent. Live events only.
   if (!replaying && files.length && !viewer.dialog.open) {
@@ -4295,7 +4395,9 @@ async function renderOpenQuestions() {
   for (const question of questions) {
     const pill = el('button', 'openq-ask');
     pill.type = 'button';
-    pill.append(el('span', 'what', question.text.length > 64 ? `${question.text.slice(0, 63)}…` : question.text));
+    const mark = el('span', 'q-mark');
+    mark.innerHTML = ICON_ASK;
+    pill.append(mark, el('span', 'what', question.text.length > 64 ? `${question.text.slice(0, 63)}…` : question.text));
     pill.title = question.carried
       ? `${question.text}\n${t('The room has carried this into {n} turn(s) and still has no answer.', { n: question.carried })}`
       : `${question.text}\n${t('The archivist recorded this as open and nothing has answered it.')}`;
@@ -4303,6 +4405,8 @@ async function renderOpenQuestions() {
       els.input.value = question.text;
       els.input.dispatchEvent(new Event('input', { bubbles: true }));
       els.input.focus();
+      // Measured again once the questions have closed and the field has its final width.
+      requestAnimationFrame(autosize);
     });
     rail.append(pill);
   }
@@ -4337,7 +4441,7 @@ function renderChoice(event) {
   const { question, options = [], agent, recommended = null, modes = [] } = event.payload;
   if (!options.length) return null;
   const node = el('div', 'choice');
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   const head = el('div', 'choice-head');
   head.append(el('span', 'choice-kicker', t('@{agent} asks you to choose', { agent })));
   node.append(head, el('p', 'choice-q', question));
@@ -4403,7 +4507,7 @@ function renderRunRequest(event) {
   if (!commands.length) return null;
   const node = el('div', 'choice run-request');
   node.dataset.run = responseMessageId;
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   const head = el('div', 'choice-head');
   head.append(el('span', 'choice-kicker', t('@{agent} asks you to run', { agent })));
   node.append(head, el('p', 'choice-q', reason));
@@ -4488,7 +4592,14 @@ function renderAlert(event) {
   const node = el('div', 'system alert');
   node.append(el('b', null, t('MU/TH/UR › ')));
   node.append(resay(message.replace(/\s*Type STOPALL[^.]*\.?$/i, '').replace(/\s*STOPALL (halts|if)[^.]*\.?$/i, '')));
-  node.append(el('span', 'cmd', t('STOPALL')));
+  // The way out, as a button and in the room's words: the same brake the bar's PARAR TODO pulls.
+  const brake = el('button', 'cmd', t('STOP ALL'));
+  brake.type = 'button';
+  brake.addEventListener('click', () => { brake.disabled = true; void stopAll(); });
+  // A replayed alert is history, and so is any alert once nothing is left running: the brake in it
+  // cannot be pulled again. updateStopAll retires the live ones when the room goes quiet.
+  if (replaying || !state.brakeArmed) retireBrake(brake);
+  node.append(brake);
   // A replayed alert is history: it stays in the thread, it does not shout again or arm the brake.
   if (!replaying) toast(`MU/TH/UR › ${resay(message)}`);
   state.lastSender = null;
@@ -4544,11 +4655,17 @@ async function stopAll() {
   }
 }
 
+function retireBrake(brake) {
+  brake.disabled = true;
+  brake.classList.add('spent');
+  brake.title = t('Nothing left to stop: this alert is history.');
+}
 function updateStopAll() {
   const button = document.querySelector('#stop-all');
   if (!button) return;
   const idle = state.running.size === 0 && state.plansRunning.size === 0;
   if (idle) state.brakeArmed = false;
+  if (!state.brakeArmed) for (const brake of document.querySelectorAll?.('#messages .system.alert .cmd') ?? []) if (!brake.classList.contains('spent')) retireBrake(brake);
   button.hidden = false;
   button.disabled = !state.brakeArmed;
   button.classList.toggle('armed', state.brakeArmed);
@@ -4563,7 +4680,7 @@ function renderPlanEvent(event) {
   if (event.type === 'plan.created') state.plansRunning.add(planId); else state.plansRunning.delete(planId);
   updateStopAll();
   const node = el('div', `system plan${event.type === 'plan.stopped' ? ' failed' : ''}`);
-  node.style.setProperty('--agent', agentColor(orchestrator));
+  tint(node, orchestrator);
   node.append(el('b', null, t('plan · ')));
   if (event.type === 'plan.created') {
     node.id = `plan-${planId}`;
@@ -4941,6 +5058,9 @@ function applyTheme(mode) {
   for (const node of document.querySelectorAll?.('[data-agent]') ?? []) {
     if (node.style?.getPropertyValue?.('--agent')) node.style.setProperty('--agent', agentColor(node.dataset.agent));
   }
+  for (const node of document.querySelectorAll?.('[data-tint]') ?? []) node.style.setProperty('--agent', agentColor(node.dataset.tint));
+  for (const node of document.querySelectorAll?.('[data-tint-from]') ?? []) node.style.setProperty('--from', agentColor(node.dataset.tintFrom));
+  for (const node of document.querySelectorAll?.('[data-tint-to]') ?? []) node.style.setProperty('--to', agentColor(node.dataset.tintTo));
   if (themeButton) {
     themeButton.dataset.theme = mode;
     themeButton.title = mode === 'auto' ? t('Theme · auto (follows the system)') : mode === 'light' ? t('Theme · light') : t('Theme · dark');
@@ -4966,28 +5086,331 @@ if (SPLIT_CHAT) {
   });
 }
 
-// EN / ES. One button, showing the language it would switch to, and a reload — a page half in
-// one language and half in another is worse than either. What the crew writes is not this
-// switch's business: they answer in the language the human writes in, and that is in the
-// briefing itself.
-const langButton = document.querySelector('#lang-button');
-function drawLanguageButton() {
-  if (!langButton) return;
-  const other = LANGUAGES[language()].other;
-  // The glyph stays; only the code beside it changes.
-  const code = langButton.querySelector?.('.lang-code');
-  if (code) code.textContent = other.toUpperCase(); else langButton.textContent = other.toUpperCase();
-  langButton.title = other === 'en' ? t('Interface in English') : t('Interface in Spanish');
-  langButton.dataset.language = language();
-}
-drawLanguageButton();
-langButton?.addEventListener('click', async () => {
+// PERSONALIZE: one button, an icon, and a sheet under it. The language lives here, for the whole
+// interface, with a reload — a page half in one language and half in another is worse than
+// either. What the crew writes is not this switch's business: they answer in the language the
+// human writes in, and that is in the briefing itself. Everything else on the sheet touches the
+// conversation only — its accent, its bubbles and the size of what is read in them — and never
+// the bar, the panels or the menus around it.
+async function switchLanguage() {
   const next = LANGUAGES[language()].other;
   try { localStorage.setItem('pulse.language', next); } catch { /* no storage */ }
   // Kept with the room's other settings too, so the next browser on this machine opens in it.
   await fetch('/api/language', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ language: next }) }).catch(() => null);
   location.reload();
+}
+
+// Each choice is a data attribute on the root that styles.css reads under #messages only. The
+// first value of each list is the room as it always was, and is written as no attribute at all.
+const LOOKS = {
+  accent: { key: 'pulse.accent', values: ['madre', 'mountain', 'caribbean', 'phantom', 'malbec', 'dijon'] },
+  bubbles: { key: 'pulse.bubbles', values: ['comfortable', 'large', 'compact', 'fitted'] },
+  text: { key: 'pulse.text', values: ['comfortable', 'larger', 'smaller', 'visual'] },
+  wallpaper: { key: 'pulse.wallpaper', values: ['default', 'jarrito', 'canela', 'paradise', 'ventura', 'magna'] },
+  // How a photograph wears the room's ground: a flat layer, or a mesh of its own colours.
+  wpStyle: { key: 'pulse.wallpaper.style', values: ['veil', 'mesh'] },
+};
+// The photographs' two dials: how strong the layer or the mesh is (100 is the original) and how far
+// the photograph blurs, in pixels. Numbers, not choices, so they live beside the looks.
+const TUNES = {
+  veil: { key: 'pulse.wallpaper.veil', min: 0, max: 140, step: 5, value: 100, apply: (node, v) => node.style.setProperty('--veil-k', String(v / 100)) },
+  blur: { key: 'pulse.wallpaper.blur', min: 0, max: 24, step: 1, value: 0, apply: (node, v) => node.style.setProperty('--wp-blur', `${v}px`) },
+};
+const PHOTO_WALLPAPERS = new Set(['jarrito', 'canela', 'paradise', 'ventura', 'magna']);
+function readTune(name) {
+  const tune = TUNES[name];
+  let raw = null;
+  try { raw = localStorage.getItem(tune.key); } catch { /* no storage */ }
+  const value = raw === null ? Number.NaN : Number(raw);
+  return Number.isFinite(value) && value >= tune.min && value <= tune.max ? value : tune.value;
+}
+function applyTune(name, value) {
+  const rootElement = document.documentElement;
+  if (rootElement?.style?.setProperty) TUNES[name].apply(rootElement, value);
+}
+function saveTune(name, value) {
+  try {
+    if (value === TUNES[name].value) localStorage.removeItem(TUNES[name].key);
+    else localStorage.setItem(TUNES[name].key, String(value));
+  } catch { /* the choice lasts as long as the page */ }
+  applyTune(name, value);
+}
+const LOOK_WORDS = {
+  accent: { madre: () => t('Madre green'), mountain: () => t('Mountain green'), caribbean: () => t('Caribbean blue'), phantom: () => t('Phantom purple'), malbec: () => t('Malbec red'), dijon: () => t('Dijon yellow') },
+  bubbles: { comfortable: () => t('Comfortable'), large: () => t('Large'), compact: () => t('Compact'), fitted: () => t('Fitted') },
+  text: { comfortable: () => t('Comfortable'), larger: () => t('Larger'), smaller: () => t('Smaller'), visual: () => t('Visual') },
+  wallpaper: { default: () => t('Default'), jarrito: () => 'Jarrito', canela: () => 'Canela', paradise: () => t('Paradise'), ventura: () => 'Ventura', magna: () => 'Magna' },
+  wpStyle: { veil: () => t('Layer'), mesh: () => t('Mesh') },
+};
+// Jarrito took MADRE's place among the wallpapers and Canela took Autumn's: a choice saved under
+// the old name lands on the one that replaced it.
+const RENAMED_LOOKS = { madre: 'jarrito', autumn: 'canela' };
+function readLook(name) {
+  let value = null;
+  try { value = localStorage.getItem(LOOKS[name].key); } catch { /* no storage */ }
+  if (name === 'wallpaper' && RENAMED_LOOKS[value]) value = RENAMED_LOOKS[value];
+  return LOOKS[name].values.includes(value) ? value : LOOKS[name].values[0];
+}
+function applyLook(name, value) {
+  const rootElement = document.documentElement;
+  if (!rootElement) return;
+  if (value === LOOKS[name].values[0]) delete rootElement.dataset[name]; else rootElement.dataset[name] = value;
+}
+for (const name of Object.keys(LOOKS)) applyLook(name, readLook(name));
+for (const name of Object.keys(TUNES)) applyTune(name, readTune(name));
+// The half on the right and the conversations in windows read the same choices, the moment they
+// are made: they never write them (the storage guard above), they only follow.
+window.addEventListener?.('storage', (event) => {
+  for (const [name, look] of Object.entries(LOOKS)) if (event.key === look.key) applyLook(name, LOOKS[name].values.includes(event.newValue) ? event.newValue : look.values[0]);
+  for (const [name, tune] of Object.entries(TUNES)) if (event.key === tune.key) applyTune(name, event.newValue === null ? tune.value : Number(event.newValue));
 });
+
+const customButton = document.querySelector('#custom-button');
+const customWindow = { node: document.querySelector('#custom'), body: document.querySelector('#custom-body'), box: null, ready: false, draft: null };
+try { customWindow.box = JSON.parse(localStorage.getItem('pulse.customWindow') ?? 'null'); } catch { /* no storage */ }
+function saveLook(name, value) {
+  try {
+    if (value === LOOKS[name].values[0]) localStorage.removeItem(LOOKS[name].key);
+    else localStorage.setItem(LOOKS[name].key, value);
+  } catch { /* the choice lasts as long as the page */ }
+  applyLook(name, value);
+}
+// What is picked on the sheet is a draft: the preview wears it, the room does not, until ACCEPT.
+// Closing the window drops it. The language is part of the draft too, and accepting a new one
+// reloads the page in it, after the looks are saved.
+function currentLooks() {
+  return { accent: readLook('accent'), bubbles: readLook('bubbles'), text: readLook('text'), wallpaper: readLook('wallpaper'), wpStyle: readLook('wpStyle'), veil: readTune('veil'), blur: readTune('blur'), language: language(), theme: themeMode };
+}
+function setDraft(name, value) {
+  customWindow.draft = { ...(customWindow.draft ?? currentLooks()), [name]: value };
+  drawCustom();
+}
+function acceptCustom() {
+  const draft = customWindow.draft ?? currentLooks();
+  for (const name of Object.keys(LOOKS)) saveLook(name, draft[name]);
+  for (const name of Object.keys(TUNES)) saveTune(name, draft[name]);
+  // The theme lives here now, not in the bar: the same three it always had, set on accept.
+  if (draft.theme && draft.theme !== themeMode) {
+    themeMode = draft.theme;
+    try { localStorage.setItem('pulse.theme', themeMode); } catch { /* the choice lasts as long as the page */ }
+    applyTheme(themeMode);
+    renderAgents();
+    renderPicker();
+  }
+  customWindow.draft = null;
+  if (draft.language !== language()) { void switchLanguage(); return; }
+  openCustom(false);
+}
+// The sheet is a window and only a window: a preview of the conversation on one side, the choices
+// on the other, and below a narrow width one above the other.
+function drawCustom() {
+  const body = customWindow.body;
+  if (!body) return;
+  const draft = customWindow.draft ?? currentLooks();
+  const section = (title, current, control, note = null) => {
+    const part = el('section', 'custom-section');
+    const head = el('header', 'custom-label');
+    head.append(el('b', null, title));
+    if (current) head.append(current);
+    part.append(head, control);
+    if (note) part.append(el('p', 'custom-note', note));
+    return part;
+  };
+  const radio = (option, on, pick) => {
+    option.type = 'button';
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(on));
+    option.addEventListener('click', pick);
+    return option;
+  };
+  const segmented = (name) => {
+    const row = el('div', 'custom-seg');
+    row.setAttribute('role', 'radiogroup');
+    for (const value of LOOKS[name].values) row.append(radio(el('button', `seg-option look-${name}-${value}`, LOOK_WORDS[name][value]()), value === draft[name], () => setDraft(name, value)));
+    return row;
+  };
+
+  // What the choices do, before they are accepted: one line from the crew, one from you, in the
+  // same bubbles the conversation draws, wearing the draft.
+  const preview = el('div', 'look-preview');
+  preview.setAttribute('aria-hidden', 'true');
+  for (const name of Object.keys(LOOKS)) preview.dataset[name] = draft[name];
+  for (const name of Object.keys(TUNES)) TUNES[name].apply(preview, draft[name]);
+  // The preview stands on the draft's ground too: light, dark, or the system's when automatic.
+  preview.dataset.scheme = draft.theme === 'auto' ? (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : draft.theme;
+  // The small print too: a line of the room, who answered with its chips, and the delivery line,
+  // because those are the words a wallpaper tests first.
+  const line = el('div', 'system');
+  line.append(el('b', null, t('MEMORY')), t('Read 8 exchanges and kept 5 memories.'));
+  const agent = el('div', 'row assistant');
+  agent.append(el('span', 'avatar'), (() => { const col = el('div', 'col'); const who = el('div', 'who'); who.append(el('span', null, 'CODEX'), el('span', 'badge mode m2', '#2 CREATE'), el('span', 'badge ash', 'ASH')); col.append(who); const bubble = el('div', 'bubble'); bubble.append(t('The room keeps what you decide. '), el('b', null, t('Bold reads like this')), ' · ', el('code', null, 'npm test')); col.append(bubble); return col; })());
+  const you = el('div', 'row user');
+  you.append((() => { const col = el('div', 'col'); col.append(el('div', 'bubble', t('Show me how my messages look.'))); const stamp = el('div', 'stamp'); stamp.append(el('span', 'to', '→ @codex'), el('span', null, '08:46 PM')); col.append(stamp); return col; })());
+  const button = el('span', 'look-button', t('A BUTTON'));
+  preview.append(line, agent, you, button);
+  const look = el('div', 'custom-look');
+  look.append(el('b', 'custom-kicker', t('PREVIEW')), preview);
+
+  const languages = el('div', 'custom-seg two');
+  languages.setAttribute('role', 'radiogroup');
+  for (const [code, name] of [['es', 'Español'], ['en', 'English']]) languages.append(radio(el('button', 'seg-option', name), draft.language === code, () => setDraft('language', code)));
+
+  // The colour's name sits beside ACCENT: the one picked, or the one under the pointer.
+  const named = el('span', 'custom-current', LOOK_WORDS.accent[draft.accent]());
+  const swatches = el('div', 'custom-swatches');
+  swatches.setAttribute('role', 'radiogroup');
+  for (const value of LOOKS.accent.values) {
+    const swatch = radio(el('button', 'swatch'), value === draft.accent, () => setDraft('accent', value));
+    swatch.dataset.swatch = value;
+    swatch.setAttribute('aria-label', LOOK_WORDS.accent[value]());
+    const say = () => { named.textContent = LOOK_WORDS.accent[value](); named.classList.toggle('peek', value !== draft.accent); };
+    const back = () => { named.textContent = LOOK_WORDS.accent[draft.accent](); named.classList.remove('peek'); };
+    swatch.addEventListener('pointerenter', say);
+    swatch.addEventListener('focus', say);
+    swatch.addEventListener('pointerleave', back);
+    swatch.addEventListener('blur', back);
+    swatches.append(swatch);
+  }
+  // The wallpaper, each one shown as itself in the ground the room stands on now.
+  const papers = el('div', 'custom-papers');
+  papers.setAttribute('role', 'radiogroup');
+  for (const value of LOOKS.wallpaper.values) {
+    const paper = radio(el('button', 'paper'), value === draft.wallpaper, () => setDraft('wallpaper', value));
+    paper.dataset.wp = value;
+    paper.append(el('span', 'paper-swatch'), el('span', 'paper-name', LOOK_WORDS.wallpaper[value]()));
+    papers.append(paper);
+  }
+  // A photograph can be tuned: layer or mesh, how strong, how blurred. The dials move the preview
+  // while they are dragged and become part of the draft when they are let go.
+  const paperTune = el('div', 'paper-tune');
+  if (PHOTO_WALLPAPERS.has(draft.wallpaper)) {
+    const styles = segmented('wpStyle');
+    styles.classList.add('two');
+    paperTune.append(styles);
+    const dial = (name, label, shown) => {
+      const tune = TUNES[name];
+      const row = el('label', 'tune-row');
+      const value = el('span', 'tune-value', shown(draft[name]));
+      const input = el('input', 'tune-range');
+      input.type = 'range';
+      input.min = String(tune.min); input.max = String(tune.max); input.step = String(tune.step);
+      input.value = String(draft[name]);
+      input.style.setProperty('--fill', `${((draft[name] - tune.min) / (tune.max - tune.min)) * 100}%`);
+      input.addEventListener('input', () => {
+        const v = Number(input.value);
+        customWindow.draft = { ...(customWindow.draft ?? currentLooks()), [name]: v };
+        tune.apply(preview, v);
+        value.textContent = shown(v);
+        input.style.setProperty('--fill', `${((v - tune.min) / (tune.max - tune.min)) * 100}%`);
+      });
+      input.addEventListener('change', () => drawCustom());
+      row.append(el('span', 'tune-name', label), input, value);
+      return row;
+    };
+    paperTune.append(dial('veil', t('Intensity'), (v) => `${v}%`), dial('blur', t('Blur'), (v) => `${v}px`));
+  }
+  const themes = el('div', 'custom-seg three');
+  themes.setAttribute('role', 'radiogroup');
+  for (const [value, word] of [['auto', t('Automatic')], ['light', t('Light')], ['dark', t('Dark')]]) themes.append(radio(el('button', 'seg-option', word), draft.theme === value, () => setDraft('theme', value)));
+  const choices = el('div', 'custom-choices');
+  choices.append(
+    section(t('LANGUAGE'), null, languages, t('The whole interface. The page reloads in it when you accept.')),
+    section(t('THEME'), null, themes, t('Automatic follows your system. The whole room changes, not only the conversation.')),
+    section(t('WALLPAPER'), null, (() => { const box = el('div', 'paper-box'); box.append(papers); if (paperTune.children.length) box.append(paperTune); return box; })(), PHOTO_WALLPAPERS.has(draft.wallpaper)
+      ? t('A photograph wears the room\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+      : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.')),
+    section(t('ACCENT'), named, swatches, t('Each colour in dark (top) and in light (bottom): on a light ground it deepens so it can be read. The conversation and the buttons wear it; the permission modes keep their own.')),
+    section(t('BUBBLES'), null, segmented('bubbles')),
+    section(t('TEXT IN THE CONVERSATION'), null, segmented('text')),
+  );
+
+  const applied = currentLooks();
+  const pending = Object.keys(draft).some((name) => draft[name] !== applied[name]);
+  const atDefault = Object.keys(LOOKS).every((name) => draft[name] === LOOKS[name].values[0]) && Object.keys(TUNES).every((name) => draft[name] === TUNES[name].value);
+  const foot = el('footer', 'custom-foot');
+  foot.append(el('span', 'custom-scope', pending ? t('Nothing changes until you accept.') : t('Only the conversation and the buttons change.')));
+  const acts = el('span', 'custom-acts');
+  if (!atDefault) {
+    const reset = el('button', 'custom-reset', t('BACK TO DEFAULT'));
+    reset.type = 'button';
+    reset.addEventListener('click', () => { customWindow.draft = { ...draft, ...Object.fromEntries(Object.entries(LOOKS).map(([name, one]) => [name, one.values[0]])), ...Object.fromEntries(Object.entries(TUNES).map(([name, one]) => [name, one.value])) }; drawCustom(); });
+    acts.append(reset);
+  }
+  const accept = el('button', 'custom-accept', t('ACCEPT'));
+  accept.type = 'button';
+  accept.disabled = !pending;
+  accept.addEventListener('click', acceptCustom);
+  acts.append(accept);
+  foot.append(acts);
+  const grid = el('div', 'custom-grid');
+  grid.append(look, choices);
+  body.replaceChildren(grid, foot);
+}
+
+function customBoxFor() {
+  if (customWindow.box?.w && customWindow.box?.h) return customWindow.box;
+  const w = Math.min(720, window.innerWidth - 32);
+  const h = Math.min(680, window.innerHeight - 96);
+  const at = customButton?.getBoundingClientRect();
+  return { x: Math.max(16, Math.min(window.innerWidth - w - 16, (at?.right ?? window.innerWidth) - w)), y: Math.max(64, (at?.bottom ?? 56) + 12), w, h };
+}
+function placeCustom(box) {
+  const node = customWindow.node;
+  if (!node) return;
+  customWindow.box = clampWindowBox(box, { minW: 340, minH: 300 });
+  applyWindowBox(node, customWindow.box);
+}
+function rememberCustom() {
+  try { localStorage.setItem('pulse.customWindow', JSON.stringify(customWindow.box)); } catch { /* no storage */ }
+}
+// Built the first time it opens: the window machinery is declared further down this file.
+function readyCustom() {
+  const node = customWindow.node;
+  if (!node || customWindow.ready) return;
+  customWindow.ready = true;
+  const head = node.querySelector('.custom-head');
+  const group = el('span', 'surface-modes');
+  const windowButton = el('button', 'surface-mode window');
+  windowButton.type = 'button';
+  windowButton.innerHTML = FLOAT_ICON; // trusted: our own SVG string
+  windowButton.setAttribute('aria-pressed', 'true');
+  windowButton.setAttribute('aria-label', t('Arrange the windows'));
+  // Always a window: its window button has nothing to undo, so a press opens the arrangement.
+  windowButton.addEventListener('click', (event) => { event.stopPropagation(); showArrange(windowButton, { owner: () => node }); });
+  arrangeOnHover(windowButton, { owner: () => node });
+  group.append(windowButton);
+  const close = el('button', 'close', t('Close'));
+  close.type = 'button';
+  close.addEventListener('click', () => openCustom(false));
+  joinClose(group, close);
+  head.append(group);
+  node.addEventListener('pointerdown', () => bringWindowForward(node));
+  node.addEventListener('cancel', (event) => { event.preventDefault(); openCustom(false); });
+  carryWindowBy(head, node, { box: () => customWindow.box, place: placeCustom, done: rememberCustom });
+  windowEdgesFor(node, { box: () => customWindow.box, place: placeCustom, done: rememberCustom, minW: 340, minH: 300 });
+  window.addEventListener?.('resize', () => { if (node.open && customWindow.box) placeCustom(customWindow.box); });
+}
+function openCustom(open) {
+  const node = customWindow.node;
+  if (!node || !customButton) return;
+  if (open) {
+    readyCustom();
+    customWindow.draft = null;
+    drawCustom();
+    if (!node.open) { if (DIALOG) DIALOG.show.call(node); else node.show?.(); node.classList.add('entering'); setTimeout(() => node.classList.remove('entering'), motion(460)); }
+    placeCustom(customBoxFor());
+    bringWindowForward(node);
+    node.querySelector('.custom-choices [aria-checked="true"]')?.focus({ preventScroll: true });
+  } else if (node.open) {
+    customWindow.draft = null;
+    node.close();
+    dropWindow(node);
+  }
+  customButton.setAttribute('aria-expanded', String(open));
+  customButton.setAttribute('aria-pressed', String(open));
+}
+customButton?.addEventListener('click', () => openCustom(!customWindow.node?.open));
+customWindow.node?.addEventListener('close', () => { customButton?.setAttribute('aria-expanded', 'false'); customButton?.setAttribute('aria-pressed', 'false'); });
 
 // The words that live in the markup.
 //
@@ -5355,8 +5778,8 @@ function treeNode(path, entry) {
 // The two buttons every surface carries in its header, beside its ×: split, and window. Declared
 // before the surfaces are built, which happens while this file is still being read.
 const FLOAT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.25 12.25v-6.5a2.5 2.5 0 0 1 2.5-2.5h6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect class="ic-f" x="6.25" y="6.25" width="10.5" height="10.5" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
-const SPLIT_LEFT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-h" d="M4.6 5.6h4.6v8.8H4.6z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
-const SPLIT_RIGHT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-h" d="M10.8 5.6h4.6v8.8h-4.6z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const SPLIT_LEFT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect class="ic-h" x="5" y="6" width="3.6" height="8" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10.6 6.4v7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SPLIT_RIGHT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.75" y="3.75" width="14.5" height="12.5" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect class="ic-h" x="11.4" y="6" width="3.6" height="8" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M9.4 6.4v7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 /* ---------- surfaces: everything that can stand beside the conversation ---------- */
 
@@ -5618,7 +6041,7 @@ function layoutPanels() {
     // A second layout in the same moment (the browser docking, then the grid making room for it)
     // replaces the glide in flight instead of stacking a second one on it.
     glides.get(node)?.cancel();
-    glides.set(node, node.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.22, 1, .36, 1)' }));
+    glides.set(node, node.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: motion(420), easing: 'cubic-bezier(.22, 1, .36, 1)' }));
   });
   let over = false;
   const floated = [];
@@ -5698,7 +6121,7 @@ function showPanel(key, open) {
     noteShown(panel);
     if (arriving && !reducedMotion()) {
       node.classList.add('entering');
-      panelLeaving.set(node, setTimeout(() => node.classList.remove('entering'), 900));
+      panelLeaving.set(node, setTimeout(() => node.classList.remove('entering'), motion(900)));
     }
     layoutPanels();
     return;
@@ -5708,7 +6131,7 @@ function showPanel(key, open) {
   if (reducedMotion()) { node.hidden = true; layoutPanels(); return; }
   node.classList.add('leaving');
   layoutPanels();
-  panelLeaving.set(node, setTimeout(() => { node.hidden = true; node.classList.remove('leaving'); layoutPanels(); }, 220));
+  panelLeaving.set(node, setTimeout(() => { node.hidden = true; node.classList.remove('leaving'); layoutPanels(); }, motion(220)));
 }
 // The surface shown last is the one in front, and the first offered the room.
 function noteShown(surface) {
@@ -5787,8 +6210,10 @@ const WINDOW_INSET = 8;
 function clampWindowBox(box, { minW = WINDOW_MIN_W, minH = WINDOW_MIN_H } = {}) {
   const w = Math.round(Math.max(minW, Math.min(box.w, window.innerWidth - 2 * WINDOW_INSET)));
   const h = Math.round(Math.max(minH, Math.min(box.h, window.innerHeight - 2 * WINDOW_INSET)));
-  const x = Math.round(Math.max(WINDOW_INSET, Math.min(window.innerWidth - w - WINDOW_INSET, box.x)));
-  const y = Math.round(Math.max(WINDOW_INSET, Math.min(window.innerHeight - h - WINDOW_INSET, box.y)));
+  // Partly past the left, right or bottom edge is allowed (see carryWindowBy); the header always
+  // stays reachable, and never under the top edge.
+  const x = Math.round(Math.max(120 - w, Math.min(window.innerWidth - 120, box.x)));
+  const y = Math.round(Math.max(WINDOW_INSET, Math.min(window.innerHeight - 48, box.y)));
   return { x, y, w, h };
 }
 function applyWindowBox(node, box) {
@@ -5801,6 +6226,9 @@ function applyWindowBox(node, box) {
 // not one window "in front" and every other one tied behind it. Their layer is 30–49; every menu
 // the composer opens (mode, model, effort, the agent's card, /) lives above all of them, at 70.
 const WINDOW_LAYER = 30;
+// How each window is put somewhere: registered by carryWindowBy, the one road every kind of window
+// is carried by, and read by the arrangements (FILL, HALVES, ONE AND TWO, FOUR).
+const windowPlacers = new WeakMap();
 const windowStack = [];
 const WINDOW_SELECTOR = '.tree.window, .surface.window, .conv-window, .browser-dock.window';
 function bringWindowForward(node) {
@@ -5812,17 +6240,84 @@ function bringWindowForward(node) {
     if (one === node || !one.isConnected || !one.matches(WINDOW_SELECTOR)) { windowStack.splice(i, 1); if (one !== node) { one.style.removeProperty('z-index'); one.classList.remove('front'); } }
   }
   windowStack.push(node);
+  deskFocus = false;
   windowStack.forEach((one, index) => {
     one.style.zIndex = String(WINDOW_LAYER + Math.min(index, 19));
     one.classList.toggle('front', index === windowStack.length - 1);
   });
+  paintDepth();
+  // A window that just arrived is still gliding into place; its overlaps are read again once it is there.
+  setTimeout(scheduleDepth, motion(480));
+}
+// Depth of field. A window is softened only by the windows actually standing over it: side by
+// side, however many, they are all sharp; one partly under another softens one layer, under two
+// two, never more than three. The desktop — the conversation, the bar, the box you write in, the
+// docked panels — is the deepest layer while windows float over it, the way a room recedes behind
+// a modal, and clears when it is touched or written in. Every change of the stack is read again —
+// a window opened, closed, carried, sized, arranged — so the blur eases off in cascade as windows
+// close, and is gone the moment the last one is.
+let deskFocus = false;
+const OVERLAP = 24;
+function covers(a, b) {
+  const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  return w > OVERLAP && h > OVERLAP;
+}
+function paintDepth() {
+  const open = windowStack.filter((one) => one.isConnected && !one.hidden && one.getClientRects().length && !one.classList.contains('leaving'));
+  const boxes = new Map(open.map((one) => [one, one.getBoundingClientRect()]));
+  windowStack.forEach((one) => {
+    const index = open.indexOf(one);
+    const over = index < 0 ? 0 : open.slice(index + 1).filter((above) => covers(boxes.get(one), boxes.get(above))).length;
+    const depth = Math.min(3, over);
+    if (depth) one.style.setProperty('--depth', String(depth)); else one.style.removeProperty('--depth');
+    one.classList.toggle('behind', depth > 0);
+  });
+  const desk = deskFocus || !open.length ? 0 : Math.min(3, open.length);
+  const root = document.documentElement;
+  if (desk) root.style.setProperty('--desk-depth', String(desk)); else root.style.removeProperty('--desk-depth');
+  root.classList.toggle('desk-behind', desk > 0);
+}
+// Read once a frame, however many things changed in it.
+let depthFrame = 0;
+function scheduleDepth() {
+  cancelAnimationFrame(depthFrame);
+  depthFrame = requestAnimationFrame(paintDepth);
+}
+if (!SPLIT_CHAT && typeof MutationObserver === 'function') {
+  // A window shown or put away, by whatever road: a panel's ×, a dialog closed, a frame removed.
+  new MutationObserver(scheduleDepth).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'open'] });
+  document.addEventListener?.('close', scheduleDepth, true);
+  window.addEventListener?.('resize', scheduleDepth);
+}
+function focusDesk(on) {
+  if (deskFocus === on) return;
+  deskFocus = on;
+  paintDepth();
 }
 // A window that stops being one leaves the stack and its layer.
 function dropWindow(node) {
   const at = windowStack.indexOf(node);
   if (at >= 0) windowStack.splice(at, 1);
   node?.style.removeProperty('z-index');
-  node?.classList.remove('front');
+  node?.style.removeProperty('--depth');
+  node?.classList.remove('front', 'behind');
+  // The one now on top is the one in front.
+  windowStack.at(-1)?.classList.add('front');
+  paintDepth();
+}
+// The desktop is clear while it is being used: while you write in the box, or while the windows
+// stand aside at the edges for it. The moment neither is true — you press somewhere else, the
+// windows come back over it — it goes back to its layer. Pressing it once never left it clear for
+// good: that was a desktop that stayed sharp under windows that had come back.
+const writing = () => Boolean(document.activeElement?.closest?.('#composer'));
+function deskInUse() { focusDesk(writing() || windowsAside); }
+if (!SPLIT_CHAT) {
+  document.addEventListener?.('focusin', deskInUse);
+  // Focus leaves the box before the next element has it: read once it has landed.
+  document.addEventListener?.('focusout', () => setTimeout(deskInUse, 0));
+  // And after every press, once focus has moved: a press outside the box is the clearest «not now».
+  document.addEventListener?.('pointerdown', () => setTimeout(deskInUse, 0), true);
 }
 // Whatever window the pointer presses comes to the front — its header, its edge, its body.
 document.addEventListener?.('pointerdown', (event) => {
@@ -5846,12 +6341,13 @@ function overTheRoom(node) {
   if (!room?.width || !box.width) return false;
   return box.right > room.left + 8 && box.left < room.right - 8;
 }
-function setWindowsAside(on) {
+function setWindowsAside(on, { always = false } = {}) {
   if (on === windowsAside) return;
   clearTimeout(asideSettle);
   if (on) {
     const moving = [...document.querySelectorAll(WINDOW_SELECTOR)].filter((node) => !node.hidden && node.getClientRects().length && overTheRoom(node));
-    if (!moving.length) return;
+    // Shown on purpose, the desktop clears even when no window lay over the conversation.
+    if (!moving.length && !always) return;
     windowsAside = true;
     moving.forEach((node, index) => {
       const box = node.getBoundingClientRect();
@@ -5870,21 +6366,153 @@ function setWindowsAside(on) {
     }
   }
   document.documentElement.classList.toggle('windows-aside', windowsAside);
+  deskInUse();
+  // Going aside and coming back changes what stands over what; read it again once they are there.
+  setTimeout(scheduleDepth, motion(560));
   // Once there, the strips answer the pointer at once; once back, the windows move only by hand.
   asideSettle = setTimeout(() => {
     for (const node of document.querySelectorAll('.aside-moving')) {
       node.style.setProperty('--aside-delay', '0ms');
       if (!node.classList.contains('aside')) node.classList.remove('aside-moving');
     }
-  }, 760);
+  }, motion(760));
+}
+// A press on the desktop itself — the conversation's ground, a line of the room, the space around
+// it — shows the desktop: the windows step aside and it clears. The same press again brings them
+// back and it returns to its layer. A press on something that does a thing (a button, a link, a
+// field) is that thing's, and a press that selected text was reading, not asking.
+const DESK_ACTIVE = 'button, a, input, textarea, select, label, summary, [role="button"], [role="menu"], [role="menuitem"], .codeblock, .model-menu, .agent-pop, .slash-menu, .arrange-pop, .notices';
+function deskPress(event) {
+  const target = event.target;
+  if (!target?.closest?.('.shell') || target.closest(WINDOW_SELECTOR) || target.closest('#composer') || target.closest(DESK_ACTIVE)) return false;
+  if (!globalThis.getSelection?.()?.isCollapsed) return false;
+  return floatingWindows().length > 0;
 }
 if (!SPLIT_CHAT) {
   document.querySelector('#composer .field')?.addEventListener('pointerdown', () => setWindowsAside(true));
   document.addEventListener?.('pointerdown', (event) => {
-    if (windowsAside && !event.target?.closest?.('#composer, .model-menu, .agent-pop, .slash-menu')) setWindowsAside(false);
+    // A press that does something else brings the windows back; a press on the desktop decides on
+    // release, below, whether it was a toggle or the start of a selection.
+    const target = event.target;
+    if (!windowsAside || target?.closest?.('#composer, .model-menu, .agent-pop, .slash-menu')) return;
+    if (target?.closest?.('.shell') && !target.closest(WINDOW_SELECTOR) && !target.closest(DESK_ACTIVE)) return;
+    setWindowsAside(false);
   }, true);
+  document.addEventListener?.('click', (event) => { if (deskPress(event)) setWindowsAside(!windowsAside, { always: true }); });
   document.addEventListener?.('focusin', (event) => { if (windowsAside && event.target?.closest?.('.aside')) setWindowsAside(false); });
   window.addEventListener?.('resize', () => { if (windowsAside) setWindowsAside(false); });
+}
+
+// ---------- arranging the windows ----------
+// Rest the pointer on a window's window button, without pressing it, and a small card offers to
+// arrange what floats: FILL the room with this one; HALVES, this one and the next side by side;
+// ONE AND TWO, this one large and two beside it; FOUR, a quarter each. The window the button
+// belongs to takes the first place and the others follow in the order they were last touched.
+// Docked panels are left where they are; the one asked from, if docked, floats first. Pressing
+// the button still does what it always did.
+const ARRANGE_OWNER = '.tree, dialog, .conv-window, .browser-dock';
+const ARRANGE_GAP = 10;
+const ARRANGEMENTS = [
+  { id: 'fill', slots: 1, word: () => t('Fill'), icon: '<rect x="2" y="3" width="24" height="16" rx="2.5" class="me"/>' },
+  { id: 'halves', slots: 2, word: () => t('Halves'), icon: '<rect x="2" y="3" width="11.5" height="16" rx="2.5" class="me"/><rect x="14.5" y="3" width="11.5" height="16" rx="2.5"/>' },
+  { id: 'three', slots: 3, word: () => t('One and two'), icon: '<rect x="2" y="3" width="13.5" height="16" rx="2.5" class="me"/><rect x="16.5" y="3" width="9.5" height="7.5" rx="2"/><rect x="16.5" y="11.5" width="9.5" height="7.5" rx="2"/>' },
+  { id: 'four', slots: 4, word: () => t('Four'), icon: '<rect x="2" y="3" width="11.5" height="7.5" rx="2" class="me"/><rect x="14.5" y="3" width="11.5" height="7.5" rx="2"/><rect x="2" y="11.5" width="11.5" height="7.5" rx="2"/><rect x="14.5" y="11.5" width="11.5" height="7.5" rx="2"/>' },
+];
+function arrangeArea() {
+  const bar = document.querySelector('.bar')?.getBoundingClientRect();
+  const top = Math.round((bar?.bottom ?? 56) + ARRANGE_GAP);
+  return { x: WINDOW_INSET, y: top, w: window.innerWidth - WINDOW_INSET * 2, h: window.innerHeight - top - WINDOW_INSET };
+}
+function arrangeSlots(id, area) {
+  const g = ARRANGE_GAP;
+  const { x, y, w, h } = area;
+  const halfW = (w - g) / 2;
+  const halfH = (h - g) / 2;
+  if (id === 'fill') return [{ x, y, w, h }];
+  if (id === 'halves') return [{ x, y, w: halfW, h }, { x: x + halfW + g, y, w: halfW, h }];
+  if (id === 'three') {
+    const big = Math.round((w - g) * .58);
+    return [{ x, y, w: big, h }, { x: x + big + g, y, w: w - big - g, h: halfH }, { x: x + big + g, y: y + halfH + g, w: w - big - g, h: halfH }];
+  }
+  return [{ x, y, w: halfW, h: halfH }, { x: x + halfW + g, y, w: halfW, h: halfH }, { x, y: y + halfH + g, w: halfW, h: halfH }, { x: x + halfW + g, y: y + halfH + g, w: halfW, h: halfH }];
+}
+function floatingWindows() {
+  return [...document.querySelectorAll(WINDOW_SELECTOR)].filter((node) => !node.hidden && node.getClientRects().length && windowPlacers.get(node)?.active());
+}
+function arrangeWindows(id, owner) {
+  const all = floatingWindows();
+  // The one asked from first; then the rest, the most recently touched first.
+  const rest = all.filter((node) => node !== owner).sort((a, b) => windowStack.indexOf(b) - windowStack.indexOf(a));
+  const order = [owner, ...rest].filter((node) => node && windowPlacers.get(node));
+  const slots = arrangeSlots(id, arrangeArea());
+  order.slice(0, slots.length).forEach((node, index) => {
+    const placer = windowPlacers.get(node);
+    const box = { x: Math.round(slots[index].x), y: Math.round(slots[index].y), w: Math.round(slots[index].w), h: Math.round(slots[index].h) };
+    flipPanel(node, () => placer.place(box));
+    placer.done?.();
+  });
+  // The arranged ones stack with the asked-for one on top.
+  for (const node of order.slice(0, slots.length).reverse()) bringWindowForward(node);
+  // The arranged ones settle over half a second; their overlaps are read once they have.
+  setTimeout(scheduleDepth, motion(480));
+}
+
+let arrangePop = null;
+let arrangeTimer = 0;
+let arrangeLeave = 0;
+function hideArrange() {
+  clearTimeout(arrangeTimer);
+  clearTimeout(arrangeLeave);
+  if (arrangePop) arrangePop.hidden = true;
+}
+function showArrange(button, { owner, float = () => {} }) {
+  clearTimeout(arrangeLeave);
+  if (!arrangePop) {
+    arrangePop = el('div', 'arrange-pop');
+    arrangePop.setAttribute('role', 'menu');
+    arrangePop.hidden = true;
+    arrangePop.addEventListener('pointerenter', () => clearTimeout(arrangeLeave));
+    arrangePop.addEventListener('pointerleave', () => { arrangeLeave = setTimeout(hideArrange, 260); });
+    document.body.append(arrangePop);
+    document.addEventListener?.('pointerdown', (event) => { if (!arrangePop.hidden && !event.target?.closest?.('.arrange-pop')) hideArrange(); }, true);
+    document.addEventListener?.('keydown', (event) => { if (event.key === 'Escape' && !arrangePop.hidden) hideArrange(); });
+  }
+  const count = Math.max(1, floatingWindows().filter((node) => node !== owner()).length + 1);
+  const options = el('div', 'arrange-options');
+  for (const one of ARRANGEMENTS) {
+    const option = el('button', `arrange-option${one.slots > count ? ' spare' : ''}`);
+    option.type = 'button';
+    option.setAttribute('role', 'menuitem');
+    option.setAttribute('aria-label', one.word());
+    const art = document.createElementNS?.('http://www.w3.org/2000/svg', 'svg');
+    if (art) { art.setAttribute('viewBox', '0 0 28 22'); art.setAttribute('aria-hidden', 'true'); art.innerHTML = one.icon; option.append(art); } // trusted: our own SVG
+    option.append(el('span', null, one.word()));
+    option.addEventListener('click', (event) => {
+      event.stopPropagation();
+      hideArrange();
+      float();
+      // Floating a docked panel lays it out in the next frame; arrange once it is a window.
+      requestAnimationFrame(() => { const node = owner(); if (node) arrangeWindows(one.id, node); });
+    });
+    options.append(option);
+  }
+  arrangePop.replaceChildren(el('b', 'arrange-title', t('ARRANGE')), options);
+  arrangePop.hidden = false;
+  const at = button.getBoundingClientRect();
+  const width = arrangePop.offsetWidth || 260;
+  arrangePop.style.left = `${Math.round(Math.max(8, Math.min(window.innerWidth - width - 8, at.left + at.width / 2 - width / 2)))}px`;
+  arrangePop.style.top = `${Math.round(at.bottom + 8)}px`;
+}
+function arrangeOnHover(button, { owner, float = () => {} }) {
+  // A hand that rests, not one passing through on its way to press.
+  button.addEventListener('pointerenter', (event) => {
+    if (event.pointerType && event.pointerType !== 'mouse') return;
+    clearTimeout(arrangeLeave);
+    clearTimeout(arrangeTimer);
+    arrangeTimer = setTimeout(() => showArrange(button, { owner, float }), 420);
+  });
+  button.addEventListener('pointerleave', () => { clearTimeout(arrangeTimer); arrangeLeave = setTimeout(hideArrange, 260); });
+  button.addEventListener('pointerdown', () => clearTimeout(arrangeTimer));
 }
 
 // A window held by the pointer: the frames under it stop taking the pointer while it lasts, or
@@ -5926,6 +6554,7 @@ function windowEdgesFor(node, { active = () => true, box, place, done, minW = WI
         edge.removeEventListener('pointercancel', finish);
         holdingWindow('sizing-window', false);
         done?.();
+        scheduleDepth();
       };
       edge.addEventListener('pointermove', move);
       edge.addEventListener('pointerup', finish);
@@ -5986,7 +6615,7 @@ function flipPanel(node, change) {
     { transformOrigin: '50% 50%', transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: .55 },
     { transformOrigin: '50% 50%', opacity: 1, offset: .55 },
     { transformOrigin: '50% 50%', transform: 'none', opacity: 1 },
-  ], { duration: 460, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+  ], { duration: motion(460), easing: 'cubic-bezier(.22, 1, .36, 1)' });
 }
 
 // A dialog is modal only in its base: split or floating, the room behind it stays in reach. Going
@@ -6102,7 +6731,8 @@ function modeButtons({ side = 'right', split, window: floating, close = null }) 
   const splitButton = make(side === 'left' ? SPLIT_LEFT_ICON : SPLIT_RIGHT_ICON, 'split');
   const windowButton = make(FLOAT_ICON, 'window');
   splitButton.addEventListener('click', (event) => { event.stopPropagation(); split.run(); paint(); });
-  windowButton.addEventListener('click', (event) => { event.stopPropagation(); floating.run(); paint(); });
+  windowButton.addEventListener('click', (event) => { event.stopPropagation(); hideArrange(); floating.run(); paint(); });
+  arrangeOnHover(windowButton, { owner: () => windowButton.closest(ARRANGE_OWNER), float: () => { if (!floating.on()) { floating.run(); paint(); } } });
   function paint() {
     const splitOn = Boolean(split.on());
     const windowOn = Boolean(floating.on());
@@ -6256,7 +6886,7 @@ const chats = { open: false, list: [], active: null, working: false, unread: new
 const convWindows = new Map();
 const WINDOW_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.25 12.25v-6.5a2.5 2.5 0 0 1 2.5-2.5h6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect class="ic-f" x="6.25" y="6.25" width="10.5" height="10.5" rx="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 const SWAP_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h11.5M12.5 4l3 3-3 3M16 13H4.5M7.5 10l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const SPLIT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="2.75" y="3.75" width="14.5" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-k" d="M10 4.6v10.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const SPLIT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="2.75" y="3.75" width="14.5" height="12.5" rx="3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-k" d="M10 6.2v7.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function whenWords(iso) {
   const when = iso ? Date.parse(iso) : NaN;
@@ -6270,8 +6900,8 @@ function whenWords(iso) {
 }
 
 // One drawing per conversation, in the bar's own hand: 20×20, a 1.6 stroke, round ends.
-const UPDATE_GLYPH = '<svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.6v9.4M6.4 9.4 10 13l3.6-3.6M3.6 13.4v1a2 2 0 0 0 2 2h8.8a2 2 0 0 0 2-2v-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const CHAT_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M3.5 6a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 16.5 6v4.6a2.5 2.5 0 0 1-2.5 2.5H9.4l-3.6 3v-3A2.5 2.5 0 0 1 3.5 10.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const UPDATE_GLYPH = '<svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v8.4M6.6 8.6 10 12l3.4-3.4M3.8 13.2v1.2a2.2 2.2 0 0 0 2.2 2.2h8a2.2 2.2 0 0 0 2.2-2.2v-1.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHAT_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M10 3.5c3.85 0 6.75 2.6 6.75 5.85S13.85 15.2 10 15.2c-.85 0-1.7-.13-2.45-.37l-2.9 1.33c-.45.2-.9-.2-.78-.66l.56-2.27C3.95 12.25 3.25 10.85 3.25 9.35 3.25 6.1 6.15 3.5 10 3.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // What the list shows, as one string: the same string twice is the same list, and drawing it again
 // would only restart the rows' arrival under the human's eyes.
 let chatsDrawn = '';
@@ -6421,7 +7051,7 @@ function showNotice({ agent, ok, chatId, chat }) {
   let timer = null;
   let left = NOTICE_MS;
   let since = Date.now();
-  const leave = () => { clearTimeout(timer); card.classList.add('leaving'); setTimeout(() => card.remove(), 220); };
+  const leave = () => { clearTimeout(timer); card.classList.add('leaving'); setTimeout(() => card.remove(), motion(220)); };
   const arm = () => { since = Date.now(); clearTimeout(timer); timer = setTimeout(leave, left); card.classList.remove('held'); };
   card.addEventListener('mouseenter', () => { clearTimeout(timer); left = Math.max(1500, left - (Date.now() - since)); card.classList.add('held'); });
   card.addEventListener('mouseleave', arm);
@@ -6515,6 +7145,82 @@ function setChats(open) {
   if (open) void loadChats();
 }
 els.chatsButton?.addEventListener('click', () => setChats(!chats.open));
+// The handle can be carried. Hold it a moment and it lifts; then it goes wherever the pointer takes
+// it, anywhere on the room below the bar, and stays there next time. A short press still opens the
+// conversations, and moving before it lifts is not a carry: nothing happens.
+(() => {
+  const button = els.chatsButton;
+  if (!button?.addEventListener) return;
+  const KEY = 'pulse.chatsButton';
+  const HOLD_MS = 320;
+  let offset = { x: 0, y: 0 };
+  // What is drawn now: the button's home is its box minus this, whatever the pointer asks next.
+  let applied = { x: 0, y: 0 };
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    if (Number.isFinite(saved?.x) && Number.isFinite(saved?.y)) offset = { x: saved.x, y: saved.y };
+  } catch { /* no storage */ }
+  const place = () => {
+    applied = { ...offset };
+    button.style.translate = offset.x || offset.y ? `${Math.round(offset.x)}px ${Math.round(offset.y)}px` : '';
+  };
+  // Kept inside the window, 8px from its edges, and never up under the bar.
+  const clamp = () => {
+    const rect = button.getBoundingClientRect?.();
+    if (!rect?.width) return;
+    const home = { left: rect.left - applied.x, top: rect.top - applied.y };
+    const bar = document.querySelector('.shell > .bar')?.getBoundingClientRect?.();
+    const top = (bar?.bottom ?? 0) + 8;
+    offset.x = Math.min(Math.max(offset.x, 8 - home.left), window.innerWidth - 8 - rect.width - home.left);
+    offset.y = Math.min(Math.max(offset.y, top - home.top), window.innerHeight - 8 - rect.height - home.top);
+  };
+  place();
+  // A window smaller than the one it was left in still shows it.
+  if (offset.x || offset.y) window.requestAnimationFrame?.(() => { clamp(); place(); });
+  let pending = null;
+  let carry = null;
+  let carried = false;
+  const drop = () => {
+    clearTimeout(pending?.timer);
+    pending = null;
+    if (!carry) return;
+    carry = null;
+    carried = true;
+    button.classList.remove('carrying');
+    try { localStorage.setItem(KEY, JSON.stringify(offset)); } catch { /* it stays where it is for this page */ }
+    placeNotices();
+  };
+  button.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    carried = false;
+    const start = { x: event.clientX, y: event.clientY, ox: offset.x, oy: offset.y, id: event.pointerId };
+    pending = { start, timer: setTimeout(() => {
+      carry = start;
+      pending = null;
+      button.classList.add('carrying');
+      try { button.setPointerCapture(start.id); } catch { /* the pointer already left */ }
+    }, motion(HOLD_MS)) };
+  });
+  button.addEventListener('pointermove', (event) => {
+    if (pending && Math.hypot(event.clientX - pending.start.x, event.clientY - pending.start.y) > 6) { clearTimeout(pending.timer); pending = null; }
+    if (!carry) return;
+    offset = { x: carry.ox + event.clientX - carry.x, y: carry.oy + event.clientY - carry.y };
+    clamp();
+    place();
+  });
+  button.addEventListener('pointerup', drop);
+  button.addEventListener('pointercancel', drop);
+  button.addEventListener('lostpointercapture', drop);
+  // The press that ended a carry is not a press on the button.
+  button.addEventListener('click', (event) => {
+    if (!carried) return;
+    carried = false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, { capture: true });
+  button.addEventListener('contextmenu', (event) => { if (carry || pending) event.preventDefault(); });
+  window.addEventListener?.('resize', () => { if (!offset.x && !offset.y) return; clamp(); place(); });
+})();
 els.chatsClose?.addEventListener('click', () => setChats(false));
 els.chatsNew?.addEventListener('click', async () => {
   els.chatsNew.disabled = true;
@@ -6764,7 +7470,32 @@ async function promoteConvWindow(id) {
 // line of what it holds is laid out again under the pointer, and it takes its real place once, where
 // it is let go. Pressing the header selects nothing, and near the room's edge it sits on the edge.
 const WINDOW_SNAP = 14;
+// How much of a window has to stay on screen when it is pushed past an edge: enough header to hold.
+const WINDOW_REACH = 120;
+const WINDOW_HEAD_REACH = 48;
+// While a window is carried the room steps back: everything behind it blurs a little and a faint
+// grid shows the floor it can be set on, lit where the window is and along an edge it would sit
+// against. The one in hand stays sharp above it. It is there only while the hand is, so arranging
+// feels like picking something up, never like a mode to leave.
+let arrangeVeil = null;
+function veilFor(node) {
+  if (!arrangeVeil) {
+    arrangeVeil = el('div', 'arrange-veil');
+    arrangeVeil.setAttribute('aria-hidden', 'true');
+    document.body.append(arrangeVeil);
+  }
+  const layer = Number(node.style.zIndex) || Number(getComputedStyle(node).zIndex) || WINDOW_LAYER + 6;
+  arrangeVeil.style.zIndex = String(layer);
+  node.style.zIndex = String(layer + 1);
+  return arrangeVeil;
+}
+function lightVeil(veil, at, edges) {
+  veil.style.setProperty('--vx', `${Math.round(at.x + at.w / 2)}px`);
+  veil.style.setProperty('--vy', `${Math.round(at.y + at.h / 2)}px`);
+  veil.dataset.snap = edges.join(' ');
+}
 function carryWindowBy(head, node, { active = () => true, box, place, done }) {
+  windowPlacers.set(node, { active, place, done });
   head.addEventListener('pointerdown', (event) => {
     if (event.button !== 0 || !active() || event.target.closest('button, input, textarea, label, a, select, [role="menu"], .viewer-sizes')) return;
     event.preventDefault();
@@ -6776,25 +7507,38 @@ function carryWindowBy(head, node, { active = () => true, box, place, done }) {
     let to = null;
     try { head.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
     bringWindowForward(node);
+    // A window can be pushed partly past the left, right and bottom edges, the way a desktop
+    // lets you, as long as enough of its header stays on screen to take it back. Near an edge it
+    // still settles flush against it: the magnet works from both sides of the line.
     const toward = (moving) => {
       const maxX = window.innerWidth - from.w - WINDOW_INSET;
       const maxY = window.innerHeight - from.h - WINDOW_INSET;
-      let x = Math.max(WINDOW_INSET, Math.min(maxX, from.x + moving.clientX - startX));
-      let y = Math.max(WINDOW_INSET, Math.min(maxY, from.y + moving.clientY - startY));
-      if (x - WINDOW_INSET < WINDOW_SNAP) x = WINDOW_INSET; else if (maxX - x < WINDOW_SNAP) x = maxX;
-      if (y - WINDOW_INSET < WINDOW_SNAP) y = WINDOW_INSET; else if (maxY - y < WINDOW_SNAP) y = maxY;
+      let x = Math.max(WINDOW_REACH - from.w, Math.min(window.innerWidth - WINDOW_REACH, from.x + moving.clientX - startX));
+      let y = Math.max(WINDOW_INSET, Math.min(window.innerHeight - WINDOW_HEAD_REACH, from.y + moving.clientY - startY));
+      if (Math.abs(x - WINDOW_INSET) < WINDOW_SNAP) x = WINDOW_INSET; else if (Math.abs(maxX - x) < WINDOW_SNAP) x = maxX;
+      if (Math.abs(y - WINDOW_INSET) < WINDOW_SNAP) y = WINDOW_INSET; else if (Math.abs(maxY - y) < WINDOW_SNAP) y = maxY;
       return { ...from, x, y };
     };
+    let veil = null;
     const move = (moving) => {
       if (!carrying) {
         if (Math.hypot(moving.clientX - startX, moving.clientY - startY) < 4) return;
         carrying = true;
+        veil = veilFor(node);
         holdingWindow('carrying-window', true);
         node.classList.add('lifted');
       }
       to = toward(moving);
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => { node.style.translate = `${to.x - from.x}px ${to.y - from.y}px`; });
+      frame = requestAnimationFrame(() => {
+        node.style.translate = `${to.x - from.x}px ${to.y - from.y}px`;
+        const edges = [];
+        if (to.x === WINDOW_INSET) edges.push('left');
+        if (to.x === window.innerWidth - to.w - WINDOW_INSET) edges.push('right');
+        if (to.y === WINDOW_INSET) edges.push('top');
+        if (to.y === window.innerHeight - to.h - WINDOW_INSET) edges.push('bottom');
+        lightVeil(veil, to, edges);
+      });
     };
     const drop = () => {
       cancelAnimationFrame(frame);
@@ -6803,8 +7547,12 @@ function carryWindowBy(head, node, { active = () => true, box, place, done }) {
       head.removeEventListener('pointercancel', drop);
       holdingWindow('carrying-window', false);
       node.classList.remove('lifted');
+      if (veil) veil.dataset.snap = '';
       node.style.removeProperty('translate');
       if (carrying && to) { place(to); done?.(); }
+      // Back to its place in the stack, now that nothing is held above the room.
+      if (carrying) bringWindowForward(node);
+      scheduleDepth();
     };
     head.addEventListener('pointermove', move);
     head.addEventListener('pointerup', drop);
@@ -6931,6 +7679,42 @@ let pushes = [];
 function atBottom() {
   return els.thread.scrollHeight - els.thread.scrollTop - els.thread.clientHeight < 4;
 }
+
+// Liquid glass samples what lies behind it, and every piece that does is a layer the browser has to
+// repaint while scrolling: hundreds of them is what drew the empty grey blocks. Only the rows on
+// screen, or about to be, wear the glass; the rest keep its tint, which is all they show anyway.
+(() => {
+  const column = els.column;
+  if (typeof IntersectionObserver !== 'function' || typeof MutationObserver !== 'function' || !column) return;
+  const seen = new IntersectionObserver((entries) => {
+    for (const entry of entries) entry.target.classList.toggle('in-view', entry.isIntersecting);
+  }, { root: els.thread, rootMargin: '320px 0px' });
+  const watch = (node) => { if (node?.nodeType === 1) seen.observe(node); };
+  for (const child of column.children) watch(child);
+  new MutationObserver((records) => { for (const record of records) record.addedNodes.forEach(watch); }).observe(column, { childList: true });
+})();
+
+// The conversation is not cut where the composer begins: it runs on beneath it. The thread is told
+// how tall the strip under it is, so its last line can still come up above the box; a reader at
+// the end stays at the end when that strip grows or shrinks.
+(() => {
+  const shell = document.querySelector('.shell');
+  if (!shell?.style?.setProperty || !els.composer?.getBoundingClientRect) return;
+  let last = -1;
+  const measure = () => {
+    const top = els.composer.getBoundingClientRect().top;
+    const bottom = shell.getBoundingClientRect().bottom;
+    const height = Math.max(0, Math.ceil(bottom - top));
+    if (height === last) return;
+    const stay = atBottom();
+    last = height;
+    shell.style.setProperty('--dock-h', `${height}px`);
+    if (stay) els.thread.scrollTop = els.thread.scrollHeight;
+  };
+  measure();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(measure).observe(els.composer);
+  window.addEventListener?.('resize', measure);
+})();
 
 function armExpendable() {
   if (state.expendable) return;
@@ -7068,7 +7852,41 @@ try {
     }
   }
 } catch { /* no storage: it draws on every load, as before */ }
-document.querySelector('#reload-button')?.addEventListener('click', () => window.location.reload());
+// RELOAD, with grace, the way MADRE first appears: the room softens behind a curtain of its own
+// ground and the pulse is traced across the middle with its dot running at the tip. The page goes.
+// The new one puts the same curtain back before its first frame — the pulse traced, the dot at
+// its end — and once the room is drawn the name appears beside the dot, the curtain clears, and
+// the bar's logo and live light pulse once.
+function reloadWithGrace() {
+  if (reducedMotion() || document.querySelector('.reload-curtain')) { window.location.reload(); return; }
+  const curtain = el('div', 'reload-curtain');
+  const logo = document.querySelector('.brand-logo')?.cloneNode(true);
+  if (logo) curtain.append(logo);
+  document.body.append(curtain);
+  document.documentElement.classList.add('reloading');
+  try { sessionStorage.setItem('madre.curtain', '1'); } catch { /* the new page simply arrives */ }
+  setTimeout(() => window.location.reload(), 1400);
+}
+document.querySelector('#reload-button')?.addEventListener('click', reloadWithGrace);
+// The crew's column closes when the press lands anywhere else.
+document.addEventListener?.('click', (event) => { if (!els.picker?.contains?.(event.target)) els.picker?.classList?.remove('open'); });
+(() => {
+  const curtain = document.getElementById('reload-curtain');
+  if (!curtain) return;
+  // The curtain clears in place, and the bar answers with one pulse: the logo's dot and the live
+  // light beside it.
+  const lift = () => {
+    curtain.classList.add('leaving');
+    setTimeout(() => {
+      curtain.remove();
+      document.documentElement.classList.add('just-arrived');
+      setTimeout(() => document.documentElement.classList.remove('just-arrived'), 1400);
+    }, 760);
+  };
+  // The room is drawn under the curtain: the dot gives way to the name, then the curtain clears.
+  const reveal = () => { curtain.classList.add('revealed'); setTimeout(() => requestAnimationFrame(lift), 760); };
+  setTimeout(() => requestAnimationFrame(reveal), 220);
+})();
 
 // The windows, as they were left, within the same limit.
 try {
@@ -7204,6 +8022,17 @@ function syncHighlightScroll() { els.highlight.scrollTop = els.input.scrollTop; 
 els.input.addEventListener('input', autosize);
 els.input.addEventListener('scroll', syncHighlightScroll);
 autosize();
+// The field can change width without a keystroke: a suggested question filled in closes the row of
+// questions and brings the chips beside it, a window is resized, a conversation opens in a frame
+// still laying itself out. Measured at the old width, the text ran past the box; it is measured
+// again whenever the width moves (only the width, so setting the height does not loop).
+if (typeof ResizeObserver === 'function') {
+  let measuredWidth = 0;
+  new ResizeObserver((entries) => {
+    const width = Math.round(entries[0]?.contentRect?.width ?? 0);
+    if (width && width !== measuredWidth) { measuredWidth = width; autosize(); }
+  }).observe(els.input);
+}
 
 // /module has its own visual language before it ever reaches an agent. The class is also the
 // animation trigger: it is added once when the prefix becomes a command, and removed when the
@@ -7403,12 +8232,12 @@ function moduleStarters() {
 const COMMAND_GROUPS = ['room', 'modules', 'off'];
 const COMMAND_GROUP_WORDS = { room: 'THIS ROOM', modules: 'FROM THE MODULES', off: 'NOT AVAILABLE HERE' };
 const COMMAND_GLYPHS = {
-  create: '<path d="M6 3.5h5.5L15 7v9.5H6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10.5 9.5v5M8 12h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-  module: '<path d="M8.1 3.2h3.8v1.6a1.5 1.5 0 0 0 3 0V3.2h1.9v3.6h-1.4a1.5 1.5 0 0 0 0 3h1.4v3.6h-3.6v-1.5a1.5 1.5 0 0 0-3 0v1.5H6.8V9.8H5.4a1.5 1.5 0 0 1 0-3h1.4V3.2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-  image: '<rect x="3.5" y="4.5" width="13" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8.5" r="1.4" fill="currentColor"/><path d="M4 14l4-4 3 3 2-2 3 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
-  stopall: '<rect x="4.5" y="4.5" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="8" y="8" width="4" height="4" rx=".8" fill="currentColor"/>',
+  create: '<path d="M5.5 3.5h5l4.5 4.5v8a1.8 1.8 0 0 1-1.8 1.8H5.5A1.8 1.8 0 0 1 3.7 16V5.3A1.8 1.8 0 0 1 5.5 3.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.6v3a1.1 1.1 0 0 0 1.1 1.1h3.4M9.35 10.2v4.4M7.15 12.4h4.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  module: '<path class="ic-f" d="M2.75 8.45a2.2 2.2 0 0 1 2.2-2.2h2a1.9 1.9 0 1 1 2.6 0h2a2.2 2.2 0 0 1 2.2 2.2v2a1.9 1.9 0 1 1 0 2.6v2a2.2 2.2 0 0 1-2.2 2.2h-2a1.9 1.9 0 1 0-2.6 0h-2a2.2 2.2 0 0 1-2.2-2.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  image: '<rect x="3" y="4" width="14" height="12" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7.3" cy="8.1" r="1.35" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.4 14.2l3.8-3.8a1 1 0 0 1 1.4 0l2.4 2.4 1.4-1.4a1 1 0 0 1 1.4 0l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  stopall: '<rect class="ic-f" x="4" y="4" width="12" height="12" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
   git: '<circle cx="6.5" cy="5.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="6.5" cy="14.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="13.5" cy="8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 7.3v5.4M13.5 9.8c0 2.6-2.4 3-5.4 3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-  ahp: '<path d="M10 3.3l5.5 2.2v4.1c0 3.4-2.3 5.9-5.5 7.1-3.2-1.2-5.5-3.7-5.5-7.1V5.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M7.6 10.2l1.7 1.7 3.2-3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  ahp: '<path d="M9.3 2.95a2 2 0 0 1 1.4 0l4.2 1.6c.42.16.7.56.7 1V9.5c0 3.4-2.3 5.9-5.6 7.25C6.7 15.4 4.4 12.9 4.4 9.5V5.55c0-.44.28-.84.7-1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   slash: '<path d="M12.5 3.5l-5 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
 };
 function commandGlyph(name) {
@@ -7644,12 +8473,20 @@ fetch('/api/mother').then((response) => response.json()).then((status) => { if (
 
 function updateCrewLabel() {
   const order = state.ash && state.ashInstalled;
-  els.crewLabel.textContent = state.intruder && state.mode < 3 ? t('INTRUDER ›') : state.mode >= 3 ? `MU/TH/UR · ${MODES[state.mode].label} @${(state.modeArmedFor ?? els.target.value ?? '').toUpperCase()} ›`
+  const armed = state.mode >= 3;
+  els.crewLabel.textContent = state.intruder && state.mode < 3 ? t('INTRUDER ›') : armed ? `MU/TH/UR · ${MODES[state.mode].label} @${(state.modeArmedFor ?? els.target.value ?? '').toUpperCase()} ›`
     : state.mode === 0 ? t('HUMAN · GHOST ›')
       : state.moduleCommand ? (state.create ? 'MU/TH/UR · MODULE · CREATE ›' : t('MU/TH/UR · MODULE · NEEDS #2 ›'))
-      : order ? (state.create ? 'MU/TH/UR · ASH · CREATE ›' : 'MU/TH/UR · ASH ›')
+      : order ? `${t('HUMAN ›')} ${state.create ? 'ASH · CREATE ›' : 'ASH ›'}`
         : state.create ? t('HUMAN · CREATE ›')
           : state.expendable ? t('CREW · EXPENDABLE ›') : t('HUMAN ›');
+  // Who the message goes to closes the line, in that agent's colour: HUMAN › ASH › @CODEX ›.
+  const to = els.target?.value;
+  if (to && !armed && !state.intruder && typeof els.crewLabel.append === 'function') {
+    const who = paint(el('span', 'crew-to'), to);
+    who.textContent = ` @${to.toUpperCase()} ›`;
+    els.crewLabel.append(who);
+  }
 }
 function updatePlaceholder() {
   const local = Boolean(state.agents.get(els.target.value)?.local);
@@ -7939,7 +8776,7 @@ function commandBlock(lines) {
   copy.title = t('COPY');
   copy.setAttribute('aria-label', t('COPY'));
   // Two sheets, drawn rather than written: a word here sat on top of the command it was offering.
-  copy.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true" width="12" height="12"><rect x="5.5" y="5.5" width="8" height="9" rx="1.5" fill="none" stroke="currentColor"/><path d="M10.5 3.5H3.5a1 1 0 0 0-1 1v7" fill="none" stroke="currentColor"/></svg>';
+  copy.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.2" y="3.3" width="9.6" height="10.9" rx="2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><rect x="5.7" y="1.8" width="4.6" height="2.8" rx="1.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.8 8.1h4.4M5.8 10.6h2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const runnable = lines.filter((line) => !line.trim().startsWith('#'));
   copy.addEventListener('click', async () => {
     try {
@@ -9569,7 +10406,7 @@ function renderLoginEvent(event) {
   const finished = event.type === 'connection.login.finished';
   const ok = finished && session?.state === 'signed-in';
   const node = el('div', `system login${finished && !ok ? ' failed' : ''}`);
-  node.style.setProperty('--agent', agentColor(agent));
+  tint(node, agent);
   node.append(el('b', null, t('connections › ')));
   node.append(finished
     ? (ok ? t('@{agent} signed in', { agent }) + (session?.detail ? ` · ${session.detail}` : '') : t('@{agent} sign-in did not complete', { agent }) + (error ? ` · ${error}` : code ? t(' · exit {code}', { code }) : ''))

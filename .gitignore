@@ -9,3 +9,10 @@ docs/private/
 
 # Cloudflare Wrangler local cache (account ids), never published
 .wrangler/
+
+# Wallpaper masters: only the encoded .webp in public/assets/wallpapers/ ship.
+/wallpapers/
+/MADRE_Wallpapers_*.zip
+/magna - 1.jpeg
+/paraiso.jpeg
+/ventura.jpeg

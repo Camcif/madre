@@ -111,9 +111,10 @@ test('i18n: the catalogue says nothing the product does not say', async () => {
   assert.ok(Object.keys(catalogue('es')).length === Object.keys(ES).length);
 });
 
-test('i18n: the switch is one button, it says where it goes, and the page comes back in it', async () => {
+test('i18n: the language is chosen in PERSONALIZE, and the page comes back in it', async () => {
   const [app, page] = await Promise.all([read('app.js'), read('index.html')]);
-  assert.match(page, /<button id="lang-button"/);
+  assert.match(page, /<button id="custom-button"/);
+  assert.match(app, /section\(t\('LANGUAGE'\)/, 'PERSONALIZE no longer offers the language');
   assert.match(app, /const next = LANGUAGES\[language\(\)\]\.other;/);
   assert.match(app, /localStorage\.setItem\('pulse\.language', next\)/);
   assert.match(app, /fetch\('\/api\/language'/, 'the machine never learns which language it was set to');

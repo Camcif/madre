@@ -344,7 +344,8 @@ test('the room UI boots against a real transcript without throwing', async () =>
   void stream;
   globalThis.__pulse.disarmExpendable();
   assert.equal(uiState.expendable, false);
-  assert.equal(registry.get('crew-label').textContent, 'HUMANO ›');
+  // The line in the box is the whole address: who writes, then who it goes to.
+  assert.equal(registry.get('crew-label').textContent, 'HUMANO › @CODEX ›');
 
   // Silence longer than two seconds starts over; scrolling up resets.
   assert.equal(trackHold(true, t0 + 20_000), false);
