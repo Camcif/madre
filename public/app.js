@@ -106,6 +106,7 @@ const els = {
   field: document.querySelector('.field'),
   slashMenu: document.querySelector('#slash-menu'),
   freeOffer: document.querySelector('#free-offer'),
+  intentOffer: document.querySelector('#intent-offer'),
   settled: document.querySelector('#settled'),
   openq: document.querySelector('#openq'),
   attach: document.querySelector('#attach'),
@@ -201,6 +202,10 @@ const state = {
   chosenModel: {},         // id -> model name picked in the composer
   chosenEffort: {},        // id -> effort level picked in the composer (null: the CLI's own)
   efforts: {},             // id -> { levels, default } from /api/models; no levels, no chip
+  // Intenciones: what is being offered under the box for the message being written, and the mark
+  // it leaves on that agent's effort chip. `offered` and `accepted` are about this one message.
+  intentOffer: { key: '', timer: null, offered: false, accepted: false },
+  intentHint: null,        // { agent, direction } while an offer is on screen
 };
 try { state.chosenModel = JSON.parse(localStorage.getItem('pulse.chosenModel') ?? '{}') || {}; } catch { state.chosenModel = {}; }
 try { state.chosenEffort = JSON.parse(localStorage.getItem('pulse.chosenEffort') ?? '{}') || {}; } catch { state.chosenEffort = {}; }
@@ -2321,6 +2326,9 @@ function renderPicker() {
   updateCrewLabel();
   if (typeof renderCreateScopes === 'function') renderCreateScopes();
   if (typeof renderHighlight === 'function') renderHighlight();
+  // Another agent, model or rung changes what Intenciones would say; asking again is cheap and
+  // answers nothing new when nothing changed.
+  if (typeof scheduleIntentOffer === 'function') scheduleIntentOffer();
 }
 
 /* ---------- model menu: which model answers this request ---------- */
@@ -2459,7 +2467,11 @@ function renderEffortChip(id) {
   const shown = chosen ?? info.default;
   const chip = el('button', `effort-chip${chosen ? ' set' : ''}${shown === info.levels.at(-1) ? ' peak' : ''}`);
   chip.type = 'button';
-  chip.append(effortMeter(info.levels, shown, { ghost: !chosen }), el('span', 'word', chosen ? effortLabel(chosen) : t('effort')), chevron('caret'));
+  chip.append(effortMeter(info.levels, shown, { ghost: !chosen }), el('span', 'word', chosen ? effortLabel(chosen) : t('effort')));
+  // Intenciones has something to say about this agent's rung: the arrow says which way, the offer
+  // under the box says why.
+  if (state.intentHint?.agent === id) chip.append(el('span', `intent-mark${state.intentHint.direction === 'raise' ? ' up' : ''}`, state.intentHint.direction === 'raise' ? '↑' : '↓'));
+  chip.append(chevron('caret'));
   chip.title = chosen
     ? `${t('Effort for this agent · {level}', { level: effortLabel(chosen) })}\n${t(EFFORT_WORDS[chosen]?.hint ?? '')}`
     : info.default
@@ -7773,7 +7785,7 @@ document.querySelector('#mother-button')?.addEventListener('mouseleave', endHove
 document.querySelector('#mother-button')?.addEventListener('click', endHover);
 
 // Debug surface for tests and for the curious: window.__pulse.trackHold(true, t)
-globalThis.__pulse = { trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, renderModulesDev, runSlashCommand, syncModuleComposer, openCore: (...args) => openCore(...args), get core() { return core; } };
+globalThis.__pulse = { trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, renderModulesDev, runSlashCommand, syncModuleComposer, syncIntentOffer, openIntentsWindow, openCore: (...args) => openCore(...args), get core() { return core; } };
 
 els.thread.addEventListener('wheel', (event) => trackHold(event.deltaY > 0), { passive: true });
 let touchY = null;
@@ -8088,6 +8100,163 @@ function syncFreeOffer() {
 els.input.addEventListener('input', syncFreeOffer);
 els.input.addEventListener('input', () => { if (els.openq) els.openq.hidden = Boolean(els.input.value.trim()); });
 els.composer?.addEventListener('submit', () => { if (els.freeOffer) { els.freeOffer.hidden = true; els.freeOffer.dataset.why = ''; } });
+
+/* ---------- Intenciones: how hard the agent should think, said before the turn is paid ---------- */
+
+// The offer under the box when Intenciones has something worth saying about the message being
+// written: a rung measured to be enough here, or a request that looks like it needs more than the
+// rung chosen. The server holds what was measured and the conversation so far, so it is asked a
+// moment after the typing stops. Never on top of the @madre offer: a question for the archive is
+// not a question about any rung.
+const INTENT_NAMES = {
+  chat: 'a short reply', lookup: 'a lookup', explain: 'an explanation', review: 'a review',
+  implement: 'a change to make', diagnose: 'a diagnosis', design: 'a design question',
+};
+
+function intentDraft() {
+  const text = els.input.value;
+  const mentioned = text.trim().match(/^@([a-z0-9_-]+)\b/i)?.[1]?.toLowerCase();
+  const agent = mentioned && state.agents.has(mentioned) ? mentioned : els.target.value;
+  const info = state.efforts[agent] ? effortInfo(agent) : null;
+  return {
+    text, agent, info,
+    model: state.chosenModel[agent] ?? null,
+    effort: info?.levels.includes(state.chosenEffort[agent]) ? state.chosenEffort[agent] : null,
+    defaultEffort: info?.default ?? null,
+    references: (text.match(/(^|\s)![^\s!]+/g) ?? []).length,
+    attachments: state.pending.length,
+  };
+}
+
+function hideIntentOffer() {
+  const box = els.intentOffer;
+  if (box && !box.hidden) { box.hidden = true; box.replaceChildren(); }
+  if (state.intentHint) { state.intentHint = null; renderPicker(); }
+}
+
+function scheduleIntentOffer() {
+  clearTimeout(state.intentOffer.timer);
+  state.intentOffer.timer = setTimeout(syncIntentOffer, 350);
+}
+
+async function syncIntentOffer() {
+  const box = els.intentOffer;
+  if (!box) return;
+  const draft = intentDraft();
+  const offer = state.intentOffer;
+  // Nothing to say about an agent whose CLI takes no effort, a message too short to be anything,
+  // or one the @madre offer already speaks for.
+  if (!draft.info?.levels.length || draft.text.trim().length < 8 || !els.freeOffer?.hidden) { offer.key = ''; hideIntentOffer(); return; }
+  const key = JSON.stringify([draft.text.trim(), draft.agent, draft.model, draft.effort, draft.defaultEffort, draft.references, draft.attachments]);
+  if (key === offer.key) return;
+  offer.key = key;
+  let suggestion = null;
+  try {
+    const response = await fetch('/api/intents/suggest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: draft.text, agent: draft.agent, model: draft.model, effort: draft.effort, defaultEffort: draft.defaultEffort, references: draft.references, attachments: draft.attachments }) });
+    suggestion = (await response.json()).suggestion ?? null;
+  } catch { suggestion = null; }
+  if (key !== offer.key) return;   // the human kept typing; a newer answer is on its way
+  if (!suggestion || !draft.info.levels.includes(suggestion.effort)) { hideIntentOffer(); return; }
+  if (suggestion.kind === 'invite' && invitesDeclined()[inviteKey(suggestion)]) { hideIntentOffer(); return; }
+  paintIntentOffer(box, suggestion);
+}
+
+// "Not now" on an invitation is remembered per agent and model: asked once, not on every message.
+const inviteKey = (said) => `${said.agent}|${said.model ?? ''}`;
+function invitesDeclined() {
+  try { return JSON.parse(localStorage.getItem('pulse.intentInvites') ?? '{}') || {}; } catch { return {}; }
+}
+function declineInvite(said) {
+  try { localStorage.setItem('pulse.intentInvites', JSON.stringify({ ...invitesDeclined(), [inviteKey(said)]: true })); } catch { /* private mode */ }
+}
+
+// Why, in one line: what the request looks like, and what was seen or what gave it away.
+function intentReason(said) {
+  const level = effortLabel(said.effort).toUpperCase();
+  const what = t('Looks like {what}', { what: t(INTENT_NAMES[said.intent] ?? 'an explanation') });
+  if (said.basis === 'measured' && said.measured?.needsReference) return `${what} · ${t('below {level} it fell short in {n} measured cases', { level, n: said.measured.n })}`;
+  if (said.basis === 'measured') {
+    const saving = said.saving > 0 ? ` · ${t('about {pct}% fewer tokens', { pct: Math.round(said.saving * 100) })}` : '';
+    return `${what} · ${t('{level} was enough in {n} measured cases', { level, n: said.measured.n })}${saving}`;
+  }
+  if (said.signals.includes('retry')) return `${what} · ${t('the last answer did not do it')}`;
+  if (said.signals.includes('heavy')) return `${what} · ${t('there is a lot to read')}`;
+  if (said.signals.includes('asked-deep')) return `${what} · ${t('you asked for it to be thought through')}`;
+  return `${what} · ${t('{level} is usually too light for it', { level: effortLabel(said.from).toUpperCase() })}`;
+}
+
+// An invitation is not advice: the rule thinks a lower rung would do, nobody has measured it here,
+// so what is offered is the measuring. Six real questions from this project, the human judging.
+function paintIntentInvite(box, said) {
+  const level = effortLabel(said.effort).toUpperCase();
+  box.replaceChildren();
+  box.classList.remove('up');
+  box.append(el('span', 'free-what', `${t('Looks like {what}', { what: t(INTENT_NAMES[said.intent] ?? 'an explanation') })} · ${t('{level} is usually enough for it, but it has not been measured in this project yet', { level })}`));
+  const later = el('button', 'free-later', t('NOT NOW'));
+  later.type = 'button';
+  later.addEventListener('click', () => { declineInvite(said); state.intentOffer.key = ''; hideIntentOffer(); els.input.focus(); });
+  const go = el('button', 'free-go', t('MEASURE · {n} QUESTIONS', { n: said.questions }));
+  go.type = 'button';
+  go.addEventListener('click', async () => {
+    go.disabled = true;
+    try {
+      await intentsPost('/api/intents/calibrate', { kind: 'quick', agent: said.agent, model: said.model, reference: said.from, effort: said.effort, intent: said.intent });
+      state.intentOffer.key = '';
+      hideIntentOffer();
+      openIntentsWindow(true);
+    } catch (error) {
+      go.disabled = false;
+      toast(t('The test could not start: {error}', { error: error.message }));
+    }
+  });
+  box.append(later, go);
+  box.hidden = false;
+}
+
+function paintIntentOffer(box, said) {
+  if (said.kind === 'invite') {
+    paintIntentInvite(box, said);
+  } else {
+    paintIntentAdvice(box, said);
+  }
+  if (state.intentHint?.agent !== said.agent || state.intentHint?.direction !== said.direction) {
+    state.intentHint = { agent: said.agent, direction: said.direction };
+    renderPicker();
+  }
+}
+
+function paintIntentAdvice(box, said) {
+  const raise = said.direction === 'raise';
+  box.replaceChildren();
+  box.classList.toggle('up', raise);
+  box.append(el('span', 'free-what', intentReason(said)));
+  if (said.basis === 'measured') box.append(el('span', 'intent-basis', t('MEASURED')));
+  const level = effortLabel(said.effort).toUpperCase();
+  const go = el('button', 'free-go', raise ? t('RAISE TO {level}', { level }) : t('USE {level}', { level }));
+  go.type = 'button';
+  go.addEventListener('click', () => {
+    rememberEffort(said.agent, said.effort);
+    state.intentOffer.accepted = true;
+    state.intentOffer.key = '';
+    hideIntentOffer();
+    renderPicker();
+    els.input.focus();
+  });
+  box.append(go);
+  box.hidden = false;
+  state.intentOffer.offered = true;
+}
+
+els.input.addEventListener('input', scheduleIntentOffer);
+// Counted once per message that went out with an offer on it, taken or not: how often the human
+// takes one is the only number that says whether Intenciones is worth anything.
+els.composer?.addEventListener('submit', () => {
+  const offer = state.intentOffer;
+  if (offer.offered) void fetch('/api/intents/offer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ accepted: offer.accepted }) }).catch(() => {});
+  clearTimeout(offer.timer);
+  Object.assign(offer, { key: '', offered: false, accepted: false });
+  hideIntentOffer();
+});
 
 els.input.addEventListener('input', syncModuleComposer);
 syncModuleComposer();
@@ -9892,6 +10061,268 @@ function paintAshEconomy(box) {
   }).catch(() => { box.replaceChildren(el('h5', null, t('ECONOMY · THIS ROOM')), el('p', 'note', t('ECONOMY UNAVAILABLE'))); });
 }
 
+// INTENCIONES in MODULES: what was measured on this project, per agent that takes an effort, and
+// the two buttons that measure more. While a test runs the card follows it, and during the quick
+// test it is where the human judges: two answers to a real question from this project, in an order
+// that says nothing about which rung wrote which.
+const INTENT_ROWS = { lookup: 'LOOKUP', explain: 'EXPLANATION', review: 'REVIEW', diagnose: 'DIAGNOSIS', design: 'DESIGN' };
+const JUDGE_WORDS = { trusted: 'trusted', blind: 'could not see the difference', unknown: 'not proven yet' };
+const RUN_ENDINGS = {
+  done: 'finished', stopped: 'stopped', budget: 'stopped at its turn limit',
+  'judge-blind': 'stopped: the judge could not see a difference, so nothing it said was kept', error: 'could not finish',
+};
+
+function intentsReading(panel) {
+  const box = cardBlock(panel, t('WHAT WAS MEASURED HERE'));
+  box.id = 'intents-reading';
+  box.append(el('p', 'note', t('READING…')));
+  paintIntents(box);
+}
+
+async function intentsPost(path, payload = {}) {
+  const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.error) throw new Error(result.error ?? `HTTP ${response.status}`);
+  return result;
+}
+
+async function paintIntents(box) {
+  let read;
+  try {
+    read = await fetch(`/api/intents?models=${encodeURIComponent(JSON.stringify(state.chosenModel))}`).then((response) => response.json());
+  } catch {
+    box.replaceChildren(el('h5', null, t('WHAT WAS MEASURED HERE')), el('p', 'note', t('INTENCIONES UNAVAILABLE')));
+    return;
+  }
+  if (!box.isConnected) return;
+  box.replaceChildren(el('h5', null, t('WHAT WAS MEASURED HERE')));
+  const repaint = () => paintIntents(box);
+  if (!read.agents?.length) box.append(el('p', 'note', t('NO AGENT HERE TAKES AN EFFORT PER TURN · CLAUDE CODE AND CODEX DO')));
+
+  for (const agent of read.agents ?? []) {
+    const block = el('div', 'intents-agent');
+    block.append(el('div', 'intents-head', `@${agent.id} · ${agent.model ?? t('its default model')} · ${t('against {level}', { level: effortLabel(agent.reference).toUpperCase() })}`));
+    const table = el('div', 'intents-table');
+    for (const row of agent.summary.intents) {
+      const settled = row.status === 'measured';
+      const status = settled
+        ? (row.effort === agent.reference ? t('measured · needs it') : t('measured'))
+        : agent.cases[row.intent] === 1 ? t('open · 1 question to ask')
+          : agent.cases[row.intent] ? t('open · {n} questions to ask', { n: agent.cases[row.intent] }) : t('no questions of this kind yet');
+      // Prefixed: a card already has a `.state` (its ON/OFF) and the cell must not inherit it.
+      table.append(
+        el('span', 'intent-kind', t(INTENT_ROWS[row.intent])),
+        el('span', `intent-rung${settled ? ' settled' : ''}`, settled ? effortLabel(row.effort).toUpperCase() : '—'),
+        el('span', 'intent-n', String(row.n)),
+        el('span', `intent-state${settled ? ' settled' : ''}`, status),
+      );
+    }
+    block.append(table);
+    const judge = agent.summary.judge;
+    if (judge?.controls) block.append(el('p', 'note', t('JUDGE CAUGHT {caught} OF {n} CONTROLS · {status}', { caught: judge.caught, n: judge.controls, status: t(JUDGE_WORDS[judge.status]) })));
+    if (agent.spent) block.append(el('p', 'note', t('{n} tokens spent measuring', { n: agent.spent.toLocaleString() })));
+
+    if (!read.running) {
+      const row = el('div', 'actions');
+      const quick = el('button', 'primary', t('QUICK TEST · {n} TURNS', { n: agent.estimate.quick }));
+      quick.type = 'button';
+      quick.disabled = !agent.ready || !agent.estimate.quick || !read.enabled;
+      quick.addEventListener('click', async () => {
+        quick.disabled = true;
+        try {
+          await intentsPost('/api/intents/calibrate', { kind: 'quick', agent: agent.id, model: agent.model });
+          openIntentsWindow(true);
+        } catch (error) { toast(t('The test could not start: {error}', { error: error.message })); }
+        repaint();
+      });
+      // The full test spends real turns while nobody watches, so it asks twice: the first press
+      // says how many, the second spends them.
+      const full = el('button', null, t('FULL TEST · ~{n} TURNS', { n: agent.estimate.full }));
+      full.type = 'button';
+      full.disabled = !agent.ready || !agent.estimate.full || !read.enabled;
+      let armed = false;
+      full.addEventListener('click', async () => {
+        if (!armed) { armed = true; full.textContent = t('PRESS AGAIN TO SPEND ~{n} TURNS', { n: agent.estimate.full }); return; }
+        full.disabled = true;
+        try { await intentsPost('/api/intents/calibrate', { kind: 'full', agent: agent.id, model: agent.model }); } catch (error) { toast(t('The test could not start: {error}', { error: error.message })); }
+        repaint();
+      });
+      row.append(quick, full);
+      block.append(row);
+    }
+    box.append(block);
+  }
+
+  if (read.running) {
+    const run = read.running;
+    const live = el('div', 'intents-live');
+    live.append(el('p', 'note', t('{kind} TEST RUNNING · @{agent} · {turns} OF ~{estimate} TURNS', { kind: run.kind === 'quick' ? t('QUICK') : t('FULL'), agent: run.agent, turns: run.turns, estimate: run.estimate })));
+    // The human judges in the test's own window, over the room, not in here.
+    if (run.kind === 'quick') {
+      const open = el('button', 'primary', read.pending ? t('A PAIR IS WAITING FOR YOU · OPEN THE TEST') : t('OPEN THE TEST'));
+      open.type = 'button';
+      open.addEventListener('click', () => openIntentsWindow(true));
+      live.append(open);
+    }
+    const stop = el('button', null, t('STOP THE TEST'));
+    stop.type = 'button';
+    stop.addEventListener('click', async () => { stop.disabled = true; await intentsPost('/api/intents/stop').catch(() => null); repaint(); });
+    const row = el('div', 'actions');
+    row.append(stop);
+    live.append(row);
+    box.append(live);
+    // Followed while it runs and only while the card is on screen.
+    setTimeout(() => { if (box.isConnected) repaint(); }, 1500);
+  } else if (read.last) {
+    const last = read.last;
+    const how = last.kind === 'quick' && last.compared
+      ? t('Quick test {ending} · you saw no difference in {same} of {n}', { ending: t(RUN_ENDINGS[last.ended] ?? 'finished'), same: last.same, n: last.compared })
+      : t('{kind} test {ending} · {n} comparisons', { kind: last.kind === 'quick' ? t('Quick') : t('Full'), ending: t(RUN_ENDINGS[last.ended] ?? 'finished'), n: last.compared ?? 0 });
+    box.append(el('p', 'note', how));
+    if (last.kind === 'quick' && last.compared) box.append(el('p', 'note', t('A quick test is a first reading, not a measurement: no kind of question is settled by one or two cases.')));
+  }
+
+  if (read.offers?.shown) box.append(el('p', 'note', t('SUGGESTIONS TAKEN · {accepted} OF {shown}', { accepted: read.offers.accepted, shown: read.offers.shown })));
+}
+
+// One pair, judged blind: the question, the two answers in the order the room drew, and three
+// words. Nothing on screen says which rung wrote which, and the longer one is not the better one.
+function intentsPair(pending, repaint) {
+  const pair = el('div', 'intents-pair');
+  pair.append(el('p', 'note', t('QUESTION {step} OF {total} · {kind} · IS EITHER MISSING SOMETHING THAT MATTERS?', { step: pending.step, total: pending.total, kind: t(INTENT_ROWS[pending.intent] ?? 'EXPLANATION') })));
+  pair.append(el('p', 'intents-question', pending.question));
+  const answers = el('div', 'intents-answers');
+  for (const [label, text] of [[t('FIRST'), pending.first], [t('SECOND'), pending.second]]) {
+    const one = el('div', 'intents-answer');
+    one.append(el('b', null, label), el('div', 'text', text));
+    answers.append(one);
+  }
+  pair.append(answers);
+  const row = el('div', 'actions');
+  for (const [choice, label, tone] of [['first', t('THE FIRST'), null], ['same', t('THE SAME'), 'primary'], ['second', t('THE SECOND'), null]]) {
+    const button = el('button', tone, label);
+    button.type = 'button';
+    button.addEventListener('click', async () => {
+      for (const one of row.querySelectorAll('button')) one.disabled = true;
+      await intentsPost('/api/intents/answer', { choice }).catch((error) => toast(error.message));
+      repaint();
+    });
+    row.append(button);
+  }
+  pair.append(row, el('p', 'note', t('The order changes from one question to the next. Length does not count.')));
+  return pair;
+}
+
+// The quick test's own window, over the room, the way PERSONALIZE is: the human judges here, where
+// they already are, instead of in MU/TH/UR. It follows the run and ends with what it means in one
+// sentence: what is enough for which kind of request, and what MADRE will do about it.
+const INTENT_KINDS = { lookup: 'lookups', explain: 'explanations', review: 'reviews', diagnose: 'diagnoses', design: 'design questions' };
+const intentsWindow = { node: document.querySelector('#intents-window'), body: document.querySelector('#intents-body'), box: null, ready: false, timer: null };
+
+function intentsBoxFor() {
+  if (intentsWindow.box?.w && intentsWindow.box?.h) return intentsWindow.box;
+  const w = Math.min(760, window.innerWidth - 32);
+  const h = Math.min(640, window.innerHeight - 120);
+  return { x: Math.max(16, Math.round((window.innerWidth - w) / 2)), y: 72, w, h };
+}
+function placeIntentsWindow(box) {
+  if (!intentsWindow.node) return;
+  intentsWindow.box = clampWindowBox(box, { minW: 340, minH: 300 });
+  applyWindowBox(intentsWindow.node, intentsWindow.box);
+}
+function readyIntentsWindow() {
+  const node = intentsWindow.node;
+  if (!node || intentsWindow.ready) return;
+  intentsWindow.ready = true;
+  const head = node.querySelector('.custom-head');
+  const group = el('span', 'surface-modes');
+  const windowButton = el('button', 'surface-mode window');
+  windowButton.type = 'button';
+  windowButton.innerHTML = FLOAT_ICON; // trusted: our own SVG string
+  windowButton.setAttribute('aria-pressed', 'true');
+  windowButton.setAttribute('aria-label', t('Arrange the windows'));
+  windowButton.addEventListener('click', (event) => { event.stopPropagation(); showArrange(windowButton, { owner: () => node }); });
+  arrangeOnHover(windowButton, { owner: () => node });
+  group.append(windowButton);
+  const close = el('button', 'close', t('Close'));
+  close.type = 'button';
+  close.addEventListener('click', () => openIntentsWindow(false));
+  joinClose(group, close);
+  head.append(group);
+  node.addEventListener('pointerdown', () => bringWindowForward(node));
+  node.addEventListener('cancel', (event) => { event.preventDefault(); openIntentsWindow(false); });
+  carryWindowBy(head, node, { box: () => intentsWindow.box, place: placeIntentsWindow, done: () => {} });
+  windowEdgesFor(node, { box: () => intentsWindow.box, place: placeIntentsWindow, done: () => {}, minW: 340, minH: 300 });
+}
+function openIntentsWindow(open) {
+  const node = intentsWindow.node;
+  if (!node) return;
+  if (open) {
+    readyIntentsWindow();
+    if (!node.open) { if (DIALOG) DIALOG.show.call(node); else node.show?.(); node.classList.add('entering'); setTimeout(() => node.classList.remove('entering'), motion(460)); }
+    placeIntentsWindow(intentsBoxFor());
+    bringWindowForward(node);
+    paintIntentsWindow();
+  } else if (node.open) {
+    clearTimeout(intentsWindow.timer);
+    node.close();
+    dropWindow(node);
+  }
+}
+
+// What the run came to, in one sentence a person can act on.
+function intentsOutcome(last) {
+  const kinds = t(INTENT_KINDS[last.intent] ?? 'questions like these');
+  const level = last.settled ? effortLabel(last.settled).toUpperCase() : null;
+  if (last.ended === 'error') return t('The test could not finish: {error}', { error: last.error ?? '' });
+  if (last.ended === 'stopped') return t('The test was stopped. What it had not finished does not count.');
+  if (last.kind !== 'quick') return t('The full test finished: {n} comparisons. MODULES → INTENCIONES shows what each kind of request needs.', { n: last.compared ?? 0 });
+  if (level) return t('You saw no difference in {same} of {n} questions: {level} is enough for {kinds} in this project. From now on MADRE suggests it when you write one.', { same: last.same, n: last.compared, level, kinds });
+  if (last.worse) return t('You saw a difference in {worse} of {n} questions. MADRE does not suggest going lower for {kinds}.', { worse: last.worse, n: last.compared, kinds });
+  return t('You saw no difference in {same} of {n} questions. It is a first reading: there were not enough questions of one kind to settle it, and MADRE does not change anything because of it.', { same: last.same, n: last.compared });
+}
+
+async function paintIntentsWindow() {
+  const { node, body } = intentsWindow;
+  if (!node?.open || !body) return;
+  clearTimeout(intentsWindow.timer);
+  let read;
+  try {
+    read = await fetch(`/api/intents?models=${encodeURIComponent(JSON.stringify(state.chosenModel))}`).then((response) => response.json());
+  } catch {
+    body.replaceChildren(el('p', 'intents-note', t('INTENCIONES UNAVAILABLE')));
+    return;
+  }
+  if (!node.open) return;
+  const repaint = () => paintIntentsWindow();
+  const page = el('div', 'intents-page');
+  body.replaceChildren(page);
+  const run = read.running;
+  if (run) {
+    page.append(el('p', 'intents-lead', run.kind === 'quick'
+      ? t('@{agent} answers each question twice: at {from}, the level you use, and at {to}. You do not see which is which. Say whether one of them leaves out something that matters.', { agent: run.agent, from: effortLabel(run.reference).toUpperCase(), to: effortLabel(run.effort ?? run.reference).toUpperCase() })
+      : t('An agent that is not @{agent} is comparing the answers, and is checked before it is believed. It runs on its own: you can close this window.', { agent: run.agent })));
+    if (read.pending) page.append(intentsPair(read.pending, repaint));
+    else page.append(el('p', 'intents-note', t('ASKING BOTH LEVELS · THE NEXT PAIR IS ON ITS WAY')));
+    const stop = el('button', 'intents-quiet', t('STOP THE TEST'));
+    stop.type = 'button';
+    stop.addEventListener('click', async () => { stop.disabled = true; await intentsPost('/api/intents/stop').catch(() => null); repaint(); });
+    const row = el('div', 'actions');
+    row.append(stop);
+    page.append(row);
+    // Not redrawn while a pair waits: that would throw away where the human was reading.
+    if (!read.pending) intentsWindow.timer = setTimeout(repaint, 1500);
+    return;
+  }
+  page.append(el('p', 'intents-verdict', read.last ? intentsOutcome(read.last) : t('No test is running. One starts from the line under the box, or from MODULES → INTENCIONES.')));
+  const back = el('button', 'custom-accept', t('BACK TO THE ROOM'));
+  back.type = 'button';
+  back.addEventListener('click', () => openIntentsWindow(false));
+  const row = el('div', 'actions');
+  row.append(back);
+  page.append(row);
+}
+
 function builtinCard(item) {
   const on = Boolean(item.status?.installed);
   const fixed = Boolean(item.fixed);
@@ -10039,6 +10470,9 @@ function builtinCard(item) {
     actions.append(open, toggle);
     return card;
   }
+
+  // Its reading and its tests, above the ordinary switch.
+  if (item.id === 'intents') intentsReading(panel);
 
   if (item.preflight && !item.preflight.ok) {
     const warn = el('div', 'confirm');

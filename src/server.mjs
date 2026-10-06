@@ -972,6 +972,26 @@ export async function createPulseServer({
       services: {
         imageKey,
         setImageModule,
+        // Intenciones keeps its measurements beside the project's room, reads the open
+        // conversation, and asks agents through the same bench EYECAT and the archivist draw on.
+        intents: {
+          roomDir,
+          events: () => store.readAll(),
+          bench: () => room.bench(),
+          // The questions to calibrate with are the project's, not one conversation's: a new
+          // conversation would otherwise have nothing to ask. Only what was said is read.
+          projectEvents: async () => {
+            const said = [];
+            for (const chat of (await listChats(roomDir)).chats) {
+              const text = await readFile(chatLedger(roomDir, chat.id), 'utf8').catch(() => '');
+              for (const line of text.split('\n')) {
+                if (!line.includes('"message.created"')) continue;
+                try { const event = JSON.parse(line); if (event.type === 'message.created') said.push(event); } catch { /* a torn last line */ }
+              }
+            }
+            return said;
+          },
+        },
         // What a card knows about being up to date. Reading is free: it answers from the day's
         // cache. The button on a card is what forces a look outside.
         moduleUpdate: (item, { force = false, cacheOnly = !force } = {}) => moduleUpdate(item, {
