@@ -5133,9 +5133,6 @@ dialog.custom-window::backdrop { display: none; }
   background-image: linear-gradient(180deg, rgba(255, 255, 255, .75), rgba(255, 255, 255, 0) 55%);
   box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(20, 30, 20, .06), inset 1px 0 0 rgba(255, 50, 150, .09), inset -1px 0 0 rgba(30, 170, 240, .09), 0 10px 28px -16px rgba(20, 30, 20, .3);
 }
-.composer .field:active { transform: translateY(1px) scale(.996); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .08), 0 4px 12px -8px rgba(0, 0, 0, .5); }
-:root[data-scheme="light"] .composer .field:active { box-shadow: inset 0 2px 6px rgba(20, 30, 20, .12), inset 0 1px 0 rgba(255, 255, 255, .7), 0 4px 12px -10px rgba(20, 30, 20, .25); }
-@media (prefers-reduced-motion: reduce) { .composer .field:active { transform: none; } }
 
 /* ---------- Mode, model and effort: flush left with the sphere and the box ---------- */
 .composer > .pick-options { padding-left: 0; }
@@ -5195,16 +5192,205 @@ dialog.custom-window::backdrop { display: none; }
 :root[data-scheme="light"][data-wallpaper] #messages .in-view :is(.who, .col > .stamp, .col > .memory-hint .lead),
 :root[data-scheme="light"][data-wallpaper] #messages .in-view:is(.settled) :is(.settled-lead, .settled-note) { background-color: rgba(255, 255, 255, .66); }
 
-/* The box sinks inward when you click into it — its size untouched: it settles a little lower, its
-   lift goes and its inside shades from the top edge, the way a key reads pressed — all of it with
-   everything inside, and it stays so while you write; it rises again when you leave it. */
-.composer .field { transform-origin: 50% 50%; }
-.composer .field:active { transform: none; }
-.composer .field:focus-within { transform: translateY(2px); }
-:root[data-scheme] .shell .composer .field:focus-within {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mode) 12%, transparent), inset 0 4px 12px rgba(0, 0, 0, .45), inset 0 1px 3px rgba(0, 0, 0, .35), 0 1px 2px -1px rgba(0, 0, 0, .4);
+
+/* ==========================================================================================
+   SOLID BAR AND BOX; A PRESS THAT NEITHER MOVES NOR RESIZES
+   ========================================================================================== */
+/* The bar and the box you write in are the room's two fixed pieces: nearly solid now, the
+   wallpaper only a breath behind them. */
+.shell > .bar, :root[data-wallpaper] .shell > .bar { background-color: color-mix(in srgb, var(--bg) 93%, transparent); }
+:root[data-scheme="light"] .shell > .bar, :root[data-scheme="light"][data-wallpaper] .shell > .bar { background-color: color-mix(in srgb, #ffffff 94%, transparent); }
+.composer .field { background-color: color-mix(in srgb, var(--panel) 96%, transparent); }
+:root[data-scheme="light"] .composer .field { background-color: color-mix(in srgb, #ffffff 97%, transparent); }
+
+/* The box's outline is the sum of two things that never change size: the ring of its mode, when
+   the mode has one (CREATE, CONTROL, AIRLOCK, a file being dropped), and its own lift. Clicking into
+   it adds only shade inside, from the top edge down, as a key reads pressed: it stays where it is,
+   as big as it is. */
+.composer .field { --ring: 0 0 #0000; --press: 0 0 #0000; transform: none; }
+.composer.creating .field { --ring: 0 0 0 3px color-mix(in srgb, var(--mode-2) 18%, transparent); }
+.composer.creating.ordering .field { --ring: 0 0 0 3px color-mix(in srgb, var(--mode-2) 18%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--brew) 45%, transparent); }
+.composer.control .field { --ring: 0 0 0 3px color-mix(in srgb, var(--terror) 16%, transparent); }
+.composer.airlock .field { --ring: 0 0 0 3px color-mix(in srgb, var(--mode-4) 16%, transparent); }
+.composer.dropping .field { --ring: 0 0 0 3px color-mix(in srgb, var(--phosphor) 16%, transparent); }
+:root[data-scheme="light"] .composer.creating .field, :root[data-scheme="light"] .composer.creating.ordering .field { --ring: 0 0 0 2px color-mix(in srgb, var(--mode-2) 30%, transparent); }
+:root[data-scheme="light"] .composer.control .field { --ring: 0 0 0 2px color-mix(in srgb, var(--terror) 30%, transparent); }
+:root[data-scheme="light"] .composer.airlock .field { --ring: 0 0 0 2px color-mix(in srgb, var(--mode-4) 35%, transparent); }
+:root[data-scheme="light"] .composer.dropping .field { --ring: 0 0 0 2px color-mix(in srgb, var(--phosphor) 35%, transparent); }
+:root[data-scheme="light"] .composer.module-command .field { --ring: 0 0 0 2px color-mix(in srgb, var(--module-electric) 34%, transparent); }
+.composer .field:focus-within { --press: inset 0 4px 12px rgba(0, 0, 0, .42), inset 0 1px 3px rgba(0, 0, 0, .3); }
+:root[data-scheme="light"] .composer .field:focus-within { --press: inset 0 4px 12px rgba(20, 30, 20, .16), inset 0 1px 3px rgba(20, 30, 20, .14); }
+:root[data-scheme] .shell .composer .field, :root[data-scheme] .shell .composer .field:focus-within {
+  transform: none;
+  box-shadow: var(--ring), var(--press), inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -1px 0 rgba(0, 0, 0, .3), inset 1px 0 0 rgba(255, 92, 170, .1), inset -1px 0 0 rgba(90, 210, 255, .1), 0 10px 28px -14px rgba(0, 0, 0, .55);
 }
-:root[data-scheme="light"] .shell .composer .field:focus-within {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mode) 14%, transparent), inset 0 4px 12px rgba(20, 30, 20, .18), inset 0 1px 3px rgba(20, 30, 20, .14), 0 1px 2px -1px rgba(20, 30, 20, .15);
+:root[data-scheme="light"] .shell .composer .field, :root[data-scheme="light"] .shell .composer .field:focus-within {
+  box-shadow: var(--ring), var(--press), inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(20, 30, 20, .06), inset 1px 0 0 rgba(255, 50, 150, .09), inset -1px 0 0 rgba(30, 170, 240, .09), 0 10px 28px -16px rgba(20, 30, 20, .3);
 }
-@media (prefers-reduced-motion: reduce) { .composer .field:focus-within { transform: none; } }
+:root[data-scheme] .shell .composer.ghost .field { box-shadow: var(--press); }
+
+/* SIGUE ABIERTO AQUÍ can be put away: a small × beside its heading, quiet until the pointer finds it. */
+.openq-head { display: inline-flex; align-items: center; gap: 6px; }
+.openq-close { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-3); cursor: pointer; opacity: .75; transition: opacity var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out); }
+.openq-close svg { width: 12px; height: 12px; }
+.openq-close:hover, .openq-close:focus-visible { opacity: 1; color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
+:root[data-wallpaper] .openq-close { color: var(--text-2); background: color-mix(in srgb, var(--bg) 62%, transparent); }
+
+/* The box you write in is solid: one colour, no light falling down its face. */
+:root[data-scheme] .shell .composer .field { background-image: none; }
+
+/* ---------- The starters on an empty room, as the small print's glass ---------- */
+#messages .empty-starts .empty-start {
+  border: 0; color: var(--text);
+  background-color: color-mix(in srgb, var(--bg) 62%, transparent);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 50%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.8) brightness(1.04) !important; backdrop-filter: blur(18px) saturate(1.8) brightness(1.04) !important;
+  box-shadow: 0 0 0 .5px color-mix(in srgb, var(--text) 12%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12), inset 1px 0 0 rgba(255, 92, 170, .07), inset -1px 0 0 rgba(90, 210, 255, .07), 0 6px 16px -10px rgba(0, 0, 0, .45);
+}
+#messages .empty-starts .empty-start:hover { background-color: color-mix(in srgb, var(--bg) 74%, transparent); }
+:root[data-scheme="light"] #messages .empty-starts .empty-start {
+  background-color: rgba(255, 255, 255, .66);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, 0) 50%);
+  box-shadow: 0 0 0 .5px rgba(20, 30, 20, .1), inset 0 1px 0 #ffffff, inset 1px 0 0 rgba(255, 50, 150, .07), inset -1px 0 0 rgba(30, 170, 240, .07), 0 6px 16px -12px rgba(20, 30, 20, .25);
+}
+:root[data-scheme="light"] #messages .empty-starts .empty-start:hover { background-color: rgba(255, 255, 255, .8); }
+
+/* ---------- Buttons in the room's lines: one colour, start to finish ----------
+   MEDIRLO CONTRA ESTA SALA and its kin showed a pink and cyan rim at rest and the accent under the
+   pointer: two looks for one button. They wear their own colour from the start now — the accent
+   for the local model's choices — on clear glass with a rim of that colour; the pointer only
+   deepens the fill. */
+#messages .system.local-model button { color: var(--phosphor); }
+:root[data-scheme="light"] #messages .system.local-model button { color: color-mix(in srgb, var(--phosphor) 60%, #000000); }
+#messages .system :is(.claim-act, .cmd), #messages .system:is(.lease, .escalation, .local-model) button {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor var(--glass-rim), transparent), inset 0 1px 0 rgba(255, 255, 255, .08), 0 6px 18px -10px rgba(0, 0, 0, .4);
+}
+:root[data-scheme="light"] #messages .system :is(.claim-act, .cmd), :root[data-scheme="light"] #messages .system:is(.lease, .escalation, .local-model) button {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor var(--glass-rim), transparent), inset 0 1px 0 rgba(255, 255, 255, .7), 0 6px 18px -12px rgba(20, 30, 20, .3);
+}
+
+/* ---------- The bar's buttons under the pointer: a shine on the edge, nothing more ----------
+   They answered with a halo three pixels wide on top of an accent border — two outlines, and not
+   the same on every button. Now every one of them does the same quiet thing: the drawing takes the
+   accent and the edge catches a thin line of it, inside the button, with no glow around it. */
+:root[data-scheme] .bar > :is(.tree-button, .mother-button, .bar-icon):hover {
+  color: var(--phosphor);
+  border-color: color-mix(in srgb, var(--phosphor) 42%, var(--line-2));
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--phosphor) 28%, transparent), inset 0 1px 0 rgba(255, 255, 255, .07);
+}
+:root[data-scheme="light"] .bar > :is(.tree-button, .mother-button, .bar-icon):hover {
+  color: color-mix(in srgb, var(--phosphor) 70%, #000000);
+  border-color: color-mix(in srgb, var(--phosphor) 45%, var(--line-2));
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--phosphor) 25%, transparent), inset 0 1px 0 rgba(255, 255, 255, .85);
+}
+:root[data-scheme] .bar > :is(.tree-button, .mother-button, .bar-icon):hover svg { transform: none; }
+:root[data-scheme] .shell > .chats-button:hover {
+  box-shadow:
+    0 0 0 .5px color-mix(in srgb, var(--phosphor) 45%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .22), inset 0 -1.5px 0 rgba(0, 0, 0, .35),
+    0 1px 1px rgba(0, 0, 0, .3), 0 6px 14px -6px rgba(0, 0, 0, .55), 0 18px 34px -16px rgba(0, 0, 0, .6);
+}
+:root[data-scheme="light"] .shell > .chats-button:hover {
+  box-shadow:
+    0 0 0 .5px color-mix(in srgb, var(--phosphor) 45%, transparent),
+    inset 0 1px 0 #ffffff, inset 0 -1.5px 0 rgba(20, 30, 20, .1),
+    0 1px 1px rgba(20, 30, 20, .08), 0 6px 14px -6px rgba(20, 30, 20, .22), 0 18px 34px -16px rgba(20, 30, 20, .28);
+}
+:root[data-scheme] .shell > .chats-button:hover svg { transform: none; }
+
+/* ==========================================================================================
+   BUBBLES, PLAIN AND SOLID
+   ------------------------------------------------------------------------------------------
+   The simplest bubble reads best on any wallpaper: a solid sheet, a small even radius, a hairline
+   of shadow under it and nothing else — no glass, no light running down its face, no coloured rims.
+   The reply is white on light and the room's bubble colour on dark; your own keeps its accent.
+   ========================================================================================== */
+:root[data-scheme] :is(#messages, .look-preview) .row:is(.assistant, .user, .thinking) .bubble {
+  border-radius: 8px;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: 0 1px .5px rgba(0, 0, 0, .35);
+}
+:root[data-scheme] :is(#messages, .look-preview) .row:is(.assistant, .thinking) .bubble { background-color: var(--bubble); }
+:root[data-scheme="light"] :is(#messages, .look-preview) .row:is(.assistant, .user, .thinking) .bubble { box-shadow: 0 1px .5px rgba(11, 20, 26, .13); }
+:root[data-scheme="light"] :is(#messages, .look-preview) .row:is(.assistant, .thinking) .bubble { background-color: #ffffff; }
+.look-preview[data-scheme="dark"] .row:is(.assistant, .thinking) .bubble { background-color: var(--bubble) !important; box-shadow: 0 1px .5px rgba(0, 0, 0, .35) !important; }
+.look-preview[data-scheme="light"] .row:is(.assistant, .thinking) .bubble { background-color: #ffffff !important; box-shadow: 0 1px .5px rgba(11, 20, 26, .13) !important; }
+
+/* ---------- A new room's welcome, on a card ----------
+   On a busy wallpaper the mark, the line and the three openings lost their strength standing
+   loose. They sit together on one card of the small print's glass now, and the three openings are
+   rows inside it — a tint and a hairline, not a second pane of glass. */
+#messages .empty {
+  max-width: 540px; width: min(540px, 100%); padding: 26px 24px 20px; border-radius: 22px;
+  color: var(--text-2);
+  background-color: color-mix(in srgb, var(--bg) 62%, transparent);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0) 40%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.8) brightness(1.04); backdrop-filter: blur(18px) saturate(1.8) brightness(1.04);
+  box-shadow: 0 0 0 .5px color-mix(in srgb, var(--text) 12%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12), inset 1px 0 0 rgba(255, 92, 170, .07), inset -1px 0 0 rgba(90, 210, 255, .07), 0 14px 34px -18px rgba(0, 0, 0, .55);
+}
+:root[data-scheme="light"] #messages .empty {
+  background-color: rgba(255, 255, 255, .72);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, 0) 40%);
+  box-shadow: 0 0 0 .5px rgba(20, 30, 20, .1), inset 0 1px 0 #ffffff, inset 1px 0 0 rgba(255, 50, 150, .07), inset -1px 0 0 rgba(30, 170, 240, .07), 0 14px 34px -20px rgba(20, 30, 20, .3);
+}
+#messages .empty-starts .empty-start {
+  background-color: color-mix(in srgb, var(--text) 5%, transparent); background-image: none;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--text) 14%, transparent);
+}
+#messages .empty-starts .empty-start:hover { background-color: color-mix(in srgb, var(--text) 9%, transparent); }
+:root[data-scheme="light"] #messages .empty-starts .empty-start { background-color: rgba(20, 30, 20, .04); background-image: none; box-shadow: inset 0 0 0 .5px rgba(20, 30, 20, .12); }
+:root[data-scheme="light"] #messages .empty-starts .empty-start:hover { background-color: rgba(20, 30, 20, .07); }
+
+/* ---------- MEDIRLO and its kin: one rim, and the pointer only deepens the fill ----------
+   The rim and a lit top line read as two borders under the pointer. One rim now, the same at rest
+   and under the pointer, and the button does not move. */
+#messages .system :is(.claim-act, .cmd), #messages .system:is(.lease, .escalation, .local-model) button,
+:root[data-scheme="light"] #messages .system :is(.claim-act, .cmd), :root[data-scheme="light"] #messages .system:is(.lease, .escalation, .local-model) button {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 45%, transparent);
+}
+#messages .system :is(.claim-act, .cmd):is(:hover, :active):not(:disabled), #messages .system:is(.lease, .escalation, .local-model) button:is(:hover, :active):not(:disabled) {
+  transform: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 45%, transparent);
+  background-color: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+/* ==========================================================================================
+   THE DESKTOP RECEDES BEHIND A VEIL, NOT A FILTER
+   ------------------------------------------------------------------------------------------
+   While windows float, the desktop softens behind one veil placed between it and them (windows
+   live at 30–49, the veil at 20). A filter on the conversation or the bar turned off the glass of
+   every bubble and line inside it; the veil blurs what is under it and leaves that glass intact.
+   The conversations — their panel and their handle — stand above the veil: they are how you move
+   between rooms, and they stay sharp whatever floats.
+   ========================================================================================== */
+:root.desk-behind .shell > :is(.bar, .chats-button, #messages, .onboarding, .composer, .safety, .colophon, .tree:not(.window), .browser-dock:not(.window), .split-dock, dialog.surface.split) { filter: none; }
+:root[data-wallpaper].desk-behind .shell::before { filter: blur(var(--wp-blur-on, 0px)); }
+.desk-veil {
+  position: fixed; inset: 0; z-index: 20; pointer-events: none; opacity: 0;
+  -webkit-backdrop-filter: blur(calc(var(--desk-depth, 1) * .4px)) saturate(calc(1 - var(--desk-depth, 1) * .06)) brightness(calc(1 - var(--desk-depth, 1) * .03));
+  backdrop-filter: blur(calc(var(--desk-depth, 1) * .4px)) saturate(calc(1 - var(--desk-depth, 1) * .06)) brightness(calc(1 - var(--desk-depth, 1) * .03));
+  transition: opacity calc(380ms * var(--motion-scale)) var(--ease-glide);
+}
+:root.desk-behind .desk-veil { opacity: 1; }
+.shell > .chats-button, .shell > .tree.chats:not(.window) { z-index: 25; }
+@media (prefers-reduced-motion: reduce) { .desk-veil { transition: none; } }
+.split-pane .desk-veil { display: none; }
+
+/* ---------- Windows cast a soft parallel shadow ----------
+   Beside the shadow that falls straight under each window, a second one, very soft, offset down
+   and to the right as if the light came from the upper left: the window reads as a plane standing
+   off the room, not a sticker on it. */
+:is(.tree.window, dialog.surface.window, .conv-window, .browser-dock.window) {
+  box-shadow: var(--bevel), 0 1px 2px rgba(0, 0, 0, .3), 0 10px 24px -10px rgba(0, 0, 0, .45), 0 30px 70px -30px rgba(0, 0, 0, .6), 18px 24px 56px -26px rgba(0, 0, 0, .32);
+}
+:is(.tree.window, dialog.surface.window, .conv-window, .browser-dock.window).front {
+  box-shadow: var(--bevel), 0 2px 3px rgba(0, 0, 0, .32), 0 16px 34px -12px rgba(0, 0, 0, .55), 0 48px 110px -36px rgba(0, 0, 0, .75), 22px 30px 64px -28px rgba(0, 0, 0, .36);
+}
+:root[data-scheme="light"] :is(.tree.window, dialog.surface.window, .conv-window, .browser-dock.window) {
+  box-shadow: var(--bevel), 0 1px 2px rgba(20, 30, 20, .08), 0 10px 24px -12px rgba(20, 30, 20, .2), 0 30px 70px -32px rgba(20, 30, 20, .3), 18px 24px 56px -28px rgba(20, 30, 20, .16);
+}
+:root[data-scheme="light"] :is(.tree.window, dialog.surface.window, .conv-window, .browser-dock.window).front {
+  box-shadow: var(--bevel), 0 2px 3px rgba(20, 30, 20, .1), 0 16px 34px -14px rgba(20, 30, 20, .26), 0 48px 110px -40px rgba(20, 30, 20, .38), 22px 30px 64px -30px rgba(20, 30, 20, .2);
+}

@@ -1198,6 +1198,7 @@ export const ES = {
   'memory used · {n}': 'memoria usada · {n}',
   'Show the memories this reply used': 'Ver las memorias que usó esta respuesta',
   'Layer': 'Capa',
+  'Hide these questions': 'Ocultar estas preguntas',
   'Choose who you write to': 'Elige a quién le escribes',
   'Read 8 exchanges and kept 5 memories.': 'Leyó 8 intercambios y se quedó con 5 memorias.',
   'Nothing left to stop: this alert is history.': 'Ya no queda nada que parar: este aviso es historial.',

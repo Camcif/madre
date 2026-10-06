@@ -3276,6 +3276,8 @@ function iconButton(svg, title, className) {
 const ICON_GOOD = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 7.5v5.5H3.2a.7.7 0 0 1-.7-.7V8.2a.7.7 0 0 1 .7-.7h2.3Zm0 0 2.6-4.6a1.3 1.3 0 0 1 2.4.8L10 6.8h2.6a1.3 1.3 0 0 1 1.3 1.5l-.8 3.9a1.3 1.3 0 0 1-1.3 1H5.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
 const ICON_BAD = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 8.5V3H12.8a.7.7 0 0 1 .7.7v4.1a.7.7 0 0 1-.7.7h-2.3Zm0 0-2.6 4.6a1.3 1.3 0 0 1-2.4-.8L6 9.2H3.4a1.3 1.3 0 0 1-1.3-1.5l.8-3.9A1.3 1.3 0 0 1 4.2 3h6.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
 const ICON_PREFER = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7.45 2.7c.22-.45.88-.45 1.1 0l1.3 2.65 2.92.43c.5.07.7.69.34 1.04l-2.12 2.06.5 2.9c.09.5-.44.88-.89.65L8 11.06l-2.6 1.37c-.45.23-.98-.15-.89-.65l.5-2.9-2.12-2.06c-.36-.35-.16-.97.34-1.04l2.92-.43z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// A small ×, in the same round line, for an aside that can be put away.
+const ICON_CLOSE_SMALL = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 // An open question: a circle and its question mark, in the same round line as the rest.
 const ICON_ASK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.3 6.4a1.75 1.75 0 1 1 2.55 1.55c-.5.27-.85.62-.85 1.2v.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 11.2v.05" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
 const ICON_NEVER = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12 12 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -4387,8 +4389,24 @@ async function renderOpenQuestions() {
   try { questions = (await fetch('/api/questions?limit=3').then((response) => response.json()))?.questions ?? []; }
   catch { return; }
   if (!questions.length) { box.hidden = true; return; }
+  // Closed with its ×, the row stays closed for these same questions; a new one opens it again.
+  const signature = questions.map((question) => question.text).join('\n');
+  let dismissed = null;
+  try { dismissed = localStorage.getItem('pulse.openqDismissed'); } catch { /* no storage */ }
+  if (dismissed === signature) { box.hidden = true; return; }
   box.replaceChildren();
-  box.append(el('span', 'openq-lead', t('◉ still open here')));
+  const head = el('div', 'openq-head');
+  const close = el('button', 'openq-close');
+  close.type = 'button';
+  close.title = t('Hide these questions');
+  close.setAttribute('aria-label', t('Hide these questions'));
+  close.innerHTML = ICON_CLOSE_SMALL;
+  close.addEventListener('click', () => {
+    try { localStorage.setItem('pulse.openqDismissed', signature); } catch { /* closed for this page only */ }
+    box.hidden = true;
+  });
+  head.append(el('span', 'openq-lead', t('◉ still open here')), close);
+  box.append(head);
   // The pills live in a track of their own so the row can scroll sideways instead of stacking:
   // these are an aside under the thread, and an aside that grows downwards pushes the composer.
   const rail = el('div', 'openq-rail');
@@ -6258,6 +6276,12 @@ function bringWindowForward(node) {
 // close, and is gone the moment the last one is.
 let deskFocus = false;
 const OVERLAP = 24;
+// The desktop recedes behind one veil that sits between it and the windows, instead of a filter
+// on each of its pieces: a filter on a piece turns off the glass of everything inside it, which is
+// why the bubbles and the room's lines went flat whenever a window was open.
+const deskVeil = el('div', 'desk-veil');
+deskVeil.setAttribute('aria-hidden', 'true');
+document.body.append(deskVeil);
 function covers(a, b) {
   const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
   const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
