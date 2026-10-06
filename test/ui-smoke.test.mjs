@@ -628,3 +628,151 @@ test('the archive settles into the shape of a brain, not a ball', async () => {
     assert.ok(r > 0.5 && r < 1.3, `the outline is ${r.toFixed(2)} at ${deg}°`);
   }
 });
+
+test('Intenciones speaks under the box only with a reason, marks the chip, and its card shows what was measured', async () => {
+  const { state, syncIntentOffer, moduleCard } = globalThis.__pulse;
+  const previous = globalThis.fetch;
+  const posted = [];
+  const reading = (extra = {}) => ({
+    enabled: true,
+    agents: [{
+      id: 'codex', label: 'Codex', model: null, reference: 'high', ready: true, version: 'test', spent: 41000,
+      ladder: ['minimal', 'low', 'medium', 'high', 'xhigh'],
+      cases: { lookup: 4, explain: 3, review: 2, diagnose: 0, design: 1 },
+      estimate: { quick: 12, full: 40 },
+      summary: {
+        totals: { compared: 18, worse: 3, same: 15, better: 0, skipped: 0 },
+        judge: { controls: 6, caught: 6, status: 'trusted' },
+        intents: [
+          { intent: 'lookup', n: 12, effort: 'low', status: 'measured', next: null },
+          { intent: 'explain', n: 6, effort: null, status: 'open', next: 'medium' },
+          { intent: 'review', n: 0, effort: null, status: 'open', next: 'medium' },
+          { intent: 'diagnose', n: 0, effort: null, status: 'open', next: 'medium' },
+          { intent: 'design', n: 8, effort: 'high', status: 'measured', next: null },
+        ],
+      },
+    }],
+    running: null, pending: null, last: null, offers: { shown: 4, accepted: 3 },
+    ...extra,
+  });
+  let view = reading();
+  globalThis.fetch = async (url, init = {}) => {
+    const body = init.body ? JSON.parse(init.body) : null;
+    if (url === '/api/intents/suggest') {
+      posted.push(['suggest', body]);
+      return { ok: true, json: async () => ({ suggestion: { agent: 'codex', model: null, intent: 'diagnose', cues: [], effort: 'high', from: 'low', direction: 'raise', basis: 'rule', signals: [], measured: null, saving: null } }) };
+    }
+    if (String(url).startsWith('/api/intents/')) { posted.push([url, body]); return { ok: true, json: async () => ({ ok: true }) }; }
+    if (String(url).startsWith('/api/intents')) return { ok: true, json: async () => view };
+    return previous(url, init);
+  };
+  try {
+    // Codex on its lightest everyday rung, asked to hunt a failure.
+    state.efforts.codex = { levels: ['minimal', 'low', 'medium', 'high', 'xhigh'], default: 'medium', model: null, byModel: null, shared: null };
+    registry.get('target').value = 'codex';
+    state.chosenEffort.codex = 'low';
+    registry.get('free-offer').hidden = true;
+    registry.get('message').value = 'explica por qué falla la prueba de memoria';
+    await syncIntentOffer();
+    const offer = registry.get('intent-offer');
+    assert.equal(offer.hidden, false, 'the offer did not appear');
+    assert.ok(offer.classList.contains('up'), 'a raise is not drawn as a warning');
+    assert.match(offer.textContent, /Parece un diagnóstico/);
+    assert.match(offer.textContent, /SUBIR A ALTO/);
+    assert.deepEqual(posted[0][1], { text: 'explica por qué falla la prueba de memoria', agent: 'codex', model: null, effort: 'low', defaultEffort: 'medium', references: 0, attachments: 0 });
+    assert.deepEqual(state.intentHint, { agent: 'codex', direction: 'raise' }, 'the chip carries no mark');
+
+    // Taken: the rung changes, the offer goes, and the message that leaves counts it as taken.
+    offer.children.find((child) => child.className === 'free-go').listeners.click[0]();
+    assert.equal(state.chosenEffort.codex, 'high');
+    assert.equal(offer.hidden, true);
+    assert.equal(state.intentHint, null);
+    for (const listener of registry.get('composer').listeners.submit) {
+      try { await listener({ preventDefault() {} }); } catch { /* the room's own submit has nothing to send here */ }
+    }
+    assert.ok(posted.some(([url, body]) => url === '/api/intents/offer' && body.accepted === true), 'the taken offer was not counted');
+
+    // A high rung nobody measured: not advice, an invitation to measure, and "not now" is kept.
+    let invite = { agent: 'codex', model: null, intent: 'lookup', cues: [], effort: 'high', from: 'xhigh', direction: 'lower', basis: 'rule', signals: [], measured: null, saving: null, kind: 'invite', questions: 6, ofKind: 6 };
+    const suggestNow = globalThis.fetch;
+    globalThis.fetch = async (url, init = {}) => (url === '/api/intents/suggest' ? { ok: true, json: async () => ({ suggestion: invite }) } : suggestNow(url, init));
+    state.efforts.codex = { levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default: 'medium', model: null, byModel: null, shared: null };
+    state.chosenEffort.codex = 'xhigh';
+    registry.get('message').value = '¿dónde está definido el puerto por defecto?';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, false);
+    assert.match(offer.textContent, /Parece una búsqueda · ALTO suele bastar para esto, pero aún no lo medí en este proyecto/);
+    assert.match(offer.textContent, /AHORA NO/);
+    const measure = offer.children.find((child) => child.className === 'free-go');
+    assert.equal(measure.textContent, 'MEDIR · 6 PREGUNTAS');
+    assert.deepEqual(state.intentHint, { agent: 'codex', direction: 'lower' });
+    offer.children.find((child) => child.className === 'free-later').listeners.click[0]();
+    assert.equal(offer.hidden, true);
+    registry.get('message').value = '¿dónde está definido el puerto por defecto del servidor?';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, true, 'an invitation declined comes back on the next message');
+    // Another model is another question.
+    invite = { ...invite, model: 'gpt-5.6-luna' };
+    state.chosenModel.codex = 'gpt-5.6-luna';
+    registry.get('message').value = '¿dónde está definido el puerto por defecto, otra vez?';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, false);
+    await offer.children.find((child) => child.className === 'free-go').listeners.click[0]();
+    assert.ok(posted.some(([url, body]) => url === '/api/intents/calibrate' && body.kind === 'quick' && body.reference === 'xhigh' && body.effort === 'high' && body.intent === 'lookup' && body.model === 'gpt-5.6-luna'), 'MEASURE did not start the aimed quick test');
+    delete state.chosenModel.codex;
+    globalThis.fetch = suggestNow;
+
+    // Nothing to say about an agent whose CLI takes no effort.
+    delete state.efforts.codex;
+    registry.get('message').value = 'explica por qué falla la prueba de memoria otra vez';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, true);
+
+    // The card: one row per kind of question, the judge, the two tests with their price.
+    const item = { id: 'intents', kind: 'builtin', name: 'Intenciones', vendor: 'MADRE', version: '1.0.0', versionSource: 'declared', summary: 'Suggests…', creates: [], card: 'intents', runs: [], status: { installed: true, detail: 'on' }, preflight: { ok: true, problems: [] }, install: { display: '', platforms: [] } };
+    const card = moduleCard(item);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const text = card.textContent;
+    for (const said of ['LO QUE SE MIDIÓ AQUÍ', '@codex', 'BÚSQUEDA', 'BAJO', 'DISEÑO', 'abierto · 3 preguntas por hacer', 'medido · lo necesita', 'EL JUEZ ATRAPÓ 6 DE 6 CONTROLES · confiable', 'PRUEBA RÁPIDA · 12 TURNOS', 'PRUEBA COMPLETA · ~40 TURNOS', 'SUGERENCIAS TOMADAS · 3 DE 4']) {
+      assert.ok(text.includes(said), `the card does not say "${said}"`);
+    }
+
+    // During the quick test the card sends the human to the test's own window.
+    view = reading({ running: { kind: 'quick', agent: 'codex', reference: 'xhigh', effort: 'high', turns: 4, estimate: 12 }, pending: { step: 3, total: 6, intent: 'lookup', question: '¿dónde está el puerto?', first: 'En src/ports.mjs.', second: 'En la configuración.' } });
+    const live = moduleCard(item);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.match(live.textContent, /PRUEBA RÁPIDA EN CURSO · @codex · 4 DE ~12 TURNOS/);
+    assert.match(live.textContent, /UN PAR TE ESPERA · ABRIR LA PRUEBA/);
+    assert.doesNotMatch(live.textContent, /PREGUNTA 3 DE 6/, 'the pair is judged in the window, not in MU/TH/UR');
+
+    // The window, over the room: what is being compared in words a person reads, then the pair.
+    const node = registry.get('intents-window');
+    const head = new FakeElement('header'); head.className = 'custom-head'; node.append(head);
+    node.show = function show() { this.open = true; };
+    node.getClientRects = () => [{}];
+    node.style.removeProperty = (name) => { delete node.style[name]; };
+    // The window machinery paints depth on the root, which this small DOM never needed before.
+    document.documentElement ??= new FakeElement('html');
+    document.documentElement.style.removeProperty ??= (name) => { delete document.documentElement.style[name]; };
+    globalThis.requestAnimationFrame ??= (fn) => setTimeout(fn, 0);
+    globalThis.cancelAnimationFrame ??= (id) => clearTimeout(id);
+    globalThis.__pulse.openIntentsWindow(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const page = registry.get('intents-body');
+    assert.match(page.textContent, /@codex contesta cada pregunta dos veces: en MUY ALTO, el nivel que usas, y en ALTO/);
+    assert.match(page.textContent, /PREGUNTA 3 DE 6 · BÚSQUEDA/);
+    const same = page.querySelectorAll('.primary').find((button) => button.textContent === 'IGUAL');
+    assert.ok(same, 'there is no way to say the two answers are the same');
+    await same.listeners.click[0]();
+    assert.ok(posted.some(([url, body]) => url === '/api/intents/answer' && body.choice === 'same'));
+
+    // When it ends, one sentence that says what it means and what MADRE will do.
+    view = reading({ last: { kind: 'quick', agent: 'codex', intent: 'lookup', effort: 'high', settled: 'high', ended: 'done', compared: 6, same: 6, worse: 0 } });
+    globalThis.__pulse.openIntentsWindow(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.match(page.textContent, /No viste diferencia en 6 de 6 preguntas: ALTO basta para búsquedas en este proyecto/);
+    globalThis.__pulse.openIntentsWindow(false);
+  } finally {
+    globalThis.fetch = previous;
+  }
+});

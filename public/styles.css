@@ -2086,6 +2086,36 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .free-offer .free-go { flex: none; border: 1px solid var(--brew); background: transparent; color: var(--brew); font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .12em; padding: 6px 12px; border-radius: 7px; cursor: pointer; }
 .free-offer .free-go:hover { background: color-mix(in srgb, var(--brew) 16%, transparent); }
 @media (max-width: 720px) { .free-offer { flex-wrap: wrap; } }
+/* Intenciones: the same shelf as the @madre offer, in the room's accent when a cheaper rung was
+   measured to be enough and in the warning ink when the rung chosen looks too light. */
+.intent-offer { --tone: var(--phosphor); border-color: var(--tone); background: color-mix(in srgb, var(--tone) 7%, transparent); }
+.intent-offer.up { --tone: var(--warn); }
+.intent-offer .free-go { border-color: var(--tone); color: var(--tone); }
+.intent-offer .free-go:hover { background: color-mix(in srgb, var(--tone) 16%, transparent); }
+.intent-offer .intent-basis { flex: none; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; padding: 2px 7px; border-radius: 5px; border: 1px solid color-mix(in srgb, var(--tone) 50%, transparent); color: var(--tone); }
+.picker .effort-chip .intent-mark { color: var(--phosphor); font-size: 11px; line-height: 1; }
+.picker .effort-chip .intent-mark.up { color: var(--warn); }
+/* An invitation asks before it advises: a quieter "not now" beside the button that measures. */
+.intent-offer .free-later { flex: none; border: 0; background: transparent; color: var(--text-2); font-family: var(--mono); font-size: 10px; letter-spacing: .12em; padding: 6px 8px; cursor: pointer; }
+.intent-offer .free-later:hover { color: var(--text); }
+/* The quick test's window: the room's own ink and reading type, so two answers read like answers. */
+dialog.intents-window { width: 760px; height: 640px; }
+.intents-body { overflow: auto; }
+.intents-page { display: grid; gap: 14px; padding: 18px 22px 22px; align-content: start; }
+.intents-page .intents-lead, .intents-page .intents-verdict { margin: 0; font-family: var(--read); font-weight: var(--read-weight); font-size: 14px; line-height: 1.55; color: var(--text); }
+.intents-page .intents-verdict { font-size: 16px; }
+.intents-page .note, .intents-page .intents-note { margin: 0; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--text-2); }
+.intents-page .intents-pair { display: grid; gap: 12px; }
+.intents-page .intents-question { margin: 0; font-family: var(--read); font-size: 16px; line-height: 1.5; color: var(--text); }
+.intents-page .intents-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.intents-page .intents-answer { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.intents-page .intents-answer b { font-family: var(--mono); font-weight: 400; font-size: 10px; letter-spacing: .18em; color: var(--text-2); }
+.intents-page .intents-answer .text { max-height: 300px; overflow: auto; padding: 12px 14px; border-radius: 12px; background: var(--bubble); color: var(--bubble-ink); font-family: var(--read); font-weight: var(--read-weight); font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.intents-page .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.intents-page .actions button:not(.custom-accept) { height: 32px; padding: 0 16px; border: 1px solid var(--line-2); border-radius: 10px; background: transparent; color: var(--text); font-family: var(--mono); font-size: 10px; letter-spacing: .14em; cursor: pointer; }
+.intents-page .actions button.primary { border-color: var(--phosphor); color: var(--phosphor); }
+.intents-page .actions button:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.intents-page .actions button:disabled { opacity: .45; cursor: default; }
 .slash-menu { position: absolute; left: -12px; bottom: calc(100% + 14px); z-index: 30; min-width: 320px; max-width: min(580px, 92vw); border: 1px solid var(--line-2); background: var(--panel); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, .35); padding: 6px; display: grid; gap: 2px; }
 .slash-menu .item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: baseline; padding: 8px 10px; border-radius: 9px; cursor: pointer; border: 0; background: transparent; color: var(--text); text-align: left; font: inherit; }
 .slash-menu .item .key { font-family: var(--mono); font-size: 12.5px; color: var(--agent, var(--phosphor)); font-weight: 600; white-space: nowrap; }
@@ -2551,6 +2581,22 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .module-card .card-panel:empty, .module-card .actions:empty { display: none; }
 .module-card .card-block { display: grid; gap: 8px; }
 .module-card .card-block h5 { margin: 0; font-size: 9px; font-weight: 400; letter-spacing: .22em; color: var(--ph-dim); border: 0; padding: 0; }
+/* INTENCIONES: one table per agent, and the blind pair while the quick test waits for the human. */
+.module-card .intents-agent { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--ph-faint); }
+.module-card .intents-head { font-size: 10px; letter-spacing: .14em; color: var(--ph); }
+.module-card .intents-table { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr) 3ch minmax(0, 2fr); gap: 5px 10px; font-size: 9.5px; letter-spacing: .1em; color: var(--ph-dim); }
+.module-card .intents-table .settled { color: var(--ph); }
+/* The card keeps its lines on one line; this table's last column is a sentence and has to wrap. */
+.module-card .intents-agent, .module-card .intents-live { white-space: normal; }
+.module-card .intents-table > span { min-width: 0; overflow-wrap: anywhere; }
+.module-card .intents-table .intent-n { text-align: right; }
+.module-card .intents-live { display: grid; gap: 10px; }
+.module-card .intents-pair { display: grid; gap: 10px; }
+.module-card .intents-question { margin: 0; font-family: var(--read); font-weight: var(--read-weight); font-size: 14px; line-height: 1.5; color: var(--ph); text-transform: none; letter-spacing: 0; }
+.module-card .intents-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.module-card .intents-answer { display: grid; gap: 6px; align-content: start; }
+.module-card .intents-answer b { font-weight: 400; font-size: 9px; letter-spacing: .22em; color: var(--ph-dim); }
+.module-card .intents-answer .text { max-height: 260px; overflow: auto; padding: 10px 12px; border: 1px solid var(--ph-faint); font-family: var(--read); font-weight: var(--read-weight); font-size: 13px; line-height: 1.55; color: var(--ph); white-space: pre-wrap; text-transform: none; letter-spacing: 0; }
 .module-card .card-toggles { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
 .module-card .card-toggles .control { display: inline-flex; align-items: center; gap: 8px; font-size: 9.5px; letter-spacing: .14em; color: var(--ph-dim); }
 .module-card .card-toggles .control input[type="text"] { border: 1px solid var(--ph-dim); background: #000; color: var(--ph); font: inherit; font-size: 10.5px; letter-spacing: .04em; padding: 5px 8px; }
