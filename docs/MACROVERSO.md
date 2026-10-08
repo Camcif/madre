@@ -6,9 +6,10 @@ se anota aquí. Lo que toca procesos o rutas sigue además las reglas de `docs/W
 
 | | |
 |---|---|
-| Estado | **Fases 1 y 2 · hechas** (Salas en escritorio y el Macroverso para ver). 3 y 4 esperan decisiones |
-| Origen | Pedido del 2026-10-08, después de probar Salas en el teléfono |
-| Regla en vigor | Nada aquí cambia el núcleo de una sala (registro, memoria, modos). Un enlace lee; nunca escribe en otra sala |
+| Estado | **Fases 1 y 2 · hechas** (Salas en escritorio y el Macroverso para ver). **3 y 4 · encargadas**: D-S01..06 cerradas el 2026-10-08; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
+| Origen | Pedido del 2026-10-08, después de probar Salas en el teléfono; ampliado el mismo día (§1, puntos 6-8) |
+| Regla en vigor | Nada aquí cambia el núcleo de una sala (registro, memoria, modos). Un enlace lee; nunca escribe en otra sala. Una orden entra a una sala solo por la puerta que esa sala ya tiene para el humano |
+| Encargo | `docs/MACROVERSO-ENCARGO.md`: hechos verificados con `ruta:línea`, diseño, compuertas, pruebas y presupuestos de las fases 3 y 4. Este documento sigue siendo el único lugar de hallazgos (`S-0xx`), decisiones (`D-Sxx`) y bitácora |
 
 ---
 
@@ -26,6 +27,18 @@ se anota aquí. Lo que toca procesos o rutas sigue además las reglas de `docs/W
 4. El Macroverso **solo se entra desde Salas y solo en escritorio**. En el teléfono, una
    versión simple que no sature.
 5. Mantener el estilo de MADRE: coherencia visual, navegación y usabilidad primero.
+
+Ampliado el 2026-10-08, después de ver las fases 1 y 2:
+
+6. **El Macroverso se ve raro.** Cada proyecto es **un NOSTROMO** dentro del Macroverso, igual
+   que en su sala, y el lienzo es el espacio sideral, infinito.
+7. **El super agente es otro chat que se abre en Salas**, elegido por el humano, por defecto en
+   `#1`/`#2`: un meta-guardián al que se le pregunta todo sobre los proyectos, las decisiones y
+   los movimientos; crea planes, crea elementos y puede dirigir a otros agentes en `#3`/`#4`,
+   siempre cuidando la lógica, la protección de cada proyecto, las acciones y su seguimiento,
+   sin volver ruidosos los intercambios. Con canales, candados y puentes.
+8. Si `@madre` es el super agente: revisar qué permisos puede tener y cómo destila sus
+   propias memorias. El super agente **gobierna a todos desde Salas**: planes y órdenes.
 
 ---
 
@@ -63,6 +76,17 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-005** | Una sala con una MADRE anterior no tiene las rutas nuevas: Salas debe decirlo en vez de fallar | — | 1 | ARREGLADO |
 | **S-006** | Dos `madre start` a la vez pueden tomar el mismo puerto libre; hoy el segundo recibe `EADDRINUSE` y avanza. Se conserva | `bin/madre.mjs` | — | SIN CAMBIO |
 | **S-007** | Los módulos escribían en `config.json` todo su bloque `modules` tal como lo tenían en memoria: un cambio de otra sala a otro módulo se perdía. Ahora cada uno escribe solo su clave | `src/modules/*.mjs` | 1 | ARREGLADO |
+| **S-008** | `memory_note` guarda notas sin pasar por el guardia de privacidad (`openMemory` no llama a `attachPrivacy`); una nota así podría cruzar un enlace | `src/mcp/memory-server.mjs:74-84` | 3b | ABIERTO |
+| **S-009** | La llave de `#3`/`#4` se valida solo en el navegador; `POST /api/messages` acepta `#3` de un proceso local si el techo del agente lo permite. El canal de órdenes nunca manda ≥ `#3` | `src/override.mjs:3`, `src/server.mjs:2492-2524` | — | SIN CAMBIO |
+| **S-010** | El techo de modo (`scopes.<agente>.maxMode`) es por agente y por Mac, no por sala. El techo por sala vive en el contrato del enlace | `src/server.mjs:515-527` | — | SIN CAMBIO |
+| **S-011** | El regex de pasos de delegación ignora `@x #4:` en silencio | `src/directives.mjs:50` | — | ANOTADO |
+| **S-012** | El bloque `mode` del prompt dice «Read-only…» también en `#3` y `#4` | `src/room/prompt.mjs:98` | — | ANOTADO |
+| **S-013** | Purgar la privacidad reescribe solo el ledger de la conversación abierta. Falta verificar que limpia la tabla `memories`, que es lo que cruza un enlace | `src/room.mjs:660`, `src/memory.mjs:333-370` | 3b | VERIFICAR |
+| **S-014** | En tema claro el Macroverso, siempre oscuro, recibe el acento claro | `public/salas-mac.js:258-264` | 3a | ABIERTO |
+| **S-015** | `FOCUS_ZOOM` se usa antes de declararse; hoy no falla por el orden de las llamadas | `public/macroverso.js:211,228,447` | 3a | ABIERTO |
+| **S-016** | `resize` repinta todos los sprites sin debounce | `public/macroverso.js:226-228,489-490` | 3a | ABIERTO |
+| **S-017** | El NOSTROMO de la sala no tiene tope de densidad, ni pausa al ocultar la pestaña, ni medición de cuadro | `public/app.js:15343,15746-15751` | 3a | MEDIR |
+| **S-018** | `docs/INTERNALS.md:83` dice que varios turnos `#2` corren a la vez; el código deja un solo escritor por proyecto | `src/room/control.mjs:12-16` | — | ANOTADO |
 
 ---
 
@@ -124,7 +148,10 @@ Solo en escritorio y solo desde Salas. **Fase 2 solo muestra; no enlaza.**
 
 ---
 
-## 6 · Fases 3 y 4 · Enlazar y el super agente (diseño, sin construir)
+## 6 · Fases 3 y 4 · Enlazar y BISHOP (encargadas, sin construir)
+
+El diseño completo, con cada hecho citado, está en `docs/MACROVERSO-ENCARGO.md`. Lo que no
+cambia respecto a la primera versión de este plan:
 
 **Un enlace es un contrato** entre dos salas, que firma el humano:
 
@@ -132,36 +159,47 @@ Solo en escritorio y solo desde Salas. **Fase 2 solo muestra; no enlaza.**
 |---|---|
 | Sentido | De A a B, de B a A, o ambos |
 | Qué cruza | Solo memorias destiladas, de los tipos elegidos (decisión, hecho, preferencia, pregunta) y solo las que viajan (bodega y puente). **Nunca** el registro crudo, archivos, aberraciones, memorias en enfermería o esclusa, ni credenciales |
-| Validaciones | El guardia de privacidad (`src/privacy.mjs`) limpia cada memoria antes de cruzar; los términos privados de cada sala se respetan en las dos |
-| Lógica | La sala que recibe ve esas memorias en su recall, marcadas con el nombre de la otra sala; los agentes las citan como de ella. **Nada se escribe en la otra sala** |
-| Seguridad | Solo lectura; revocable en cualquier momento; con caducidad opcional; ninguno se crea sin el humano en modo manual o híbrido |
-| Monitor | Cada lectura cruzada queda registrada en las dos salas (qué cruzó, para qué turno); un panel muestra el tráfico por enlace |
+| Validaciones | El guardia de privacidad (`src/privacy.mjs`) limpia cada memoria **en la sala que la entrega**; los términos son de toda la Mac |
+| Lógica | La sala que recibe las lee **primero con una herramienta** (`pulse-enlaces`), marcadas con el nombre de la otra sala; el recall automático es una fase aparte (3e) que se pregunta. **Nada se escribe en la otra sala** |
+| Seguridad | Solo lectura; revocable al instante; con caducidad opcional; los candados viven en la sala que entrega, nunca en la que pide |
+| Órdenes | El contrato fija además hasta dónde llegan las órdenes de BISHOP en esa sala: `maxMode ≤ 2` y un tope por hora. `#3`/`#4` nunca viajan por el canal: llegan como propuesta y las arma el humano en esa sala con las llaves de siempre |
+| Monitor | Cada lectura cruzada queda registrada en las dos salas como contador, no como burbuja; Salas muestra el tráfico por enlace y el Macroverso lo dibuja como una vena con pulsos |
 
-**El super agente** es el agente que el humano elija (o `@madre` local, que no gasta ni saca
-nada de la Mac). Trabaja en `#1 EXCHANGE` (solo lee) sobre las memorias destiladas de las
-salas, nunca sobre sus archivos. Sugiere enlaces y dice los riesgos: datos privados,
-contradicciones entre salas y decisiones que se filtrarían.
+**BISHOP** (D-S07) es el super agente: una sala más —la sala de Salas, `madre salas`— cuyo
+agente elige el humano (`@madre` por defecto si Ollama está listo). Responde sobre todas las
+salas citando cada una, propone planes y da órdenes con un bloque `pulse-salas` al cierre de su
+respuesta, con el patrón de Runs: cada orden es un botón y nada sale hasta que se pulsa, salvo
+dentro del techo que un contrato firmó.
 
-| Modo | Qué hace el agente | Qué hace el humano |
-|---|---|---|
-| Manual | Revisa riesgos del enlace que el humano trazó | Traza y firma |
-| Híbrido | Propone enlaces con su contrato | Aprueba o rechaza cada uno |
-| Automático | Aplica enlaces dentro de un techo que el humano fijó antes (tipos, sentido, caducidad) | Recibe aviso de cada uno y puede revocarlo |
+| Modo | `#0`–`#1` | `#2` | `#3`–`#4` |
+|---|---|---|---|
+| Manual | Espera el botón | Espera el botón | Propuesta en la sala destino |
+| Híbrido | Se envía sola dentro del contrato | Espera el botón | Propuesta en la sala destino |
+| Automático | Se envía sola dentro del contrato | Se envía sola dentro del contrato | Propuesta en la sala destino |
+
+Nunca edita un proyecto: lo que mueve un proyecto lo hace el agente de esa sala, en esa sala,
+bajo el guardia de esa sala. Sus memorias se destilan como las de cualquier sala; la sala de
+Salas no sirve de origen en ningún contrato.
 
 ---
 
-## 7 · Decisiones abiertas
+## 7 · Decisiones
 
-Ninguna se toma sin el usuario. Fase 1 no espera por ellas; las fases 3 y 4 sí.
+Ninguna se toma sin el usuario. Las cerradas llevan su respuesta literal; las abiertas dicen si
+el encargo puede asumir la recomendación mientras tanto.
 
-| ID | Decisión | Recomendación | Bloquea | Estado |
+| ID | Decisión | Respuesta / recomendación | Bloquea | Estado |
 |---|---|---|---|---|
-| **D-S01** | ¿Qué es «RUN» en «aprovechando que ya tenemos RUN»? En el código hay tres: el módulo Runs (comandos que propone un agente), `madre start` y el dominio madre.run | Que lo diga el usuario | Dónde vive Salas a largo plazo | **ABIERTA** |
-| **D-S02** | ¿`madre` sin proyecto abre Salas (un proceso ligero solo para Salas), o Salas se entra siempre desde una sala? | Fase 1 desde una sala; el proceso ligero después | Fase 1b | **ABIERTA** |
-| **D-S03** | ¿Qué cruza un enlace? | Solo memorias destiladas que viajan, limpias por el guardia de privacidad | Fase 3 | **ABIERTA** |
-| **D-S04** | ¿Dónde se ve lo que cruzó? ¿En el recall automático de cada turno, o solo cuando un agente lo pide con una herramienta? | Herramienta primero (se ve quién lo pidió y para qué), recall después | Fase 3 | **ABIERTA** |
-| **D-S05** | Super agente: ¿cualquiera o solo `@madre` local? ¿Con qué techo? | Cualquiera, siempre en `#1 EXCHANGE`; `@madre` por defecto | Fase 4 | **ABIERTA** |
-| **D-S06** | Modo automático: ¿se permite? | Sí, solo dentro de un techo firmado antes, con aviso y revocable | Fase 4 | **ABIERTA** |
+| **D-S01** | ¿Qué es «RUN» en «aprovechando que ya tenemos RUN»? | «RUN es el módulo Runs que corre comandos.» Se aprovecha su patrón: proponer → botón → correr → tarjeta | — | **CERRADA 2026-10-08** |
+| **D-S02** | ¿`madre` sin proyecto abre Salas? | «Sí, abre Salas directamente.» El disparador exacto es D-S09 | — | **CERRADA 2026-10-08** |
+| **D-S03** | ¿Qué cruza un enlace? | «Sí» a la recomendación: solo memorias destiladas que viajan, limpias por el guardia de privacidad | — | **CERRADA 2026-10-08** |
+| **D-S04** | ¿Dónde se ve lo que cruzó? | «Sí» a la recomendación: herramienta primero; el recall automático es la fase 3e y se pregunta antes | — | **CERRADA 2026-10-08** |
+| **D-S05** | Super agente: ¿quién y con qué techo? | «Lo elige el usuario, siempre en modo default 1 y 2 por gobernanza… un meta guardián… otro chat que se abre en Salas… puede dirigir a otros agentes en modo 3 y 4 cuidando la lógica, la protección del proyecto, las acciones y su seguimiento… canales, candados y puentes.» Lectura operativa en el encargo, §1 y §4C | — | **CERRADA 2026-10-08** |
+| **D-S06** | Modo automático: ¿se permite? | «De esto se desprenden las demás decisiones»: sí, dentro del techo de cada contrato, con aviso y revocable; `#3`/`#4` nunca solos | — | **CERRADA 2026-10-08** |
+| **D-S07** | Nombre del super agente en la interfaz | **BISHOP**, en la familia de ASH, RIPLEY, NOSTROMO y MU/TH/UR. Se puede asumir; renombrar cuesta un commit | — | **ABIERTA** |
+| **D-S08** | Dónde vive el proyecto de la sala de Salas (planes y contratos como archivos) | `~/.pulse/salas/`, creada al primer `madre salas`, mostrada en Ajustes para cambiarla. Se puede asumir | 3d | **ABIERTA** |
+| **D-S09** | Disparador de D-S02 | `madre salas`, y `madre` sin `--project` solo cuando el directorio actual es `$HOME`. Ninguna heurística de «¿esto es un proyecto?». Se puede asumir | 3d | **ABIERTA** |
+| **D-S10** | Cómo queda en el registro una orden de BISHOP | `via: 'bishop'` en el mensaje y, si queda como `role: 'you'`, excluido del dataset. Técnica, del orquestador, dentro de las excepciones del encargo §6 | 4b | **ABIERTA** |
 
 ---
 
@@ -171,8 +209,14 @@ Ninguna se toma sin el usuario. Fase 1 no espera por ellas; las fases 3 y 4 sí.
 |---|---|---|
 | 1 | Salas en escritorio, S-001..005 y S-007 | HECHA |
 | 2 | Macroverso para ver | HECHA |
-| 3 | Enlaces: contratos, validaciones, monitor | Espera D-S03, D-S04 |
-| 4 | Super agente y sus tres modos | Espera D-S05, D-S06 |
+| 3a | El Macroverso como flota de NOSTROMOs: pintores compartidos, escena viva, espacio infinito; S-014..S-017 | ENCARGADA |
+| 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | ENCARGADA |
+| 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | ENCARGADA |
+| 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | ENCARGADA |
+| 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | ENCARGADA |
+| 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | ENCARGADA |
+| 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje | ENCARGADA |
+| 3e | Recall automático de notas enlazadas | Se pregunta antes de empezar |
 
 ---
 
@@ -193,3 +237,9 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   respira, quién te espera lleva un anillo en tu acento; clic o ← → vuela a un universo y abre su
   ficha. Medido en Chrome a 1440×900 y densidad 2: dibujar un cuadro cuesta 0.4 ms de mediana y
   1 ms en el percentil 95. En el teléfono, cada sala de Salas lleva la misma franja de memorias.
+- `2026-10-08` · D-S01..06 cerradas por el humano; el pedido se amplía (§1, 6-8): cada proyecto es
+  un NOSTROMO en el Macroverso y el super agente es un chat en Salas que gobierna a todos. Segunda
+  lectura del código (modos, Runs, delegación, mensajes, memoria, `@madre`, proceso; y el motor de
+  dibujo de NOSTROMO): salen S-008..S-018 y D-S07..D-S10. Se escribe `docs/MACROVERSO-ENCARGO.md`,
+  el prompt de ejecución de las fases 3 y 4 con cada hecho citado, compuertas, pruebas y
+  presupuestos. Nada construido todavía.
