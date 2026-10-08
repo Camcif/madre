@@ -8994,8 +8994,8 @@ if (state.device) {
   // A phone starts on the conversation: panels this browser left open come back closed.
   for (const one of panelSides) if (one.node() && !one.node().hidden) one.close();
   if (document.querySelector('#browser') && !document.querySelector('#browser').hidden) browserHide();
-  // NOSTROMO is a still picture on a phone: its help speaks of a finger, not of a wheel.
-  { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('TOUCH A MEMORY TO READ IT · DO NOT TOUCH MOTHER'); }
+  // NOSTROMO is a chart on a phone: its help speaks of fingers, not of a wheel.
+  { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('DRAG TO MOVE · PINCH TO ZOOM · TOUCH A MEMORY · DO NOT TOUCH MOTHER'); }
   // Files and servers are on the Mac: on the phone they are there to be seen and switched, and say so.
   for (const panel of [document.querySelector('#tree'), document.querySelector('#browser')]) {
     if (!panel || panel.querySelector('.phone-desk-note')) continue;
@@ -13070,7 +13070,9 @@ async function openCore() {
   showPane(core.pane);
   core.dialog.showModal();
   void fillCoreBoard();
-  typeLines(core.boot, CORE_BOOT, () => { core.body.hidden = false; core.console?.field?.focus(); });
+  // On a phone the console is touched to be written in: focused for you, it would put the keyboard
+  // up over the core the moment it opened.
+  typeLines(core.boot, CORE_BOOT, () => { core.body.hidden = false; if (!state.device) core.console?.field?.focus(); });
   // What has left this machine is about the room rather than about this turn, so it is read
   // once per visit.
   core.outbound = await fetch('/api/outbound').then((response) => response.json()).catch(() => null);
@@ -14938,10 +14940,11 @@ nostromo.coldButton?.addEventListener('click', () => {
   nostromo.coldOnly = !nostromo.coldOnly;
   nostromo.coldButton.setAttribute('aria-pressed', String(nostromo.coldOnly));
   if (nostromo.coldOnly) toast(t('NOSTROMO › {n} of {total} memories have had their chances and were never the answer. Ringed on the map.', { n: nostromo.cold.count, total: nostromo.cold.standing }));
+  flatPaint();
 });
 document.querySelector('#nostromo-close')?.addEventListener('click', () => nostromo.dialog.close());
 nostromo.dialog?.addEventListener('close', stopNostromo);
-document.querySelector('#nostromo-card-close')?.addEventListener('click', () => { nostromo.card.hidden = true; nostromo.selected = null; nostromo.focusLink = null; stopTraffic(); });
+document.querySelector('#nostromo-card-close')?.addEventListener('click', () => { nostromo.card.hidden = true; nostromo.selected = null; nostromo.focusLink = null; stopTraffic(); flatPaint(); });
 
 // Planets: size follows how much ledger a memory covers; they start in their kind's sector
 // and drift toward the memories they agree with, so topics gather on their own.
@@ -15369,27 +15372,354 @@ function sizeNostromo() {
   return true;
 }
 
-// On a phone the map is a picture: laid out once, facing front, drawn once, and drawn again only
-// when it is touched. Turning a brain sixty times a second is what made it slow there.
-function stillNostromo() {
-  nostromo.still = true;
+// ---- NOSTROMO on a phone: the chart.
+//
+// On a phone the archive is a chart, not a body. Turning a brain sixty times a second is what made
+// it slow there, and a still picture of that brain read as a smudge. MOTHER sits in the middle;
+// every memory is a dot in its kind's colour, in the sector of its kind; the links run between
+// them like routes on a map. The more the room leans on a memory, the nearer MOTHER it sits. It is
+// laid out once when it opens and drawn only when something changes — a finger moving it, a pinch,
+// a pick — so reading it costs the phone nothing. One finger moves it, two zoom it, a touch on a
+// dot opens its card, a touch on MOTHER opens hers.
+//
+// Its units are its own (a chart about 360 across), so a dot keeps its size on screen like a
+// marker on a map and the dots keep their proportion to each other at every zoom. A phone is tall:
+// the chart is drawn as an orbit seen a little from above, stretched to the height it has (`k`),
+// so it fills the screen instead of floating in the middle of it.
+const flat = { core: 20, ring: 42, reach: 170, dot: 5.5, k: 1, queued: 0, fit: 1, touches: new Map(), pinch: null };
+
+function flatNodes() { return nostromo.nodes.filter((node) => !node.forgetting && node.scale > 0.01); }
+
+// Each kind its own sector, as wide as it has memories (a lone question still gets room to be
+// seen), starting at the top and running clockwise in the legend's order.
+function flatSectors(nodes) {
+  const kinds = Object.keys(MEMORY_COLORS);
+  const counts = kinds.map((kind) => nodes.filter((node) => node.memory.kind === kind).length);
+  const total = counts.reduce((sum, n) => sum + n, 0) || 1;
+  const shares = counts.map((n) => (n ? Math.max(n / total, 0.07) : 0));
+  const whole = shares.reduce((sum, n) => sum + n, 0) || 1;
+  const sectors = new Map();
+  let start = -Math.PI / 2;
+  kinds.forEach((kind, i) => {
+    const width = (shares[i] / whole) * Math.PI * 2;
+    if (width) sectors.set(kind, { start, width, mid: start + width / 2 });
+    start += width;
+  });
+  return sectors;
+}
+
+function flatLayout() {
+  const nodes = flatNodes();
+  const sectors = flatSectors(nodes);
+  nostromo.flatSectors = sectors;
+  const top = nodes.reduce((best, node) => Math.max(best, node.r3 ?? node.r), 1);
+  // Nearest MOTHER the most alive; across its sector by golden steps, so no rows and no clumps.
+  const byKind = new Map();
+  for (const node of nodes) {
+    const kind = sectors.has(node.memory.kind) ? node.memory.kind : 'fact';
+    if (!byKind.has(kind)) byKind.set(kind, []);
+    byKind.get(kind).push(node);
+  }
+  for (const [kind, group] of byKind) {
+    const sector = sectors.get(kind);
+    group.sort((a, b) => (b.activity ?? 0) - (a.activity ?? 0));
+    group.forEach((node, i) => {
+      // By rank, not by the raw number: the sector is filled evenly by area, the most alive in.
+      const angle = sector.start + sector.width * (0.1 + 0.8 * ((i * 0.6180339887) % 1));
+      const radius = flat.ring + (flat.reach - flat.ring) * (0.06 + 0.94 * Math.sqrt((i + 0.5) / group.length));
+      node.fx = Math.cos(angle) * radius;
+      node.fy = Math.sin(angle) * radius;
+      node.home = { x: node.fx, y: node.fy };
+      node.dot = flat.dot * ((node.r3 ?? node.r) / top);
+    });
+  }
+  // Relaxed a few hundred times: linked memories pull together, none sits on another, none
+  // leaves its sector far behind, none crosses into MOTHER.
+  const byId = new Map(nodes.map((node) => [node.memory.id, node]));
+  const wires = nostromo.links.map((link) => [byId.get(link.a), byId.get(link.b), link.weight ?? 0.5]).filter(([a, b]) => a && b);
+  const STEPS = 240;
+  for (let step = 0; step < STEPS; step += 1) {
+    const heat = 1 - step / STEPS;
+    for (let i = 0; i < nodes.length; i += 1) {
+      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const b = nodes[j];
+        let dx = b.fx - a.fx, dy = b.fy - a.fy;
+        let d = Math.hypot(dx, dy);
+        const room = a.dot + b.dot + 3;
+        if (d > room * 2.4) continue;
+        if (d < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
+        const push = ((room * 2.4 - d) / (room * 2.4)) * (d < room ? 1.2 : 0.35) * (0.4 + heat);
+        const ux = dx / d, uy = dy / d;
+        a.fx -= ux * push; a.fy -= uy * push;
+        b.fx += ux * push; b.fy += uy * push;
+      }
+    }
+    for (const [a, b, weight] of wires) {
+      const dx = b.fx - a.fx, dy = b.fy - a.fy;
+      const d = Math.hypot(dx, dy) || 1;
+      const rest = 20 + 34 * (1 - weight);
+      const pull = ((d - rest) / d) * 0.03 * weight * heat;
+      a.fx += dx * pull; a.fy += dy * pull;
+      b.fx -= dx * pull; b.fy -= dy * pull;
+    }
+    for (const node of nodes) {
+      node.fx += (node.home.x - node.fx) * 0.02;
+      node.fy += (node.home.y - node.fy) * 0.02;
+      const out = Math.hypot(node.fx, node.fy) || 1;
+      const least = flat.ring - 6 + node.dot;
+      if (out < least) { node.fx *= least / out; node.fy *= least / out; }
+    }
+  }
+  // Stretched to the screen's proportion: settled as a circle, read as an orbit.
+  const { w, h } = nostromo.size;
+  flat.k = Math.max(1, Math.min(1.7, (h - 60) / Math.max(1, w - 24)));
+  for (const node of nodes) node.fy *= flat.k;
+}
+
+// The whole chart in view, with room round it for the names of the sectors.
+function flatFrame() {
+  const { w, h } = nostromo.size;
+  let across = flat.reach, down = flat.reach * flat.k;
+  for (const node of flatNodes()) { across = Math.max(across, Math.abs(node.fx) + node.dot); down = Math.max(down, Math.abs(node.fy) + node.dot); }
+  flat.fit = Math.max(0.2, Math.min((w - 24) / ((across + 20) * 2), (h - 40) / ((down + 26) * 2)));
+  nostromo.cam = { x: 0, y: 0, scale: flat.fit, manual: false };
+}
+
+// A phone turned on its side: the same chart, framed again.
+function flatResize() {
+  if (!nostromo.flat || !sizeNostromo()) return;
+  flatFrame();
+  flatPaint();
+}
+function flatNostromo() {
+  nostromo.flat = true;
   nostromo.reduced = true;
-  for (let step = 0; step < 200; step += 1) { stepNostromo(1, step / 60); nostromo.spin = 0; }
-  paintStillNostromo();
+  flatLayout();
+  flatFrame();
+  flatPaint();
 }
-function paintStillNostromo() {
-  if (!nostromo.still) return;
-  nostromo.spin = 0;
-  projectNostromo();
-  for (let pass = 0; pass < 40; pass += 1) fitNostromo();
-  drawNostromo(0);
+function flatPaint() {
+  if (!nostromo.flat || flat.queued || typeof requestAnimationFrame !== 'function') return;
+  flat.queued = requestAnimationFrame(() => { flat.queued = 0; drawFlat(); });
 }
+
+function drawFlat() {
+  const ctx = nostromo.canvas?.getContext('2d');
+  if (!ctx || !nostromo.cam) return;
+  const { w, h, dpr } = nostromo.size;
+  const cam = nostromo.cam;
+  const at = (x, y) => toScreen(x, y);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const centre = at(0, 0);
+  const zoom = cam.scale;
+  const nodes = flatNodes();
+  const sectors = nostromo.flatSectors ?? new Map();
+  const picked = nostromo.selected && nodes.includes(nostromo.selected) ? nostromo.selected : null;
+
+  // The chart itself: MOTHER's warmth on the ground, the rings of distance and the sectors'
+  // edges, faint enough to read through.
+  const warmth = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, flat.reach * flat.k * zoom);
+  warmth.addColorStop(0, 'rgba(226, 40, 22, .16)');
+  warmth.addColorStop(0.45, 'rgba(226, 40, 22, .05)');
+  warmth.addColorStop(1, 'rgba(226, 40, 22, 0)');
+  ctx.fillStyle = warmth;
+  ctx.fillRect(0, 0, w, h);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(242, 241, 238, .07)';
+  ctx.setLineDash([2, 5]);
+  for (const ring of [flat.ring, flat.ring + (flat.reach - flat.ring) / 2, flat.reach]) {
+    ctx.beginPath(); ctx.ellipse(centre.x, centre.y, ring * zoom, ring * flat.k * zoom, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  for (const sector of sectors.values()) {
+    const cos = Math.cos(sector.start), sin = Math.sin(sector.start) * flat.k;
+    ctx.beginPath();
+    ctx.moveTo(centre.x + cos * flat.core * 1.5 * zoom, centre.y + sin * flat.core * 1.5 * zoom);
+    ctx.lineTo(centre.x + cos * (flat.reach + 8) * zoom, centre.y + sin * (flat.reach + 8) * zoom);
+    ctx.stroke();
+  }
+
+  // The routes. Each one in the colours of the two it joins, as strong as the meaning they share;
+  // with a memory picked, its own routes come forward and the rest step back.
+  const byId = new Map(nodes.map((node) => [node.memory.id, node]));
+  ctx.lineCap = 'round';
+  for (const link of nostromo.links) {
+    const a = byId.get(link.a), b = byId.get(link.b);
+    if (!a || !b) continue;
+    const weight = link.weight ?? 0.5;
+    const mine = picked && (a === picked || b === picked);
+    const pa = at(a.fx, a.fy), pb = at(b.fx, b.fy);
+    link.flatInk ??= hexMix(a.color, b.color, 0.5);
+    ctx.strokeStyle = link.flatInk;
+    ctx.globalAlpha = picked ? (mine ? 0.95 : 0.08) : 0.14 + 0.46 * weight;
+    ctx.lineWidth = (mine ? 1.4 : 0.6) + 1.1 * weight;
+    ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // MOTHER: a red sun seen from far away, flat.
+  const coreR = flat.core * zoom;
+  const glow = ctx.createRadialGradient(centre.x, centre.y, coreR * 0.2, centre.x, centre.y, coreR * 2.2);
+  glow.addColorStop(0, 'rgba(255, 120, 60, .55)');
+  glow.addColorStop(0.45, 'rgba(226, 40, 22, .22)');
+  glow.addColorStop(1, 'rgba(226, 40, 22, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(centre.x, centre.y, coreR * 2.2, 0, Math.PI * 2); ctx.fill();
+  const body = ctx.createRadialGradient(centre.x - coreR * 0.25, centre.y - coreR * 0.25, coreR * 0.1, centre.x, centre.y, coreR);
+  body.addColorStop(0, '#ffd2a8');
+  body.addColorStop(0.35, '#ff7a3a');
+  body.addColorStop(1, '#a8170c');
+  ctx.fillStyle = body;
+  ctx.beginPath(); ctx.arc(centre.x, centre.y, coreR, 0, Math.PI * 2); ctx.fill();
+
+  // The memories, the largest first so a small one is never hidden under a large one. With one
+  // picked, it and the memories it is linked to stay lit and the rest step back.
+  const near = picked ? new Set([picked, ...neighboursOf(picked.memory.id).map((pair) => pair.node)]) : null;
+  const order = [...nodes].sort((a, b) => b.dot - a.dot);
+  for (const node of order) {
+    const p = at(node.fx, node.fy);
+    if (p.x < -20 || p.y < -20 || p.x > w + 20 || p.y > h + 20) continue;
+    const r = node.dot;
+    ctx.globalAlpha = near && !near.has(node) ? 0.35 : 1;
+    if (node.memory.kind === COLLAPSED) {
+      // A claim the room established is false: an empty disc in its ring, never a light.
+      ctx.fillStyle = '#05060a';
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = MEMORY_COLORS.aberration;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = node.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(0, 0, 0, .45)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    if (nostromo.coldOnly && node.cold) {
+      ctx.strokeStyle = 'rgba(176, 204, 255, .8)';
+      ctx.setLineDash([2, 2]);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r + 3.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.globalAlpha = 1;
+  if (picked) {
+    const p = at(picked.fx, picked.fy);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, picked.dot + 4, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 255, 255, .25)';
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(p.x, p.y, picked.dot + 8, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // The names of the sectors, at their outer edge, in their kind's colour.
+  ctx.font = '600 10px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const [kind, sector] of sectors) {
+    const p = at(Math.cos(sector.mid) * (flat.reach + 16), Math.sin(sector.mid) * (flat.reach + 16) * flat.k);
+    const word = kindWord(kind);
+    // Kept on the screen: a name at the chart's edge is not pushed off the side of the phone.
+    const half = ctx.measureText(word).width / 2 + 8;
+    ctx.fillStyle = kind === COLLAPSED ? hexMix(MEMORY_COLORS.aberration, '#ffffff', 0.35) : MEMORY_COLORS[kind];
+    ctx.globalAlpha = 0.85;
+    ctx.fillText(word, Math.max(half, Math.min(w - half, p.x)), Math.max(10, Math.min(h - 10, p.y)));
+  }
+  ctx.globalAlpha = 1;
+}
+
+// A memory picked on the chart slides into the part of the screen its card leaves free, the way a
+// pin does on a map: a short glide, drawn only while it moves.
+function flatFocus(node) {
+  const cam = nostromo.cam;
+  if (!cam || node.fx === undefined) { flatPaint(); return; }
+  const { w, h } = nostromo.size;
+  const canvas = nostromo.canvas.getBoundingClientRect();
+  const card = nostromo.card && !nostromo.card.hidden ? nostromo.card.getBoundingClientRect() : null;
+  const free = card?.height ? Math.max(80, card.top - canvas.top) : h;
+  const to = { x: node.fx, y: node.fy - (free / 2 - h / 2) / cam.scale };
+  const from = { x: cam.x, y: cam.y };
+  const began = performance.now();
+  const glide = (now) => {
+    const k = Math.min(1, (now - began) / motion(240));
+    const ease = 1 - (1 - k) ** 3;
+    cam.x = from.x + (to.x - from.x) * ease;
+    cam.y = from.y + (to.y - from.y) * ease;
+    drawFlat();
+    if (k < 1 && nostromo.flat) requestAnimationFrame(glide);
+  };
+  cam.manual = true;
+  document.querySelector('#nostromo-recenter')?.removeAttribute('hidden');
+  requestAnimationFrame(glide);
+}
+
+// What a finger touched: a dot (with a fingertip's margin), MOTHER, or nothing.
+function flatAt(event) {
+  if (!nostromo.cam || !nostromo.size) return null;
+  const rect = nostromo.canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left, y = event.clientY - rect.top;
+  let best = null;
+  for (const node of flatNodes()) {
+    const p = toScreen(node.fx, node.fy);
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d <= node.dot + 12 && (!best || d < best.d)) best = { node, d };
+  }
+  if (best) return best.node;
+  const centre = toScreen(0, 0);
+  return Math.hypot(centre.x - x, centre.y - y) <= flat.core * nostromo.cam.scale * 1.2 + 6 ? 'core' : null;
+}
+
+// One finger moves the chart, two zoom it about the point between them.
+function flatTouch(event, phase) {
+  if (!nostromo.flat || !nostromo.cam) return;
+  // A mouse on a phone-sized page moves the chart only while its button is held.
+  if (event.pointerType === 'mouse' && phase === 'move' && !(event.buttons & 1)) return;
+  const cam = nostromo.cam;
+  if (phase === 'down') {
+    try { nostromo.canvas.setPointerCapture(event.pointerId); } catch { /* the pointer already left */ }
+    flat.touches.set(event.pointerId, { x: event.clientX, y: event.clientY, x0: event.clientX, y0: event.clientY });
+    flat.pinch = null;
+    return;
+  }
+  const was = flat.touches.get(event.pointerId);
+  if (!was) return;
+  if (phase === 'up') { flat.touches.delete(event.pointerId); flat.pinch = null; return; }
+  const now = { x: event.clientX, y: event.clientY };
+  if (Math.hypot(now.x - was.x0, now.y - was.y0) > 6) drag.moved = true;
+  if (flat.touches.size === 1) {
+    cam.x -= (now.x - was.x) / cam.scale;
+    cam.y -= (now.y - was.y) / cam.scale;
+  } else if (flat.touches.size === 2) {
+    const [one, two] = [...flat.touches.entries()].map(([id, point]) => (id === event.pointerId ? now : point));
+    const spread = Math.hypot(two.x - one.x, two.y - one.y) || 1;
+    const rect = nostromo.canvas.getBoundingClientRect();
+    const mid = { x: (one.x + two.x) / 2 - rect.left, y: (one.y + two.y) / 2 - rect.top };
+    if (flat.pinch) {
+      const before = toWorld(mid.x, mid.y);
+      cam.scale = Math.min(flat.fit * 8, Math.max(flat.fit * 0.7, cam.scale * (spread / flat.pinch)));
+      const after = toWorld(mid.x, mid.y);
+      cam.x += before.x - after.x;
+      cam.y += before.y - after.y;
+    }
+    flat.pinch = spread;
+  }
+  was.x = now.x; was.y = now.y;
+  cam.manual = true;
+  // Moved away from the whole chart: the way back to it shows, as on the Mac.
+  document.querySelector('#nostromo-recenter')?.removeAttribute('hidden');
+  flatPaint();
+}
+
 function startNostromo() {
   stopNostromo();
   if (typeof requestAnimationFrame !== 'function' || !nostromo.canvas?.getContext) return;
   if (!sizeNostromo()) return;
-  if (state.device) { nostromo.cam = { x: 0, y: 0, scale: 1, manual: false }; nostromo.yaw = 0; nostromo.pitch = 0; nostromo.rings = []; stillNostromo(); return; }
-  nostromo.still = false;
+  if (state.device) { flatNostromo(); window.addEventListener('resize', flatResize); return; }
+  nostromo.flat = false;
   nostromo.cam = { x: 0, y: 0, scale: 1, manual: false };
   // Every boarding starts from the side view, the way the camera starts from the whole system.
   nostromo.yaw = 0;
@@ -15417,6 +15747,7 @@ function stopNostromo() {
   if (nostromo.raf) cancelAnimationFrame(nostromo.raf);
   nostromo.raf = null;
   window.removeEventListener('resize', sizeNostromo);
+  window.removeEventListener('resize', flatResize);
 }
 
 // The heartbeat: lub, then a softer dub, each decaying fast. 0..~1.5.
@@ -16013,17 +16344,33 @@ function shadeMagma(out, table, map, { turn, flow, beat = 0, blasts = [], tilt =
 }
 
 // The bursts alive now: born at random on the face, more often while MOTHER is alarmed, none for
-// someone who asked for stillness.
-function magmaBlasts(t, { alarm = 0, reduced = false } = {}) {
+// someone who asked for stillness. A burst goes off in the rock, not on the glass in front of it:
+// it is kept where it went off on the body (a longitude in the crust's own frame, and a latitude)
+// and rides the turn with the crust, the way the shading reads the crust (`turn` and `tilt`, as in
+// shadeMagma). Kept as a point on the screen instead, it stood still while the body turned some
+// forty degrees under it in a burst's life.
+function magmaBlasts(t, { alarm = 0, reduced = false, turn = 0, tilt = 0 } = {}) {
   const blasts = (nostromo.blasts ??= []);
+  const cosTilt = Math.cos(tilt);
+  const sinTilt = Math.sin(tilt);
   if (!reduced && Math.random() < (1 / BLAST_EVERY) * (1 + 3 * alarm) / 60) {
     const z = 0.35 + 0.6 * Math.random();
     const angle = Math.random() * Math.PI * 2;
     const ring = Math.sqrt(1 - z * z);
-    blasts.push({ born: t, x: Math.cos(angle) * ring, y: Math.sin(angle) * ring, z });
+    const x = Math.cos(angle) * ring, y = Math.sin(angle) * ring;
+    // From the face in view to the body: the view's tip undone, then the crust's turn added.
+    const wy = y * cosTilt + z * sinTilt;
+    const wz = z * cosTilt - y * sinTilt;
+    blasts.push({ born: t, lon: Math.atan2(x, wz) + turn, lat: Math.asin(Math.max(-1, Math.min(1, wy))) });
   }
-  nostromo.blasts = blasts.filter((blast) => t - blast.born < BLAST_LIFE);
-  return nostromo.blasts.map((blast) => ({ x: blast.x, y: blast.y, z: blast.z, age: (t - blast.born) / BLAST_LIFE }));
+  nostromo.blasts = blasts.filter((blast) => t - blast.born < BLAST_LIFE && blast.lon !== undefined);
+  return nostromo.blasts.map((blast) => {
+    // And back: where that point of the body faces now.
+    const lon = blast.lon - turn;
+    const cl = Math.cos(blast.lat);
+    const bx = cl * Math.sin(lon), wy = Math.sin(blast.lat), wz = cl * Math.cos(lon);
+    return { x: bx, y: wy * cosTilt - wz * sinTilt, z: wy * sinTilt + wz * cosTilt, age: (t - blast.born) / BLAST_LIFE };
+  });
 }
 
 // The body's face, painted into a buffer of its own and laid on the disc. Null where there is no
@@ -16051,7 +16398,7 @@ function magmaFace(radius, pixels, t, { turn, beat, alarm, reduced, tilt = 0 }) 
     turn,
     flow: turn * 0.82 + flowTime * 0.018,
     beat,
-    blasts: magmaBlasts(t, { alarm, reduced }),
+    blasts: magmaBlasts(t, { alarm, reduced, turn, tilt }),
     tilt,
   });
   magmaSprite.paint.putImageData(magmaSprite.image, 0, 0);
@@ -16077,7 +16424,9 @@ const CORE_FLOWS = [
 // How big a memory is drawn against the core. Everything else follows from the radius: how far
 // two memories push each other apart, how wide the view opens, where the label sits, and how
 // near the pointer has to be. Lower this and the whole constellation gives the core more room.
-const MEMORY_SCALE = 0.8;
+// One factor for every memory, so a small one stays in proportion to a large one: 0.64 is the 0.8
+// it was, a fifth smaller, for less noise the moment NOSTROMO opens.
+const MEMORY_SCALE = 0.64;
 
 function stepNostromo(dt, t) {
   // What is being forgotten holds still while it goes.
@@ -17058,20 +17407,31 @@ nostromo.canvas?.addEventListener('wheel', (event) => {
   nostromo.cam.x += before.x - after.x;
   nostromo.cam.y += before.y - after.y;
   nostromo.cam.manual = true;
+  if (nostromo.flat) { flatPaint(); return; }
   document.querySelector('#nostromo-recenter')?.removeAttribute('hidden');
 }, { passive: false });
-// The still map redraws after a touch, so the star picked shows it was picked.
-nostromo.canvas?.addEventListener('click', () => { if (nostromo.still) requestAnimationFrame(paintStillNostromo); });
+// The chart on a phone answers fingers: moved, pinched, and drawn again after a touch so the
+// memory picked shows it was picked.
+for (const [type, phase] of [['pointerdown', 'down'], ['pointermove', 'move'], ['pointerup', 'up'], ['pointercancel', 'up']]) {
+  nostromo.canvas?.addEventListener(type, (event) => flatTouch(event, phase));
+}
+nostromo.canvas?.addEventListener('click', () => flatPaint());
 nostromo.canvas?.addEventListener('click', (event) => {
   if (drag.moved) { drag.moved = false; return; }
-  const at = nostromoAt(event);
+  const at = nostromo.flat ? flatAt(event) : nostromoAt(event);
   // The core is the door. Touching it used to be treated as an attempt on the archive; what is
   // behind it is the document MADRE writes in your name, and reading that is nobody's trespass.
   if (at === 'core') { void openCore(); return; }
   if (!at) { nostromo.selected = null; nostromo.card.hidden = true; return; }
   showNostromoCard(at);
 });
-document.querySelector('#nostromo-recenter')?.addEventListener('click', (event) => { if (nostromo.cam) nostromo.cam.manual = false; nostromo.yaw = 0; nostromo.pitch = 0; event.currentTarget.setAttribute('hidden', ''); });
+document.querySelector('#nostromo-recenter')?.addEventListener('click', (event) => {
+  event.currentTarget.setAttribute('hidden', '');
+  if (nostromo.flat) { flatFrame(); flatPaint(); return; }
+  if (nostromo.cam) nostromo.cam.manual = false;
+  nostromo.yaw = 0;
+  nostromo.pitch = 0;
+});
 
 // MOTHER answering an attempt on her archive, never twice the same way; eight in a row and
 // CODE000 comes down: the safety box around her, the archive sealed, a coded word to the crew,
@@ -17236,10 +17596,14 @@ function showNostromoCard(node) {
   document.querySelector('#nostromo-card-span').textContent = memory.fromSequence === memory.throughSequence ? `#${memory.fromSequence}` : `#${memory.fromSequence}–#${memory.throughSequence}${memory.sources?.length ? ` · cites ${memory.sources.map((n) => `#${n}`).join(' ')}` : ''}`;
   document.querySelector('#nostromo-card-agent').textContent = `@${memory.agent}${memory.origin === 'noted' ? t(" · on the human's request") : memory.origin === 'flagged' ? t(' · flagged by {who}', { who: memory.detector ?? t('the room') }) : t(' · distilled')}`;
   document.querySelector('#nostromo-card-when').textContent = memory.created ? new Date(memory.created).toLocaleString() : '';
+  // Where it stands aboard, said where it can be seen: the word on a mark of its own and what it
+  // means on the line under it. The meaning used to live only in a tooltip, which a finger never
+  // opens, and the mark took the colour of every other line in the card.
   const zone = document.querySelector('#nostromo-card-zone');
-  zone.textContent = zoneWord(memory.zone ?? 'hold');
-  zone.className = travels(memory) ? 'zone underway' : 'zone archived';
-  zone.title = ZONE_NOTE[memory.zone ?? 'hold'] ?? '';
+  const standing = memory.zone ?? 'hold';
+  zone.replaceChildren(el('b', 'zone-word', zoneWord(standing)), el('span', 'zone-note', ZONE_NOTE[standing] ?? ''));
+  zone.className = `zone ${travels(memory) ? 'underway' : 'archived'} zone-${standing}`;
+  zone.title = '';
 
   // The wires it has on the map, strongest first.
   const neighbours = neighboursOf(memory.id);
@@ -17261,6 +17625,7 @@ function showNostromoCard(node) {
   nostromo.card.hidden = false;
   void nostromoTraffic();
   watchTraffic();
+  if (nostromo.flat) flatFocus(node);
 }
 
 // The traffic of the open card, read from the archive. Every memory is supposed to be in

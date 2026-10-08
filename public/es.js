@@ -3802,7 +3802,7 @@ export const ES = {
   'This looks better on the Mac. From here you can look around and switch things on or off.': 'Esto se ve mejor en la Mac. Desde aquí puedes ver qué hay y encender o apagar cosas.',
   'Permissions are changed on the Mac. From the phone a message goes up to #2 CREATE, and when an agent asks for a mode it is granted up to #2.': 'Los permisos se cambian en la Mac. Desde el teléfono un mensaje llega hasta #2 CREATE, y cuando un agente pide un modo se concede hasta #2.',
   'Permissions are changed on the Mac.': 'Los permisos se cambian en la Mac.',
-  'TOUCH A MEMORY TO READ IT · DO NOT TOUCH MOTHER': 'TOCA UNA MEMORIA PARA LEERLA · NO TOQUES A MOTHER',
+  'DRAG TO MOVE · PINCH TO ZOOM · TOUCH A MEMORY · DO NOT TOUCH MOTHER': 'ARRASTRA PARA MOVER · PELLIZCA PARA ACERCAR · TOCA UNA MEMORIA · NO TOQUES A MOTHER',
   'Servers on your Mac': 'Servidores en tu Mac',
   'Switches in Settings': 'Interruptores en Ajustes',
   'The servers could not be read.': 'No se pudieron leer los servidores.',

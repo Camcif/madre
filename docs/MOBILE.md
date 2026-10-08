@@ -204,7 +204,7 @@ Lo que decide D-M03:
 
 En el teléfono no hay ventanas: lo que en la Mac flota (Ajustes, MU/TH/UR, Módulos, Archivos,
 Servidores, el visor) es una hoja del tamaño de la pantalla. La página entera hace scroll, para que
-Safari esconda sus barras, y NOSTROMO es una imagen fija que se redibuja al tocarla.
+Safari esconda sus barras, y NOSTROMO es un mapa plano que se dibuja solo cuando algo cambia.
 
 ## 5 · Fases y entregas
 
@@ -324,3 +324,8 @@ patrones, reescritos sin dependencias:
   manera; agregada a inicio, el área segura deja la barra debajo. Para probar: cada `simctl
   openurl` abre una pestaña con su propio flujo en vivo, y a las seis Safari deja de cargar
   (límite de HTTP/1.1 por servidor); se cierra Safari del simulador para empezar limpio.
+- `2026-10-08` · NOSTROMO en el teléfono deja de ser la foto fija del cerebro (se veía como una
+  mancha) y pasa a ser un mapa plano: sectores por tipo, MOTHER al centro, enlaces trazados, puntos
+  de tamaño fijo en pantalla y proporcionales entre sí, un dedo mueve, dos acercan, se dibuja solo
+  cuando cambia algo. La ficha sube desde abajo y no ofrece olvidar (D-M03). El núcleo de MOTHER ya
+  no enfoca su consola al abrirse en el teléfono.

@@ -100,7 +100,9 @@ test('nostromo 3d: dragging turns the archive, Shift+drag moves the camera, and 
   assert.match(handler, /Math\.max\(-PITCH_LIMIT, Math\.min\(PITCH_LIMIT/, 'the head can be tipped over');
   assert.match(source, /drag\.pan = event\.shiftKey/);
   // RECENTER brings back the side view as well as the camera.
-  assert.match(source, /#nostromo-recenter'\)\?\.addEventListener\('click', \(event\) => \{[^}]*nostromo\.yaw = 0; nostromo\.pitch = 0;/);
+  assert.match(source, /#nostromo-recenter'\)\?\.addEventListener\('click', \(event\) => \{[\s\S]*?nostromo\.yaw = 0;\n  nostromo\.pitch = 0;/);
+  // On a phone the same key frames the whole chart again.
+  assert.match(source, /if \(nostromo\.flat\) \{ flatFrame\(\); flatPaint\(\); return; \}/);
   const page = await readFile(join(import.meta.dirname, '..', 'public', 'index.html'), 'utf8');
   assert.match(page, /DRAG TO TURN · SHIFT\+DRAG TO MOVE/, 'the help line still says dragging moves');
 });
@@ -378,4 +380,44 @@ test('nostromo 3d: a forgotten memory implodes, and its links come apart into du
     if (typeof arg === 'number') assert.ok(Number.isFinite(arg), `${call.name} was handed ${arg}`);
     if (typeof arg === 'string') assert.ok(!/NaN|undefined|Infinity/.test(arg), `${call.name} was handed "${arg}"`);
   }
+});
+
+// A burst goes off in MOTHER's rock, not on the glass in front of her: it is kept where it went off
+// on the body and turns with the crust, which the shading reads at the view's longitude plus the
+// turn (shadeMagma). Kept as a point on the screen, it stood still while the body turned under it.
+test('nostromo 3d: a burst on MOTHER rides her turn, wherever the view is tipped', () => {
+  const nostromo = {};
+  const magmaBlasts = new Function('nostromo', `${block('BLAST_EVERY')} ${block('BLAST_LIFE')} ${fn('magmaBlasts')} return magmaBlasts;`)(nostromo);
+  const crust = (b, tilt) => Math.atan2(b.x, b.z * Math.cos(tilt) - b.y * Math.sin(tilt));
+  const random = Math.random;
+  try {
+    for (const tilt of [0, 0.35, -0.5]) {
+      nostromo.blasts = [];
+      Math.random = () => 0;          // one is born, at the first place it can be
+      const [born] = magmaBlasts(10, { turn: 1.2, tilt });
+      Math.random = () => 0.999;      // and no other after it
+      const [later] = magmaBlasts(11, { turn: 1.5, tilt });
+      assert.ok(born && later, 'the burst is gone before its life is over');
+      assert.ok(Math.hypot(later.x - born.x, later.y - born.y, later.z - born.z) > 0.05, 'the burst stayed put on the screen while the body turned');
+      const drift = Math.abs((crust(later, tilt) + 1.5) - (crust(born, tilt) + 1.2));
+      assert.ok(drift < 1e-9, `the burst slid over the crust by ${drift} rad`);
+      assert.ok(Math.abs(Math.hypot(later.x, later.y, later.z) - 1) < 1e-9, 'the burst left the surface');
+    }
+  } finally {
+    Math.random = random;
+  }
+  // A fifth smaller than before, by one factor for every memory: they stay in proportion.
+  assert.match(source, /const MEMORY_SCALE = 0\.64;/);
+});
+
+// On a phone NOSTROMO is a chart drawn on demand, not a body turned sixty times a second.
+test('nostromo on a phone: a chart that is drawn when something changes, with the zone said in words', () => {
+  assert.match(source, /if \(state\.device\) \{ flatNostromo\(\); window\.addEventListener\('resize', flatResize\); return; \}/);
+  assert.doesNotMatch(source, /stillNostromo|paintStillNostromo/, 'the still picture of the brain is back');
+  assert.match(fn('flatPaint'), /requestAnimationFrame\(\(\) => \{ flat\.queued = 0; drawFlat\(\); \}\)/);
+  // Dots keep their proportion: one size for the largest, the rest by their radius against it.
+  assert.match(fn('flatLayout'), /node\.dot = flat\.dot \* \(\(node\.r3 \?\? node\.r\) \/ top\);/);
+  assert.match(fn('flatTouch'), /flat\.touches\.size === 2/, 'two fingers no longer zoom');
+  // The card says where a memory stands, and what that means, without a tooltip.
+  assert.match(fn('showNostromoCard'), /el\('b', 'zone-word', zoneWord\(standing\)\), el\('span', 'zone-note', ZONE_NOTE\[standing\] \?\? ''\)/);
 });

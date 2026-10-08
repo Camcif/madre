@@ -7079,6 +7079,16 @@ dialog.nostromo-key .room-ask-icon { --tone: #e5484d; }
 #nostromo .nostromo-card .meta dt { color: rgba(242, 241, 238, .5); text-transform: lowercase; }
 #nostromo .nostromo-card .meta dt::first-letter { text-transform: uppercase; }
 #nostromo .nostromo-card .meta dd { font-family: var(--mono); font-size: 11.5px; color: rgba(242, 241, 238, .86); }
+/* The zone: its word on a mark in the zone's own colour — lit when it travels into turns, amber in
+   the med bay, grey once jettisoned — and its meaning in a sentence under it. NOSTROMO is dark in
+   both themes, so the colours are the dark theme's and do not follow the light one. */
+#nostromo .nostromo-card .meta dd.zone { display: grid; justify-items: start; gap: 4px; }
+#nostromo .nostromo-card .zone-word { --zone: #9bff66; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 10.5px; letter-spacing: .1em; color: var(--zone); background: color-mix(in srgb, var(--zone) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--zone) 42%, transparent); }
+#nostromo .nostromo-card .zone-bridge .zone-word { --zone: #d2ffb8; }
+#nostromo .nostromo-card .zone-medbay .zone-word { --zone: #ffd166; }
+#nostromo .nostromo-card .zone-jettisoned .zone-word { --zone: rgba(242, 241, 238, .55); }
+#nostromo .nostromo-card .zone-note { font-family: var(--read); font-size: 12px; line-height: 1.4; letter-spacing: 0; text-transform: none; color: rgba(242, 241, 238, .62); }
+#nostromo .nostromo-card .zone.archived::after { content: none; }
 #nostromo .nostromo-card .wire h6 { font-family: var(--read); font-size: 12px; font-weight: 600; letter-spacing: 0; color: rgba(242, 241, 238, .72); text-transform: none; }
 #nostromo .nostromo-card .exchange { font-family: var(--read); font-size: 12.5px; letter-spacing: 0; color: rgba(242, 241, 238, .72); }
 #nostromo .nostromo-card .wire-row { border-radius: 9px; }
@@ -7638,6 +7648,15 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
 .via-phone .row .col > * { min-width: 0; max-width: 100%; }
 .via-phone .who { overflow: hidden; }
 .via-phone .who .spent { display: none; }
+
+/* NOSTROMO on a phone is a chart (app.js): the fingers are the chart's, the card rises from the
+   bottom like a pin's card on a map, and forgetting a memory is the Mac's, so its key is not here. */
+.via-phone #nostromo .nostromo-canvas { touch-action: none; cursor: default; }
+/* The header gives its second line to what the archive holds, instead of cutting it after a word. */
+.via-phone #nostromo .nostromo-head { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title actions" "sub sub"; padding: 14px 16px 12px; }
+.via-phone #nostromo .nostromo-head > .mother-sub { white-space: normal; overflow: visible; text-overflow: clip; contain: none; }
+.via-phone #nostromo .nostromo-card { top: auto; bottom: calc(10px + env(safe-area-inset-bottom)); left: 10px; right: 10px; width: auto; max-height: 54%; overflow-y: auto; overscroll-behavior: contain; }
+.via-phone #nostromo :is(#nostromo-forget, #nostromo-forget + .foot) { display: none; }
 
 /* SERVERS on a phone: a title, the note and the list; the browser itself stays on the Mac. */
 .via-phone #browser :is(#browser-tabs, #browser-body, .dock-grip) { display: none !important; }
