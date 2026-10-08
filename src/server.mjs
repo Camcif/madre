@@ -91,6 +91,7 @@ import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
 import { askRoom, knownRooms, markProject, roomComesUp, startRoom } from './salas.mjs';
+import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, activeContracts, channelKey, countRecent, mayServe, noteCrossing, sameKey } from './enlaces.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(sourceDirectory, '..', 'public');
@@ -1480,6 +1481,45 @@ export async function createPulseServer({
         setTimeout(() => server.emit('madre:close'), 150);
         return undefined;
       }
+      // ---------- ENLACES (docs/MACROVERSO.md, fase 3b) ----------
+      // The side that serves a link. Another room on this Mac asks, from its own process, for the
+      // notes a signed contract lets it read; every lock is here, in the room that hands them over,
+      // and in this order: never a phone, never a page, only a process holding the key of this
+      // Mac; one answer for every contract that does not serve this pair (missing, revoked,
+      // expired, facing the other way: the asker is not told which); sealed by CODE000; over its
+      // hourly ceiling. What crosses is what travels into a turn (`travels()`), of the kinds the
+      // contract names, each text through this room's privacy guard, and nothing of the ledger.
+      if (request.method === 'GET' && url.pathname === '/api/enlace/memories') {
+        if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
+        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a link; only a room can.') });
+        const key = await channelKey(root).catch(() => null);
+        if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
+        const here = basename(roomDir);
+        const asking = String(url.searchParams.get('asking') ?? '');
+        const contract = activeContracts(await readConfig(root)).find((one) => one.id === url.searchParams.get('contract')) ?? null;
+        if (!mayServe({ contract, serving: here, asking }).ok) return sendJson(response, 404, { error: NO_SUCH_LINK });
+        const sealed = room.motherStatus()?.lockedForMs ?? 0;
+        if (sealed > 0) return sendJson(response, 423, { error: `CODE000. THE ARCHIVE IS SEALED FOR ${Math.ceil(sealed / 60000)} MORE MINUTE${Math.ceil(sealed / 60000) === 1 ? '' : 'S'}.`, lockedForMs: sealed });
+        if (!memory) return sendJson(response, 503, { error: t('The room has no memory.') });
+        const reads = await countRecent(roomDir, contract.id, 'read');
+        if (reads >= contract.orders.perHour) return sendJson(response, 429, { error: t('This link was read {n} times in the last hour, its limit. Try again later.', { n: reads }) });
+        const q = String(url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+        const limit = Math.min(ENLACE_MAX_LIMIT, Math.max(1, Math.trunc(Number(url.searchParams.get('limit'))) || ENLACE_MAX_LIMIT));
+        await refreshPrivacy();
+        // The same search of notes memory_search makes (src/mcp/memory-server.mjs), untracked: a
+        // reading from another room is not this room leaning on a note. Without words, the latest.
+        const rows = q
+          ? memory.recallMemories(q, { limit: ENLACE_MAX_LIMIT * 3, maxChars: ENLACE_MAX_LIMIT * 3 * 300, queryVector: await memory.embedQuery(q).catch(() => null), track: false })
+          : memory.memories({ limit: ENLACE_MAX_LIMIT * 3 });
+        const notes = rows
+          .filter((row) => memoryTravels(row) && contract.kinds.includes(row.kind))
+          .slice(0, limit)
+          .map((row) => ({ id: row.id, kind: row.kind, zone: row.zone, text: privacy.redact(row.text).text, fromSequence: row.fromSequence, throughSequence: row.throughSequence, created: row.created }));
+        await room.record('enlace.read', { contract: contract.id, to: asking, count: notes.length, kinds: contract.kinds, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null });
+        await noteCrossing(roomDir, { kind: 'read', contract: contract.id, other: asking, count: notes.length });
+        return sendJson(response, 200, { contract: contract.id, from: here, notes });
+      }
+      // ---------- fin ENLACES ----------
       // Where the person was, to pick it up on the other side (bridge/handoff.mjs).
       if (url.pathname === '/api/handoff') {
         if (request.method === 'GET') return sendJson(response, 200, await readHandoff(root));

@@ -76,17 +76,19 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-005** | Una sala con una MADRE anterior no tiene las rutas nuevas: Salas debe decirlo en vez de fallar | — | 1 | ARREGLADO |
 | **S-006** | Dos `madre start` a la vez pueden tomar el mismo puerto libre; hoy el segundo recibe `EADDRINUSE` y avanza. Se conserva | `bin/madre.mjs` | — | SIN CAMBIO |
 | **S-007** | Los módulos escribían en `config.json` todo su bloque `modules` tal como lo tenían en memoria: un cambio de otra sala a otro módulo se perdía. Ahora cada uno escribe solo su clave | `src/modules/*.mjs` | 1 | ARREGLADO |
-| **S-008** | `memory_note` guarda notas sin pasar por el guardia de privacidad (`openMemory` no llama a `attachPrivacy`); una nota así podría cruzar un enlace | `src/mcp/memory-server.mjs:74-84` | 3b | ABIERTO |
+| **S-008** | `memory_note` guardaba notas sin pasar por el guardia de privacidad (`openMemory` no llamaba a `attachPrivacy`); una nota así podría cruzar un enlace. Ahora `openMemory` arma el mismo `Privacy` que la sala, desde el `config.json` de la Mac (`PULSE_HOME`), y lo adjunta antes de abrir la base; la respuesta de la herramienta repite la nota como quedó guardada | `src/mcp/memory-server.mjs` | 3b | ARREGLADO |
 | **S-009** | La llave de `#3`/`#4` se valida solo en el navegador; `POST /api/messages` acepta `#3` de un proceso local si el techo del agente lo permite. El canal de órdenes nunca manda ≥ `#3` | `src/override.mjs:3`, `src/server.mjs:2492-2524` | — | SIN CAMBIO |
 | **S-010** | El techo de modo (`scopes.<agente>.maxMode`) es por agente y por Mac, no por sala. El techo por sala vive en el contrato del enlace | `src/server.mjs:515-527` | — | SIN CAMBIO |
 | **S-011** | El regex de pasos de delegación ignora `@x #4:` en silencio | `src/directives.mjs:50` | — | ANOTADO |
 | **S-012** | El bloque `mode` del prompt dice «Read-only…» también en `#3` y `#4` | `src/room/prompt.mjs:98` | — | ANOTADO |
-| **S-013** | Purgar la privacidad reescribe solo el ledger de la conversación abierta. Falta verificar que limpia la tabla `memories`, que es lo que cruza un enlace | `src/room.mjs:660`, `src/memory.mjs:333-370` | 3b | VERIFICAR |
+| **S-013** | Purgar la privacidad reescribe solo el ledger de la conversación abierta. Verificado en 3b: la purga **sí** redacta la tabla `memories` (`RoomMemory.purge()` reinserta cada nota con el término reemplazado; la prueba de `test/enlaces.test.mjs` lo fija). Lo que pierde por el camino es S-019 | `src/room.mjs:660`, `src/memory.mjs:333-370` | 3b | VERIFICADO |
 | **S-014** | En tema claro el Macroverso, siempre oscuro, recibe el acento claro | `public/salas-mac.js:258-264` | 3a | ABIERTO |
 | **S-015** | `FOCUS_ZOOM` se usa antes de declararse; hoy no falla por el orden de las llamadas | `public/macroverso.js:211,228,447` | 3a | ABIERTO |
 | **S-016** | `resize` repinta todos los sprites sin debounce | `public/macroverso.js:226-228,489-490` | 3a | ABIERTO |
 | **S-017** | El NOSTROMO de la sala no tiene tope de densidad, ni pausa al ocultar la pestaña, ni medición de cuadro | `public/app.js:15343,15746-15751` | 3a | MEDIR |
 | **S-018** | `docs/INTERNALS.md:83` dice que varios turnos `#2` corren a la vez; el código deja un solo escritor por proyecto | `src/room/control.mjs:12-16` | — | ANOTADO |
+| **S-019** | `RoomMemory.purge()` reinserta cada nota redactada **sin** `zone`, `refuted_by`, `contradicts`, `correction`, `detector`, `confidence` ni `recalled`: justo después de purgar, toda nota que llevaba un término privado queda en `hold` y `travels()` la deja viajar (a un turno y por un enlace), aunque estuviera en enfermería o en la esclusa. Al reabrir la sala, `#restandAll()` devuelve las aberraciones a `medbay`, pero una nota refutada perdió `refuted_by` para siempre y sigue viajando. Reproducido con un sondeo sobre `main` (tres notas: aberración, aberración y hecho refutado → tras la purga las tres en `hold`; tras reabrir, el hecho refutado sigue en `hold`). `src/memory.mjs` es solo lectura en este encargo: no se arregló | `src/memory.mjs:339,363` | — | ABIERTO |
+| **S-020** | La llave del canal (`~/.pulse/credentials/enlaces.json`) prueba «un proceso de MADRE en esta Mac», no qué sala pide: el `asking` de la petición es la palabra de quien llama. Es el límite [I] que el encargo pedía anotar (§4B); una sala que mienta sobre su id solo obtiene lo que un contrato ya deja leer a esa otra sala | `src/enlaces.mjs`, `src/server.mjs` (sección ENLACES) | 3b | ANOTADO |
 
 ---
 
@@ -210,7 +212,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 1 | Salas en escritorio, S-001..005 y S-007 | HECHA |
 | 2 | Macroverso para ver | HECHA |
 | 3a | El Macroverso como flota de NOSTROMOs: pintores compartidos, escena viva, espacio infinito; S-014..S-017 | ENCARGADA |
-| 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | ENCARGADA |
+| 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | HECHA |
 | 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | ENCARGADA |
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | ENCARGADA |
 | 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | ENCARGADA |
@@ -243,3 +245,24 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   dibujo de NOSTROMO): salen S-008..S-018 y D-S07..D-S10. Se escribe `docs/MACROVERSO-ENCARGO.md`,
   el prompt de ejecución de las fases 3 y 4 con cada hecho citado, compuertas, pruebas y
   presupuestos. Nada construido todavía.
+- `2026-10-08` · Fase 3b hecha (rama `enlaces/3b`, sin push). Compuerta de entrada: las citas de
+  §2.3–2.5 del encargo confirmadas con `grep` sobre `06ba8b3`, ninguna rota. S-008 arreglado.
+  S-013 verificado (la purga sí redacta `memories`); al verificarlo salió S-019 (la purga pierde la
+  zona y `refuted_by`), y S-020 anota el límite de la llave. Nuevo `src/enlaces.mjs`: contrato
+  (`normalizeContract`, `contractId`, `activeContracts`, `mayServe`), firma y revocación sobre
+  `updateConfig` (dos firmas a la vez conservan las dos; revocar sella, nunca borra), llave del
+  canal en `~/.pulse/credentials/enlaces.json` (`0600` en `0700`, escrita entera y enlazada bajo su
+  nombre: la primera sala gana; con la misma forma que la bodega de un módulo, así `summary()` la
+  lista por nombre y tamaño), `askEnlace` (el lado que pide, sin `Origin` ni `x-madre-device`, con
+  `{notes}` · `{outdated}` · `{refused}` · `{unreachable}`), `noteCrossing`/`countRecent` sobre
+  `<sala>/enlaces.jsonl`. Ruta `GET /api/enlace/memories` en `src/server.mjs`, sección propia
+  después de las de Salas: teléfono 403, `Origin` 403, sin llave 403, contrato que no sirve 404
+  (`No such link.`, una sola respuesta), CODE000 423, `perHour` 429; entrega solo `travels()` y
+  `kind ∈ kinds`, cada texto por `Privacy.redact` de la sala que entrega, nunca `sources` ni nada del
+  ledger; `enlace.read` en el ledger con `query` como hash. Decisiones del ejecutor: el tope por
+  hora de las lecturas es `orders.perHour` (el contrato tiene un solo `perHour`, §4B); la búsqueda
+  con `q` es la de `memory_search` pero sin marcar las notas como recordadas (`track: false`: que otra
+  sala lea no es que esta se apoye en la nota); la flecha `a→b` significa que las notas viajan de a a
+  b (b pide, a entrega). Ocho pruebas en `test/enlaces.test.mjs` con dos salas reales; suite 623 en
+  verde y `pack:check`. Sin herramienta, sin monitor, sin firma desde la interfaz (3c), sin órdenes
+  (4b); la regla «la sala de Salas no es origen» espera a que exista esa sala (3d).

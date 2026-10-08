@@ -3810,6 +3810,10 @@ export const ES = {
   'The folder of that project is no longer on this Mac.': 'La carpeta de ese proyecto ya no está en esta Mac.',
   'The room did not open. What it said on the way up is in start.log, beside its record.': 'La sala no abrió. Lo que dijo al arrancar está en start.log, junto a su registro.',
   'That room runs an older MADRE. Update it, or close it from its terminal.': 'Esa sala usa una MADRE anterior. Actualízala, o ciérrala desde su terminal.',
+  // ENLACES (docs/MACROVERSO.md, fase 3b): la sala que entrega notas por un enlace (src/server.mjs).
+  'A page cannot read across a link; only a room can.': 'Una página no puede leer por un enlace; solo una sala.',
+  'That is not the key of this Mac.': 'Esa no es la llave de esta Mac.',
+  'This link was read {n} times in the last hour, its limit. Try again later.': 'Este enlace se leyó {n} veces en la última hora, su tope. Inténtalo más tarde.',
   // THE MACROVERSE (macroverso.js).
   'Macroverse': 'Macroverso',
   'Back to Rooms': 'Volver a Salas',

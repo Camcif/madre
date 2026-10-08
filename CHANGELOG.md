@@ -25,6 +25,7 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **El Macroverso.** Desde Salas, en una pantalla grande, todas tus salas como universos alrededor de tu Mac: cada una es un sol con la galaxia de sus memorias en los colores de NOSTROMO y en sus proporciones reales; las abiertas giran cerca, las dormidas lejos y frías; la que trabaja respira y la que te espera lleva un anillo en tu acento. Clic en un universo (o ← →) y la cámara vuela hacia él y abre su ficha: lo que guarda por tipo, sus conversaciones y la puerta para entrar o despertarla. Cada universo se pinta una sola vez y luego solo gira, así que dibujar un cuadro cuesta menos de un milisegundo. Por ahora el Macroverso muestra: enlazar salas viene después.
 - **En el teléfono**, cada sala de Salas lleva la misma franja de sus memorias por tipo y cuántas guarda.
 - **Dos salas ya no se pisan los ajustes.** `config.json` es uno para toda la Mac y se escribía sin candado: si dos salas guardaban a la vez, una podía borrar el cambio de la otra, y un módulo que se encendía en una sala podía apagar lo que otra acababa de cambiar. Ahora cada cambio se escribe completo y en turno, y cada módulo escribe solo lo suyo.
+- **Una nota que un agente guarda con `memory_note` pasa ahora por el guardia de privacidad**, como todo lo demás que entra a la memoria: si el nombre está en Ajustes › Privacidad, la nota se guarda con la marca, no con el nombre, y el agente la ve como quedó guardada.
 
 ### NOSTROMO más claro
 
