@@ -56,7 +56,9 @@ Zonas donde ya se sabe que el código asume POSIX y por eso merecen doble cuidad
   la única que se edita.
 - Nunca propongas publicar. `npm publish` lo corre el humano.
 - Credenciales: se escriben solo donde ese CLI las busca, con `0o600`, y jamás en el
-  config, el ledger o un log de MADRE.
+  config, el ledger o un log de MADRE. La única llave propia de MADRE es la de los
+  teléfonos emparejados (`docs/MOBILE.md`, D-M01): vive en `~/.pulse/credentials/`, solo
+  para el dueño, y de cada teléfono se guarda la huella, nunca el token.
 - La traducción al español se hace literal por literal, a mano. Nunca con un codemod.
 - La copia del producto no menciona el proceso de desarrollo ni sus fricciones.
 
