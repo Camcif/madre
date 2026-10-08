@@ -525,6 +525,10 @@ test('memory: forgetting removes the note and its vector; links pair notes that 
     await memory.embedPending();
     assert.deepEqual(memory.memoryLinks(), [{ a: 1, b: 2, weight: 1 }]);
     assert.deepEqual(memory.memoryLinks({ floor: 1.1 }), []);
+    // With another embedder in use (Ollama off, the room fell back), the stored vectors still draw the map.
+    memory.attachEmbedder({ ...topicEmbedder, model: 'another-model' });
+    assert.deepEqual(memory.memoryLinks(), [{ a: 1, b: 2, weight: 1 }], 'the links vanish when another embedder is in use');
+    memory.attachEmbedder(topicEmbedder);
     const gone = memory.deleteMemory(2);
     assert.equal(gone.text, 'The payment webhook lives in src/webhooks.mjs.');
     assert.equal(memory.deleteMemory(2), null);

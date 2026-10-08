@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access } from 'node:fs/promises';
+import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access, stat } from 'node:fs/promises';
 import { openSync, rmSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { probePort, framable } from './ports.mjs';
@@ -53,6 +53,7 @@ import { QuotaMonitor } from './quota-monitor.mjs';
 import { defaultQuotaSources } from './quota-sources.mjs';
 import { Room } from './room.mjs';
 import { applyConfigToEnv, loadConfig } from './config.mjs';
+import { mergeOverride, overrideSettings } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
 import { applyKey, keyPlanFor } from './credentials.mjs';
@@ -60,7 +61,7 @@ import { forgetSecret, summary as vaultSummary, writeSecret } from './vault.mjs'
 import { loadConfig as readConfig, updateConfig } from './config.mjs';
 import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
 import { checkForUpdate, detectInstall, updateCommand, releaseUrl, applyCommand, fetchCommand } from './updates.mjs';
-import { bootWhatsNew, markSeen, notesFor, whatsNew } from './whats-new.mjs';
+import { bootWhatsNew, markSeen, newestNotes, notesFor, whatsNew } from './whats-new.mjs';
 
 // Where a person reads the module contract, in the language the room is speaking.
 const SDK_PAGE = { es: 'https://madre.run/sdk/', en: 'https://madre.run/en/sdk/' };
@@ -69,10 +70,11 @@ import { adoptStrays, chatIndex, chatLedger, createChat, deleteChat, isChatId, l
 import { spawn } from 'node:child_process';
 import { totalmem } from 'node:os';
 import { discoverModels } from './models.mjs';
+import { observable } from './modules/intents-observe.mjs';
 import { setImageModule } from './capabilities.mjs';
 import { resolveGeminiKey } from './image-studio.mjs';
 import { commandByName, listCommands, parseCommand } from './commands.mjs';
-import { listDirectory, searchFiles, readServable, storeAttachment, resolveInside, writeEdited, MAX_ATTACHMENT_BYTES } from './files.mjs';
+import { listDirectory, searchFiles, readServable, storeAttachment, resolveInside, createEmptyFile, writeEdited, MAX_ATTACHMENT_BYTES } from './files.mjs';
 import { planFileOp, freeCopyPath, needsDesignation, CREATIONS } from './file-ops.mjs';
 import { ServerSentinel } from './server-sentinel.mjs';
 import { Eyecat } from './eyecat-watch.mjs';
@@ -345,6 +347,8 @@ export async function createPulseServer({
   // What the human last set for memory: a conversation opened later distills with it, not with
   // what MADRE booted with.
   let memorySettings = await memoryConfig();
+  // Which key unlocks #3 and #4, and for how long an accepted one holds. See src/override.mjs.
+  let overrideConfig = overrideSettings((await readConfig(root)).override);
   let listening = null;
   const listeningPort = () => listening?.address?.()?.port ?? Number(process.env.PULSE_PORT ?? 4317);
   // One CONTROL desk for the whole project, shared by every conversation alive at once: a single
@@ -414,6 +418,7 @@ export async function createPulseServer({
       memory: memorySettingsView(),
       updates: { check: updatesEnabled(), envWins: process.env.PULSE_UPDATE_CHECK !== undefined },
       privacy: { terms: privacy.terms, marker: privacy.marker, envWins: privacySettings({}, process.env).envWins, ...privacy.guards },
+      override: overrideConfig,
     };
   }
   // What MU/TH/UR shows under MEMORY: the live values, who could distil, and what embeds today.
@@ -483,6 +488,10 @@ export async function createPulseServer({
         if (Number.isInteger(Number(scopes.defaultMode)) && Number(scopes.defaultMode) >= 1 && Number(scopes.defaultMode) <= 2) { config.scopes[agentId].defaultMode = Number(scopes.defaultMode); delete config.scopes[agentId].alwaysCreate; }
       }
       for (const each of liveRooms()) each.setScopes(config.scopes);
+    }
+    if (patch.override && typeof patch.override === 'object') {
+      overrideConfig = mergeOverride((await readConfig(root)).override, patch.override);
+      config.override = overrideConfig;
     }
     if (patch.gemini) {
       config.gemini = { ...((await readConfig(root)).gemini ?? {}) };
@@ -961,6 +970,8 @@ export async function createPulseServer({
   poller.unref();
 
   let installing = null;
+  // Intenciones' reading of every conversation, kept per ledger file until that file changes.
+  const observedLedgers = new Map();
   // The context a module works in: the project, its settings, the room, and what this server offers.
   async function moduleContext() {
     const config = await readConfig(root);
@@ -990,6 +1001,40 @@ export async function createPulseServer({
               }
             }
             return said;
+          },
+          // Every conversation's turns, cut down to what learning from real use reads: who was
+          // asked what, at which effort, how it ended, what it cost and what the human said of it.
+          // A ledger is parsed again only when it changed on disk.
+          ledgers: async () => {
+            const turns = [];
+            for (const chat of (await listChats(roomDir)).chats) {
+              const file = chatLedger(roomDir, chat.id);
+              const seen = await stat(file).catch(() => null);
+              if (!seen) continue;
+              let kept = observedLedgers.get(file);
+              if (!kept || kept.mtimeMs !== seen.mtimeMs || kept.size !== seen.size) {
+                const text = await readFile(file, 'utf8').catch(() => '');
+                const events = [];
+                for (const line of text.split('\n')) {
+                  if (!/"(message\.created|message\.failed|message\.rated|usage\.recorded|turn\.stopped)"/.test(line)) continue;
+                  try { const one = observable(JSON.parse(line), chat.id); if (one) events.push(one); } catch { /* a torn last line */ }
+                }
+                kept = { mtimeMs: seen.mtimeMs, size: seen.size, events };
+                observedLedgers.set(file, kept);
+              }
+              turns.push(...kept.events);
+            }
+            return turns;
+          },
+          // The effort Codex runs at when told none, from its own config: a turn sent without one
+          // ran there. Claude never says, and its turns stay at «its default».
+          defaults: async () => {
+            const codex = agents.find((agent) => agent.id === 'codex');
+            if (!codex) return {};
+            const found = (await discoverModels({ agents: [codex], config: await readConfig(root) }))?.codex;
+            if (!found) return {};
+            const byModel = Object.fromEntries(Object.entries(found.effortsByModel ?? {}).filter(([, one]) => one?.default).map(([slug, one]) => [slug, one.default]));
+            return { codex: { effort: found.effortDefault ?? null, byModel } };
           },
         },
         // What a card knows about being up to date. Reading is free: it answers from the day's
@@ -1184,17 +1229,40 @@ export async function createPulseServer({
         ['/assets/brand/JetBrainsMono-latin-ext.woff2', 'font/woff2'],
         ['/assets/brand/Geist-latin.woff2', 'font/woff2'],
         ['/assets/brand/Geist-latin-ext.woff2', 'font/woff2'],
+        ['/assets/brand/GeistMono-latin.woff2', 'font/woff2'],
+        ['/assets/brand/GeistMono-latin-ext.woff2', 'font/woff2'],
         ['/assets/brand/OFL-Geist.txt', 'text/plain; charset=utf-8'],
+        ['/assets/brand/OFL-GeistMono.txt', 'text/plain; charset=utf-8'],
         ['/assets/brand/OFL-Sora.txt', 'text/plain; charset=utf-8'],
         ['/assets/brand/OFL-JetBrainsMono.txt', 'text/plain; charset=utf-8'],
         ['/assets/brand/madre-favicon.svg', 'image/svg+xml'],
-        // The conversation's wallpapers (PERSONALIZE): five pictures, encoded by hand from their
+        // The conversation's wallpapers (Appearance): twelve pictures, encoded by hand from their
         // masters (cwebp), whose light and dark, layer or mesh and intensity are layers in the CSS.
         ['/assets/wallpapers/jarrito.webp', 'image/webp'],
         ['/assets/wallpapers/canela.webp', 'image/webp'],
         ['/assets/wallpapers/paraiso.webp', 'image/webp'],
         ['/assets/wallpapers/ventura.webp', 'image/webp'],
         ['/assets/wallpapers/magna.webp', 'image/webp'],
+        ['/assets/wallpapers/biznaga.webp', 'image/webp'],
+        ['/assets/wallpapers/oceano.webp', 'image/webp'],
+        ['/assets/wallpapers/quila.webp', 'image/webp'],
+        ['/assets/wallpapers/xico.webp', 'image/webp'],
+        ['/assets/wallpapers/tropical.webp', 'image/webp'],
+        ['/assets/wallpapers/tradicion.webp', 'image/webp'],
+        ['/assets/wallpapers/urbania.webp', 'image/webp'],
+        // The pictures of the «what's new» board, one per thing it tells (src/whats-new.mjs).
+        ['/assets/news/1.0/settings.webp', 'image/webp'],
+        ['/assets/news/1.0/mother.webp', 'image/webp'],
+        ['/assets/news/1.0/intents.webp', 'image/webp'],
+        ['/assets/news/1.0/permissions.webp', 'image/webp'],
+        ['/assets/news/1.0/github.webp', 'image/webp'],
+        ['/assets/news/1.0/bar.webp', 'image/webp'],
+        ['/assets/news/1.0/modules.webp', 'image/webp'],
+        ['/assets/news/1.0/nostromo.webp', 'image/webp'],
+        ['/assets/news/1.0/room.webp', 'image/webp'],
+        ['/assets/news/1.0/looks.webp', 'image/webp'],
+        ['/assets/news/1.0/alerts.webp', 'image/webp'],
+        ['/assets/news/1.0/finder.webp', 'image/webp'],
       ]);
       if (request.method === 'GET' && brandAssets.has(url.pathname)) {
         const file = await readFile(join(publicDirectory, url.pathname.slice(1)));
@@ -1245,6 +1313,7 @@ export async function createPulseServer({
           ripleyWeb: Boolean((await readConfig(root)).modules?.ripley?.web),
           ripley: { enabled: await ripleyOn() },
           softTokenBudget,
+          override: overrideConfig,
           timeouts: Object.fromEntries(agents.map((agent) => [agent.id, room.timeoutFor(agent.id)])),
           delegation: { enabled: room.settings().delegation, maxPlanSteps: room.settings().maxPlanSteps },
           plans: room.activePlans(),
@@ -1361,6 +1430,18 @@ export async function createPulseServer({
       // The editor saves a project file. The human's own hand, so no mode and no lease — but the
       // same two fences the file manager keeps: inside the project after following links, and the
       // zones the room guards (.git, .pulse, .madre, a .env) ask for the project's designation.
+      // A new, empty file from the Finder; guarded paths ask for the designation, like saving.
+      if (request.method === 'POST' && url.pathname === '/api/files') {
+        const payload = await body(request).catch(() => ({}));
+        const relative = String(payload.path ?? '').trim().replace(/^\/+/, '');
+        if (relative && needsDesignation(relative) && !designationOk(payload.designation)) {
+          return sendJson(response, 403, { error: t('This file is one the room guards. Type the project\'s designation to save it.'), guarded: true });
+        }
+        const result = await createEmptyFile(canonicalProjectRoot, relative);
+        if (result.status !== 201) return sendJson(response, result.status, { error: t(result.error) });
+        await room.record('project.file.created', { path: result.path });
+        return sendJson(response, 201, { ok: true, path: result.path });
+      }
       if (request.method === 'PUT' && url.pathname === '/api/files') {
         const payload = await body(request).catch(() => ({}));
         const relative = String(payload.path ?? '').replace(/^\/+/, '');
@@ -1648,8 +1729,13 @@ export async function createPulseServer({
       // Release channel: current, latest on npm, and the command for how this copy runs.
       // What this version brings, once, to someone who came from an older one.
       if (request.method === 'GET' && url.pathname === '/api/whats-new') {
-        const news = await whatsNew({ root, version: PACKAGE.version, returning: novelty.returning, any: url.searchParams.get('any') === '1' });
-        return sendJson(response, 200, { ...news, changes: { es: releaseUrl(PACKAGE.repository, PACKAGE.version, 'es'), en: releaseUrl(PACKAGE.repository, PACKAGE.version, 'en') } });
+        // `version`, with `any`: another version's sheet, to look at it before it ships. It reads
+        // and never marks anything as seen; only a sheet with notes can be asked for.
+        const any = url.searchParams.get('any') === '1';
+        const asked = url.searchParams.get('version');
+        const version = any && asked && notesFor(asked) ? asked : PACKAGE.version;
+        const news = await whatsNew({ root, version, returning: novelty.returning, any });
+        return sendJson(response, 200, { ...news, preview: version !== PACKAGE.version, newest: newestNotes(), changes: { es: releaseUrl(PACKAGE.repository, version, 'es'), en: releaseUrl(PACKAGE.repository, version, 'en') } });
       }
       if (request.method === 'POST' && url.pathname === '/api/whats-new/seen') {
         await markSeen(root, PACKAGE.version);

@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { NOTES, bootWhatsNew, markSeen, notesFor, readSeen, shouldShow, whatsNew } from '../src/whats-new.mjs';
+import { NEWS_ACTIONS, NOTES, bootWhatsNew, markSeen, newestNotes, notesFor, readSeen, shouldShow, whatsNew } from '../src/whats-new.mjs';
+import { compareVersions } from '../src/updates.mjs';
 
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+const server = await readFile(new URL('../src/server.mjs', import.meta.url), 'utf8');
 
 test('whats new: shown once to whoever came from an older version, never on a first install', () => {
   assert.equal(shouldShow({ version: '0.7.0', seen: '0.6.0' }), true);
@@ -51,7 +53,7 @@ test('whats new: every sheet is whole in both languages, says where each thing i
   for (const [version, notes] of Object.entries(NOTES)) {
     assert.match(version, /^\d+\.\d+\.\d+$/);
     for (const language of ['es', 'en']) assert.ok(notes.intro?.[language]?.trim(), `${version} has no intro in ${language}`);
-    assert.ok(notes.items.length >= 3 && notes.items.length <= 7, `${version} says ${notes.items.length} things: a sheet is a few, not a changelog`);
+    assert.ok(notes.items.length >= 3 && notes.items.length <= 12, `${version} says ${notes.items.length} things: a board holds a dozen at most, not a changelog`);
     for (const item of [...notes.items, notes.more].filter(Boolean)) {
       assert.ok(icons.has(item.icon), `${version} asks for an icon the room does not have: ${item.icon}`);
       for (const language of ['es', 'en']) {
@@ -76,4 +78,28 @@ test('whats new: the version being worked on has its sheet, and a minor cannot b
   }
   const release = await readFile(new URL('../scripts/release.mjs', import.meta.url), 'utf8');
   assert.match(release, /notesFor\(version\)/, 'the release script no longer asks for the sheet');
+});
+
+test('whats new: from 1.0 a sheet is a board — each thing has its picture, and its key goes somewhere the room knows', () => {
+  // The places «Take me there» can open are one list, written once in src/whats-new.mjs; the page
+  // has a way to each, and no way the list does not name.
+  const go = app.slice(app.indexOf('const NEWS_GO = {'), app.indexOf('\n};', app.indexOf('const NEWS_GO = {')));
+  const handled = [...go.matchAll(/^ {2}([a-z]+):/gm)].map((m) => m[1]);
+  assert.deepEqual([...handled].sort(), [...NEWS_ACTIONS].sort(), 'the page and NEWS_ACTIONS disagree about where a note can take you');
+  for (const [version, notes] of Object.entries(NOTES)) {
+    if (compareVersions(version, '1.0.0') < 0) continue;
+    const folder = `/assets/news/${version.split('.').slice(0, 2).join('.')}/`;
+    const ids = notes.items.map((item) => item.id);
+    assert.equal(new Set(ids).size, ids.length, `${version} gives two things the same id`);
+    for (const item of notes.items) {
+      assert.match(item.id ?? '', /^[a-z]+$/, `${version} · "${item.title.en}" has no id`);
+      assert.ok(item.image?.startsWith(folder), `${version} · "${item.id}" keeps its picture outside ${folder}: ${item.image}`);
+      assert.ok(item.image.endsWith('.webp'), `${version} · "${item.id}" is not a webp`);
+      // A picture the server does not list is a 404 in the board.
+      assert.ok(server.includes(`['${item.image}', 'image/webp']`), `${version} · ${item.image} is not served (brandAssets in src/server.mjs)`);
+      assert.ok(item.action === null || NEWS_ACTIONS.includes(item.action), `${version} · "${item.id}" takes you somewhere the room does not know: ${item.action}`);
+    }
+  }
+  // A copy whose own version has no board can still look at the newest one.
+  assert.equal(newestNotes(), Object.keys(NOTES).sort(compareVersions).at(-1));
 });

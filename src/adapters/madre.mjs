@@ -124,8 +124,8 @@ export function roundTable(text, { crew = [], maxSteps = 4 } = {}) {
   const agents = crew.slice(0, maxSteps);
   if (!agents.length) {
     return { question, agents, text: es
-      ? 'No hay agentes CLI en la fila para convocar. Conecta uno en ⚙ CONNECTIONS y vuelve a pedírmelo.'
-      : 'No CLI agent is in the row to convene. Connect one in ⚙ CONNECTIONS and ask me again.' };
+      ? 'No hay agentes CLI en la fila para convocar. Conecta uno en Ajustes › Agentes y vuelve a pedírmelo.'
+      : 'No CLI agent is in the row to convene. Connect one in Settings › Agents and ask me again.' };
   }
   const list = agents.map((id) => `@${id}`).join(', ');
   const step = es
@@ -247,7 +247,7 @@ export async function gather(memory, text, { maxChars = 7000 } = {}) {
 export function madreInvoker({ memory, ollama, fetchImpl = globalThis.fetch }) {
   return async ({ prompt, text = '', timeoutMs = 180000, model = null, requester = 'you', crew = [], delegation = false, maxSteps = 4, round = null }) => {
     const state = typeof ollama === 'function' ? ollama() : ollama;
-    if (!state?.running || !state.chatModel) throw new Error('@madre needs Ollama running with a chat model. Open MODULES → OLLAMA.');
+    if (!state?.running || !state.chatModel) throw new Error('@madre left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.');
     const question = text || prompt.match(/User message: ([\s\S]*)$/)?.[1] || prompt.slice(-2000);
     const local = localReply(question, { requester, crew, delegation, maxSteps, model: model ?? state.chatModel });
     if (local) return { text: local.text, usage: { ...NO_USAGE }, grounded: { notes: 0, quotes: 0 }, synthetic: local.kind, declined: local.kind === 'declined' ? 'action' : undefined };

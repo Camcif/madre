@@ -282,7 +282,10 @@ export async function runCalibration({ kind = 'quick', cases = [], agent, model 
     let result = null;
     try { result = await ask({ question: one.question, agent, model, effort }); } catch (error) { result = { error: error.message }; }
     const text = String(result?.text ?? '').trim();
-    const value = { text, tokens: result?.usage ? budgetTokens(result.usage) : null, failed: !text || Boolean(result?.error) };
+    // Why a turn failed is kept, in one short line: a measurement that fails in silence is tokens
+    // spent with nothing to show and nothing to fix.
+    const why = result?.error ? String(result.error).split('\n')[0].trim().slice(0, 160) : !text ? 'the agent answered nothing' : null;
+    const value = { text, tokens: result?.usage ? budgetTokens(result.usage) : null, failed: Boolean(why), why };
     answers.set(key, value);
     return value;
   };
@@ -313,7 +316,11 @@ export async function runCalibration({ kind = 'quick', cases = [], agent, model 
       const base = { at: now(), run, kind, agent, model, version, intent: one.intent, caseId: one.caseId, effort: one.effort, reference };
       const usual = await answer(one, reference);
       const cheaper = await answer(one, one.effort);
-      if (usual.failed || cheaper.failed) { kept.push({ ...base, skipped: 'failed' }); continue; }
+      if (usual.failed || cheaper.failed) {
+        const at = usual.failed ? reference : one.effort;
+        kept.push({ ...base, skipped: 'failed', failedAt: at, why: (usual.failed ? usual.why : cheaper.why) ?? null, tokens: { effort: cheaper.tokens, reference: usual.tokens } });
+        continue;
+      }
       const verdict = await decide(one, cheaper.text, usual.text, `${run}|${one.caseId}|${one.effort}`);
       if (!verdict) { kept.push({ ...base, skipped: 'unjudged' }); continue; }
       kept.push({ ...base, verdict, judge: judge.id, tokens: { effort: cheaper.tokens, reference: usual.tokens } });

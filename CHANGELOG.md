@@ -4,9 +4,247 @@ Todas las versiones publicadas de `@jossuealcala/madre`. Fechas en ISO.
 
 Una versión se cierra cuando está en npm: hasta entonces su sección se llama **Sin publicar** y puede crecer. Cada versión publicada tiene exactamente una etiqueta `vX.Y.Z`, una release en GitHub y una sección aquí; el parche puede llegar a dos dígitos (`0.2.10`) antes de subir el menor. Ver `docs/ROADMAP.md` para el criterio de qué sube cada número.
 
-## 0.8.0 · Sin publicar
+## 1.0.0 · Sin publicar
 
 Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventana, varias conversaciones trabajan a la vez, una segunda conversación cabe en la otra mitad y los servidores de tu proyecto viven dentro de MADRE. También trae un editor de código en el visor, y escribir un proyecto de principio a fin ya no se corta a medias.
+
+### Tu primera vez en MADRE
+
+- **Un recorrido nuevo, de cinco paradas**, sobre la sala misma: la caja y cómo preguntarle a cada agente (con `@`, el modo y `/`), MU/TH/UR y lo que guarda dentro, varias conversaciones a la vez, los gestos para moverte (clic derecho en la barra, clic en la caja, arrastrar ventanas, `⌘ ,`, Esc) y los módulos. Cada parada ilumina su parte de la pantalla y dice en una lista corta qué tecla hace qué.
+- **Primeros pasos, en la barra.** Quien llega por primera vez ve una píldora con un anillo que se llena: «Primeros pasos 2/6». Abre una tarjeta con seis cosas por hacer: tu primera pregunta, pedirle algo a toda la tripulación, abrir MU/TH/UR, abrir una segunda conversación, acomodar la barra y abrir un módulo. Cada una tiene un botón «Llévame» que te deja justo ahí. Ninguna se marca con un clic de «hecho»: se marcan solas cuando de verdad las haces, y la primera pregunta y el primer plan se toman del registro de la sala. Al completar las seis, la píldora se va; si la ocultas, el `?` de MU/TH/UR la regresa.
+
+### Arreglos
+
+- **El scroll del editor ya no mueve la sala de atrás.** Sobre los números de línea, las barras o la línea de estado, la rueda pasaba a la conversación; también lo hacía cuando el texto llegaba a su principio o a su final. Ahora la rueda mueve siempre el texto del editor, y lo mismo pasa en el visor de archivos.
+- **Las burbujas ya no se deforman al subir por la conversación.** Las que estaban fuera de pantalla tenían otro fondo y otra sombra, y al entrar cambiaban de golpe mientras armaban su vidrio. Ahora se ven igual dentro y fuera de pantalla, y el vidrio se prepara una pantalla antes de que la burbuja aparezca.
+
+### La barra se arma a tu gusto
+
+- **La barra se arma a tu gusto.** Clic derecho en cualquier tecla de la barra (o déjala presionada en una pantalla táctil) y la barra se abre para editarla: las teclas tiemblan, cada una lleva un «−» en tu acento para quitarla y una tarjeta debajo muestra lo que falta, listo para agregarlo con un clic. Además de las de siempre puedes poner Memoria (abre Ajustes › Memoria), Ash, Intenciones, Ollama y cualquier módulo tuyo que se abra en ventana; también puedes arrastrar una tecla para cambiarla de lugar. Ajustes no se quita y siempre va al final. Listo, Esc o un clic fuera cierran la edición, y la barra queda así en este navegador.
+- **En un teléfono la barra cabe**: los íconos que no caben pasan, desde el final de tu orden, a una tecla «Más» (•••) que abre una tarjeta con ellos; Ajustes y el logo siempre quedan a la vista. Mientras la acomodas, la barra se desliza de lado para alcanzar todos sus íconos.
+
+### GitHub, en la sala
+
+- **Un módulo nuevo, GitHub, trae el lado de GitHub de tu proyecto a la sala.** Escribe `/gh` y una tarjeta dice cuántos pull requests e issues hay abiertos y cómo va el CI de la rama en la que estás. `/gh pr` los lista, `/gh pr 12` abre uno (su rama, si se puede fusionar, cuánto cambia y quién lo revisó), `/gh ci` enseña cada verificación y las últimas ejecuciones, y `/gh issues` lista los issues. Todos lo leen, agentes incluidos.
+- **Publicar pide tu palabra, como `/git push`.** `/gh pr create "título"`, `/gh comment 12 "texto"` y `/gh issue "título"` enseñan primero exactamente qué se publicaría, dónde y con qué cuenta, y no publican nada. Lo publica la misma línea con `confirm` al final.
+- **Los agentes leen GitHub en cualquier modo y escriben solo en `#4` AIRLOCK.** Abrir un pull request, un issue o comentar sale con tu nombre y no se deshace, así que la sala retira esas herramientas por debajo de `#4` y el propio servidor las rechaza ahí también.
+- **Sin llaves nuevas si ya tienes `gh`.** Si el CLI de GitHub tiene sesión en esta computadora, el módulo la usa y MADRE no guarda nada. Si no, pegas un token de acceso detallado en su ficha; se guarda en la bodega de MADRE y nunca aparece en una tarjeta, en el registro de salidas ni en lo que lee un agente. La ficha dice con qué cuenta entra y qué repositorio encontró, o qué le falta.
+- Cada petición a GitHub queda en el registro de salidas como del módulo GitHub, aparte de la consulta diaria de versiones.
+
+### AJUSTES: todo lo que configuras, en una sola ventana
+
+- **El botón de la barra que abría PERSONALIZAR ahora abre AJUSTES** (también con ⌘, o Ctrl+,). Reúne lo que antes estaba repartido entre PERSONALIZAR y MU/TH/UR, en tres grupos: **Tú** (Apariencia, Sala y turnos), **La tripulación** (Agentes, Memoria) y **Sistema** (Privacidad, Versión y reportes).
+- **Cada tarjeta dice cómo está ese ajuste antes de abrirlo**: cuántos agentes tienen sesión, cuántas conversaciones trabajan a la vez, qué archiva la memoria, cuántos términos privados hay, si tu versión está al día. Si algo pide tu atención, lo dice en ámbar.
+- **Lo más usado se cambia desde la tarjeta, sin abrirla**: el tema, Multitarea, tachar llaves y el auto-reporte.
+- **Al abrir una categoría**, sus ajustes aparecen en una hoja al lado y el tablero sigue a la vista. Esc la cierra, y otro Esc cierra la ventana.
+- **Un buscador para cualquier ajuste.** «/» lo enfoca; encuentra categorías, campos y agentes, con o sin acentos («version» encuentra «Versión»). Enter abre el primer resultado y te lleva directo al campo, que se ilumina un momento.
+- **Todo se guarda al momento.** Apariencia se aplica mientras eliges, y los límites de la sala (presupuesto, pasos, tiempos, modelo de OpenCode, delegación) se guardan en `~/.pulse/config.json` en cuanto los cambias, ya sin botón GUARDAR. El idioma se aplica cuando decides recargar.
+- **La ventana se adapta a su tamaño.** Ancha, muestra el tablero en tres columnas con la hoja al lado. Mediana, la categoría ocupa toda la ventana con un regreso a Ajustes. Angosta, queda una columna de íconos a la izquierda con la categoría a su lado. Si achicas el navegador, la ventana se encoge para no salirse, y recupera su tamaño cuando vuelve a haber espacio.
+- **Las seis categorías están hechas de las mismas piezas.** Cada una se arma con bloques: un título, una línea que explica para qué sirve y, debajo, filas con lo que es cada ajuste a la izquierda y su control a la derecha (interruptor, selector, contador o campo). Todo usa la letra de la sala y escribe como una oración normal. La monoespaciada queda solo para lo que se escribe tal cual: rutas, versiones y comandos.
+  - **Apariencia** empieza con la vista previa y sigue con Idioma y tema, Fondo, Acento y Conversación.
+  - **Agentes**: cada agente tiene su ficha, con su estado en palabras (Con sesión, Sin sesión, No instalado) y sus permisos y modos, cada modo en su color.
+  - **Memoria** abre con cuatro cifras del archivo y su madurez, con el siguiente paso. Debajo vienen el archivista, el recuerdo, el dataset y, plegados, el análisis y las tres pruebas.
+  - **Sala y turnos**, **Privacidad** y **Versión y reportes** ya no son formularios de consola: cada grupo de ajustes es su propio bloque.
+- **Los botones se sienten como teclas.** Los de la barra, el de conversaciones y los de AJUSTES ya no tienen la línea de luz arriba ni la sombra interna abajo que se leían como cejas en la orilla. Ahora están levantados sobre su propia sombra: al pasar el cursor suben un poco y al presionarlos se hunden. El botón en el color de acento ya no tiene brillo.
+- **El acento llega a todo AJUSTES**: interruptores, etiquetas y botones toman el color que elegiste, no solo los botones.
+- **Los textos de ayuda pesan menos.** Los títulos llevan el peso; lo que los explica usa la misma letra ligera de las burbujas de la conversación.
+- **Volver al tablero es un botón redondo con un chevron**, junto al título de la categoría.
+- **Apariencia pone primero lo que más cambias.** Bajo la vista previa vienen Color (tema y acento), después Fondo y Conversación, y al final Idioma, que recarga la página. La vista previa se queda fija arriba mientras bajas.
+- **El modo elegido se marca en cuanto lo tocas** y se queda ahí mientras se guarda; si el guardado falla, vuelve al anterior.
+- **La llave y el comando de inicio de sesión de un agente ya son parte de su ficha**, en lugar de un cuadro negro de terminal. Las notas de cada CLI sobre cómo inicia sesión ahora están en español.
+- **La hoja de una categoría se ensancha como la vista de un servidor**: arrastra su orilla izquierda y recuerda el ancho. Doble clic en la orilla la regresa a su ancho normal.
+- **El buscador se hunde al escribir**, como la caja de texto.
+- **MU/TH/UR ya no tiene Conexiones, Memoria, Release, Turnos ni Centinela.** Todo eso vive en AJUSTES, y su botón **⚙ AJUSTES** la abre. Los avisos que mandaban a Conexiones, la píldora de versión nueva y «Siempre para este agente» abren AJUSTES directo en la categoría, y en el agente cuando aplica.
+
+### MÓDULOS como tablero, y MU/TH/UR con el remedio primero
+
+- **MÓDULOS es un tablero de tarjetas**, con el mismo estilo que AJUSTES. Cada módulo es una tarjeta con su ícono, su nombre y una línea de lo que hace. Los que tienen interruptor se encienden desde la tarjeta, sin abrirla. Ash, Intenciones y Ollama ocupan dos columnas y muestran lo que dicen de sí mismos en ese momento. Los encendidos van primero. Un buscador encuentra un módulo por su nombre o por lo que hace.
+- **Al tocar una tarjeta se abre la ficha del módulo** en una hoja junto al tablero, o en todo el panel si es angosto. Es la misma ficha de siempre, con todo lo que hace, ahora con los bloques, la letra y los botones de AJUSTES.
+- **Ash, Intenciones y Ollama se pueden abrir en ventana**: su ficha flota sobre la sala, se mueve, cambia de tamaño, recuerda dónde quedó y se mantiene al día. Lo decide MADRE para sus propios módulos; el SDK no cambia.
+- **«Crea tu módulo»** es la última tarjeta. Abre una guía en cuatro pasos: pedírselo a tu agente en la sala con /module, escribirlo tú (con las carpetas donde vive y el SDK), recargarlo sin reiniciar, y qué pasa si habla con un servicio de fuera. Al final aparecen tus módulos y los que no cargaron, con el motivo.
+- **Cada condición de MU/TH/UR dice primero qué hacer.** Debajo vienen los botones que lo resuelven desde la sala (subir un límite, abrir el agente en AJUSTES), luego los comandos para la terminal, el diagnóstico plegado y, al final, **«¿No se arregló? · Reportar»**, que abre el reporte con el código de la condición: en español, el formulario de madre.run; en inglés, un issue de GitHub.
+- **AJUSTES › Archivos y servidores**: dónde se abren Finder (al lado o en ventana) y los servidores (acoplados o en ventana) sin tener que abrirlos, por qué el visor de archivos siempre se abre al lado, y los interruptores de la vista previa sellada (RIPLEY) y del navegador de los agentes (Playwright). **Finder y Servidores tienen un engrane** en su cabecera que abre esta categoría.
+
+### Módulos como pequeñas apps, y la barra más clara
+
+- **Ash, Intenciones y Ollama se abren como pequeñas apps.** En su ventana cada uno muestra todo lo que tiene. Ash incluye su economía completa (lo que se cobró, lo que no se cobró, cada agente y el comparativo con y sin Ash) al tamaño que le des a la ventana. «Ver la economía» ya no abre otro panel: abre la ventana de Ash. La ventana tiene los mismos botones de acomodar y cerrar que las demás.
+- **Las tarjetas de MÓDULOS son todas del mismo tamaño** y ya no repiten el estado del servidor. Queda la etiqueta, y «Se abre en ventana» en las que pueden hacerlo. Los íconos van en tu color de acento, con su fondo; los de los módulos apagados, en gris.
+- **Arreglos en MÓDULOS:**
+  - Un clic en un espacio vacío del tablero se tomaba como un clic en el escritorio y apartaba las demás ventanas; ya no.
+  - El botón de la barra trae de vuelta el tablero cuando ya estaba abierto pero apartado o detrás de otras ventanas.
+  - El botón principal del instructivo era invisible en tema claro.
+  - El instructivo recortaba la lista de tus módulos.
+- **Al arrastrar, una ventana conserva su color.** AJUSTES, MÓDULOS y la ventana de un módulo se ponían blancas mientras se movían.
+- **Los textos de ayuda se leen como la conversación**: la misma letra, con peso normal y en una tinta más firme, en AJUSTES, MÓDULOS y el instructivo.
+- **Los nombres de las ventanas tienen más peso**: AJUSTES, MÓDULOS y CREA TU MÓDULO, alineados con sus botones.
+- **Las teclas de la barra no muestran borde nunca**, ni con el cursor encima, ni presionadas, ni enfocadas con el ratón. Su cara es apenas más clara arriba que abajo, como si la luz viniera de arriba.
+- **La luz de EN VIVO es un punto verde que respira** junto al nombre de la conversación, un poco más arriba que el texto. Al pasar el cursor dice su estado. En la ruta de la barra, el proyecto pesa más y la conversación menos.
+
+### Teclas de un solo material, y MÓDULOS como ventana
+
+- **Todos los botones son la misma tecla.** Están hechos del mismo color de la superficie donde están, sin borde ni degradado. Dos sombras suaves, luz arriba a la izquierda y sombra abajo a la derecha, los levantan; al presionarlos, esas mismas sombras pasan adentro. Aplica a la barra, conversaciones, AJUSTES, MÓDULOS y los botones de cada ventana. En los selectores y los grupos de botones de ventana, el riel va hundido y la opción elegida, levantada. Los campos y el buscador son la mitad hundida del mismo material. El botón en el color de acento conserva su color y su relieve.
+- **MÓDULOS es una ventana como AJUSTES.**
+  - Se arrastra desde su cabecera, cambia de tamaño desde cualquier orilla y recuerda dónde quedó.
+  - Tiene los mismos dos botones que AJUSTES: acomodar y cerrar.
+  - Se adapta a su propio ancho: el tablero pasa de cuatro columnas a tres, dos o una. En angosto, «Agregar un módulo» queda solo como «+» y el título se oculta.
+  - Si ya está abierto pero detrás de otras ventanas, el botón de la barra lo trae al frente; si está al frente, lo cierra.
+- **Cada módulo abre en su propio tablero**: su estado y su versión, y las cifras que guarda.
+  - Ash: tokens sin cobro, turnos medidos y lo leído de caché.
+  - Intenciones: turnos observados, cuántas veces le alcanzó el nivel y, cuando hay con qué calcularlo, los tokens que habrías ahorrado.
+  - Ollama: el servidor, los modelos y los embeddings.
+  - Los demás: cuántas cosas toca y cuántos comandos agrega.
+  - «Lo que toca» y «Comandos» ahora son bloques de la sala. Tu módulo lleva la misma etiqueta «Tuyo» que en el tablero.
+- **En tema claro, los botones principales dentro de una ficha de módulo** («Prueba completa», «Un par te espera») salían blancos y sin texto.
+- **La vista previa de Apariencia no se mueve**: queda fija arriba y solo se desplazan los controles de abajo.
+- **El punto EN VIVO ya no se corta** en la parte de arriba de la barra.
+
+### La ficha de un módulo, con la jerarquía de AJUSTES
+
+- **La ficha de cada módulo se arma con los bloques de AJUSTES**, ya no con la tarjeta de consola vestida encima:
+  - primero, sus cifras;
+  - luego «Qué hace», con su interruptor «Activo», su estado y la versión con «Buscar una nueva»;
+  - sus ajustes como filas, con el nombre a la izquierda y el control a la derecha;
+  - sus llaves;
+  - lo que lee: la economía de Ash, lo que midió Intenciones, el cerebro local y los papeles de Ollama;
+  - al final, «Lo que toca» (la etiqueta y las palabras en una línea) y «Comandos».
+  - La ventana de un módulo muestra la misma ficha.
+- **Las cifras se leen como cifras.** La principal es más grande y va en tu acento, y las demás la acompañan en un mosaico que se acomoda al ancho de la hoja o la ventana. Un módulo que no guarda cifras propias no recibe cifras inventadas: abre en «Qué hace».
+- **La economía de Ash es un mosaico ordenado.** Las seis cifras van en una fila de tarjetas iguales, después las lecturas en tarjetas del mismo alto y la tabla por agente a todo lo ancho. En una hoja angosta se acomoda en una columna.
+- **Los selectores se pueden deslizar.** Además de tocar una opción, puedes arrastrar de una a otra: una pieza levantada sigue al cursor o al dedo y se elige la opción donde sueltas. El riel tiene aire alrededor de sus opciones y la elegida va con más peso.
+- **Los botones de ventana de MÓDULOS van a la derecha**, como en las demás ventanas.
+- **Los buscadores se hunden al escribir sin brillar alrededor**, y su ícono no se enciende.
+- **La vista previa de Apariencia vuelve a desplazarse con su sección.**
+
+### Avisos que dicen su tono
+
+- **Los avisos son una píldora de una línea** sobre la caja de texto, de la superficie de la sala y con una sombra plana y discreta debajo, sin reflejos alrededor. El color va solo en un punto: verde cuando algo quedó hecho, ámbar cuando algo pide atención y rojo solo cuando algo salió mal. Antes cualquier aviso salía en rojo, aunque dijera «guardado».
+- **El avatar del modelo en la conversación es plano**: un tono sólido del color del agente, sin luz ni sombra, con el logo del proveedor más grande y en el color pleno del agente para que se lea de un vistazo.
+
+### MU/TH/UR, una ventana con la respuesta primero
+
+- **MU/TH/UR es una ventana como AJUSTES y MÓDULOS**: se arrastra por su encabezado, cambia de tamaño desde los bordes, recuerda dónde la dejaste y tiene a la derecha las mismas teclas de acomodar y cerrar. Ya no es una terminal; de ella queda solo el nombre, MU/TH/UR 6000. Abrir NOSTROMO o AJUSTES desde ella la deja donde estaba.
+- **Escribe un síntoma y la respuesta sale primero.** A la derecha, el remedio que mejor coincide; a la izquierda, la lista con el resto de las coincidencias. Si lo que escribes no nombra ninguna condición, MU/TH/UR busca las más cercanas por sus palabras en lugar de quedarse en blanco.
+- **La lista se filtra con chips**: Todas, Esta sala, Bloqueantes y uno por agente, cada uno con su cuenta. Si en la sala pasó algo, abre en **Esta sala**, con lo ocurrido arriba y su remedio más probable debajo; desde ahí se descarga el registro, se descartan los avisos o se recuperan los descartados. Lo que MU/TH/UR aún no conoce se puede reportar en un clic.
+- **Cada remedio sigue el orden de AJUSTES**: qué hacer, la tecla que lo aplica desde la sala, «En tu terminal» con los comandos de tu sistema, «Por qué pasa» plegado y «¿No se arregló?» con su botón Reportar. Un punto de color en cada fila indica qué tan grave es.
+- **«Preguntar a MU/TH/UR cómo» en un permiso abre el remedio directamente**, ya elegido en la lista. Si ese agente no tiene uno propio, abre el general del permiso, y si tampoco existe, busca por el nombre del permiso. Antes escribía un código en el buscador y, para algunos agentes, no encontraba nada.
+- **Funciona en ventana angosta**: la respuesta queda arriba y la lista debajo. Los títulos largos se recortan para que el agente y el código sigan a la vista.
+
+### Intenciones aprende de tu uso real sin gastar tokens
+
+- **Intenciones aprende de los turnos que ya mandaste.** Antes solo aprendía con pruebas que volvían a hacer preguntas a dos niveles, y con un agente que lee el proyecto en cada respuesta una prueba rápida podía costar millones de tokens. Ahora lee lo que ya pasó en todas las conversaciones del proyecto: a qué nivel le pediste algo, qué tipo de pedido era, cuánto costó y qué hiciste después. Todo se calcula en tu computadora, desde el registro de la sala, y no se escribe ni se envía nada nuevo.
+- **Cuándo un nivel alcanzó y cuándo se quedó corto.** Se quedó corto si el turno falló, si calificaste mal la respuesta, o si en los 15 minutos siguientes le volviste a pedir lo mismo al mismo agente: con «sigue sin funcionar», casi con las mismas palabras o a un nivel más alto. Un STOP cuenta solo si después lo volviste a pedir. Alcanzó si lo calificaste bien o si seguiste con otra cosa. Un turno de hace menos de 15 minutos, o uno que falló por un límite del proveedor, no cuenta para ningún lado.
+- **Un nivel alcanza con al menos 8 turnos** y si, incluso en la lectura más pesimista, alcanzó en tres de cada cuatro, sin quedar claramente por debajo del nivel de arriba. Lo medido con una prueba sigue mandando sobre lo observado, y lo observado sobre la regla.
+- **Bajo la caja lo dice con su origen**: «Parece una explicación · MEDIO alcanzó en 14 de tus turnos · cerca de 40% menos tokens», con la etiqueta «De tu uso».
+- **La ficha empieza por lo que enseñó tu uso**: turnos observados, cuántas veces le alcanzó y, como estimación, los tokens que habrías ahorrado. Cada tipo de pedido dice su nivel y en cuántos turnos se vio, o «aprendiendo · 3 de 8 turnos». Las pruebas siguen debajo, en «Medir más rápido», con su precio.
+- **Intenciones propone probar un nivel más bajo en un solo mensaje.** Tu uso solo enseña los niveles que usas, así que si todo lo mandas al nivel de siempre nunca vería si uno más barato alcanza. Cuando la regla cree que un nivel abajo basta para una búsqueda, una explicación o una revisión, en `#1` o `#2`, bajo la caja dice «Parece una búsqueda · podría bastar BAJO · pruébalo en esta y Intenciones lo nota», con la etiqueta «Prueba». «Probar bajo en esta» cambia el nivel solo para ese mensaje; el siguiente vuelve al que tenías. Lo propone a lo más en uno de cada tres mensajes que califican, hasta juntar 8 turnos a ese nivel; nunca en `#3` o `#4`, ni para un cambio, un diagnóstico o un diseño, ni con la ventana del proveedor casi llena. Si no alcanzó, el siguiente pedido del mismo tipo te ofrece volver a MEDIO, y si se quedó corto dos de las últimas tres veces, deja de proponerlo una semana. «Ahora no» lo guarda un día. La ficha dice «probando BAJO · 3 de 8 turnos» o «en pausa hasta» la fecha.
+
+### MADRE 1.0, y medir con Intenciones sin sorpresas
+
+- **Esta versión es la 1.0.0.** El rediseño completo (Ajustes, Módulos, MU/TH/UR, Permisos, GitHub) la hace mayor. El puerto a Windows pasa a 1.1.0, y MADRE sigue sin declarar soporte ni no-soporte de Windows. Al actualizar, una hoja de novedades nueva cuenta lo principal.
+- **Las novedades son un tablero.** Al actualizar se abre una ventana con «Ya tienes la 1.0» y doce tarjetas, cada una con su imagen y una línea. Una tarjeta abre la nota completa en la misma ventana, con dónde está y una tecla «Llévame ahí» que cierra el tablero y abre ese lugar (Ajustes, MU/TH/UR, Intenciones, Permisos, GitHub, la barra en edición, MÓDULOS, NOSTROMO, Finder…). ← y → pasan de una nota a otra; Esc vuelve al tablero y otro Esc lo cierra. Se vuelve a abrir cuando quieras desde Ajustes › Versión y reportes › «Novedades de esta versión».
+- **Una prueba de Intenciones dice su precio antes de correr**: cuántos turnos y cuántos tokens, calculado con lo que costó una respuesta en este proyecto. Si no hay con qué estimarlo, lo dice. La prueba completa ya no pide pulsar dos veces: pregunta una vez, con el precio.
+- **Una prueba que falla guarda por qué**: la primera línea del error y lo que costó. La ficha dice cuántas pruebas fallaron y el último motivo, en lugar de solo «0 tipos medidos».
+
+### Intenciones habla también con Claude
+
+- **Intenciones ya sugiere al escribirle a Claude.** Claude Code no dice con qué esfuerzo corre por defecto, y sin ese punto de partida la regla callaba siempre que no hubiera mediciones. Ahora, sin inventar ese nivel, nombra el que conviene en las peticiones profundas («Parece un diagnóstico · suele irle bien ALTO · Subir a alto») e invita a medir en las ligeras. Con Codex sigue comparando contra el nivel que su configuración declara.
+- **La sugerencia bajo la caja usa el estilo de la sala**: una tarjeta ligera, el motivo en una frase con un punto en tu acento, y una sola tecla en tu acento.
+
+### MU/TH/UR angosta y la esquina redonda
+
+- **MU/TH/UR en una ventana angosta es una lista sobre su respuesta**: los filtros y las condiciones en una franja corta que se desplaza sola, y debajo el remedio elegido completo. Antes la lista se encimaba sobre el remedio.
+- **La esquina para cambiar el tamaño de una ventana sigue su curva**: un arco corto y redondeado, con puntas redondas, en lugar del ángulo recto. Se ilumina en tu acento al pasar el puntero.
+
+### Relieve suave, un solo material y respuestas más limpias
+
+- **Las tarjetas de AJUSTES, MÓDULOS y MU/TH/UR tienen relieve suave**: siguen blancas, iluminadas desde arriba a la izquierda por una luz amplia y asentadas abajo a la derecha por una sombra difusa, con un bisel fino dentro del borde. Las tarjetas se separaron un poco para que el relieve tenga espacio.
+- **Finder y Servidores usan el mismo material** que AJUSTES, MÓDULOS y MU/TH/UR, en lugar del blanco plano.
+- **Detener una respuesta es solo un ícono**: un cuadrado dentro de un círculo que se vuelve rojo al pasar el puntero y parpadea mientras se detiene.
+- **La tabla «Por agente» de Ash vuelve a ser una tabla**: los encabezados en una sola fila, en letra de lectura, y los números alineados; en una ventana angosta se desplaza de lado.
+- **El pie de una respuesta es una sola línea, sin divisor**: la hora, los tokens y el costo a la izquierda, discretos y en minúsculas; calificar, copiar y responder a la derecha, al pasar el puntero. Una respuesta corta ya no crece tres líneas. El total acumulado de la sala vive en el tooltip.
+
+### Archivo nuevo desde Finder, y «Revisarlo con» completo
+
+- **Finder tiene una tecla de archivo nuevo junto al buscador.** Pide la ruta desde la raíz del proyecto en la alerta de la sala, crea el archivo vacío (y las carpetas que falten) y lo abre en el visor. Nunca toca un archivo que ya existe, no sale del proyecto (sin `..`, sin unidad tipo `C:` ni rutas UNC, nada dentro de `.git`) y los archivos que la sala resguarda piden el nombre del proyecto, como al guardar.
+- **El menú «Revisarlo con» del editor ya no se corta.** Vive en la capa superior de la página, se coloca según su tamaño real (arriba del botón cuando no cabe abajo) y habla como el resto: lo que se manda en mono pequeño, la pregunta en oración y los agentes como filas.
+
+### Descargas que se ven, y la sala con su badge
+
+- **Toda descarga o instalación muestra su progreso real** en una hoja ligera bajo la barra: actualizar un módulo, instalar o encender Ollama, descargar un modelo o instalar el CLI de un agente. Dice qué corre y cuánto lleva, y muestra el porcentaje y los MB cuando el instalador los imprime (Ollama sí; npm y brew casi nunca, y entonces la barra solo indica que sigue trabajando). Debajo va la última línea del instalador. Se puede ocultar mientras corre; al terminar dice «Listo» o «No terminó», con el detalle.
+- **Actualizar un módulo pregunta en la alerta de la sala**, con el comando exacto que va a correr. Antes la confirmación se dibujaba en la tarjeta vieja del módulo y, en la ficha nueva, el botón parecía no hacer nada.
+- **«Esta sala», en MU/TH/UR, lleva el badge de la barra** cuando algo pasó en ella.
+
+### Íconos en tu acento, y @madre ya no «falta instalar»
+
+- **Todos los íconos llevan tu acento**: las categorías de Ajustes y el glifo de las alertas (la llave de #3 y #4, las preguntas de la sala y el acceso a NOSTROMO, que ahora es el cerebro). Solo una pregunta que borra algo conserva el rojo.
+- **@madre ya no aparece como «no instalado»**. @madre no se instala: es el agente local de la sala y está presente mientras Ollama corre con un modelo de chat. Cuando Ollama se apaga, la sala dice que @madre salió porque Ollama no está corriendo, y MU/TH/UR muestra el remedio de @madre con una tecla que abre Ollama. Antes lo diagnosticaba como un agente sin instalar y mandaba a Ajustes › Agentes, donde @madre no aparece. Los registros viejos con la frase anterior también reciben el remedio correcto.
+
+### NOSTROMO en la barra y un pie que se lee
+
+- **NOSTROMO tiene su botón en la barra de arriba**, junto a MU/TH/UR: un cerebro que late al pasar el puntero (dos pulsos y una pausa) y abre la misma puerta. El botón dentro de MU/TH/UR usa el mismo cerebro.
+- **La versión y el autor se leen sobre cualquier fondo**: en la letra de lectura, sobre el material de la sala y con la versión un poco más gruesa. Se quitó el enlace «Apoyar».
+
+### Cuatro acentos y cuatro fondos nuevos
+
+- **Acentos nuevos**: Azul Pacífico, Rosa Amor, Azul Sierra, Pitahaya, Papaya (Pantone 15-1243 TCX), Agave, Negro Dinamo, Azul Marina, Verde Pulso, Naranja Leal y Amarillo Dulce. Como los demás, cada uno tiene su versión más oscura para leerse en el tema claro, y tu burbuja va en el color pleno.
+- **Magna y Ventura cambian de foto**, con su velo, su malla y su tinte recalculados.
+- **Fondos nuevos**: Biznaga, Oceano, Quila, Xico, Tropical, Tradicion y Urbania, con capa o malla, intensidad y desenfoque como los demás, y un velo y un tinte sacados de los colores de cada foto, en claro y en oscuro.
+- **Las tarjetas de los fondos son más altas**, para que se vea más de cada foto.
+
+### NOSTROMO en el idioma de la sala, y sus enlaces de vuelta
+
+- **NOSTROMO vuelve a mostrar los enlaces entre memorias aunque Ollama esté apagado.** Los enlaces salen de comparar los vectores ya guardados, y la sala solo buscaba los del modelo de embeddings en uso: con Ollama apagado cambiaba a Gemini, Gemini no tenía vectores y el mapa quedaba sin enlaces. Ahora, si el modelo en uso no tiene vectores, el mapa usa los del modelo que más memorias embebió.
+- **El acceso a NOSTROMO es una alerta de la sala**, como la llave de #3 y #4: «Abordar NOSTROMO», qué es el archivo en una frase y el campo para el nombre del proyecto. Los golpes de MOTHER siguen contando.
+- **El marco de NOSTROMO habla como las demás ventanas**: el nombre en mono pequeño, la lectura (memorias, recordadas, enlaces) en oración, los tipos como punto y palabra, teclas suaves y el pie en oración. La tarjeta de una memoria y la de preguntas son vidrio oscuro con etiquetas en oración, cifras en mono pequeño y «Olvidar esta memoria» en un rojo suave. El mapa no cambia.
+- **La llave de #3 y #4, más limpia**: una frase de lo que permite, otra más discreta de lo que la protege, la nota del modo máximo como etiqueta cuando aplica, y el campo dice qué escribir arriba, sin texto de ejemplo que haya que borrar.
+- **Las tarjetas de AJUSTES empiezan a la misma altura en las tres columnas**, aunque un encabezado ocupe dos líneas, y en ventana angosta no se estiran. El encabezado de Sistema ahora dice «Permisos, privacidad y la versión».
+- **En Permisos, el riel de la llave va debajo de su texto y a lo ancho**, con cada opción en una línea.
+
+### Alertas de la sala con una sola forma
+
+- **Las preguntas de la sala son una hoja angosta y centrada**: el ícono de lo que está en juego (un triángulo rojo si algo se pierde, un candado si pide una llave), el título en oración, una línea y las dos teclas a lo ancho. «Cambios sin guardar» y las demás confirmaciones dejan las mayúsculas de consola; las preguntas que salen de la consola conservan su consola.
+- **La llave de #3 CONTROL y #4 AIRLOCK es esa misma alerta**: «Armar #3 CONTROL para @agente» o «Abrir #4 AIRLOCK para @agente», qué le permite al agente en una frase, el campo hundido para el nombre del proyecto, tu frase o AIRLOCK, y Cancelar o Armar. El candado lleva el color del modo. Los modales de apps (NOSTROMO, el núcleo, el visor, la guía de módulos) no cambian.
+
+### Permisos: la llave de cada modo, a tu manera
+
+- **AJUSTES tiene una categoría nueva, Permisos**, en Sistema. Reúne cómo se abren #3 CONTROL y #4 AIRLOCK y hasta dónde puede llegar cada agente.
+- **La llave de cada modo se elige.** #3 puede pedir el nombre del proyecto (como hasta ahora), una frase tuya o solo confirmar con un clic. #4 siempre pide algo, porque ejecuta comandos: el nombre del proyecto y luego AIRLOCK (como hasta ahora), tu frase y luego AIRLOCK, o solo el nombre del proyecto.
+- **Tu frase nunca se guarda.** El navegador calcula su huella (SHA-256 con sal) y solo eso queda en la configuración; MADRE no puede leerla de vuelta. Se escribe sin importar mayúsculas ni espacios de más. Olvidarla regresa al nombre del proyecto los modos que la usaban.
+- **Una llave aceptada puede valer unos minutos.** Con la gracia encendida, el mismo modo para el mismo agente no vuelve a pedir la llave durante 5, 15 o 30 minutos en #3, y como máximo 5 en #4 (apagada por defecto). Junto al modo aparece un chip, por ejemplo «#3 abierto · 12 min», cuya × lo cierra. Recargar la página o PARAR TODO también lo cierra, y subir el modo máximo de un agente siempre pide la llave.
+- **Quién puede qué**: el modo máximo de cada agente está en una sola tabla, con el color de cada modo. La ficha del agente lo muestra y lleva ahí con «Cambiar en Permisos»; el modo de inicio se queda en la ficha.
+
+### Remedios con jerarquía y rieles con un solo tab
+
+- **Cada remedio se lee en tres pesos**: el título; debajo, una línea discreta con la gravedad (la única palabra en color), el agente y el código; y luego qué hacer, en la letra de lectura y sin etiqueta encima. Las teclas que lo resuelven siguen como filas.
+- **El engrane de MU/TH/UR abre sus propios ajustes**: el centinela en Versión y reportes, es decir, lo que guarda de lo que no sabe explicar y si lo reporta solo. El botón de reportar del encabezado se quitó; reportar vive en «¿No se arregló?» de cada remedio.
+- **El ícono de MU/TH/UR late al pasar el puntero**: un pulso recorre su trazo como en un monitor. Se queda quieto si el sistema pide menos movimiento.
+- **Los rieles tienen un solo tab que se desliza.** Al elegir otra opción, con clic, con teclado o deslizando, el mismo tab viaja hasta ella. Antes la opción anterior se apagaba mientras la nueva se encendía y por un momento se veían dos.
+- **Las respuestas son de vidrio sobre un fondo**: el fondo se desenfoca y se aclara detrás de la burbuja, con un tinte más blanco que las líneas de la sala (memoria, relevos), para que una respuesta nunca se confunda con ellas. Flota sobre una sombra baja y suave, sin bordes de luz alrededor.
+- **A quién va cada mensaje se lee sobre cualquier fondo**: «→ @agente» conserva el tono del agente, pero mezclado con la tinta del tema y con más peso.
+- **Las filas rápidas de AJUSTES respiran**: el riel de Tema ya no toca los bordes de su fila, y un interruptor cuyo texto ocupa dos líneas («Auto-reportar condiciones desconocidas») tiene interlineado de lectura.
+
+### Una sola luz y la guía del SDK al día
+
+- **Todas las superficies comparten una luz, más suave.** Botones, tarjetas, mosaicos, cifras y bloques reciben la luz desde arriba a la izquierda, con sombras más bajas que antes. Un botón es la versión chica de esa luz y una tarjeta la grande; lo presionado y los campos se hunden de la misma manera.
+- **Los buscadores se hunden de verdad al escribir**, y el de Finder es el mismo campo que en AJUSTES y MÓDULOS, con su lupa.
+- **Los números de modo van en el color de su modo** (#0 a #4), estén elegidos o no.
+- **La llave y el comando de inicio de sesión de un agente siguen el mismo estilo que el resto de la ficha**: etiquetas en oración, campos hundidos y el botón principal en tu acento. El campo de la llave ya no dice «Provider key» en inglés.
+- **Intenciones, mientras corre una prueba**: «Prueba rápida en curso» es una tarjeta con su punto encendido y botones de su tamaño, en oración.
+- **Íconos nuevos para los módulos de MADRE**, con el lenguaje de la barra: trazo redondo y una parte con relleno suave.
+  - Ash, líneas que se acortan.
+  - Intenciones, un medidor de esfuerzo.
+  - Ollama, una computadora con su cerebro.
+  - Image Studio, una foto con su chispa.
+  - Playwright, un navegador con su cursor.
+  - RIPLEY, un documento con su ojo.
+  - Git Pulse, una rama con el pulso de MADRE.
+  - Runs, un botón de reproducir.
+  - Choices, la opción elegida.
+  - AHP+, un relevo de ida y vuelta.
+  - CORREO, un sobre.
+- **Las burbujas son una superficie con relieve sobre el fondo**, con esquinas más redondas. El avatar queda separado de la burbuja, a la altura de su última línea.
+- **El aviso de versión nueva manda a AJUSTES › Versión**, donde ahora se reinicia.
+- **La guía del SDK describe el tablero y la ficha nuevos.** Un módulo se escribe igual que antes (declaras y MADRE lo dibuja), pero la guía ya no habla de la tarjeta de consola, `DEV`, `DESINSTALAR` ni `RELOAD MODULES`.
 
 ### Personalizar MADRE, y las tarjetas de la sala en orden
 
@@ -30,6 +268,23 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **Imágenes nuevas para los fondos.** Jarrito y Canela sustituyen a los fondos dibujados MADRE y Autumn (quien los tenía elegidos pasa al que los reemplazó), y Paraíso, Ventura y Magna cambian por versiones compuestas para la sala en 16:9. Las cinco se pueden ajustar con capa o mesh, intensidad y desenfoque.
 - **La tripulación vive en la caja de texto.** Las cinco esferas sobre la caja son ahora una sola esfera redonda a su izquierda, la del agente al que escribes; al pasar el cursor (o al tocarla) el resto de la tripulación sube en una columna de vidrio; bajo el cursor, el nombre del proveedor de cada agente sale de su esfera, y elegir uno la cierra. La línea de la caja dice la dirección completa, HUMANO › ASH › @CODEX ›, en el color del agente, en lugar de un PARA @CODEX aparte. Modo, modelo y esfuerzo pasan a una fila debajo de la caja, alineados a la izquierda con la esfera y la caja. La conversación no se corta donde empieza la caja: sigue por debajo de ella. La caja es de vidrio líquido y, al hacer clic en ella, se hunde hacia dentro sin moverse ni cambiar de tamaño: solo se sombrea por dentro desde el canto superior, como una tecla presionada, y se queda así mientras escribes; el anillo de su modo (CREATE, CONTROL, AIRLOCK) no cambia al hacer clic; y las preguntas sugeridas van centradas sobre ella, en vidrio, para no confundirse con una burbuja.
 - **La barra y la caja de texto son casi sólidas**, con el fondo apenas detrás, para que se lean como las dos piezas fijas de la sala; la caja es de un solo color, sin luz degradada en su cara.
+- **Lo que se ofrece sobre la caja se lee sobre cualquier fondo.** La oferta de @madre y el aviso de Intenciones eran un recuadro punteado casi transparente que se perdía en una foto; ahora son una pieza casi sólida como la caja de texto, con su mismo canto de vidrio, un filo fino de su color (verde, o ámbar cuando conviene subir el esfuerzo) y el texto en la tinta principal del tema.
+- **Las líneas de la sala son vidrio plano.** PLAN, MEMORIA, los relevos, quién respondió y la hora ya no llevan una luz que cae por su cara: un tinte más delgado deja ver el fondo.
+- **Cantos de gota de agua, sin doble borde.** Los chips, las tarjetas de la sala, las píldoras de memoria, las preguntas abiertas, la barra, la caja y las ventanas se dibujaban con líneas (un anillo fino por fuera, una línea blanca por dentro y a veces un borde encima) y se leían como dos bordes pegados al fondo. Ahora su orilla es solo luz difusa en el canto de arriba, sombra difusa en el de abajo, un asomo de rosa y cian a los lados y una sombra suave debajo, así que flotan sobre el fondo sin ningún trazo.
+- **Los chips son etiquetas de tono plano.** Las insignias de quién respondió (modo, ASH, turno de cierre, paso, a quién contesta, modelo), el agente dentro de una línea de la sala, la hora de tu mensaje, DECIDIDO AQUÍ y sus decisiones, las memorias de una respuesta y las preguntas abiertas ya no son cápsulas con canto: son etiquetas con esquina de 7 px, sin borde ni sombra, rellenas de un tono tenue de su propio color (el del modo, el del agente, el del tipo de memoria, ámbar en las decisiones y gris en lo que no tiene color). La línea de quién respondió es una franja plana que las sostiene.
+- **En el pie de una respuesta, primero la hora y luego sus botones**, los dos a la derecha.
+- **En tema oscuro se leen PLAN y las etiquetas tenues**: la tinta más tenue subió un paso.
+- **La caja de texto ya no cambia de borde con el modo.** Lo que cambia es el botón de enviar y las palabras de la línea (quién escribe, el agente, el modelo). En tema oscuro la caja es de un negro grafito propio, y la fila de modo, modelo y esfuerzo se queda atrás para no competir con ella.
+- **La oferta sobre la caja (Intenciones y @madre) es vidrio plano** sin borde de color; su botón es una etiqueta de su tono, oscurecida en tema claro.
+- **Los botones de la barra se sienten pulsables**: una cara tenue, el canto de gota, una sombra que crece al pasar el cursor y que se hunde al presionar. Cada dibujo se mueve a su manera: el navegador gira sobre su eje, la carpeta se abre, los puntos de PERSONALIZAR se deslizan, MÓDULOS se sacude, RECARGAR da una vuelta y las líneas de CONVERSACIONES se escriben.
+- **El fondo se aparta un tono de lo que está encima.** En claro, un gris suave bajo hojas blancas; en oscuro, casi negro bajo grafito: las respuestas, la barra y el botón de conversaciones ya no se pierden en él.
+- **Los botones de la barra son teclas.** Una cara un tono más clara que la barra, luz suave arriba, sombra suave abajo y una sombra corta debajo, sin aro ni orilla de color. Al pasar el cursor ceden un poco y al presionarlos se hunden más, como los botones de un aparato; el que tiene su panel abierto se queda hundido con su dibujo relleno. Sus animaciones son más rápidas, y la carpeta de archivos se abre de verdad: su frente cae hacia delante.
+- **La caja de texto y la barra están más separadas del fondo**, con una sombra más profunda en los dos temas.
+- **Las etiquetas de quién respondió caben dentro de su franja**, más chicas y con aire alrededor, en lugar de medir lo mismo que la franja que las sostiene. **DECIDIDO AQUÍ** mide lo que sus palabras, y las decisiones son de piedra (#edece4 en claro, grafito cálido en oscuro) en lugar de ámbar.
+- **NUEVA CONVERSACIÓN lleva un + más grande** en lugar del globo pequeño.
+- **El pie de una respuesta tiene un solo borde izquierdo.** Cuando la hora y los tokens bajan a la segunda línea empiezan donde empiezan los puntos de la memoria, igual que las píldoras de memoria; antes quedaban corridos 10 px.
+- **La barra y la caja de texto se separan del fondo** con la misma luz que las ventanas, desde arriba a la izquierda, pero más suave: una sombra de contacto bajo el canto, otra que se abre un poco y una tercera desplazada hacia abajo y a la derecha.
+- **La letra chica de la sala es Geist Mono.** Las líneas de la sala, quién respondió, la caja de texto, los chips, el pie de cada respuesta, las ventanas y el código pasan de JetBrains Mono a Geist Mono, la mono de la misma familia que la letra de las respuestas: más redonda y más ligera sobre el vidrio. MU/TH/UR y NOSTROMO, la terminal de la nave, conservan JetBrains Mono. La fuente viene en el paquete con su licencia OFL; nada se descarga de un servicio de fuentes.
 - **Los botones de la barra, al pasar el cursor, solo brillan en el borde.** Antes sumaban un halo de 3 px a un borde del acento (dos contornos) y no reaccionaban igual en todos; ahora el dibujo toma el acento y el canto atrapa una línea fina de él por dentro, sin resplandor alrededor, igual en todos los botones y en el de conversaciones.
 - **La bienvenida de una sala nueva va en una tarjeta.** El pulso, el título, la línea de ayuda y las tres primeras preguntas se agrupan en una tarjeta del vidrio del texto secundario, y las tres preguntas son filas dentro de ella, para que no pierdan fuerza sobre un fondo cargado.
 - **MEDIRLO CONTRA ESTA SALA y los demás botones de las líneas de la sala tienen un solo color y un solo borde**: el suyo desde el reposo, sobre vidrio claro; con el cursor solo se intensifica el relleno, sin moverse ni mostrar un segundo contorno.

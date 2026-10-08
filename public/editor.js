@@ -522,6 +522,16 @@ export function createEditor({ text = '', name = '', family = null, tokenize = n
   input.addEventListener('dragstart', (event) => event.preventDefault());
   input.addEventListener('drop', (event) => event.preventDefault());
   input.addEventListener('scroll', place);
+  // The wheel belongs to the page wherever it turns inside the editor. Over the numbers, the bars
+  // or the status line nothing there scrolls, and the turn used to fall through to the room behind
+  // the window; it moves the text instead. Over the text itself, the page's edge stops it (CSS).
+  node.addEventListener('wheel', (event) => {
+    if (event.ctrlKey || event.target === input) return;
+    const step = event.deltaMode === 1 ? lineHeight : event.deltaMode === 2 ? input.clientHeight : 1;
+    input.scrollTop += event.deltaY * step;
+    input.scrollLeft += event.deltaX * step;
+    event.preventDefault();
+  }, { passive: false });
   for (const kind of ['keyup', 'click', 'select', 'focus']) input.addEventListener(kind, () => { place(); status(); });
   const followSelection = () => { if (document.activeElement === input) { place(); status(); } };
   document.addEventListener('selectionchange', followSelection);

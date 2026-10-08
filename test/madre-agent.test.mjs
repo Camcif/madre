@@ -73,7 +73,7 @@ test('@madre: answers from the whole archive with a grounded system prompt, and 
     let state = running;
     const flaky = madreInvoker({ memory, ollama: () => state, fetchImpl });
     state = down;
-    await assert.rejects(flaky({ prompt: 'p', text: 'q' }), /needs Ollama running with a chat model/);
+    await assert.rejects(flaky({ prompt: 'p', text: 'q' }), /left the room: Ollama is not running/);
     memory.close();
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });

@@ -1179,7 +1179,7 @@ test('modules: AHP+ is detected, planned for detected agents only, and installed
   assert.deepEqual(plan.platforms, ['codex', 'claude'], 'gemini has no AHP+ adapter; opencode is not detected');
   assert.equal(plan.display, 'npx --yes @jossuealcala/ahp-plus@1.4.2 setup . --platforms codex,claude');
   assert.deepEqual(ahp.installCommand({ agents: [] }).args, ['--yes', '@jossuealcala/ahp-plus@1.4.2', 'setup', '.']);
-  assert.equal(EXTENSIONS.length, 10);   // CORREO waits in the lab (PULSE_LABS)
+  assert.equal(EXTENSIONS.length, 11);   // CORREO waits in the lab (PULSE_LABS)
   assert.ok(EXTENSIONS.some((extension) => extension.id === 'git-pulse' && extension.kind === 'builtin'));
 
   const root = await mkdtemp(join(tmpdir(), 'pulse-modules-'));
@@ -1635,8 +1635,8 @@ test('connections: settings are read, saved to config, applied live; sign-in str
     assert.equal(saved.status, 200);
     assert.equal(saved.body.settings.capabilities.codex.scopes.imageGen.enabled, false, 'scope switched off');
     assert.equal(saved.body.settings.capabilities.gemini.scopes.imageGen.enabled, false, 'cannot enable an ability the CLI lacks');
-    assert.deepEqual({ ...saved.body.settings, timeouts: undefined, capabilities: undefined, memory: undefined, privacy: undefined, updates: undefined }, {
-      timeouts: undefined, capabilities: undefined, memory: undefined, privacy: undefined, updates: undefined, defaultTimeout: 240000, delegation: false, maxPlanSteps: 2, softTokenBudget: 750000, opencodeModel: 'openai/gpt-5.6-sol', geminiIdleMs: 60000, geminiRetries: 2,
+    assert.deepEqual({ ...saved.body.settings, timeouts: undefined, capabilities: undefined, memory: undefined, privacy: undefined, updates: undefined, override: undefined }, {
+      timeouts: undefined, capabilities: undefined, memory: undefined, privacy: undefined, updates: undefined, override: undefined, defaultTimeout: 240000, delegation: false, maxPlanSteps: 2, softTokenBudget: 750000, opencodeModel: 'openai/gpt-5.6-sol', geminiIdleMs: 60000, geminiRetries: 2,
     });
     assert.equal(saved.body.settings.timeouts.gemini, 90000);
     assert.equal(saved.body.settings.timeouts.codex, 240000, 'a cleared per-agent value falls back to the default');
@@ -2898,7 +2898,7 @@ test('modes: a ghost turn reaches listeners but never the log, #2 is the lease, 
     assert.ok(seen.codex.lease, 'the delegate writes inside the shared lease');
     assert.match(seen.codex.prompt, /Permission mode for this turn: #2 CREATE/);
 
-    // Ceilings: capped at #1 in CONNECTIONS, #2 is refused softly and answered read-only.
+    // Ceilings: capped at #1 in Settings › Permissions, #2 is refused softly and answered read-only.
     room.setScopes({ codex: { maxMode: 1 } });
     assert.equal(room.scopesFor('codex').maxMode, 1);
     assert.equal(room.scopesFor('claude').maxMode, 2, 'writable agents default to #2');
@@ -2909,11 +2909,11 @@ test('modes: a ghost turn reaches listeners but never the log, #2 is the lease, 
     assert.match(refused.payload.reason, /capped at #1 EXCHANGE/);
     assert.equal(seen.codex.lease, null);
 
-    // #3 needs MAX MODE 3 in CONNECTIONS.
+    // #3 needs max mode 3 in Settings › Permissions.
     const gate = await room.modeCheck({ target: 'claude', text: 'x', mode: 3 });
     assert.equal(gate.ok, false);
     assert.equal(gate.status, 403);
-    await assert.rejects(room.send({ text: 'take over', target: 'claude', mode: 3 }), /raise its MAX MODE to #3/);
+    await assert.rejects(room.send({ text: 'take over', target: 'claude', mode: 3 }), /raise its max mode to #3 in Settings › Permissions/);
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }

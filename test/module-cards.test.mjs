@@ -144,11 +144,9 @@ test('a fold inside a card is not one of MU/TH/UR\'s sections, and carries its o
   const [app, css] = await Promise.all([read('app.js'), read('styles.css')]);
   const fold = app.slice(app.indexOf('function cardFold('), app.indexOf('function cardBlock('));
 
-  // Fourteen folds in another dialog must not answer to the panel's EXPAND ALL.
+  // A card's fold is its own kind, never confused with anything MU/TH/UR draws.
   assert.ok(fold.includes("el('details', 'card-fold')"), 'a card fold is built as a panel section');
   assert.ok(!fold.includes("el('details', 'fold')"));
-  // Only the sections on show count, and only their own folds.
-  assert.match(app, /function everyFold\(\) \{ return \[\.\.\.document\.querySelectorAll\('\.mother-section:not\(\[hidden\]\) \.fold'\)\]/);
 
   // It says what clicking it will do, and it remembers being left open, like every other fold.
   assert.match(fold, /caret\.textContent = box\.open \? t\('▾ COLLAPSE'\) : t\('▸ EXPAND'\)/);
@@ -275,7 +273,9 @@ test('modules: a newer version is something the card can go and get, with the co
   assert.match(app, /t\('UPDATE TO \{version\}', \{ version: item\.update\.latest \}\)/);
   // Two calls: the first asks what would run, the second runs exactly that. Nothing runs unread.
   assert.match(app, /const asked = await ask\(false\);/);
-  assert.match(app, /THIS RUNS ON THIS COMPUTER, OUTSIDE THE PROJECT/);
+  // The command is shown word for word in the room's alert before anything runs.
+  assert.match(app, /t\('This runs on this computer, outside the project\.'\)/);
+  assert.match(app, /command: asked\.result\.plan\.display,/);
   assert.match(server, /if \(payload\.confirm !== true\) return sendJson\(response, 200, \{ plan:/);
   assert.match(server, /extension\.install\.started/);
   assert.match(css, /\.module-card \.version \.get \{/);

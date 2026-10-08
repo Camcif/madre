@@ -366,3 +366,18 @@ test('intenciones calibration: a budget is a budget, and stop means stop', async
   const run = await runCalibration({ kind: 'full', cases, agent: 'claude', reference: 'high', ask: capped.ask, judge: fakeJudge() });
   assert.ok(run.turns <= 120);
 });
+
+test('intenciones calibration: a turn that fails keeps its reason and what it cost, so the card can say why', async () => {
+  const cases = calibrationCases(ledger());
+  const ask = async ({ effort }) => (effort === 'high'
+    ? { text: '', error: 'Codex exited 1: stream disconnected before completion\nmore lines that are not kept', usage: { inputTokens: 1200, outputTokens: 40 } }
+    : { text: 'an answer', usage: { inputTokens: 900, outputTokens: 30 } });
+  const result = await runCalibration({ kind: 'quick', cases, agent: 'codex', reference: 'high', ask, judge: { id: 'you', decide: async () => 'same' }, run: 'fail-1' });
+  const failed = result.records.filter((record) => record.skipped === 'failed');
+  assert.ok(failed.length > 0, 'the failed turns were not kept as failures');
+  for (const record of failed) {
+    assert.equal(record.failedAt, 'high');
+    assert.equal(record.why, 'Codex exited 1: stream disconnected before completion', 'the reason is not the first line of the error');
+    assert.ok(record.tokens.reference > 0, 'what the failed turn cost was lost');
+  }
+});

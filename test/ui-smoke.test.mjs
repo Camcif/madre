@@ -14,7 +14,7 @@ class FakeElement {
     this.children = [];
     this.attributes = {};
     this.dataset = {};
-    this.style = { setProperty: (name, value) => { this.style[name] = value; } };
+    this.style = { setProperty: (name, value) => { this.style[name] = value; }, removeProperty: (name) => { delete this.style[name]; } };
     this.listeners = {};
     this.hidden = false;
     this.title = '';
@@ -70,8 +70,11 @@ class FakeElement {
   }
   querySelectorAll(selector) { const out = []; const walk = (node) => { for (const child of node.children) if (child instanceof FakeElement) { const cls = selector.replace(/^\./, '').split(/[\s.\[]/)[0]; if (child.classList.contains(cls)) out.push(child); walk(child); } }; walk(this); return out; }
   add(option) { this.options.length += 1; this.options[this.options.length - 1] = option; if (!this.value) this.value = option.value; }
-  focus() {} scrollIntoView() {} requestSubmit() {} showModal() { this.open = true; } close() { this.open = false; }
+  focus() {} scrollIntoView() {} requestSubmit() {} showModal() { this.open = true; } show() { this.open = true; } close() { this.open = false; }
   setSelectionRange() {}
+  getClientRects() { return []; } matches() { return false; } closest() { return null; }
+  prepend(...nodes) { for (const node of nodes.reverse()) { this.children.unshift(node); if (node instanceof FakeElement) node.parentNode = this; } }
+  replaceWith(node) { const parent = this.parentNode; if (!parent) return; parent.children[parent.children.indexOf(this)] = node; node.parentNode = parent; }
 }
 
 function buildDocument(html) {
@@ -97,6 +100,7 @@ function buildDocument(html) {
   document.createElement = (tag) => new FakeElement(tag);
   document.createDocumentFragment = () => new FakeElement('fragment');
   document.body = new FakeElement('body');
+  document.documentElement ??= new FakeElement('html');
   return document;
 }
 
@@ -147,6 +151,9 @@ test('the room UI boots against a real transcript without throwing', async () =>
   // at the bottom of app.js has been read by a function that runs up here, and both times the
   // room answered "Cannot access X before initialization" while every test stayed green — the
   // panel simply never opened. It opens now.
+  // A browser has these; the windows schedule their depth with them.
+  globalThis.requestAnimationFrame ??= (fn) => setTimeout(fn, 0);
+  globalThis.cancelAnimationFrame ??= (id) => clearTimeout(id);
   globalThis.localStorage = { store: { 'pulse.tree': 'open' }, getItem(key) { return this.store[key] ?? null; }, setItem(key, value) { this.store[key] = String(value); } };
   globalThis.Option = class { constructor(text, value) { this.text = text; this.value = value; } };
   globalThis.EventSource = class { constructor(url) { streamUrl = url; streamInstance = this; } close() {} };
@@ -180,6 +187,8 @@ test('the room UI boots against a real transcript without throwing', async () =>
       saved: { tokens: 90210, cachedTokens: 88000, cachedShare: 0.62, unsentChars: 2210 },
       blocks: [{ id: 'context', chars: 4000, perTurn: 1000, always: false }, { id: 'room', chars: 800, perTurn: 200, always: true }],
     }) };
+    // AJUSTES reads these when it opens; the cards must speak even when the server cannot.
+    if (['/api/settings', '/api/turns', '/api/sentinel/settings'].includes(url) || String(url).startsWith('/api/sentinel')) return { ok: false, json: async () => ({}) };
     assert.equal(url, '/api/state');
     return { json: async () => ({
       projectRoot: '/Users/demo/pulse',
@@ -338,6 +347,28 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.match(panes.children[4].textContent, /INTENTOS ANTES DE QUE ESTA INTERFAZ SE CIERRE/);
   registry.get('core').close();
 
+  // AJUSTES: one window, three sections, six categories, each card saying where it stands; the
+  // search finds a setting typed without its accent and lands in its category.
+  const settingsHead = new FakeElement('header'); settingsHead.className = 'settings-head';
+  registry.get('settings').append(settingsHead);
+  registry.get('settings').getBoundingClientRect = () => ({ top: 68, bottom: 726, left: 22, right: 1002, width: 980 });
+  globalThis.__pulse.openSettings(true);
+  const settingsBody = registry.get('settings-body');
+  assert.equal(registry.get('settings').open, true, 'AJUSTES did not open');
+  assert.equal(settingsBody.querySelectorAll('.settings-section').length, 3, 'the board is not Tú, La tripulación, Sistema');
+  const cards = settingsBody.querySelectorAll('.settings-card');
+  assert.deepEqual(cards.map((card) => card.dataset.cat), ['look', 'room', 'files', 'agents', 'memory', 'permissions', 'privacy', 'release']);
+  assert.ok(cards.every((card) => card.querySelector('.settings-line')?.textContent.trim()), 'a card does not say where it stands');
+  const search = registry.get('settings-search');
+  search.value = 'version';
+  search.listeners.input[0]();
+  assert.match(settingsBody.textContent, /Versión y reportes/, 'a search without the accent misses the category');
+  settingsBody.querySelector('.settings-result').listeners.click[0]();
+  assert.equal(globalThis.__pulse.settingsWindow().open, 'release', 'the result does not land in its category');
+  assert.ok(settingsBody.querySelector('.settings-detail'), 'the category has no panel');
+  globalThis.__pulse.openSettings(false);
+  assert.equal(registry.get('settings').open, false);
+
 
   // A reviewed human message carries the mark, then everything disarms.
   const stream = new globalThis.EventSource('/x');
@@ -354,6 +385,76 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.equal(trackHold(false, t0 + 25_000), false, 'an upward push resets');
   assert.equal(trackHold(true, t0 + 30_000), false);
   assert.equal(uiState.expendable, false);
+});
+
+test('the bar is yours: a right-click opens it, − takes a key off, a tile puts one back, Esc closes it', async () => {
+  // On the room the first test booted. The bar is the header with its keys moved into it.
+  const kit = globalThis.__pulse.bar;
+  const bar = registry.get('bar');
+  const store = globalThis.localStorage.store;
+  const shipped = ['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder'];
+  const onBar = () => bar.children.filter((node) => node instanceof FakeElement && node.dataset.barItem && !node.classList.contains('bar-off')).map((node) => node.dataset.barItem);
+  assert.deepEqual(kit.order, shipped, 'the bar does not ship as it was');
+  assert.equal(onBar().at(-1), 'settings', 'AJUSTES is not the last key');
+  assert.ok(kit.catalogue().includes('memory') && ['ash', 'intents', 'ollama'].every((id) => kit.catalogue().includes(id)), 'Memory and the modules with a window are not offered');
+
+  // Whatever the browser kept that is not a list is the bar as it ships.
+  store['pulse.barItems'] = '{not a list';
+  kit.layout();
+  assert.deepEqual(kit.order, shipped);
+  // An id nobody knows — a module that was deleted — is skipped, and AJUSTES cannot be moved from the end.
+  store['pulse.barItems'] = JSON.stringify(['finder', 'settings', 'a-module-that-was-deleted', 'memory']);
+  kit.layout();
+  assert.deepEqual(kit.order, ['finder', 'memory']);
+  assert.deepEqual(onBar(), ['finder', 'memory', 'settings']);
+  assert.ok(registry.get('modules-button').classList.contains('bar-off'), 'a key that is off is still on the bar');
+  assert.ok(registry.get('agents').classList.contains('bar-off') && registry.get('agents-compact').classList.contains('bar-off'), 'the crew is one key: both of its forms go');
+  const memoryKey = bar.children.find((node) => node.dataset?.barItem === 'memory');
+  assert.equal(memoryKey.getAttribute('aria-label'), 'Memoria');
+  assert.ok(memoryKey.classList.contains('tree-button'), 'a new key is not drawn like the others');
+
+  // A right-click on a key opens the bar for editing, without the browser's own menu.
+  let prevented = false;
+  registry.get('tree-button').listeners.contextmenu[0]({ preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(kit.editing, true);
+  assert.ok(bar.classList.contains('bar-editing'));
+  assert.deepEqual([...kit.badges.keys()], ['finder', 'memory'], 'AJUSTES wears a «−», or a key that can go does not');
+  assert.equal(kit.badges.get('finder').getAttribute('aria-label'), 'Quitar Archivos de la barra');
+  const card = kit.card;
+  assert.equal(card.hidden, false);
+  assert.equal(card.getAttribute('aria-label'), 'Agregar a la barra');
+  const tiles = () => card.querySelectorAll('.bar-tile').map((tile) => tile.dataset.barItem);
+  assert.ok(['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'ash', 'intents', 'ollama'].every((id) => tiles().includes(id)), `the card does not offer what is off the bar: ${tiles()}`);
+  assert.ok(!tiles().some((id) => ['finder', 'memory', 'settings'].includes(id)), 'the card offers what is already on the bar, or AJUSTES');
+  assert.equal(card.querySelectorAll('.bar-tile').find((tile) => tile.dataset.barItem === 'nostromo').getAttribute('aria-label'), 'Agregar NOSTROMO');
+  assert.match(card.textContent, /Listo/);
+
+  // «−» takes the key off and remembers it; the key goes to the card.
+  kit.badges.get('finder').listeners.click[0]({ stopPropagation() {} });
+  assert.deepEqual(kit.order, ['memory']);
+  assert.ok(registry.get('tree-button').classList.contains('bar-off'));
+  // A module of yours that the board has not named yet is kept, not forgotten.
+  assert.deepEqual(JSON.parse(store['pulse.barItems']), ['memory', 'a-module-that-was-deleted']);
+  assert.ok(tiles().includes('finder'), 'a key taken off is not offered back');
+  // A tile puts its key at the end, before AJUSTES.
+  card.querySelectorAll('.bar-tile').find((tile) => tile.dataset.barItem === 'nostromo').listeners.click[0]();
+  assert.deepEqual(kit.order, ['memory', 'nostromo']);
+  assert.deepEqual(onBar(), ['memory', 'nostromo', 'settings']);
+  assert.deepEqual(JSON.parse(store['pulse.barItems']).slice(0, 2), ['memory', 'nostromo']);
+  assert.ok(kit.badges.has('nostromo') && !tiles().includes('nostromo'));
+
+  // Esc puts it back: no tremble, no «−», no card.
+  kit.keys({ key: 'Escape', preventDefault() {}, stopPropagation() {} });
+  assert.equal(kit.editing, false);
+  assert.equal(bar.classList.contains('bar-editing'), false);
+  assert.equal(kit.badges.size, 0);
+  assert.equal(card.hidden, true);
+  // A second right-click closes it too.
+  registry.get('nostromo-bar').listeners.contextmenu[0]({ preventDefault() {} });
+  assert.equal(kit.editing, true);
+  kit.edit(false);
+  assert.equal(kit.editing, false);
 });
 
 test('a module card has the same floors whatever the module is, and its numbers have room', async () => {
@@ -580,20 +681,22 @@ test('/modules finds /module, and the menu offers something to say with it', () 
 // The door into the SDK, inside the room. Somebody deciding whether to write a module reads this
 // card and nothing else, so it has to say what a module is, that they can simply ask for one, and
 // that reaching a service outside is possible — and the button has to land them in the composer.
-test('the develop card says what a module is and puts /module in the composer', () => {
+test('the guide to creating a module says what one is and puts /module in the composer', () => {
   const section = registry.get('modules-dev');
-  assert.ok(section, 'the develop card has no place in the page');
+  assert.ok(section, 'the guide has no place in the page');
   globalThis.__pulse.renderModulesDev();
   const all = [];
   const walk = (node) => { all.push(node); for (const child of node.children ?? []) walk(child); };
   walk(section);
   const text = all.map((node) => node.textContent ?? '').join(' ');
-  assert.match(text, /DESARROLLA PARA MADRE/, 'the card did not render');
-  assert.match(text, /\/module/, 'the card never mentions the one command that writes a module for you');
-  assert.match(text, /conector/i, 'the card never says a connector is possible');
+  assert.match(text, /Un módulo es un archivo/, 'the guide did not render');
+  assert.match(text, /\/module/, 'the guide never mentions the one command that writes a module for you');
+  assert.match(text, /conector/i, 'the guide never says a connector is possible');
+  // Four steps, in the order they are taken.
+  assert.match(text, /Pídelo[\s\S]*O escríbelo tú[\s\S]*Cárgalo[\s\S]*Si habla con un servicio/);
 
-  const button = all.find((node) => node.tagName === 'BUTTON' && node.textContent === 'PÍDELE UNO');
-  assert.ok(button, 'there is no way from the card into the composer');
+  const button = all.find((node) => node.tagName === 'BUTTON' && node.textContent === 'Pedirlo en la sala');
+  assert.ok(button, 'there is no way from the guide into the composer');
   const input = registry.get('message');
   input.value = 'algo que estaba escribiendo';
   button.listeners.click[0]({});
@@ -630,7 +733,7 @@ test('the archive settles into the shape of a brain, not a ball', async () => {
 });
 
 test('Intenciones speaks under the box only with a reason, marks the chip, and its card shows what was measured', async () => {
-  const { state, syncIntentOffer, moduleCard } = globalThis.__pulse;
+  const { state, syncIntentOffer, moduleCard, moduleGlance } = globalThis.__pulse;
   const previous = globalThis.fetch;
   const posted = [];
   const reading = (extra = {}) => ({
@@ -651,8 +754,26 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
           { intent: 'design', n: 8, effort: 'high', status: 'measured', next: null },
         ],
       },
+      // What real use taught, which leads the card now: the calibration only where it settled a kind.
+      observed: {
+        turns: 20, held: 17, short: 3, pending: 1, tokensSaved: 48000, minTurns: 8,
+        byIntent: [
+          { intent: 'lookup', rung: 'minimal', n: 12, heldRate: 1, seen: { n: 10, held: 10 }, most: 10 },
+          { intent: 'explain', rung: null, n: 3, heldRate: 0.67, seen: null, most: 3 },
+          { intent: 'review', rung: null, n: 0, heldRate: null, seen: null, most: 0 },
+          { intent: 'implement', rung: 'medium', n: 11, heldRate: 0.91, seen: { n: 9, held: 9 }, most: 9 },
+          { intent: 'diagnose', rung: null, n: 10, heldRate: 0.5, seen: null, most: 10 },
+          { intent: 'design', rung: null, n: 0, heldRate: null, seen: null, most: 0 },
+          { intent: 'chat', rung: null, n: 0, heldRate: null, seen: null, most: 0 },
+        ],
+      },
+      // Trying a cheaper rung on single messages: one kind on its way, one paused after falling short.
+      tries: [
+        { intent: 'explain', effort: 'low', n: 2, needs: 8, status: 'paused', cooldownUntil: '2026-10-14T12:00:00.000Z' },
+        { intent: 'review', effort: 'low', n: 3, needs: 8, status: 'trying', cooldownUntil: null },
+      ],
     }],
-    running: null, pending: null, last: null, offers: { shown: 4, accepted: 3 },
+    running: null, pending: null, last: null, offers: { shown: 4, accepted: 3, tries: { shown: 1, accepted: 1 } },
     ...extra,
   });
   let view = reading();
@@ -678,8 +799,8 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     assert.equal(offer.hidden, false, 'the offer did not appear');
     assert.ok(offer.classList.contains('up'), 'a raise is not drawn as a warning');
     assert.match(offer.textContent, /Parece un diagnóstico/);
-    assert.match(offer.textContent, /SUBIR A ALTO/);
-    assert.deepEqual(posted[0][1], { text: 'explica por qué falla la prueba de memoria', agent: 'codex', model: null, effort: 'low', defaultEffort: 'medium', references: 0, attachments: 0 });
+    assert.match(offer.textContent, /Subir a alto/);
+    assert.deepEqual(posted[0][1], { text: 'explica por qué falla la prueba de memoria', agent: 'codex', model: null, effort: 'low', defaultEffort: 'medium', references: 0, attachments: 0, mode: 1 });
     assert.deepEqual(state.intentHint, { agent: 'codex', direction: 'raise' }, 'the chip carries no mark');
 
     // Taken: the rung changes, the offer goes, and the message that leaves counts it as taken.
@@ -702,9 +823,9 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     await syncIntentOffer();
     assert.equal(offer.hidden, false);
     assert.match(offer.textContent, /Parece una búsqueda · ALTO suele bastar para esto, pero aún no lo medí en este proyecto/);
-    assert.match(offer.textContent, /AHORA NO/);
+    assert.match(offer.textContent, /Ahora no/);
     const measure = offer.children.find((child) => child.className === 'free-go');
-    assert.equal(measure.textContent, 'MEDIR · 6 PREGUNTAS');
+    assert.equal(measure.textContent, 'Medir · 6 preguntas');
     assert.deepEqual(state.intentHint, { agent: 'codex', direction: 'lower' });
     offer.children.find((child) => child.className === 'free-later').listeners.click[0]();
     assert.equal(offer.hidden, true);
@@ -722,6 +843,115 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     delete state.chosenModel.codex;
     globalThis.fetch = suggestNow;
 
+    // Learned from real use: the level that was enough in the human's own turns, with its own badge.
+    const seenOffer = { agent: 'codex', model: null, intent: 'explain', cues: [], effort: 'medium', from: 'high', direction: 'lower', basis: 'observed', signals: [], measured: null, observed: { n: 15, held: 14, heldRate: 0.93, rung: 'medium' }, saving: 0.4, kind: 'offer' };
+    globalThis.fetch = async (url, init = {}) => (url === '/api/intents/suggest' ? { ok: true, json: async () => ({ suggestion: seenOffer }) } : suggestNow(url, init));
+    state.efforts.codex = { levels: ['minimal', 'low', 'medium', 'high', 'xhigh'], default: 'medium', model: null, byModel: null, shared: null };
+    state.chosenEffort.codex = 'high';
+    registry.get('message').value = 'explica cómo funciona el destilador de la memoria';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, false);
+    assert.match(offer.textContent, /Parece una explicación · MEDIO alcanzó en 14 de tus turnos · cerca de 40% menos tokens/);
+    assert.ok(offer.children.some((child) => child.className === 'intent-basis observed' && child.textContent === 'De tu uso'), 'the offer does not say it came from your use');
+    assert.ok(!offer.classList.contains('up'), 'a lower level from real use is drawn as a raise');
+    // With no level known to start from, it names the level and is still not a warning.
+    state.efforts.codex = { levels: ['minimal', 'low', 'medium', 'high', 'xhigh'], default: null, model: null, byModel: null, shared: null };
+    delete state.chosenEffort.codex;
+    Object.assign(seenOffer, { from: null, direction: null });
+    registry.get('message').value = 'explica cómo funciona el destilador de la memoria, por favor';
+    await syncIntentOffer();
+    assert.ok(!offer.classList.contains('up'));
+    globalThis.fetch = suggestNow;
+
+    // A try: the rule thinks one rung less would do, so this one message may go at it. Taken, it is
+    // for this message only: the chip shows it, the message goes at it, and the next one does not.
+    const tryOffer = { kind: 'try', agent: 'codex', model: null, intent: 'lookup', cues: [], effort: 'low', from: 'medium', direction: 'lower', basis: 'try', signals: [], observedAtLower: 3, needs: 8 };
+    let trySuggestion = tryOffer;
+    const sent = [];
+    globalThis.fetch = async (url, init = {}) => {
+      if (url === '/api/intents/suggest') {
+        posted.push(['suggest', JSON.parse(init.body)]);
+        return { ok: true, json: async () => ({ suggestion: trySuggestion, explore: trySuggestion?.kind === 'try' ? { agent: 'codex', model: null, intent: 'lookup', effort: 'low' } : null }) };
+      }
+      if (url === '/api/messages') { sent.push(JSON.parse(init.body)); return { ok: true, json: async () => ({ ok: true }) }; }
+      return suggestNow(url, init);
+    };
+    state.efforts.codex = { levels: ['minimal', 'low', 'medium', 'high', 'xhigh'], default: 'medium', model: null, byModel: null, shared: null };
+    delete state.chosenEffort.codex;
+    registry.get('message').value = '¿dónde está definido el puerto por defecto?';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, false);
+    assert.equal(posted.at(-1)[1].mode, 1, 'the mode did not reach the suggestion');
+    assert.match(offer.textContent, /Parece una búsqueda · podría bastar BAJO · pruébalo en esta y Intenciones lo nota/);
+    assert.ok(offer.children.some((child) => child.className === 'intent-basis trial' && child.textContent === 'Prueba'), 'a try carries no badge');
+    assert.ok(!offer.classList.contains('up'));
+    const tryKey = offer.children.find((child) => child.className === 'free-go');
+    assert.equal(tryKey.textContent, 'Probar bajo en esta');
+    assert.equal(offer.children.find((child) => child.className === 'free-later').textContent, 'Ahora no');
+    tryKey.listeners.click[0]();
+    assert.deepEqual(state.effortOnce, { agent: 'codex', model: null, intent: 'lookup', effort: 'low', from: 'medium' });
+    assert.equal(state.chosenEffort.codex, undefined, 'a try was remembered for every message');
+    assert.ok(!String(localStorage.getItem('pulse.chosenEffort')).includes('"codex":"low"'));
+    assert.match(offer.textContent, /Esta va con BAJO · si no alcanza, lo notará y volverá a MEDIO/);
+    // Edited, still the same kind of request: the try stays.
+    registry.get('message').value = '¿dónde está definido el puerto por defecto del servidor?';
+    await syncIntentOffer();
+    assert.equal(state.effortOnce?.effort, 'low');
+    assert.match(offer.textContent, /Esta va con BAJO/);
+    // Sent: it goes at BAJO, it is counted as a try taken, and the next message is back where it was.
+    for (const listener of registry.get('composer').listeners.submit) {
+      try { await listener({ preventDefault() {} }); } catch { /* the rest of the room's submit is not under test here */ }
+    }
+    assert.equal(sent.at(-1)?.effort, 'low', 'the message did not go at the rung tried');
+    assert.equal(state.effortOnce, null, 'the try outlived its message');
+    assert.equal(state.chosenEffort.codex, undefined);
+    const counted = posted.filter(([url]) => url === '/api/intents/offer').at(-1)[1];
+    assert.deepEqual([counted.kind, counted.accepted, counted.shown, counted.effort, counted.from, counted.explore?.intent], ['try', true, true, 'low', 'medium', 'lookup']);
+
+    // Taken, then edited into something that no longer qualifies: put away.
+    registry.get('message').value = '¿cuál es el puerto del servidor de pruebas?';
+    await syncIntentOffer();
+    offer.children.find((child) => child.className === 'free-go').listeners.click[0]();
+    assert.equal(state.effortOnce?.effort, 'low');
+    trySuggestion = null;
+    registry.get('message').value = 'implementa el puerto nuevo en el servidor de pruebas';
+    await syncIntentOffer();
+    assert.equal(state.effortOnce, null, 'a try stayed on a message that no longer qualifies');
+    // Taken, then another agent: put away too.
+    trySuggestion = tryOffer;
+    registry.get('message').value = '¿cuál es el puerto del servidor de staging?';
+    await syncIntentOffer();
+    offer.children.find((child) => child.className === 'free-go').listeners.click[0]();
+    registry.get('target').value = 'claude';
+    await syncIntentOffer();
+    assert.equal(state.effortOnce, null, 'a try followed the message to another agent');
+    registry.get('target').value = 'codex';
+
+    // "Not now" on a try is kept for a day, for that agent, model and kind.
+    registry.get('message').value = '¿cuál es el puerto del servidor de producción?';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, false);
+    offer.children.find((child) => child.className === 'free-later').listeners.click[0]();
+    assert.equal(offer.hidden, true);
+    assert.ok(Number.isFinite(JSON.parse(localStorage.getItem('pulse.intentTries'))['codex||lookup']));
+    registry.get('message').value = '¿cuál es el puerto del servidor de respaldo?';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, true, 'a try declined came back on the next message');
+
+    // The try fell short: the next one of its kind offers the way back, and taking it changes
+    // nothing when the message already goes at that rung.
+    trySuggestion = { kind: 'offer', basis: 'tried', agent: 'codex', model: null, intent: 'lookup', cues: [], effort: 'medium', from: 'medium', direction: 'raise', signals: [], measured: null, observed: null, saving: null, tried: { effort: 'low', why: 'rated' } };
+    registry.get('message').value = '¿cuál es el puerto del archivista de la sala?';
+    await syncIntentOffer();
+    assert.equal(offer.hidden, false);
+    assert.match(offer.textContent, /Parece una búsqueda · BAJO no alcanzó la última vez/);
+    assert.ok(offer.classList.contains('up'));
+    const back = offer.children.find((child) => child.className === 'free-go');
+    assert.equal(back.textContent, 'Volver a MEDIO');
+    back.listeners.click[0]();
+    assert.equal(state.chosenEffort.codex, undefined, 'going back to the rung already in use remembered it');
+    globalThis.fetch = suggestNow;
+
     // Nothing to say about an agent whose CLI takes no effort.
     delete state.efforts.codex;
     registry.get('message').value = 'explica por qué falla la prueba de memoria otra vez';
@@ -733,9 +963,20 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     const card = moduleCard(item);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const text = card.textContent;
-    for (const said of ['LO QUE SE MIDIÓ AQUÍ', '@codex', 'BÚSQUEDA', 'BAJO', 'DISEÑO', 'abierto · 3 preguntas por hacer', 'medido · lo necesita', 'EL JUEZ ATRAPÓ 6 DE 6 CONTROLES · confiable', 'PRUEBA RÁPIDA · 12 TURNOS', 'PRUEBA COMPLETA · ~40 TURNOS', 'SUGERENCIAS TOMADAS · 3 DE 4']) {
+    for (const said of ['LO QUE SE MIDIÓ AQUÍ', '@codex', 'Búsqueda', 'BAJO', 'Diseño', 'medido · lo necesita', 'Cambio', 'MEDIO', 'visto en 9 turnos', 'BAJO no alcanzó · en pausa hasta', 'probando BAJO · 3 de 8 turnos', 'ninguno alcanzó las veces suficientes · 10 turnos', 'Medir más rápido', 'contra alto', 'Hay 10 preguntas listas para hacer.', 'EL JUEZ ATRAPÓ 6 DE 6 CONTROLES · confiable', 'PRUEBA RÁPIDA · 12 TURNOS', 'PRUEBA COMPLETA · ~40 TURNOS', 'SUGERENCIAS TOMADAS · 3 DE 4']) {
       assert.ok(text.includes(said), `the card does not say "${said}"`);
     }
+    // A kind the calibration settled says so, over what real use saw; a short reply nobody sent is left out.
+    assert.ok(!text.includes('MÍNIMO'), 'real use spoke over a measurement');
+    assert.ok(!text.includes('Respuesta corta'), 'a kind with no turns at all took a row');
+
+    // The figures lead with real use: turns, how often the level was enough, and the estimate.
+    const glance = moduleGlance(item);
+    for (let i = 0; i < 3; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+    for (const said of ['Turnos observados', '20', 'Le alcanzó', '85%', '17 de 20 turnos', 'Tokens que habrías ahorrado', 'una estimación', 'Estado']) {
+      assert.ok(glance.textContent.includes(said), `the figures do not say "${said}"`);
+    }
+    assert.ok(!glance.textContent.includes('Preguntas por hacer'));
 
     // During the quick test the card sends the human to the test's own window.
     view = reading({ running: { kind: 'quick', agent: 'codex', reference: 'xhigh', effort: 'high', turns: 4, estimate: 12 }, pending: { step: 3, total: 6, intent: 'lookup', question: '¿dónde está el puerto?', first: 'En src/ports.mjs.', second: 'En la configuración.' } });
@@ -775,4 +1016,45 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
   } finally {
     globalThis.fetch = previous;
   }
+});
+
+test('what is new is a board: twelve cards, a card opens its whole note with a way there, Esc steps back', async () => {
+  const { NOTES } = await import('../src/whats-new.mjs');
+  const notes = NOTES['1.0.0'];
+  // A look ahead: nothing is marked as seen, so no request leaves when it closes.
+  const dialog = globalThis.__pulse.showWhatsNew({ version: '1.0.0', notes, preview: true, changes: { es: 'https://madre.run/es/changelog', en: 'https://madre.run/changelog' } });
+  assert.ok(dialog, 'the board did not open');
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(dialog.open, true);
+  assert.match(dialog.textContent, /Ya tienes la 1\.0/);
+  assert.match(dialog.textContent, /Ver todos los cambios/);
+  const cards = () => dialog.querySelectorAll('.wn-card');
+  assert.equal(cards().length, 12, 'the board does not show one card per thing');
+  assert.ok(cards().every((card) => card.querySelectorAll('.wn-shot').length === 1), 'a card has no picture');
+  assert.equal(cards()[0].querySelector('.wn-card-line').textContent, notes.items[0].body.es.match(/^.*?[.!?](?=\s|$)/)[0], 'a card says more than the first sentence');
+
+  // A card opens its note in the same sheet, with where it is and the key that goes there.
+  cards()[0].listeners.click[0]();
+  assert.equal(cards().length, 0, 'the board stayed under the note');
+  const detail = () => dialog.querySelector('.wn-detail');
+  assert.match(detail().textContent, /Llévame ahí/);
+  assert.match(detail().textContent, /Dónde está/);
+  assert.match(detail().textContent, new RegExp(notes.items[0].title.es));
+  // → and ← go through the notes; one with nowhere to go has no key for it.
+  const keys = (key) => dialog.listeners.keydown[0]({ key, target: {}, preventDefault() {} });
+  keys('ArrowRight');
+  assert.match(detail().textContent, new RegExp(notes.items[1].title.es.replace(/[/]/g, '\\/')));
+  keys('ArrowLeft');
+  assert.match(detail().textContent, new RegExp(notes.items[0].title.es));
+  const quiet = notes.items.findIndex((item) => item.action === null);
+  for (let i = 0; i < quiet; i += 1) keys('ArrowRight');
+  assert.doesNotMatch(detail().textContent, /Llévame ahí/, 'a note with nowhere to go offers to take you there');
+
+  // Esc: from a note back to the board, from the board closed.
+  keys('Escape');
+  assert.equal(cards().length, 12);
+  assert.equal(dialog.open, true, 'Esc on a note closed the whole board');
+  keys('Escape');
+  assert.equal(dialog.open, false);
+  dialog.listeners.close[0]();
 });

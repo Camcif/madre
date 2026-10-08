@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
-import { extname, join, resolve, sep } from 'node:path';
+import { dirname, extname, join, resolve, sep } from 'node:path';
 
 // Read-only file access for the room UI, and human attachments.
 //
@@ -178,6 +178,31 @@ export async function writeEdited(root, relative, content, { mtimeMs = null, for
   await writeFile(path, content, 'utf8');
   const after = await stat(path);
   return { status: 200, path, bytes: after.size, mtimeMs: after.mtimeMs };
+}
+
+// A new, empty file in the project, from the Finder. Only a plain relative path: no `..`, no
+// drive (`C:`) or UNC prefix, no folder of git's. Its nearest existing folder must already be
+// inside the project (the same fence as every read and write); missing folders under it are
+// made. An existing file is never touched.
+export async function createEmptyFile(root, relative) {
+  const clean = String(relative ?? '').trim().replace(/^[/\\]+/, '');
+  const parts = clean.split(/[/\\]+/).filter(Boolean);
+  if (!clean || clean.includes('\0') || /[/\\]$/.test(clean) || /^[a-zA-Z]:/.test(clean) || parts.some((part) => part === '..' || part === '.') || parts[0] === '.git') {
+    return { status: 400, error: 'Not a file name this room can create.' };
+  }
+  const canonicalRoot = await realpath(root).catch(() => null);
+  if (!canonicalRoot) return { status: 404, error: 'Not found.' };
+  const target = resolve(canonicalRoot, ...parts);
+  if (!target.startsWith(canonicalRoot + sep)) return { status: 400, error: 'Not a file name this room can create.' };
+  // The nearest folder that exists is checked against the fence, symlinks resolved.
+  let folder = dirname(target);
+  while (folder !== canonicalRoot && !(await stat(folder).catch(() => null))) folder = dirname(folder);
+  const inside = await resolveInside(canonicalRoot, folder === canonicalRoot ? '.' : folder.slice(canonicalRoot.length + 1));
+  if (!inside) return { status: 400, error: 'Not a file name this room can create.' };
+  await mkdir(dirname(target), { recursive: true });
+  try { await writeFile(target, '', { encoding: 'utf8', flag: 'wx' }); }
+  catch (error) { return error.code === 'EEXIST' ? { status: 409, error: 'A file with that name is already there.' } : { status: 400, error: error.message }; }
+  return { status: 201, path: parts.join('/') };
 }
 
 const safeName = (name) => String(name ?? 'file').replace(/[^\w.\- ]+/g, '_').replace(/^\.+/, '').slice(0, 120) || 'file';

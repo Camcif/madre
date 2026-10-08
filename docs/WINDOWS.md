@@ -1,4 +1,4 @@
-# MADRE · PUERTO A WINDOWS · 1.0
+# MADRE · PUERTO A WINDOWS · 1.1
 
 Documento único del puerto. Todo lo que se decida, se arregle o se descarte sobre
 Windows se anota aquí y en ningún otro lado. Los archivos de contexto de los agentes
@@ -7,8 +7,8 @@ Windows se anota aquí y en ningún otro lado. Los archivos de contexto de los a
 | | |
 |---|---|
 | Estado | **Fase 0 · sin empezar** |
-| Versión objetivo | `1.0.0` |
-| Rama | `windows/1.0` (ver §6) |
+| Versión objetivo | `1.1.0` |
+| Rama | `windows/1.0` (ver §6; conserva su nombre aunque la versión objetivo pasó a 1.1.0) |
 | Origen | Auditoría de código del 2026-09-29 sobre `main` @ `fca8894` (0.5.2) |
 | Regla en vigor | Hasta que este documento diga otra cosa, **MADRE no declara soporte ni no-soporte de Windows** |
 
@@ -120,7 +120,7 @@ Ninguna se toma sin el usuario. Hasta que se cierren, las fases posteriores no a
 |---|---|---|---|
 | **D-001** | ¿Windows nativo, o WSL2 declarado como el camino soportado? WSL2 elimina casi toda la sección P1 a cambio de fricción de instalación. | Fase 1 completa | **ABIERTA** |
 | **D-002** | Si en Fase 2 resulta que Codex no se puede confinar en Windows nativo: ¿CONTROL degradado y avisado, o Codex fuera de Windows? | Fase 2 → 3 | **ABIERTA** |
-| **D-003** | `1.0.0` como versión del puerto. La regla del repo reserva mayor para cuando el ledger o la memoria dejan de ser legibles, lo que este puerto no hace; declarar una plataforma nueva es mayor a nivel de producto. Queda anotado que es una excepción consciente. | Fase 4 | **RESUELTA · 1.0.0** |
+| **D-003** | Versión del puerto. Se resolvió como `1.0.0` (excepción consciente: declarar una plataforma nueva es mayor a nivel de producto). El 2026-10-07 cambió: la `1.0.0` se libera con el rediseño de la interfaz, sin declarar soporte ni no-soporte de Windows, y el puerto pasa a `1.1.0`, una menor, porque no rompe el ledger ni la memoria. | Fase 4 | **RESUELTA · 1.1.0** |
 | **D-004** | ¿`.ahp/` en este repo? `project_state` lo leería y todos los agentes de la sala verían el estado verificado. Requiere el CLI de AHP+ (gestiona instance ids, locks y eventos); no se escribe a mano. | Nada · mejora la difusión | **ABIERTA** |
 
 ---
@@ -131,21 +131,21 @@ Ninguna se toma sin el usuario. Hasta que se cierren, las fases posteriores no a
 `windows-latest` en la matriz de CI. Un reporte de qué cae, y nada más.
 Sale de aquí: los ids WIN-0xx que faltan y los que sobran.
 
-**Fase 1 · Que arranque** → `1.0.0-alpha.1`
+**Fase 1 · Que arranque** → `1.1.0-alpha.1`
 WIN-001..007 y WIN-016. La sala abre en Windows y los cuatro agentes contestan.
 El confinamiento sigue **sin verificar** y así se dice en la interfaz.
 Requiere D-001 cerrada.
 
-**Fase 2 · Que confine** → `1.0.0-beta.1`
+**Fase 2 · Que confine** → `1.1.0-beta.1`
 WIN-010..015, WIN-020..024. Cada uno probado contra el CLI real en una máquina
 Windows, no en CI. Es la fase larga y la que decide si hay producto.
 Cierra D-002.
 
-**Fase 3 · Que se explique** → `1.0.0-rc.1`
+**Fase 3 · Que se explique** → `1.1.0-rc.1`
 WIN-025, WIN-026. Catálogo de MU/TH/UR con entradas win32 propias, plan de Ollama,
 `doctor` hablando de PowerShell y no de `~/.bashrc`.
 
-**Fase 4 · Declarar** → `1.0.0`
+**Fase 4 · Declarar** → `1.1.0`
 Se levanta la regla del encabezado. README, sitio y `SECURITY.md` dicen qué soporta
 Windows y qué no, con las limitaciones de la sección L escritas sin adornos.
 
@@ -202,3 +202,4 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
 
 - `2026-09-29` · Auditoría de `main` @ `fca8894`. Se abren WIN-001..032 y D-001..004. Fase 0 sin empezar.
 - `2026-10-03` · Se abre WIN-027 (comandos que el humano corre por un agente, módulo Runs), sobre la misma restricción que WIN-016.
+- `2026-10-07` · D-003 cambia: la `1.0.0` es el rediseño de la interfaz y el puerto apunta a `1.1.0`. La rama conserva el nombre `windows/1.0`.

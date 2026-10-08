@@ -79,7 +79,7 @@ Subir a `#3` o `#4` es una ceremonia deliberada: MADRE te pide el nombre de la c
 
 ## Hazla tuya
 
-MADRE trae ocho módulos. El noveno lo escribes tú — o se lo pides a un agente.
+MADRE trae once módulos. El duodécimo lo escribes tú — o se lo pides a un agente.
 
 **Un módulo es un archivo.** Sin build, sin dependencias, sin registrarse en ningún lado. Lo copias a una carpeta, pulsas RELOAD y aparece con su interruptor, sus ajustes y su ficha. Con uno puedes añadir un comando `/loquesea` que la sala entiende, darle a los agentes una herramienta que antes no tenían, cambiar cómo se comporta la sala, o conectarla con algo que ya usas.
 
@@ -157,7 +157,7 @@ Beta pública. El núcleo está probado y bajo CI en macOS y Linux con Node 22 y
 
 Una versión se cierra cuando está en npm. El detalle de cada una en [CHANGELOG.md](CHANGELOG.md); lo que viene, en el [roadmap](https://github.com/jossuealcacao-exe/madre/blob/main/docs/ROADMAP.md).
 
-Problemas: desde MU/TH/UR (`✎ FEEDBACK`) o en [issues](https://github.com/jossuealcacao-exe/madre/issues).
+Problemas: desde cada remedio de MU/TH/UR («¿No se arregló?») o en [issues](https://github.com/jossuealcacao-exe/madre/issues).
 Seguridad: [SECURITY.md](SECURITY.md) · Contribuir: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 MADRE es gratis y seguirá siéndolo. Si te ahorra tiempo y quieres que siga creciendo,

@@ -236,9 +236,9 @@ test('intenciones desk: stop puts the pair on the table away unjudged and ends t
 test('intenciones desk: how often a suggestion is taken is counted per message and survives a restart', async (t) => {
   const { dir, desk, bench } = await room(t);
   await desk.offered({ accepted: true });
-  assert.deepEqual(await desk.offered({}), { shown: 2, accepted: 1 });
+  assert.deepEqual(await desk.offered({}), { shown: 2, accepted: 1, tries: { shown: 0, accepted: 0 } });
   const again = new IntentsDesk({ file: join(dir, 'intents.jsonl'), offersFile: join(dir, 'intents-offers.json'), events: async () => [], bench, projectRoot: dir });
-  assert.deepEqual((await again.view()).offers, { shown: 2, accepted: 1 });
+  assert.deepEqual((await again.view()).offers, { shown: 2, accepted: 1, tries: { shown: 0, accepted: 0 } });
 });
 
 test('intenciones module: its routes, its switch, and nothing from the request trusted as it came', async (t) => {
@@ -265,7 +265,7 @@ test('intenciones module: its routes, its switch, and nothing from the request t
   assert.equal((await route('POST', '/api/intents/suggest')(ctx(false), { payload: { text: 'explica por qué falla la prueba de memoria', agent: 'claude', effort: 'low' } })).body.suggestion, null);
   assert.equal((await route('POST', '/api/intents/calibrate')(ctx(false), { payload: { kind: 'quick', agent: 'claude' } })).status, 409);
   assert.equal((await route('POST', '/api/intents/answer')(ctx(), { payload: { choice: 'same' } })).status, 409);
-  assert.deepEqual((await route('POST', '/api/intents/offer')(ctx(), { payload: { accepted: 'yes' } })).body.offers, { shown: 1, accepted: 0 });
+  assert.deepEqual((await route('POST', '/api/intents/offer')(ctx(), { payload: { accepted: 'yes' } })).body.offers, { shown: 1, accepted: 0, tries: { shown: 0, accepted: 0 } });
 });
 
 test('intenciones over HTTP: the server hands the module its room, and the page can do everything through it', async (t) => {
@@ -313,5 +313,8 @@ test('intenciones over HTTP: the server hands the module its room, and the page 
   const kept = await readFile(join(root, 'rooms', projectRoomId(root), 'intents.jsonl'), 'utf8');
   assert.equal(kept.trim().split('\n').length, 3);
 
-  assert.deepEqual((await post('/api/intents/offer', { accepted: true })).body.offers, { shown: 1, accepted: 1 });
+  assert.deepEqual((await post('/api/intents/offer', { accepted: true })).body.offers, { shown: 1, accepted: 1, tries: { shown: 0, accepted: 0 } });
+  // A try is an offer, and is also counted on its own; a message that only qualified counts none.
+  assert.deepEqual((await post('/api/intents/offer', { accepted: true, kind: 'try', agent: 'claude', intent: 'lookup', effort: 'low', from: 'medium' })).body.offers, { shown: 2, accepted: 2, tries: { shown: 1, accepted: 1 } });
+  assert.deepEqual((await post('/api/intents/offer', { shown: false, explore: { agent: 'claude', model: null, intent: 'lookup' } })).body.offers, { shown: 2, accepted: 2, tries: { shown: 1, accepted: 1 } });
 });

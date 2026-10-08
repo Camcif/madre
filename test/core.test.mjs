@@ -188,7 +188,7 @@ test('core: no block reaches the briefing without saying what put it there', asy
   }
   // The ones a person can actually switch off point at a place in the panel, not at prose.
   for (const id of ['ash', 'web', 'madre', 'delegation', 'choices', 'runs']) {
-    assert.match(BLOCK_SOURCES[id].where, /MODULES|CONNECTIONS/, `${id} does not say where it is switched off`);
+    assert.match(BLOCK_SOURCES[id].where, /MODULES|Settings ›/, `${id} does not say where it is switched off`);
   }
   // And what nothing can remove says so by saying nothing, not by inventing a switch.
   assert.equal(BLOCK_SOURCES.room.where, null);

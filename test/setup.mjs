@@ -3,6 +3,8 @@
 process.env.PULSE_OLLAMA ??= '0';
 // Nor is a browser started to see whether PLAYWRIGHT works, unless a test asks for it.
 process.env.PULSE_PLAYWRIGHT_CHECK ??= '0';
+// Nor is gh asked who is signed in to GitHub: the GitHub module's own tests hand it a fake.
+process.env.PULSE_GH ??= '0';
 
 // And the suite reads MADRE in the language it is WRITTEN in. The product speaks Spanish by
 // default; its tests assert what a module is, what a room does and what a reading means — not

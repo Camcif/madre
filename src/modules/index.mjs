@@ -21,6 +21,7 @@ import ripley from './ripley.mjs';
 import ollama from './ollama.mjs';
 import playwright from './playwright.mjs';
 import correo from './correo.mjs';
+import github from './github.mjs';
 import { defineModule, matchRoute } from './sdk.mjs';
 
 // The lab: modules that are built and tested but not offered yet, because they are not finished
@@ -29,7 +30,7 @@ import { defineModule, matchRoute } from './sdk.mjs';
 // so a module of somebody's own cannot take one and collide with it the day it comes out.
 export const LAB_MODULES = [correo];
 const labsAsked = new Set(String(process.env.PULSE_LABS ?? '').split(',').map((id) => id.trim()).filter(Boolean));
-export const MODULES = [ahp, imageStudio, gitPulse, ash, intents, choices, runs, ripley, ollama, playwright, ...LAB_MODULES.filter((module) => labsAsked.has(module.id))];
+export const MODULES = [ahp, imageStudio, gitPulse, ash, intents, choices, runs, ripley, ollama, playwright, github, ...LAB_MODULES.filter((module) => labsAsked.has(module.id))];
 export const BUILTIN_IDS = new Set([...MODULES, ...LAB_MODULES].map((module) => module.id));
 export const loadFailures = [];   // { file, error } for MODULES to show
 export const moduleFolders = ({ stateRoot, projectRoot }) => ({ user: join(stateRoot, 'modules'), project: join(projectRoot, '.madre', 'modules') });

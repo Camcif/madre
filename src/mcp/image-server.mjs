@@ -28,7 +28,7 @@ const FAKE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADU
 
 // Where a Gemini key can be, in the order the room should trust them: what this process was
 // given, then the file the CLI reads on every run — which is also the file MADRE itself writes
-// when a key is pasted into CONNECTIONS — and last the macOS keychain, which only exists when
+// when a key is pasted into Settings › Agents — and last the macOS keychain, which only exists when
 // the CLI's own sign-in put it there. Leaving the file out meant MADRE saved a key in a place it
 // then refused to look, and on Linux, where there is no keychain, that was the only place it
 // could have been: Image Studio could never find a key there at all.

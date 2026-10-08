@@ -5,9 +5,11 @@
 // a lower rung was enough here, or this looks like a hunt and the rung chosen is too light. The
 // human presses the button or does not. Nothing changes on its own.
 //
-// What it knows, it learned from two tests the human starts from this card (intents-calibration):
-// the quick one, where the human compares two answers without knowing which is which, and the full
-// one, where an impartial agent does, after proving it can see a difference at all.
+// What it knows, it learns first from real use, for no tokens (intents-observe): every turn the
+// human already sent, and whether the rung it ran at was enough — the human moved on, or asked
+// again. Faster and stronger, for a price, are the two tests the human starts from this card
+// (intents-calibration): the quick one, where the human compares two answers without knowing which
+// is which, and the full one, where an impartial agent does, after proving it can see a difference.
 //
 // Only Claude Code and Codex take an effort per run, so only they are in it.
 
@@ -27,6 +29,8 @@ export function deskFor(ctx) {
       offersFile: join(where.roomDir, 'intents-offers.json'),
       events: where.events,
       projectEvents: where.projectEvents,
+      ledgers: where.ledgers,
+      defaults: where.defaults,
       bench: where.bench,
       projectRoot: ctx.projectRoot,
     }));
@@ -36,6 +40,7 @@ export function deskFor(ctx) {
 
 const enabled = (ctx) => ctx.config?.modules?.intents?.enabled !== false;
 const count = (value) => Math.max(0, Math.min(50, Number.parseInt(value, 10) || 0));
+const modeOf = (value) => (Number.isInteger(value) && value >= 0 && value <= 4 ? value : null);
 const nameOrNull = (value) => (typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,120}$/.test(value) ? value : null);
 
 export default defineModule({
@@ -63,16 +68,19 @@ export default defineModule({
         let models = {};
         try { models = JSON.parse(url.searchParams.get('models') ?? '{}') ?? {}; } catch { models = {}; }
         const chosen = Object.fromEntries(Object.entries(models).map(([agent, model]) => [agent, nameOrNull(model)]));
-        return { status: 200, body: { enabled: enabled(ctx), ...(await desk.view({ models: chosen })) } };
+        let efforts = {};
+        try { efforts = JSON.parse(url.searchParams.get('efforts') ?? '{}') ?? {}; } catch { efforts = {}; }
+        const rungs = Object.fromEntries(Object.entries(efforts).map(([agent, effort]) => [agent, nameOrNull(effort)]));
+        return { status: 200, body: { enabled: enabled(ctx), ...(await desk.view({ models: chosen, efforts: rungs })) } };
       },
     },
     {
       method: 'POST', path: '/api/intents/suggest',
       handler: async (ctx, { payload }) => {
         const desk = deskFor(ctx);
-        if (!desk || !enabled(ctx)) return { status: 200, body: { suggestion: null } };
+        if (!desk || !enabled(ctx)) return { status: 200, body: { suggestion: null, explore: null } };
         const text = String(payload?.text ?? '').slice(0, 20000);
-        const suggestion = await desk.suggest({
+        const { suggestion, explore } = await desk.consider({
           text,
           agent: String(payload?.agent ?? ''),
           model: nameOrNull(payload?.model),
@@ -80,8 +88,9 @@ export default defineModule({
           defaultEffort: nameOrNull(payload?.defaultEffort),
           references: count(payload?.references),
           attachments: count(payload?.attachments),
+          mode: modeOf(payload?.mode),
         });
-        return { status: 200, body: { suggestion } };
+        return { status: 200, body: { suggestion, explore } };
       },
     },
     {
@@ -114,7 +123,22 @@ export default defineModule({
       handler: async (ctx, { payload }) => {
         const desk = deskFor(ctx);
         if (!desk || !enabled(ctx)) return { status: 200, body: {} };
-        return { status: 200, body: { offers: await desk.offered({ accepted: payload?.accepted === true }) } };
+        const explore = payload?.explore && typeof payload.explore === 'object'
+          ? { agent: nameOrNull(payload.explore.agent), model: nameOrNull(payload.explore.model), intent: nameOrNull(payload.explore.intent) }
+          : null;
+        return { status: 200, body: { offers: await desk.offered({
+          accepted: payload?.accepted === true,
+          // A message that only qualified for a try, with nothing shown, paces the tries and counts no offer.
+          shown: payload?.shown !== false,
+          kind: nameOrNull(payload?.kind),
+          basis: nameOrNull(payload?.basis),
+          agent: nameOrNull(payload?.agent),
+          model: nameOrNull(payload?.model),
+          intent: nameOrNull(payload?.intent),
+          effort: nameOrNull(payload?.effort),
+          from: nameOrNull(payload?.from),
+          explore: explore?.agent && explore.intent ? explore : null,
+        }) } };
       },
     },
   ],

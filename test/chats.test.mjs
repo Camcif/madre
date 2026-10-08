@@ -282,7 +282,7 @@ test('windows: a header is held without selecting, carried on the compositor, an
 
 test('surfaces: every one carries split and window in its header, and a dialog is modal only in its base', async () => {
   const app = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
-  for (const key of ['chats', 'tree', 'viewer', 'modules', 'mother']) assert.match(app, new RegExp(`\\{ key: '${key}', kind: '(panel|dialog)'`), `${key} is not a surface`);
+  for (const key of ['chats', 'tree', 'viewer']) assert.match(app, new RegExp(`\\{ key: '${key}', kind: '(panel|dialog)'`), `${key} is not a surface`);
   // Every caller still asks for showModal; split or floating, the dialog opens without trapping the room.
   assert.match(app, /node\.showModal = function showInItsMode\(\)/);
   // Changing how an open dialog is shown is not closing it: its own close handlers must not run.
@@ -357,8 +357,8 @@ test('windows: a change of the room never paints the conversation across a windo
   // not; a press on the desktop itself toggles them, aside and back.
   assert.match(app, /if \(!windowsAside \|\| target\?\.closest\?\.\('#composer, \.model-menu, \.agent-pop, \.slash-menu'\)\) return;/);
   assert.match(app, /addEventListener\?\.\('click', \(event\) => \{ if \(deskPress\(event\)\) setWindowsAside\(!windowsAside, \{ always: true \}\); \}\);/);
-  // NOSTROMO opened from MU/TH/UR as a window leaves it as it was.
-  assert.match(app, /if \(!motherSurface \|\| modeOf\(motherSurface\) === 'base'\) mother\.dialog\?\.close\?\.\(\);/);
+  // NOSTROMO opened from MU/TH/UR leaves it as it was: MU/TH/UR is a window, not a base.
+  assert.ok(!/motherSurface/.test(app), 'MU/TH/UR is closed under NOSTROMO again');
   // The servers' close is the cluster's ×, not a second one drawn after it.
   assert.ok(!/#browser-close::after/.test(css), 'the browser draws a second × again');
   // Every × warms to the conversations' scarlet.
@@ -377,7 +377,7 @@ test('room: no question is left to the browser\'s grey box, and every one is ask
     assert.ok(!/window\.(confirm|prompt|alert)\(/.test(text), `${file} asks through the browser again`);
   }
   // One sheet, with answers that are words; the console's questions in the console's look.
-  assert.match(app, /function roomAsk\(\{ title, body = '', choices, input = null, console: inConsole = false \}\)/);
+  assert.match(app, /function roomAsk\(\{ title, body = '', choices, input = null, command = null, icon = null, console: inConsole = false \}\)/);
   assert.match(app, /sheet\.dialog\.classList\.toggle\('console', inConsole\);/);
   assert.match(css, /dialog\.room-ask\.console \.room-ask-card \{/);
   // The safe answer is the one a stray Enter lands on.
@@ -396,10 +396,12 @@ test('console details: NOSTROMO reads like every console header, effort shows it
   assert.match(app, /effortMenu\.style\.setProperty\('--strength', String\(last \? index \/ last : 1\)\);/);
   assert.match(css, /--level-tone: color-mix\(in srgb, var\(--tone\) calc\(25% \+ var\(--strength, 1\) \* 75%\), var\(--text-3\)\);/);
   assert.match(css, /\.effort-slider \.tick\.cli::after \{ bottom: 17px;/);
-  // A connection's state is a light in its card's corner, named for whoever does not see colour.
-  assert.match(app, /const dot = el\('span', `conn-dot \$\{lamp\}`\);\n  dot\.setAttribute\('role', 'img'\);\n  dot\.setAttribute\('aria-label', said\);/);
+  // A connection's state is said in words, in a chip of its own tone: colour is never the only
+  // way it is told.
+  assert.match(app, /head\.append\(words, sxChip\(said, lamp\)\);/);
   assert.ok(!/el\('span', `session\$\{busy/.test(app), 'the session word in a box is back');
-  assert.match(css, /\.conn-card > \.head \{ align-self: stretch; justify-content: flex-start;/);
+  assert.match(css, /\.sx-chip\.on \{[^}]*var\(--phosphor\)/);
+  assert.match(css, /\.sx-chip\.off \{[^}]*var\(--danger\)/);
 });
 
 test('servers: point and ask hands the agent only what the room knows, and the question waits in the composer', async () => {

@@ -674,10 +674,16 @@ export class RoomMemory {
   }
 
   // Which notes are about the same thing: pairs whose vectors agree, strongest
-  // first, a few per note. Empty without an embedder or vectors.
+  // first, a few per note. Comparing notes with each other needs only the vectors
+  // already stored, not a live embedder: when the one in use has none (Ollama off,
+  // the room fell back to another), the model that embedded the most notes draws
+  // the links. Empty only when no note was ever embedded.
   memoryLinks({ floor = 0.6, maxPerNode = 4 } = {}) {
-    if (!this.#embedder) return [];
-    const rows = this.#db.prepare('SELECT id, vec FROM memory_vectors WHERE model = ?').all(this.#embedder.model).map((row) => ({ id: row.id, vec: fromBlob(row.vec) }));
+    const stored = this.#db.prepare('SELECT model, COUNT(*) AS n FROM memory_vectors GROUP BY model ORDER BY n DESC').all();
+    const current = this.#embedder ? stored.find((row) => row.model === this.#embedder.model) : null;
+    const model = current?.model ?? stored[0]?.model;
+    if (!model) return [];
+    const rows = this.#db.prepare('SELECT id, vec FROM memory_vectors WHERE model = ?').all(model).map((row) => ({ id: row.id, vec: fromBlob(row.vec) }));
     const links = [];
     for (let i = 0; i < rows.length; i += 1) {
       for (let j = i + 1; j < rows.length; j += 1) {

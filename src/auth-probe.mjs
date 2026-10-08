@@ -136,7 +136,7 @@ export const AGENT_PACKAGE = {
   gemini: '@google/gemini-cli',
   opencode: 'opencode-ai',
 };
-// One honest line per agent about the account it needs, for the bridge and for CONNECTIONS.
+// One honest line per agent about the account it needs, for the bridge and for Settings › Agents.
 // Which agents take a pasted key instead of a browser flow.
 export const TAKES_KEY = new Set(['gemini', 'opencode']);
 

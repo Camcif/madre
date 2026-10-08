@@ -1,7 +1,7 @@
 import { archiveQuestion, modeAsked } from './routing.js';
 import { calledByName, abduct } from './abduction.js';
 import { brandOf } from './brands.js';
-import { CONDITIONS, allConditions, detectPlatform, diagnose, fixesFor, PLATFORMS, searchConditions } from './troubleshooting.js';
+import { allConditions, detectPlatform, diagnose, fixesFor, PLATFORMS, searchConditions } from './troubleshooting.js';
 import { answerFor, INQUIRIES, STRIKES } from './inquiry.js';
 import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t, fill } from './i18n.js';
 import { createEditor } from './editor.js';
@@ -153,7 +153,7 @@ let winkTimer = null;
 const LINE_PX = 21;
 const MAX_ROWS = 14;
 
-// Permission modes: chosen per message, capped per agent in CONNECTIONS.
+// Permission modes: chosen per message, capped per agent in Settings › Permissions.
 // The names are the ship's and are never translated; what each one lets an agent do is.
 const MODES = {
   0: { key: 'ghost', label: 'GHOST', hint: t('Off the record. Nothing is saved; gone on reload.') },
@@ -204,8 +204,17 @@ const state = {
   efforts: {},             // id -> { levels, default } from /api/models; no levels, no chip
   // Intenciones: what is being offered under the box for the message being written, and the mark
   // it leaves on that agent's effort chip. `offered` and `accepted` are about this one message.
-  intentOffer: { key: '', timer: null, offered: false, accepted: false },
+  // `said` is the suggestion on screen; `explore` names the kind when the message qualifies for a try.
+  intentOffer: { key: '', timer: null, offered: false, accepted: false, said: null, explore: null },
   intentHint: null,        // { agent, direction } while an offer is on screen
+  // A try taken from Intenciones: this rung for this one message to this agent, never remembered.
+  // { agent, model, intent, effort, from }. Cleared when the message leaves, when the agent changes
+  // and when the message no longer qualifies.
+  effortOnce: null,
+  // While AJUSTES shows a category, the panel that holds it draws there too, from the same code and
+  // the same answers MU/TH/UR draws from: one renderer, two places, never two copies of a rule.
+  settingsTargets: { agents: null, room: null, turns: null, memory: null, privacy: null, permissions: null, release: null, sentinel: null, files: null },
+  settingsWindow: null,    // AJUSTES, once its part of the file has run
 };
 try { state.chosenModel = JSON.parse(localStorage.getItem('pulse.chosenModel') ?? '{}') || {}; } catch { state.chosenModel = {}; }
 try { state.chosenEffort = JSON.parse(localStorage.getItem('pulse.chosenEffort') ?? '{}') || {}; } catch { state.chosenEffort = {}; }
@@ -242,6 +251,9 @@ const capVerb = (scope) => CAP_VERBS[scope] ?? CAP_LABELS[scope] ?? scope;
 const modules = {
   dialog: document.querySelector('#modules'),
   button: document.querySelector('#modules-button'),
+  open: null,     // the module whose card is open over the board
+  query: '',
+  push: false,
   count: document.querySelector('#modules-count'),
   close: document.querySelector('#modules-close'),
   list: document.querySelector('#modules-list'),
@@ -389,11 +401,26 @@ function placeToast() {
   if (Number.isFinite(rect.top) && rect.top > 0) document.documentElement.style.setProperty('--composer-top', `${Math.round(rect.top)}px`);
   if (Number.isFinite(rect.left) && rect.width > 0) document.documentElement.style.setProperty('--composer-center', `${Math.round(rect.left + rect.width / 2)}px`);
 }
-// Red is for what went wrong. A note — saved, or "the agent reads the disk" — speaks quietly.
-function toast(message, { tone = 'alert' } = {}) {
+// A notice is a pill over the composer, one line, and its colour is only a dot: green for done,
+// amber for worth a look, red only for what went wrong. Most callers do not say which, so the words
+// decide — in either language — and a caller can still say it outright.
+const TOAST_WRONG = /could not|couldn't|cannot|was not|were not|did not|failed|\berror\b|unable|refused|not valid|invalid|no se pudo|no se guard|no pudo|no se aplic|falló|no es válid|no arrancó|no corrió|no cargó|rechaz/i;
+const TOAST_LOOK = /is on npm|está en npm|blocked|bloque|is waiting|te espera|first|primero|needs|necesita|stays off|sigue apagad/i;
+function toastTone(message, tone) {
+  if (['done', 'look', 'wrong', 'note'].includes(tone)) return tone;
+  if (TOAST_WRONG.test(message)) return 'wrong';
+  if (TOAST_LOOK.test(message)) return 'look';
+  return 'done';
+}
+function toast(message, { tone = null } = {}) {
   placeToast();
-  els.toast.textContent = message;
-  els.toast.classList?.toggle('note', tone === 'note');
+  const text = String(message);
+  const kind = toastTone(text, tone);
+  // Who speaks stays in the words a screen reader hears; on screen the dot says enough.
+  const from = text.match(/^MU\/TH\/UR › /)?.[0] ?? '';
+  els.toast.replaceChildren(el('i', 'toast-dot'), ...(from ? [el('span', 'toast-from', from)] : []), el('span', 'toast-text', text.slice(from.length)));
+  els.toast.dataset.tone = kind;
+  els.toast.classList?.toggle('note', kind === 'note');
   els.toast.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { els.toast.hidden = true; }, 6000);
@@ -676,17 +703,22 @@ function showViewerMenu(x, y) {
     menuNode.append(item);
   }
   menuNode.hidden = false;
-  // The header is two lines now and the reference can wrap; leave room rather than clip it.
-  const width = 260, height = 62 + 36 * state.agents.size;
-  menuNode.style.left = `${Math.min(x, window.innerWidth - width - 12)}px`;
-  menuNode.style.top = `${Math.min(y, window.innerHeight - height - 12)}px`;
+  // In the page's top layer, like the ask card: the viewer's window clipped it at its own edge.
+  if (!menuNode.hasAttribute('popover')) { menuNode.setAttribute('popover', 'manual'); document.body.append(menuNode); }
+  try { menuNode.showPopover?.(); } catch { /* without popovers it stays fixed in the page */ }
+  // Placed by its real size: under the button, or over it when there is no room below.
+  const width = menuNode.offsetWidth || 260;
+  const height = menuNode.offsetHeight || 62 + 36 * state.agents.size;
+  const top = y + height <= window.innerHeight - 12 ? y : Math.max(12, y - height - 44);
+  menuNode.style.left = `${Math.max(12, Math.min(x, window.innerWidth - width - 12))}px`;
+  menuNode.style.top = `${Math.round(top)}px`;
 }
-function hideViewerMenu() { viewerUI.menu.hidden = true; }
+function hideViewerMenu() { try { viewerUI.menu.hidePopover?.(); } catch { /* not open */ } viewerUI.menu.hidden = true; }
 viewerUI.review?.addEventListener('click', (event) => {
   const rect = event.currentTarget.getBoundingClientRect();
   if (viewerUI.menu.hidden) showViewerMenu(rect.left, rect.bottom + 6); else hideViewerMenu();
 });
-viewer.dialog.addEventListener('click', (event) => { if (!viewerUI.menu.hidden && !viewerUI.menu.contains(event.target) && event.target !== viewerUI.review) hideViewerMenu(); });
+document.addEventListener('click', (event) => { if (viewerUI.menu && !viewerUI.menu.hidden && !viewerUI.menu.contains(event.target) && !viewerUI.review?.contains(event.target)) hideViewerMenu(); });
 viewer.dialog.addEventListener('close', () => { hideViewerMenu(); setSelection(null, null); ripley.frame = null; ripley.history = []; ripleyClearErrors(); if (ripley.nav) ripley.nav.hidden = true; });
 
 function codeView(text, { line = null, lines = null, name = null } = {}) {
@@ -766,7 +798,9 @@ const askSheet = (() => {
   dialog.setAttribute('aria-labelledby', 'room-ask-title');
   const form = el('form', 'room-ask-card');
   form.method = 'dialog';
-  const title = el('p', 'room-ask-title');
+  const icon = el('span', 'room-ask-icon');
+  icon.setAttribute('aria-hidden', 'true');
+  const title = el('h2', 'room-ask-title');
   title.id = 'room-ask-title';
   const body = el('p', 'room-ask-body');
   const field = el('label', 'room-ask-field');
@@ -775,7 +809,8 @@ const askSheet = (() => {
   input.spellcheck = false;
   field.append(el('span', 'k', t('DESIGNATION ›')), input);
   const actions = el('div', 'room-ask-actions');
-  form.append(title, body, field, actions);
+  const code = el('pre', 'room-ask-code');
+  form.append(icon, title, body, code, field, actions);
   dialog.append(form);
   // A press on the dim ground around the sheet sets the question aside.
   dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(''); });
@@ -786,18 +821,43 @@ const askSheet = (() => {
     dialog.close(askSheet.submit);
   });
   document.body?.append(dialog);
-  return { dialog, title, body, field, input, actions, settle: null, submit: null };
+  return { dialog, icon, title, body, code, field, input, actions, settle: null, submit: null };
 })();
-function roomAsk({ title, body = '', choices, input = null, console: inConsole = false }) {
+// The room's alerts speak in sentences: a question written in capitals is read in sentence case,
+// with the ship's own names, @agents, #modes and paths left as they are.
+const ASK_KEEP = /^(MADRE|MOTHER|MU\/TH\/UR|CONTROL|AIRLOCK|CREATE|GHOST|EXCHANGE|NOSTROMO|ASH|MCP|SDK|URL|API|UNDO|#\d.*|@.*|.*[\/\d].*)$/;
+function askWords(text) {
+  const words = String(text ?? '');
+  const letters = words.replace(/[^\p{L}]/gu, '');
+  if (!letters.length || letters.replace(/[^\p{Lu}]/gu, '').length / letters.length <= 0.7) return words;
+  const said = words.split(/(\s+)/).map((word) => (ASK_KEEP.test(word.replace(/[.,:;?!¿¡…·]+$/u, '')) ? word : word.toLowerCase())).join('');
+  return said.charAt(0).toUpperCase() + said.slice(1);
+}
+// One glyph per kind of question: something will be lost, a key is asked for, or a plain choice.
+const ASK_ICONS = {
+  danger: '<svg viewBox="0 0 20 20"><path d="M10 3.4 17 15.6H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 8.2v3.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="10" cy="13.6" r="1" fill="currentColor"/></svg>',
+  key: '<svg viewBox="0 0 20 20"><rect x="4.5" y="8.6" width="11" height="8" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 8.6V6.4a3 3 0 0 1 6 0v2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="12.6" r="1.2" fill="currentColor"/></svg>',
+  file: '<svg viewBox="0 0 20 20"><path d="M11.5 3.5H6.2c-.9 0-1.7.8-1.7 1.7v9.6c0 .9.8 1.7 1.7 1.7h7.6c.9 0 1.7-.8 1.7-1.7V7.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11.5 3.5v4h4M10 10v4M8 12h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  ask: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 8a2 2 0 1 1 2.8 1.8c-.6.3-.8.7-.8 1.3v.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="13.8" r="1" fill="currentColor"/></svg>',
+};
+function roomAsk({ title, body = '', choices, input = null, command = null, icon = null, console: inConsole = false }) {
   return new Promise((resolve) => {
     if (!askSheet) { resolve(null); return; }
     const sheet = askSheet;
     sheet.settle?.(null);
     sheet.dialog.classList.toggle('console', inConsole);
-    sheet.title.textContent = title;
+    const kind = icon ?? (choices.some((choice) => choice.tone === 'danger') ? 'danger' : input ? 'key' : 'ask');
+    sheet.dialog.dataset.kind = kind;
+    sheet.icon.hidden = inConsole;
+    sheet.icon.innerHTML = inConsole ? '' : ASK_ICONS[kind]; // trusted: our own SVG strings
+    sheet.title.textContent = inConsole ? title : askWords(title);
     sheet.body.textContent = body;
     sheet.body.hidden = !body;
+    // What will run, word for word, when the question is whether to run it.
+    sheet.code.textContent = command ?? '';
+    sheet.code.hidden = !command;
     sheet.field.hidden = !input;
+    sheet.field.querySelector('.k').textContent = inConsole ? t('DESIGNATION ›') : (input?.label ?? t('Project'));
     sheet.input.value = '';
     sheet.input.placeholder = input?.placeholder ?? '';
     sheet.actions.replaceChildren();
@@ -805,7 +865,7 @@ function roomAsk({ title, body = '', choices, input = null, console: inConsole =
     const submit = choices.find((choice) => choice.submit)?.value ?? null;
     sheet.submit = submit;
     for (const choice of choices) {
-      const button = el('button', `room-ask-choice${choice.tone ? ` ${choice.tone}` : ''}`, choice.label);
+      const button = el('button', `room-ask-choice${choice.tone ? ` ${choice.tone}` : ''}`, inConsole ? choice.label : askWords(choice.label));
       button.type = 'submit';
       button.value = choice.value;
       sheet.actions.append(button);
@@ -2306,6 +2366,20 @@ function renderPicker() {
       : t('Permission mode for this message · {hint}', { hint: MODES[state.mode].hint });
     modeChip.addEventListener('click', (event) => { event.stopPropagation(); toggleModeMenu(current.id, modeChip); });
     text.append(modeChip);
+    // A key accepted a few minutes ago still holds for this agent: it says so, and its × closes it.
+    for (const mode of [4, 3]) {
+      const left = overrideGraceLeft(mode, current.id);
+      if (!left) continue;
+      const grace = el('button', `grace-chip m${mode}`);
+      grace.type = 'button';
+      grace.dataset.mode = String(mode);
+      grace.dataset.agent = current.id;
+      grace.title = t('{label} does not ask for its key again for @{agent} until this runs out. Click to close it now.', { label: MODES[mode].label, agent: current.id });
+      grace.append(el('b', null, `#${mode}`), el('span', null, t('open')), el('span', 'left', graceWords(left)), el('i', null, '×'));
+      grace.addEventListener('click', (event) => { event.stopPropagation(); closeOverrideGrace(mode, current.id); toast(t('MU/TH/UR › {label} closed for @{agent}: the next one asks for its key.', { label: MODES[mode].label, agent: current.id }), { tone: 'done' }); });
+      text.append(grace);
+      break;
+    }
     // An agent with no models to choose from gets no chooser. @madre answers on whatever chat
     // model Ollama holds, which is decided on Ollama's card and not here, so the chip only opened
     // an empty menu — and it was the piece that pushed this row onto a second line.
@@ -2463,16 +2537,20 @@ function renderEffortChip(id) {
   if (!state.efforts[id]) { ensureEfforts(); return null; }
   const info = effortInfo(id);
   if (!info.levels.length) return null;
-  const chosen = info.levels.includes(state.chosenEffort[id]) ? state.chosenEffort[id] : null;
+  // A try taken for this message shows its rung while the message is being written.
+  const once = state.effortOnce?.agent === id && info.levels.includes(state.effortOnce.effort) ? state.effortOnce.effort : null;
+  const chosen = once ?? (info.levels.includes(state.chosenEffort[id]) ? state.chosenEffort[id] : null);
   const shown = chosen ?? info.default;
-  const chip = el('button', `effort-chip${chosen ? ' set' : ''}${shown === info.levels.at(-1) ? ' peak' : ''}`);
+  const chip = el('button', `effort-chip${chosen ? ' set' : ''}${once ? ' once' : ''}${shown === info.levels.at(-1) ? ' peak' : ''}`);
   chip.type = 'button';
   chip.append(effortMeter(info.levels, shown, { ghost: !chosen }), el('span', 'word', chosen ? effortLabel(chosen) : t('effort')));
   // Intenciones has something to say about this agent's rung: the arrow says which way, the offer
   // under the box says why.
   if (state.intentHint?.agent === id) chip.append(el('span', `intent-mark${state.intentHint.direction === 'raise' ? ' up' : ''}`, state.intentHint.direction === 'raise' ? '↑' : '↓'));
   chip.append(chevron('caret'));
-  chip.title = chosen
+  chip.title = once
+    ? t('Effort for this message only · {level}', { level: effortLabel(once) })
+    : chosen
     ? `${t('Effort for this agent · {level}', { level: effortLabel(chosen) })}\n${t(EFFORT_WORDS[chosen]?.hint ?? '')}`
     : info.default
       ? t('Effort for this agent · the CLI default ({level})', { level: effortLabel(info.default) })
@@ -2483,6 +2561,8 @@ function renderEffortChip(id) {
 }
 
 function rememberEffort(id, level) {
+  // A rung chosen by hand wins over a try taken for this message.
+  if (state.effortOnce?.agent === id) state.effortOnce = null;
   if (level) state.chosenEffort[id] = level; else delete state.chosenEffort[id];
   try { localStorage.setItem('pulse.chosenEffort', JSON.stringify(state.chosenEffort)); } catch { /* private mode */ }
 }
@@ -2714,9 +2794,9 @@ function toggleModeMenu(id, anchor) {
       option.append(label);
     }
     option.title = !locked ? MODES[n].hint
-      : raise ? `@${id} is capped at #${cap}. This raises MAX MODE to #${n} in CONNECTIONS and opens the override.`
+      : raise ? t('@{id} is capped at #{cap}. This raises its max mode to #{n} in Settings › Permissions and opens the override.', { id, cap, n })
       : n >= 3 ? `@${id}'s CLI cannot write files, so ${MODES[n].label} is not possible for it.`
-      : t("Above @{id}'s MAX MODE (#{cap}). Raise it in CONNECTIONS.", { id, cap });
+      : t("Above @{id}'s max mode (#{cap}). Raise it in Settings › Permissions.", { id, cap });
     option.addEventListener('click', () => {
       closeModeMenu();
       if (n >= 3) { openOverride(id, { raise, mode: n }); return; }
@@ -2806,24 +2886,89 @@ const override = {
   input: document.querySelector('#override-input'),
   reply: document.querySelector('#override-reply'),
   brief: document.querySelector('#override-brief'),
+  safe: document.querySelector('#override-safe'),
+  raised: document.querySelector('#override-raise'),
   cancel: document.querySelector('#override-cancel'),
-  frame: document.querySelector('#override .override-frame'),
+  frame: document.querySelector('#override .key-card'),
+  title: document.querySelector('#override-title'),
+  arm: document.querySelector('#override-form button[type="submit"]'),
   agent: null,
   then: null,     // called once armed, by whoever opened it for something more than arming
   cancelled: null, // called when the human walks away from it, to put back what they wrote
-  raise: false,   // the agent is capped below the mode: arming also raises MAX MODE in CONNECTIONS
+  raise: false,   // the agent is capped below the mode: arming also raises its max mode in Settings › Permissions
   mode: 3,        // #3 CONTROL or #4 AIRLOCK
-  stage: 'designation',   // AIRLOCK asks twice: the designation, then the word AIRLOCK
+  stage: 'designation',   // designation · phrase · confirm, then airlock when #4 asks for its second key
+  key: 'designation',     // the key chosen in AJUSTES › Permissions for this mode
 };
+// The key for #3 and #4 is an alert of the room, said plainly: what the mode lets the agent do in
+// one sentence, what keeps it safe in a quieter one, and the field says what to type.
 const OVERRIDE_BRIEF = {
-  3: (id, raise) => t('PRIORITY ONE. CONTROL GIVES @{id} THE PROJECT ITSELF: READ, CREATE, MODIFY, NO APPROVAL PER ACTION.', { id })
-    + (raise ? t(' THIS ALSO RAISES @{id} MAX MODE TO #{n} IN CONNECTIONS.', { id, n: 3 }) : '') + t(' TYPE THE PROJECT DESIGNATION TO ARM.'),
-  4: (id, raise) => t('PRIORITY ONE. AIRLOCK OPENS THE SHIP FOR @{id}: EVERYTHING CONTROL ALLOWS, PLUS COMMANDS, GIT PUSH AND DEPLOYS WITH THE SESSIONS ON THIS MACHINE. FILES COME BACK WITH UNDO; WHAT LEAVES THE SHIP DOES NOT.', { id })
-    + (raise ? t(' THIS ALSO RAISES @{id} MAX MODE TO #{n} IN CONNECTIONS.', { id, n: 4 }) : '') + t(' TYPE THE PROJECT DESIGNATION, THEN THE WORD AIRLOCK.'),
+  3: { what: (id) => t('@{id} edits the project itself, with no approval per action.', { id }), safe: () => t('A checkpoint is taken first; UNDO is one click.') },
+  4: { what: (id) => t('@{id} can also run commands, git push and deploy with the sessions on this computer.', { id }), safe: () => t('Files come back with UNDO; what leaves the computer does not.') },
 };
+const OVERRIDE_KEY_WORDS = {
+  designation: () => t('The project'), phrase: () => t('Your phrase'), confirm: () => t('Just confirm'),
+  'designation-airlock': () => t('Project + AIRLOCK'), 'phrase-airlock': () => t('Phrase + AIRLOCK'),
+};
+const OVERRIDE_DEFAULT = { keys: { 3: 'designation', 4: 'designation-airlock' }, grace: { 3: 0, 4: 0 }, phrase: null };
+const overrideConfig = () => state.override ?? OVERRIDE_DEFAULT;
+function overrideKeyFor(mode) {
+  const key = overrideConfig().keys?.[mode] ?? OVERRIDE_DEFAULT.keys[mode];
+  // A phrase this browser cannot check (no Web Crypto) falls back to the designation.
+  return key.startsWith('phrase') && (!overrideConfig().phrase || !globalThis.crypto?.subtle) ? OVERRIDE_DEFAULT.keys[mode] : key;
+}
+// A personal phrase is compared by its salted SHA-256: neither the room nor its file ever holds it.
+async function overridePhraseHash(salt, phrase) {
+  const words = String(phrase).normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${words}`));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+// An accepted key holds for the minutes chosen in AJUSTES, for that mode and that agent, in this
+// page only: a reload, STOPALL or the chip's × closes it.
+const overrideGrace = new Map();
+function overrideGraceLeft(mode, agent) {
+  const until = overrideGrace.get(`${mode}:${agent}`) ?? 0;
+  if (until > Date.now()) return until - Date.now();
+  overrideGrace.delete(`${mode}:${agent}`);
+  return 0;
+}
+function closeOverrideGrace(mode = null, agent = null) {
+  for (const key of [...overrideGrace.keys()]) {
+    const [m, a] = key.split(':');
+    if ((mode === null || Number(m) === mode) && (agent === null || a === agent)) overrideGrace.delete(key);
+  }
+  if (typeof renderPicker === 'function') renderPicker();
+}
+// The chip counts down only while a grace is open; with none, nothing ticks.
+let graceTick = null;
+function tickGrace() {
+  if (graceTick || !overrideGrace.size) return;
+  graceTick = setInterval(() => {
+    const before = overrideGrace.size;
+    for (const key of [...overrideGrace.keys()]) { const [m, a] = key.split(':'); overrideGraceLeft(Number(m), a); }
+    if (overrideGrace.size !== before) renderPicker();
+    else for (const chip of document.querySelectorAll('.grace-chip')) chip.querySelector('.left').textContent = graceWords(overrideGraceLeft(Number(chip.dataset.mode), chip.dataset.agent));
+    if (!overrideGrace.size) { clearInterval(graceTick); graceTick = null; }
+  }, 20000);
+}
+const graceWords = (ms) => t('{n} min', { n: Math.max(1, Math.ceil(ms / 60000)) });
 function projectDesignation() { return (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? ''; }
+function askOverrideKey(stage) {
+  override.stage = stage;
+  override.input.hidden = stage === 'confirm';
+  override.input.type = stage === 'phrase' ? 'password' : 'text';
+  override.input.value = '';
+  override.input.closest('label').hidden = stage === 'confirm';
+  // The label says what to type; the field stays empty, so nothing has to be cleared first.
+  override.form.querySelector('.k').textContent = stage === 'airlock' ? t('Now type AIRLOCK') : stage === 'phrase' ? t('Type your phrase') : t('Type the project name');
+  override.input.placeholder = '';
+}
 function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null } = {}) {
   if (!override.dialog) return;
+  // Inside the grace of an accepted key, the same mode for the same agent is not asked again —
+  // unless arming would also raise the agent's ceiling, which is always asked.
+  const left = raise ? 0 : overrideGraceLeft(mode, id);
+  if (left) { void grantOverride({ agent: id, raise: false, mode, then, delay: 0, left }); return; }
   override.agent = id;
   // What to do once it is armed. The chip's road arms and waits for the human to send; a #3 or #4
   // typed in a message that was sent, and the way up on an agent's card, send right away.
@@ -2832,16 +2977,19 @@ function openOverride(id, { raise = false, mode = 3, then = null, cancelled = nu
   override.cancelled = cancelled;
   override.raise = raise;
   override.mode = mode;
-  override.stage = 'designation';
-    override.form.querySelector('.k').textContent = t('DESIGNATION ›');
-  override.input.placeholder = t("type the current project's folder name to arm");
-  override.dialog.querySelector('.mother-sub').textContent = mode === 4 ? t('AIRLOCK OVERRIDE 100375 · SECOND KEY REQUIRED') : t('EMERGENCY COMMAND OVERRIDE 100375');
-  override.brief.textContent = OVERRIDE_BRIEF[mode](id.toUpperCase(), raise);
+  override.key = overrideKeyFor(mode);
+  askOverrideKey(override.key.startsWith('phrase') ? 'phrase' : override.key === 'confirm' ? 'confirm' : 'designation');
+  override.title.textContent = mode === 4 ? t('Open #4 AIRLOCK for @{agent}', { agent: id }) : t('Arm #3 CONTROL for @{agent}', { agent: id });
+  override.arm.textContent = mode === 4 ? t('Open') : t('Arm');
+  override.dialog.classList.toggle('m4', mode === 4);
+  override.brief.textContent = OVERRIDE_BRIEF[mode].what(id);
+  override.safe.textContent = OVERRIDE_BRIEF[mode].safe();
+  override.raised.hidden = !raise;
+  override.raised.textContent = raise ? t('This also raises its max mode to #{n}.', { n: mode }) : '';
   override.reply.textContent = '';
-  override.reply.className = 'mother-answer override-reply';
-  override.input.value = '';
+  override.reply.className = 'key-reply';
   override.dialog.showModal();
-  override.input.focus();
+  (override.input.hidden ? override.form.querySelector('button[type="submit"]') : override.input).focus();
 }
 function overrideWalkedAway() {
   const back = override.cancelled;
@@ -2851,59 +2999,61 @@ function overrideWalkedAway() {
 }
 override.cancel?.addEventListener('click', () => { overrideWalkedAway(); override.dialog.close(); });
 override.dialog?.addEventListener('cancel', () => overrideWalkedAway());
-override.form?.addEventListener('submit', (event) => {
+override.form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const typed = override.input.value.trim();
-  const deny = (text = t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.')) => {
+  const deny = (text = t('That is not it. Try again, or cancel.')) => {
     override.reply.textContent = text;
-    override.reply.className = 'mother-answer override-reply denied';
+    override.reply.className = 'key-reply denied';
     override.frame.classList.remove('shake'); void override.frame.offsetWidth; override.frame.classList.add('shake');
     override.input.select();
   };
-  if (override.stage === 'designation') {
-    const expected = projectDesignation();
-    if (!typed || typed.toLowerCase() !== expected.toLowerCase()) { deny(); return; }
-    if (override.mode === 4) {
-      // The second key: the word itself, so an airlock is never opened by a folder name alone.
-      override.stage = 'confirm';
-      override.reply.textContent = t('DESIGNATION ACCEPTED. SECOND KEY: TYPE AIRLOCK TO OPEN THE SHIP.');
-      override.reply.className = 'mother-answer override-reply';
-      override.form.querySelector('.k').textContent = t('SECOND KEY ›');
-      override.input.value = ''; override.input.placeholder = t('AIRLOCK');
+  if (override.stage === 'designation' || override.stage === 'phrase' || override.stage === 'confirm') {
+    if (override.stage === 'designation' && (!typed || typed.toLowerCase() !== projectDesignation().toLowerCase())) { deny(); return; }
+    if (override.stage === 'phrase') {
+      const phrase = overrideConfig().phrase;
+      if (!typed || !phrase || await overridePhraseHash(phrase.salt, typed) !== phrase.hash) { deny(); return; }
+    }
+    if (override.mode === 4 && override.key.endsWith('-airlock')) {
+      // The second key: the word itself, so an airlock is never opened by one key alone.
+      askOverrideKey('airlock');
+      override.reply.textContent = t('Accepted. Second key: type AIRLOCK to open it.');
+      override.reply.className = 'key-reply';
       override.input.focus();
       return;
     }
-  } else if (typed.toUpperCase() !== 'AIRLOCK') { deny(t('SECOND KEY REJECTED. TYPE AIRLOCK, OR CANCEL.')); return; }
-  override.reply.textContent = override.mode === 4
-    ? t('SPECIAL ORDER 937 ACKNOWLEDGED. AIRLOCK OPEN FOR @{agent}. WHAT LEAVES DOES NOT COME BACK.', { agent: override.agent.toUpperCase() })
-    : t('SPECIAL ORDER 937 ACKNOWLEDGED. CONTROL ARMED FOR @{agent}. CREW IN COMMAND.', { agent: override.agent.toUpperCase() });
-  override.reply.className = 'mother-answer override-reply granted';
-  const agent = override.agent;
-  const raise = override.raise;
-  const mode = override.mode;
-  const then = override.then;
+  } else if (typed.toUpperCase() !== 'AIRLOCK') { deny(t('Second key rejected. Type AIRLOCK, or cancel.')); return; }
+  override.reply.textContent = override.mode === 4 ? t('Open for @{agent}.', { agent: override.agent }) : t('Armed for @{agent}.', { agent: override.agent });
+  override.reply.className = 'key-reply granted';
+  const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900 };
   override.then = null;
   override.cancelled = null;
-  setTimeout(async () => {
-    override.dialog.close();
-    if (raise) {
-      try {
-        await saveSettingNow({ scopes: { [agent]: { maxMode: mode } } });
-        if (settingsUI.open) renderSettings();
-      } catch (error) {
-        toast(t('MU/TH/UR › MAX MODE was not raised for @{agent}: {error}. {mode} stays off.', { agent, error: error.message, mode: MODES[mode].label }));
-        return;
-      }
-    }
-    state.modeArmedFor = agent;
-    els.target.value = agent;
-    setMode(mode, { wink: true });
-    if (then) { await then(); return; }
-    toast(mode === 4
-      ? t('MU/TH/UR › AIRLOCK open for @{agent} for this message.{raised} Files are checkpointed; what leaves the machine is not undone.', { agent, raised: raise ? t(' MAX MODE is now #4 in CONNECTIONS.') : '' })
-      : t('MU/TH/UR › CONTROL armed for @{agent} for this message.{raised} A checkpoint is taken before it runs; every change is listed and UNDO is one click.', { agent, raised: raise ? t(' MAX MODE is now #3 in CONNECTIONS.') : '' }));
-  }, 900);
+  void grantOverride(granted);
 });
+// Arms the mode for that agent: after the key, or straight away inside the grace of an earlier one.
+async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0 }) {
+  if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+  if (override.dialog?.open) override.dialog.close();
+  if (raise) {
+    try {
+      await saveSettingNow({ scopes: { [agent]: { maxMode: mode } } });
+      if (settingsUI.open) renderSettings();
+    } catch (error) {
+      toast(t('MU/TH/UR › MAX MODE was not raised for @{agent}: {error}. {mode} stays off.', { agent, error: error.message, mode: MODES[mode].label }));
+      return;
+    }
+  }
+  const minutes = overrideConfig().grace?.[mode] ?? 0;
+  if (!left && minutes > 0) { overrideGrace.set(`${mode}:${agent}`, Date.now() + minutes * 60000); tickGrace(); }
+  state.modeArmedFor = agent;
+  els.target.value = agent;
+  setMode(mode, { wink: true });
+  if (then) { await then(); return; }
+  if (left) { toast(t('MU/TH/UR › {label} is still open for @{agent} · {left} left.', { label: MODES[mode].label, agent, left: graceWords(left) }), { tone: 'look' }); return; }
+  toast(mode === 4
+    ? t('MU/TH/UR › AIRLOCK open for @{agent} for this message.{raised} Files are checkpointed; what leaves the machine is not undone.', { agent, raised: raise ? t(' Its max mode is now #4 in Permissions.') : '' })
+    : t('MU/TH/UR › CONTROL armed for @{agent} for this message.{raised} A checkpoint is taken before it runs; every change is listed and UNDO is one click.', { agent, raised: raise ? t(' Its max mode is now #3 in Permissions.') : '' }));
+}
 
 // THE BRIDGE: first contact. Every agent as a card with the one action it needs right now,
 // install or sign in, run here and streamed here. The room opens the moment one turns green.
@@ -3016,7 +3166,7 @@ function bridgeCard(agent) {
     slot.append(el('p', 'key-note', t('Or do it from a terminal: {command}', { command: agent.login.display })));
     reveal.addEventListener('click', () => { slot.hidden = !slot.hidden; if (!slot.hidden) slot.querySelector('input')?.focus(); });
     card.append(slot);
-  } else if (stage !== 'missing' && agent.login && !agent.login.headless) card.append(commandBlock([agent.login.display, `# ${agent.login.note}`]));
+  } else if (stage !== 'missing' && agent.login && !agent.login.headless) card.append(commandBlock([agent.login.display, `# ${t(agent.login.note)}`]));
   const log = el('pre', 'bridge-log');
   log.id = `bridge-log-${agent.id}`;
   for (const entry of state.loginLogs.get(agent.id) ?? []) log.append(loginLine(entry));
@@ -3042,9 +3192,9 @@ function keyForm(agent, { onDone } = {}) {
   input.type = 'password';
   input.autocomplete = 'off';
   input.spellcheck = false;
-  input.placeholder = plan.label;
+  input.placeholder = t(plan.label);
   const field = el('label');
-  field.append(el('span', 'k', plan.label.toUpperCase()), input);
+  field.append(el('span', 'k', t(plan.label)), input);
   form.append(field);
   const row = el('div', 'key-row');
   const save = el('button', 'primary', t('SAVE KEY'));
@@ -3056,7 +3206,7 @@ function keyForm(agent, { onDone } = {}) {
   if (where) { link.href = where; row.append(link); }
   if (providers) select.addEventListener('change', () => { const next = providers.find((provider) => provider.id === select.value)?.keyUrl; if (next) link.href = next; });
   form.append(row);
-  form.append(el('p', 'key-note', plan.note));
+  form.append(el('p', 'key-note', t(plan.note)));
   const said = el('p', 'key-said');
   form.append(said);
   form.addEventListener('submit', async (event) => {
@@ -3153,7 +3303,7 @@ function bridgeInstallButton(agent) {
 function bridgeSignInButton(agent, again = false) {
   const button = el('button', again ? null : 'primary', again ? t('SIGN IN AGAIN') : t('SIGN IN'));
   button.type = 'button';
-  button.title = agent.login.note;
+  button.title = t(agent.login.note);
   button.addEventListener('click', async () => {
     button.disabled = true;
     state.loginLogs.set(agent.id, []);
@@ -3585,18 +3735,22 @@ function renderThinking(event) {
   // One answer, not the room. PARAR TODO is the master brake and takes down every plan and every
   // agent; this one is for the turn in front of you — the agent that hung, or started down the
   // wrong road, or hit an error and is still being waited on.
-  const stop = el('button', 'stop-turn', t('STOP'));
+  // A stop square in a circle: the glyph says it, the title and the label say what it stops.
+  const stop = el('button', 'stop-turn');
+  const STOP_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="7" width="6" height="6" rx="1.4" fill="currentColor"/></svg>';
+  stop.innerHTML = STOP_GLYPH; // trusted: our own SVG string
   stop.type = 'button';
   stop.title = t('Stop this answer · the room and the other agents keep going');
+  stop.setAttribute('aria-label', t('Stop this answer · the room and the other agents keep going'));
   stop.addEventListener('click', async () => {
     stop.disabled = true;
-    stop.textContent = t('STOPPING');
+    stop.classList.add('stopping');
     try {
       const reply = await fetch('/api/stop-turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messageId }) }).then((response) => response.json());
       if (reply.error) throw new Error(reply.error);
     } catch (error) {
       stop.disabled = false;
-      stop.textContent = t('STOP');
+      stop.classList.remove('stopping');
       toast(`MU/TH/UR › ${error.message}`);
     }
   });
@@ -3677,6 +3831,7 @@ function renderModuleProposed(event) {
       toast(t('MU/TH/UR › {name} installed for {where}. Switch it on in MODULES.', { name: payload.installed.name, where: scope === 'project' ? t('this project') : t('every room') }));
       warnUnknownModuleFields(payload.installed);
       modules.items = payload.extensions ?? modules.items; if (modules.dialog.open) renderModules();
+      barModulesChanged();
     } catch (error) { toast(t('The module was not installed: {error}', { error: error.message })); button.disabled = false; }
   };
   const everyRoom = el('button', 'claim-act', t('INSTALL FOR EVERY ROOM')); everyRoom.type = 'button'; everyRoom.addEventListener('click', () => install('user', everyRoom));
@@ -4093,7 +4248,7 @@ function leaseRefusedText({ agent, unavailable, alternatives = [], message }) {
   if (!agent || !Array.isArray(unavailable)) return resay(message);
   const why = unavailable.includes('write')
     ? t('its CLI cannot create files')
-    : t('file creation is switched off for it (enable it in CONNECTIONS)');
+    : t('file creation is switched off for it (turn it on in Settings › Agents)');
   const others = alternatives.length ? t(' For creation ask {who}.', { who: alternatives.join(t(' or ')) }) : '';
   return `${t('@{agent} will answer read-only: {why}.', { agent, why })}${others}`;
 }
@@ -4228,11 +4383,8 @@ function renderLeaseMissing(event) {
   });
   const standing = el('button', 'standing', t('ALWAYS FOR THIS AGENT'));
   standing.type = 'button';
-  standing.title = t('Give @{agent} a standing lease in CONNECTIONS: every turn may create files.', { agent });
-  standing.addEventListener('click', () => {
-    openMother();
-    if (!settingsUI.open) settingsUI.button.click();
-  });
+  standing.title = t('Give @{agent} a standing lease in SETTINGS → AGENTS: every turn may create files.', { agent });
+  standing.addEventListener('click', () => openSettingsOn('agents', { agent }));
   actions.append(resend, standing);
   node.append(actions);
   if (requester === 'you' && !replaying) toast(t('MU/TH/UR › CREATE is off: @{agent} will answer read-only. Use the lock or /create.', { agent }));
@@ -4674,6 +4826,8 @@ function renderHalted(event) {
 async function stopAll() {
   const button = document.querySelector('#stop-all');
   if (button) button.disabled = true;
+  // STOPALL revokes it: every key still holding from a grace is closed with the turns.
+  if (overrideGrace.size) closeOverrideGrace();
   try {
     const response = await fetch('/api/stop-all', { method: 'POST' });
     if (!response.ok) { toast(t('STOPALL failed to reach the room.')); return; }
@@ -4828,7 +4982,9 @@ function applyUsage(event) {
   if (stamp && usage) {
     stamp.append(el('span', null, `${formatTokens(usage.totalTokens)} tok`));
     if (Number.isFinite(usage.costUsd) && usage.costUsd > 0) stamp.append(el('span', null, `$${usage.costUsd.toFixed(2)}`));
-    stamp.append(el('span', null, `Σ ${formatTokens(roomTotalTokens)}`));
+    // The room's running total is not this answer's bill: it rides in the tooltip, not the line.
+    stamp.append(el('span', 'stamp-sum', `Σ ${formatTokens(roomTotalTokens)}`));
+    stamp.title = t('This answer: {tokens} tokens. The room so far: {total}.', { tokens: formatTokens(usage.totalTokens), total: formatTokens(roomTotalTokens) });
   }
 }
 
@@ -4881,6 +5037,7 @@ function renderEvent(event) {
   liveWatcher?.(event);
   state.seen.add(event.id);
   state.lastSequence = Math.max(state.lastSequence, event.sequence ?? 0);
+  stepsSaw(event);
   if (event.ghost) state.seen.add(event.id);
   try {
     renderEventNode(event);
@@ -4900,8 +5057,8 @@ function renderEventNode(event) {
       break;
     case 'connection.login.output': appendLoginOutput(event); return;
     case 'connection.install.started':
-    case 'connection.install.finished': node = renderAgentInstall(event); break;
-    case 'connection.install.output': appendLoginOutput(event); return;
+    case 'connection.install.finished': if (!replaying) jobProgress(event); node = renderAgentInstall(event); break;
+    case 'connection.install.output': if (!replaying) jobProgress(event); appendLoginOutput(event); return;
     case 'connection.key.set': {
       const { agent, label, provider, detail } = event.payload;
       node = paint(el('div', 'system connections'), agent);
@@ -4999,11 +5156,12 @@ void renderOpenQuestions(); return;
     case 'quota.updated': applyQuota(event); return;
     case 'extension.install.started':
     case 'extension.install.finished':
+      if (!replaying) jobProgress(event);
       if (event.payload.id === 'ollama' && !replaying) void loadOllama();
     case 'extension.install.refused':
       node = renderModuleEvent(event);
       break;
-    case 'extension.install.output': appendModuleOutput(event); return;
+    case 'extension.install.output': appendModuleOutput(event); if (!replaying) jobProgress(event); return;
     case 'plan.created':
     case 'plan.completed':
     case 'plan.stopped':
@@ -5133,10 +5291,10 @@ async function switchLanguage() {
 // Each choice is a data attribute on the root that styles.css reads under #messages only. The
 // first value of each list is the room as it always was, and is written as no attribute at all.
 const LOOKS = {
-  accent: { key: 'pulse.accent', values: ['madre', 'mountain', 'caribbean', 'phantom', 'malbec', 'dijon'] },
+  accent: { key: 'pulse.accent', values: ['madre', 'mountain', 'caribbean', 'phantom', 'malbec', 'dijon', 'pacific', 'love', 'sierra', 'pitahaya', 'papaya', 'agave', 'dinamo', 'marina', 'pulso', 'leal', 'dulce'] },
   bubbles: { key: 'pulse.bubbles', values: ['comfortable', 'large', 'compact', 'fitted'] },
   text: { key: 'pulse.text', values: ['comfortable', 'larger', 'smaller', 'visual'] },
-  wallpaper: { key: 'pulse.wallpaper', values: ['default', 'jarrito', 'canela', 'paradise', 'ventura', 'magna'] },
+  wallpaper: { key: 'pulse.wallpaper', values: ['default', 'jarrito', 'canela', 'paradise', 'ventura', 'magna', 'biznaga', 'oceano', 'quila', 'xico', 'tropical', 'tradicion', 'urbania'] },
   // How a photograph wears the room's ground: a flat layer, or a mesh of its own colours.
   wpStyle: { key: 'pulse.wallpaper.style', values: ['veil', 'mesh'] },
 };
@@ -5146,7 +5304,7 @@ const TUNES = {
   veil: { key: 'pulse.wallpaper.veil', min: 0, max: 140, step: 5, value: 100, apply: (node, v) => node.style.setProperty('--veil-k', String(v / 100)) },
   blur: { key: 'pulse.wallpaper.blur', min: 0, max: 24, step: 1, value: 0, apply: (node, v) => node.style.setProperty('--wp-blur', `${v}px`) },
 };
-const PHOTO_WALLPAPERS = new Set(['jarrito', 'canela', 'paradise', 'ventura', 'magna']);
+const PHOTO_WALLPAPERS = new Set(['jarrito', 'canela', 'paradise', 'ventura', 'magna', 'biznaga', 'oceano', 'quila', 'xico', 'tropical', 'tradicion', 'urbania']);
 function readTune(name) {
   const tune = TUNES[name];
   let raw = null;
@@ -5166,10 +5324,10 @@ function saveTune(name, value) {
   applyTune(name, value);
 }
 const LOOK_WORDS = {
-  accent: { madre: () => t('Madre green'), mountain: () => t('Mountain green'), caribbean: () => t('Caribbean blue'), phantom: () => t('Phantom purple'), malbec: () => t('Malbec red'), dijon: () => t('Dijon yellow') },
+  accent: { madre: () => t('Madre green'), mountain: () => t('Mountain green'), caribbean: () => t('Caribbean blue'), phantom: () => t('Phantom purple'), malbec: () => t('Malbec red'), dijon: () => t('Dijon yellow'), pacific: () => t('Pacific blue'), love: () => t('Love pink'), sierra: () => t('Sierra blue'), pitahaya: () => 'Pitahaya', papaya: () => 'Papaya', agave: () => 'Agave', dinamo: () => t('Dynamo black'), marina: () => t('Marina blue'), pulso: () => t('Pulse green'), leal: () => t('Loyal orange'), dulce: () => t('Sweet yellow') },
   bubbles: { comfortable: () => t('Comfortable'), large: () => t('Large'), compact: () => t('Compact'), fitted: () => t('Fitted') },
   text: { comfortable: () => t('Comfortable'), larger: () => t('Larger'), smaller: () => t('Smaller'), visual: () => t('Visual') },
-  wallpaper: { default: () => t('Default'), jarrito: () => 'Jarrito', canela: () => 'Canela', paradise: () => t('Paradise'), ventura: () => 'Ventura', magna: () => 'Magna' },
+  wallpaper: { default: () => t('Default'), jarrito: () => 'Jarrito', canela: () => 'Canela', paradise: () => t('Paradise'), ventura: () => 'Ventura', magna: () => 'Magna', biznaga: () => 'Biznaga', oceano: () => 'Oceano', quila: () => 'Quila', xico: () => 'Xico', tropical: () => 'Tropical', tradicion: () => 'Tradicion', urbania: () => 'Urbania' },
   wpStyle: { veil: () => t('Layer'), mesh: () => t('Mesh') },
 };
 // Jarrito took MADRE's place among the wallpapers and Canela took Autumn's: a choice saved under
@@ -5213,7 +5371,24 @@ function currentLooks() {
 }
 function setDraft(name, value) {
   customWindow.draft = { ...(customWindow.draft ?? currentLooks()), [name]: value };
+  // Inside AJUSTES the room behind is the preview: a choice applies the moment it is made. Only
+  // the language waits for a press, because changing it reloads the page.
+  if (customWindow.instant && name !== 'language') applyLooksNow();
   drawCustom();
+}
+function applyLooksNow() {
+  const draft = customWindow.draft ?? currentLooks();
+  for (const name of Object.keys(LOOKS)) saveLook(name, draft[name]);
+  for (const name of Object.keys(TUNES)) saveTune(name, draft[name]);
+  if (draft.theme && draft.theme !== themeMode) {
+    themeMode = draft.theme;
+    try { localStorage.setItem('pulse.theme', themeMode); } catch { /* the choice lasts as long as the page */ }
+    applyTheme(themeMode);
+    renderAgents();
+    renderPicker();
+  }
+  customWindow.draft = { ...currentLooks(), language: draft.language };
+  syncSettingsCards();
 }
 function acceptCustom() {
   const draft = customWindow.draft ?? currentLooks();
@@ -5330,10 +5505,11 @@ function drawCustom() {
         const v = Number(input.value);
         customWindow.draft = { ...(customWindow.draft ?? currentLooks()), [name]: v };
         tune.apply(preview, v);
+        if (customWindow.instant) applyTune(name, v);
         value.textContent = shown(v);
         input.style.setProperty('--fill', `${((v - tune.min) / (tune.max - tune.min)) * 100}%`);
       });
-      input.addEventListener('change', () => drawCustom());
+      input.addEventListener('change', () => { if (customWindow.instant) applyLooksNow(); drawCustom(); });
       row.append(el('span', 'tune-name', label), input, value);
       return row;
     };
@@ -5358,6 +5534,45 @@ function drawCustom() {
   const pending = Object.keys(draft).some((name) => draft[name] !== applied[name]);
   const atDefault = Object.keys(LOOKS).every((name) => draft[name] === LOOKS[name].values[0]) && Object.keys(TUNES).every((name) => draft[name] === TUNES[name].value);
   const foot = el('footer', 'custom-foot');
+  if (customWindow.instant) {
+    // In AJUSTES it is applied as it is touched, and it reads like every other sheet: blocks of
+    // rows, the preview first so what changes is seen without scrolling for it.
+    // The preview stands still above; only the choices under it scroll, so what changes is always in view.
+    const frame = el('div', 'sx-look');
+    const seen = sxBlock(frame, t('Preview'), t('Your choices, in the bubbles the conversation draws.'), { className: 'sx-preview' });
+    seen.rows.append(preview);
+    const page = el('div', 'sx-look-controls');
+    frame.append(page);
+    // Most seen first: the colours, then what is behind the conversation, then how it reads.
+    // The language reloads the page, so it is last, where it is not touched by accident.
+    const colour = sxBlock(page, t('Colour'), null, { aside: named });
+    sxRow(colour, t('Theme'), t('Automatic follows your system.'), themes);
+    sxRow(colour, t('Accent'), t('Each colour in dark (top) and in light (bottom). The permission modes keep their own.'), swatches, { stack: true });
+    const paperBox = el('div', 'paper-box');
+    paperBox.append(papers);
+    if (paperTune.children.length) paperBox.append(paperTune);
+    sxBlock(page, t('Wallpaper'), PHOTO_WALLPAPERS.has(draft.wallpaper)
+      ? t('A photograph wears the room\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+      : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.')).rows.append(paperBox);
+    const talk = sxBlock(page, t('Conversation'));
+    sxRow(talk, t('Bubbles'), null, segmented('bubbles'), { stack: true });
+    sxRow(talk, t('Text'), null, segmented('text'), { stack: true });
+    const words = sxBlock(page, t('Language'));
+    sxRow(words, t('Interface'), t('The page reloads in it when you choose to.'), languages);
+    const acts = el('div', 'sx-actions end');
+    if (draft.language !== language()) {
+      acts.append(el('span', 'sx-hint', t('The page reloads in the new language.')));
+      acts.append(sxButton(t('Reload in {language}', { language: draft.language === 'es' ? 'español' : 'English' }), () => void switchLanguage(), { tone: 'primary' }));
+    }
+    if (!atDefault) {
+      acts.append(sxButton(t('Back to default'), () => { customWindow.draft = { ...draft, ...Object.fromEntries(Object.entries(LOOKS).map(([name, one]) => [name, one.values[0]])), ...Object.fromEntries(Object.entries(TUNES).map(([name, one]) => [name, one.value])) }; applyLooksNow(); drawCustom(); }));
+    }
+    if (acts.children.length) page.append(acts);
+    const kept = customWindow.body.querySelector?.('.sx-look-controls')?.scrollTop ?? 0;
+    body.replaceChildren(frame);
+    page.scrollTop = kept;
+    return;
+  }
   foot.append(el('span', 'custom-scope', pending ? t('Nothing changes until you accept.') : t('Only the conversation and the buttons change.')));
   const acts = el('span', 'custom-acts');
   if (!atDefault) {
@@ -5439,8 +5654,713 @@ function openCustom(open) {
   customButton.setAttribute('aria-expanded', String(open));
   customButton.setAttribute('aria-pressed', String(open));
 }
-customButton?.addEventListener('click', () => openCustom(!customWindow.node?.open));
+customButton?.addEventListener('click', () => openSettings(!settingsWindow.node?.open));
 customWindow.node?.addEventListener('close', () => { customButton?.setAttribute('aria-expanded', 'false'); customButton?.setAttribute('aria-pressed', 'false'); });
+
+/* ---------- AJUSTES: every setting in one window ---------- */
+
+// What used to live in six places (PERSONALIZE, CONNECTIONS, ROOM SETTINGS, PRIVACY, MEMORY, TURNS,
+// the release channel and the sentinel) in one window, opened from the bar. It opens on a board:
+// three sections, a card per category that already says how things stand, and the one or two
+// switches people actually reach for on the card itself. A card opens its category in a sheet
+// over the board, so the board never goes away; a narrow window trades the board for a rail of
+// categories, so moving between them is never a step back. One search finds any setting.
+//
+// Nothing here is a second copy of a setting: every category draws the same panel MU/TH/UR draws,
+// from the same code and the same answers (state.settingsTargets), wearing the room's ink.
+const SETTINGS_SECTIONS = [
+  ['You', 'How it looks and how the room works', ['look', 'room', 'files']],
+  ['The crew', 'Who works, and what the room remembers', ['agents', 'memory']],
+  ['System', 'Permissions, privacy and the version', ['permissions', 'privacy', 'release']],
+];
+const SETTINGS_CATS = {
+  look: { name: 'Appearance', color: '#8e75e8', icon: '<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/>' },
+  room: { name: 'Room and turns', color: '#d97757', icon: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+  agents: { name: 'Agents', color: '#10a37f', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  memory: { name: 'Memory', color: '#3fb6d9', icon: '<path d="M10 3.5c-3.4 0-6 2.4-6 5.6 0 2 1 3.4 2.4 4.3V16h7.2v-2.6C15 12.5 16 11.1 16 9.1c0-3.2-2.6-5.6-6-5.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 16.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  files: { name: 'Files and servers', color: '#c8955a', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
+  permissions: { name: 'Permissions', color: '#e5484d', icon: '<path d="M10 2.8 4.2 5v4.6c0 3.6 2.4 6.4 5.8 7.6 3.4-1.2 5.8-4 5.8-7.6V5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 10.7v2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  privacy: { name: 'Privacy', color: '#d4a72c', icon: '<rect x="4.5" y="8.5" width="11" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 8.5V6.6a3 3 0 0 1 6 0v1.9" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+  release: { name: 'Version and reports', color: '#4caf3a', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+};
+const SETTINGS_ORDER = ['look', 'room', 'files', 'agents', 'memory', 'permissions', 'privacy', 'release'];
+// The words the search knows, each pointing to the category that holds it and to the words on the
+// screen that carry it there, so a result opens the category and lands on the setting.
+const SETTINGS_INDEX = [
+  ['look', 'Preview'], ['look', 'Language'], ['look', 'Theme'], ['look', 'Wallpaper'], ['look', 'Accent'], ['look', 'Bubbles'], ['look', 'Text'],
+  ['room', 'Multitasking'], ['room', 'Notifications'], ['room', 'Conversations at once'], ['room', 'Turns per conversation'], ['room', 'Agents may delegate'], ['room', 'Steps per plan'],
+  ['files', 'Finder'], ['files', 'Servers'], ['files', 'File viewer'], ['files', 'Sealed preview'], ['files', "The agents' browser"],
+  ['room', 'Tokens per agent'], ['room', 'Default time limit'], ['room', 'Silence limit'], ['room', 'Retries'], ['room', 'Model'],
+  ['agents', 'Max mode'], ['agents', 'Starting mode'], ['agents', 'Web access'], ['agents', 'Generate images'], ['agents', 'Time limit'], ['agents', 'Sign in'],
+  ['memory', 'Who distils first'], ['memory', 'Who may distil'], ['memory', 'Share of the context'], ['memory', 'Carry the company it keeps'], ['memory', 'Embeddings'], ['memory', 'Dataset'], ['memory', 'Analysis and tests'],
+  ['permissions', 'The key of each mode'], ['permissions', 'Your phrase'], ['permissions', 'Grace after a key'], ['permissions', 'Who may do what'],
+  ['privacy', 'Private terms'], ['privacy', 'Replaced with'], ['privacy', 'Keys, tokens and e-mail addresses'], ['privacy', 'Your home path'], ['privacy', 'Purge the room'],
+  ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'Report automatically'], ['release', 'Tell the author'],
+];
+const settingsWindow = { node: document.querySelector('#settings'), body: document.querySelector('#settings-body'), search: document.querySelector('#settings-search'), box: null, ready: false, open: null, query: '', mode: 'board', observer: null };
+try { settingsWindow.box = JSON.parse(localStorage.getItem('pulse.settingsWindow') ?? 'null'); } catch { /* no storage */ }
+state.settingsWindow = settingsWindow;
+
+const settingsIcon = (id) => { const span = el('span', 'settings-icon'); span.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${SETTINGS_CATS[id].icon}</svg>`; span.style.setProperty('--cat', 'var(--phosphor)'); return span; }; // every icon wears the accent
+
+// How each category stands, in a line, from what the room already knows. Nothing is guessed: a
+// figure that has not been read yet says so.
+function settingsStatus(id) {
+  const data = settingsUI.data;
+  if (id === 'look') {
+    const theme = { auto: t('Automatic'), light: t('Light'), dark: t('Dark') }[themeMode] ?? themeMode;
+    return { line: `${theme} · ${LOOK_WORDS.wallpaper[readLook('wallpaper')]()} · ${LOOK_WORDS.accent[readLook('accent')]()}` };
+  }
+  if (id === 'room') {
+    const turns = turnsUI.turns;
+    const how = !turns ? t('Reading…') : turns.enabled ? t('Multitasking · {n} at once', { n: turns.chats }) : t('One conversation at a time');
+    return { line: data ? `${how} · ${t('{n} tokens per agent', { n: formatTokens(data.settings.softTokenBudget) })}` : how };
+  }
+  if (id === 'files') {
+    const finder = surfaceModes.tree === 'window' ? t('Finder as a window') : t('Finder beside');
+    const ripley = modules.items.find((item) => item.id === 'ripley');
+    return { line: `${finder} · ${ripley ? (ripley.status?.installed ? t('preview on') : t('preview off')) : t('Reading…')}` };
+  }
+  if (!data) return { line: t('Reading…') };
+  if (id === 'agents') {
+    const here = data.agents.filter((agent) => agent.detected);
+    const on = here.filter((agent) => data.sessions?.[agent.id]?.state === 'signed-in');
+    const off = here.filter((agent) => data.sessions?.[agent.id]?.state === 'signed-out');
+    return { line: t('{n} of {total} signed in', { n: on.length, total: here.length }), warn: off.length ? t('{agents} without a session', { agents: off.map((agent) => agent.label).join(', ') }) : null };
+  }
+  if (id === 'memory') {
+    const mem = data.settings.memory;
+    if (!mem) return { line: t('This room has no memory index') };
+    const who = mem.archivist === 'auto' || !mem.archivist ? t('the cheapest agent') : `@${mem.archivist}`;
+    return { line: t('Archived by {who} · embeddings {how}', { who, how: (mem.embedProvider ?? 'auto').toUpperCase() }) };
+  }
+  if (id === 'permissions') {
+    const config = data.settings.override ?? OVERRIDE_DEFAULT;
+    const graced = [3, 4].filter((mode) => config.grace?.[mode]).map((mode) => t('#{n} holds {minutes} min', { n: mode, minutes: config.grace[mode] }));
+    return { line: [`#3 · ${OVERRIDE_KEY_WORDS[config.keys[3]]().toLowerCase()}`, `#4 · ${OVERRIDE_KEY_WORDS[config.keys[4]]().toLowerCase()}`, ...(graced.length ? graced : [t('asked every message')])].join(' · ') };
+  }
+  if (id === 'privacy') {
+    const priv = data.settings.privacy;
+    if (!priv) return { line: t('Reading…') };
+    return { line: `${priv.terms.length ? t('{n} private terms', { n: priv.terms.length }) : t('No private terms')} · ${priv.secrets !== false ? t('keys redacted') : t('keys not redacted')}` };
+  }
+  if (id === 'release') {
+    const info = updateUI.info;
+    const report = sentinelUI.settings?.autoReport ? t('auto-report on') : t('auto-report off');
+    if (!info) return { line: report };
+    return { line: `MADRE ${info.current} · ${info.available ? t('{version} available', { version: info.latest }) : t('up to date')} · ${report}`, warn: info.available ? t('{version} is on npm', { version: info.latest }) : null };
+  }
+  return { line: '' };
+}
+
+// The one or two switches people reach for, on the card itself: changing them opens nothing.
+function settingsQuick(id) {
+  const rows = el('div', 'settings-quick');
+  const add = (label, control) => { const row = el('div', 'settings-quick-row'); row.append(el('span', null, label), control); rows.append(row); };
+  const switchFor = (on, change, { disabled = false } = {}) => {
+    const wrap = el('label', 'settings-switch');
+    const box = el('input'); box.type = 'checkbox'; box.checked = on; box.disabled = disabled;
+    box.addEventListener('click', (event) => event.stopPropagation());
+    box.addEventListener('change', () => void change(box.checked, box));
+    wrap.addEventListener('click', (event) => event.stopPropagation());
+    wrap.append(box, el('i'));
+    return wrap;
+  };
+  if (id === 'look') {
+    const seg = el('div', 'settings-seg');
+    for (const [value, word] of [['auto', t('Auto')], ['light', t('Light')], ['dark', t('Dark')]]) {
+      const option = el('button', value === themeMode ? 'on' : null, word);
+      option.type = 'button';
+      option.addEventListener('click', (event) => { event.stopPropagation(); customWindow.draft = { ...currentLooks(), theme: value }; applyLooksNow(); drawSettings(); });
+      seg.append(option);
+    }
+    add(t('Theme'), seg);
+  }
+  if (id === 'room' && turnsUI.turns) {
+    add(t('Multitasking'), switchFor(Boolean(turnsUI.turns.enabled), async (on) => {
+      try { turnsUI.turns = (await fetch('/api/turns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: on }) }).then((response) => response.json())).turns ?? turnsUI.turns; } catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
+      renderMotherSentinel();
+    }));
+  }
+  if (id === 'agents' && settingsUI.data) {
+    for (const agent of settingsUI.data.agents.filter((one) => one.detected)) {
+      const session = settingsUI.data.sessions?.[agent.id]?.state;
+      const row = el('div', 'settings-quick-row agent');
+      row.append(paint(el('span', 'who'), agent.id), el('span', `state ${session === 'signed-in' ? 'on' : session === 'signed-out' ? 'off' : ''}`, session === 'signed-in' ? t('signed in') : session === 'signed-out' ? t('no session') : t('unknown')));
+      row.firstChild.textContent = agent.label;
+      rows.append(row);
+    }
+  }
+  if (id === 'privacy' && settingsUI.data?.settings.privacy) {
+    add(t('Redact keys and e-mail addresses'), switchFor(settingsUI.data.settings.privacy.secrets !== false, async (on, box) => {
+      try { const payload = await fetch('/api/privacy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ secrets: on }) }).then((response) => response.json()); if (payload.error) throw new Error(payload.error); settingsUI.data.settings.privacy.secrets = on; }
+      catch (error) { box.checked = !on; toast(t('The privacy setting was not saved: {error}', { error: error.message })); }
+      renderSettings();
+    }));
+  }
+  if (id === 'release' && sentinelUI.settings) {
+    add(t('Auto-report unknown conditions'), switchFor(Boolean(sentinelUI.settings.autoReport), async (on, box) => {
+      try { sentinelUI.settings = (await fetch('/api/sentinel/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ autoReport: on }) }).then((response) => response.json())).settings; }
+      catch (error) { box.checked = !on; toast(t('It could not be saved: {error}', { error: error.message })); }
+      renderMotherSentinel();
+    }, { disabled: !sentinelUI.settings.canSend }));
+  }
+  return rows.children.length ? rows : null;
+}
+
+// The pieces every sheet of AJUSTES is built from, so the six read as one. A block is a card with
+// a title and one line about it, then its rows; a row says what it is on the left and holds its
+// control on the right. The room's own type throughout: mono only for what is literally typed or
+// printed — a path, a version, a command.
+function sxBlock(host, title, about = null, { aside = null, className = '' } = {}) {
+  const block = el('section', `sx-block${className ? ` ${className}` : ''}`);
+  const head = el('header', 'sx-head');
+  const words = el('div', 'sx-words');
+  words.append(el('h3', null, title));
+  if (about) words.append(el('p', null, about));
+  head.append(words);
+  if (aside) head.append(aside);
+  block.rows = el('div', 'sx-rows');
+  block.append(head, block.rows);
+  host.append(block);
+  return block;
+}
+function sxRow(block, label, hint, control = null, { off = false, stack = false } = {}) {
+  const row = el('div', `sx-row${off ? ' off' : ''}${stack ? ' stack' : ''}`);
+  const words = el('div', 'sx-words');
+  words.append(el('b', null, label));
+  if (hint) words.append(el('span', 'sx-hint', hint));
+  row.append(words);
+  if (control) { const box = el('div', 'sx-control'); box.append(control); row.append(box); }
+  (block.rows ?? block).append(row);
+  return row;
+}
+function sxFoot(block, text) { const foot = el('p', 'sx-foot', text); block.append(foot); return foot; }
+function sxSwitch(on, change, { disabled = false, label = null } = {}) {
+  const wrap = el('label', 'settings-switch');
+  const box = el('input');
+  box.type = 'checkbox'; box.checked = Boolean(on); box.disabled = disabled;
+  if (label) box.setAttribute('aria-label', label);
+  box.addEventListener('change', () => void change(box.checked, box));
+  wrap.append(box, el('i'));
+  return wrap;
+}
+function sxSeg(options, current, pick, { label = null } = {}) {
+  const seg = el('div', 'sx-seg');
+  seg.setAttribute('role', 'radiogroup');
+  if (label) seg.setAttribute('aria-label', label);
+  for (const { value, text, title = '', disabled = false, className = '' } of options) {
+    const option = el('button', className || null, text);
+    option.type = 'button';
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(value === current));
+    option.disabled = disabled;
+    if (title) option.title = title;
+    // The mark moves the moment it is chosen and stays there while it saves; the row only waits.
+    option.addEventListener('click', () => {
+      if (value === current || seg.classList.contains('busy')) return;
+      for (const other of seg.children) other.setAttribute('aria-checked', String(other === option));
+      seg.classList.add('busy');
+      void Promise.resolve(pick(value, seg)).finally(() => seg.classList.remove('busy'));
+    });
+    seg.append(option);
+  }
+  return seg;
+}
+// Every selector can be slid across, not only tapped: past a few pixels a raised thumb follows the
+// pointer from option to option, and the option under it when the pointer lifts is the one chosen.
+// One listener for all of them, AJUSTES, Appearance and the cards, whoever drew them.
+const SEG_TRACKS = '.sx-seg, .settings-seg, .custom-seg';
+// One tab per rail, and it travels. The options draw no background of their own while it moves, so
+// a choice never shows two tabs at once — by click, by key or by sliding — and a rail that is
+// redrawn after the choice (most are) is found again under the same spot.
+const segChosen = (seg) => [...(seg?.children ?? [])].find((node) => node.tagName === 'BUTTON' && (node.getAttribute('aria-checked') === 'true' || node.classList.contains('on'))) ?? null;
+const segRect = (node) => { const box = node.getBoundingClientRect(); return { left: box.left, top: box.top, width: box.width, height: box.height }; };
+function segThumbAt(seg, at) {
+  let thumb = seg.querySelector(':scope > .seg-thumb');
+  if (!thumb) { thumb = el('span', 'seg-thumb'); seg.prepend(thumb); }
+  const track = seg.getBoundingClientRect();
+  thumb.style.left = `${at.left - track.left}px`;
+  thumb.style.width = `${at.width}px`;
+  return thumb;
+}
+// After a choice: hold the tab where it was until the rail says what was chosen, then send it there.
+const nextFrame = (fn) => (document.hidden ? setTimeout(fn, 16) : requestAnimationFrame(fn));
+function segTravel(seg, from, was) {
+  const spot = { x: from.left + from.width / 2, y: from.top + from.height / 2 };
+  const trackAt = () => (seg.isConnected ? seg : document.elementFromPoint?.(spot.x, spot.y)?.closest?.(SEG_TRACKS) ?? null);
+  let current = seg;
+  current.classList.add('seg-sliding');
+  segThumbAt(current, from).style.transition = 'none';
+  let frames = 0;
+  const done = (track) => {
+    const thumb = track?.querySelector(':scope > .seg-thumb');
+    setTimeout(() => { thumb?.remove(); track?.classList.remove('seg-sliding'); }, motion(180) + 30);
+  };
+  const look = () => {
+    const track = trackAt();
+    if (track && track !== current) { current.querySelector(':scope > .seg-thumb')?.remove(); current.classList.remove('seg-sliding'); current = track; current.classList.add('seg-sliding'); segThumbAt(current, from).style.transition = 'none'; }
+    const chosen = segChosen(track);
+    const moved = chosen && (chosen !== was || !was.isConnected) && Math.abs(segRect(chosen).left - from.left) > 1;
+    if (track && chosen && (moved || frames > 45)) {
+      const thumb = segThumbAt(track, from);
+      thumb.getBoundingClientRect();
+      thumb.style.transition = '';
+      segThumbAt(track, segRect(chosen));
+      done(track);
+      return;
+    }
+    if ((frames += 1) > 60 || !track) { current.querySelector(':scope > .seg-thumb')?.remove(); current.classList.remove('seg-sliding'); return; }
+    nextFrame(look);
+  };
+  nextFrame(look);
+}
+// Every choice made on a rail — a click, a key, the end of a slide — goes through here first.
+document.addEventListener?.('click', (event) => {
+  const option = event.target.closest?.('button');
+  const seg = option?.parentElement;
+  if (!seg?.matches?.(SEG_TRACKS) || option.disabled) return;
+  const was = segChosen(seg);
+  if (!was || was === option || seg.classList.contains('gliding')) return;
+  segTravel(seg, seg.dataset.slideFrom ? JSON.parse(seg.dataset.slideFrom) : segRect(was), was);
+  delete seg.dataset.slideFrom;
+}, true);
+document.addEventListener?.('pointerdown', (event) => {
+  if (event.button !== 0) return;
+  const seg = event.target.closest?.(SEG_TRACKS);
+  const start = event.target.closest?.('button');
+  if (!seg || !start || start.parentElement !== seg) return;
+  const options = [...seg.children].filter((node) => node.tagName === 'BUTTON' && !node.disabled);
+  if (options.length < 2) return;
+  const x0 = event.clientX;
+  let gliding = false;
+  let over = start;
+  const nearest = (x) => options.reduce((best, node) => { const box = node.getBoundingClientRect(); const d = Math.abs(x - (box.left + box.width / 2)); return d < best.d ? { node, d } : best; }, { node: start, d: Infinity }).node;
+  const place = (node) => {
+    segThumbAt(seg, segRect(node));
+    for (const option of options) option.classList.toggle('glide-on', option === node);
+  };
+  const move = (moving) => {
+    if (!gliding) {
+      if (Math.abs(moving.clientX - x0) < 6) return;
+      gliding = true;
+      seg.classList.add('gliding', 'seg-sliding');
+      const thumb = segThumbAt(seg, segRect(segChosen(seg) ?? start));
+      thumb.style.transition = 'none';
+      thumb.getBoundingClientRect();
+      thumb.style.transition = '';
+    }
+    over = nearest(moving.clientX);
+    place(over);
+  };
+  const up = () => {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    document.removeEventListener('pointercancel', up);
+    if (!gliding) return;
+    // The click the release makes belongs to the glide.
+    const swallow = (click) => { click.stopPropagation(); click.preventDefault(); };
+    seg.addEventListener('click', swallow, { capture: true });
+    setTimeout(() => seg.removeEventListener('click', swallow, { capture: true }), 0);
+    setTimeout(() => {
+      seg.classList.remove('gliding');
+      for (const option of options) option.classList.remove('glide-on');
+      if (segChosen(seg) === over) { seg.querySelector(':scope > .seg-thumb')?.remove(); seg.classList.remove('seg-sliding'); return; }
+      // The tab stays where the finger left it; the choice carries it from there.
+      seg.dataset.slideFrom = JSON.stringify(segRect(over));
+      over.click();
+    }, motion(140));
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+  document.addEventListener('pointercancel', up);
+});
+function sxButton(text, click, { tone = null, title = '' } = {}) {
+  const button = el('button', `sx-btn${tone ? ` ${tone}` : ''}`, text);
+  button.type = 'button';
+  if (title) button.title = title;
+  if (click) button.addEventListener('click', click);
+  return button;
+}
+// A number that saves itself when it is left, with its unit beside it.
+function sxNumber(value, unit, { min = 0, step = 1, wire = null, label = null } = {}) {
+  const box = el('label', 'sx-num');
+  const input = el('input');
+  input.type = 'number'; input.min = String(min); input.step = String(step); input.value = String(value);
+  if (label) input.setAttribute('aria-label', label);
+  if (wire) wireInstantNumber(input, { min, ...wire });
+  box.append(input);
+  if (unit) box.append(el('span', null, unit));
+  box.input = input;
+  return box;
+}
+function sxStepper(value, { min = 1, max = 99, disabled = false } = {}, change) {
+  const box = el('div', 'sx-stepper');
+  const less = el('button', null, '−'); less.type = 'button'; less.disabled = disabled || value <= min;
+  const more = el('button', null, '+'); more.type = 'button'; more.disabled = disabled || value >= max;
+  less.setAttribute('aria-label', t('fewer')); more.setAttribute('aria-label', t('more'));
+  less.addEventListener('click', () => void change(value - 1));
+  more.addEventListener('click', () => void change(value + 1));
+  box.append(less, el('output', null, String(value)), more);
+  return box;
+}
+const sxChip = (text, tone = '') => el('span', `sx-chip${tone ? ` ${tone}` : ''}`, text);
+// A line to copy: the command itself, and the button that copies it.
+function sxCommand(command) {
+  const row = el('div', 'sx-command');
+  const copy = sxButton(t('Copy'), async () => {
+    try { await navigator.clipboard.writeText(command); copy.textContent = t('Copied'); setTimeout(() => { copy.textContent = t('Copy'); }, 1400); }
+    catch { toast(t('MU/TH/UR › select the command and copy it.')); }
+  });
+  row.append(el('code', null, command), copy);
+  return row;
+}
+
+function settingsCard(id) {
+  const cat = SETTINGS_CATS[id];
+  const status = settingsStatus(id);
+  const card = el('div', `settings-card${settingsWindow.open === id ? ' open' : ''}`);
+  card.tabIndex = 0;
+  card.setAttribute('role', 'button');
+  card.dataset.cat = id;
+  const head = el('div', 'settings-card-head');
+  head.append(settingsIcon(id), el('b', null, t(cat.name)), chevron('settings-go'));
+  card.append(head, el('p', 'settings-line', status.line));
+  if (status.warn) card.append(el('p', 'settings-warn', status.warn));
+  const quick = settingsQuick(id);
+  if (quick) card.append(quick);
+  const go = () => openSettingsCategory(id);
+  card.addEventListener('click', go);
+  card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); } });
+  return card;
+}
+
+// The category itself: the panels that hold it, drawn by their own renderers into this sheet.
+function settingsDetail(id) {
+  const detail = el('div', 'settings-detail');
+  const head = el('div', 'settings-detail-head');
+  const title = el('div', 'settings-detail-title');
+  // Back is a small round key beside the title, not a word above it: the board is one step away
+  // and the title says where you are.
+  if (settingsWindow.mode !== 'rail') {
+    const back = el('button', 'settings-back');
+    back.type = 'button';
+    back.title = t('Back to settings');
+    back.setAttribute('aria-label', t('Back to settings'));
+    back.append(chevron('settings-back-icon'));
+    back.addEventListener('click', () => closeSettingsCategory());
+    title.append(back);
+  }
+  title.append(settingsIcon(id), el('b', null, t(SETTINGS_CATS[id].name)));
+  head.append(title, el('p', 'settings-line', settingsStatus(id).line));
+  detail.append(head);
+  const part = (key) => {
+    const host = el('div', 'settings-host');
+    host.append(el('p', 'settings-reading', t('Reading…')));
+    detail.append(host);
+    state.settingsTargets[key] = host;
+    return host;
+  };
+  for (const key of Object.keys(state.settingsTargets)) state.settingsTargets[key] = null;
+  if (id === 'look') {
+    const host = el('div', 'settings-host settings-look');
+    detail.append(host);
+    customWindow.instant = true;
+    customWindow.body = host;
+    customWindow.draft = null;
+    drawCustom();
+  }
+  if (id === 'agents') part('agents');
+  if (id === 'room') { part('turns'); part('room'); }
+  if (id === 'memory') part('memory');
+  if (id === 'privacy') part('privacy');
+  if (id === 'permissions') part('permissions');
+  if (id === 'release') { part('release'); part('sentinel'); }
+  if (id === 'files') part('files');
+  return detail;
+}
+
+// Draws what each category needs, from the same calls MU/TH/UR makes.
+function fillSettingsCategory(id) {
+  if (id === 'files') { drawFilesTarget(); void refreshModules(); }
+  if (['agents', 'room', 'memory', 'privacy', 'permissions'].includes(id)) { if (settingsUI.data) renderSettings(); void loadSettings(); }
+  if (id === 'room' || id === 'release') { if (turnsUI.turns || sentinelUI.settings) renderMotherSentinel(); void loadTurns(); void loadSentinel(); }
+  if (id === 'release') renderUpdate();
+}
+
+function settingsBoard() {
+  const board = el('div', 'settings-board');
+  for (const [name, sub, ids] of SETTINGS_SECTIONS) {
+    const section = el('section', 'settings-section');
+    const head = el('header');
+    head.append(el('b', null, t(name)), el('span', null, t(sub)));
+    // The cards stand in their own track, so the three columns start on one line whatever their
+    // headings wrap to.
+    const cards = el('div', 'settings-cards');
+    for (const id of ids) cards.append(settingsCard(id));
+    section.append(head, cards);
+    board.append(section);
+  }
+  return board;
+}
+
+function settingsRail() {
+  const rail = el('nav', 'settings-rail');
+  rail.setAttribute('aria-label', t('Settings'));
+  for (const id of SETTINGS_ORDER) {
+    const item = el('button', `settings-rail-item${settingsWindow.open === id ? ' on' : ''}`);
+    item.type = 'button';
+    item.title = t(SETTINGS_CATS[id].name);
+    item.setAttribute('aria-label', t(SETTINGS_CATS[id].name));
+    item.append(settingsIcon(id));
+    if (settingsStatus(id).warn) item.append(el('span', 'settings-pending'));
+    item.addEventListener('click', () => openSettingsCategory(id));
+    rail.append(item);
+  }
+  return rail;
+}
+
+// Typed without accents or with them, a setting is found the same: «version» finds «Versión».
+const settingsFold = (text) => String(text).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+function settingsResults() {
+  const query = settingsFold(settingsWindow.query.trim());
+  const list = el('div', 'settings-results');
+  const hits = [];
+  for (const id of SETTINGS_ORDER) if (settingsFold(t(SETTINGS_CATS[id].name)).includes(query)) hits.push([id, null]);
+  for (const [id, key] of SETTINGS_INDEX) if (settingsFold(t(key)).includes(query)) hits.push([id, t(key)]);
+  for (const agent of settingsUI.data?.agents ?? []) if (settingsFold(agent.label).includes(query)) hits.push(['agents', agent.label]);
+  if (!hits.length) { list.append(el('p', 'settings-reading', t('Nothing called «{query}».', { query: settingsWindow.query.trim() }))); return list; }
+  for (const [id, said] of hits.slice(0, 40)) {
+    const row = el('button', 'settings-result');
+    row.type = 'button';
+    row.append(settingsIcon(id), el('b', null, said ?? t(SETTINGS_CATS[id].name)), el('span', null, t(SETTINGS_CATS[id].name)));
+    row.addEventListener('click', () => { settingsWindow.query = ''; settingsWindow.search.value = ''; openSettingsCategory(id, said); });
+    list.append(row);
+  }
+  return list;
+}
+
+function drawSettings() {
+  const { body, node } = settingsWindow;
+  if (!body || !node?.open) return;
+  const mode = settingsWindow.mode;
+  node.classList.toggle('rail', mode === 'rail');
+  if (settingsWindow.query.trim()) { body.replaceChildren(settingsResults()); return; }
+  const open = settingsWindow.open;
+  if (mode === 'rail') {
+    const id = open ?? 'look';
+    settingsWindow.open = id;
+    const page = el('div', 'settings-page');
+    const detail = settingsDetail(id);
+    page.append(detail);
+    body.replaceChildren(settingsRail(), page);
+    fillSettingsCategory(id);
+    return;
+  }
+  const board = settingsBoard();
+  if (!open) { body.replaceChildren(board); for (const key of Object.keys(state.settingsTargets)) state.settingsTargets[key] = null; customWindow.instant = false; customWindow.body = document.querySelector('#custom-body'); return; }
+  const scrim = el('div', 'settings-scrim');
+  scrim.addEventListener('click', () => closeSettingsCategory());
+  const sheet = el('div', `settings-sheet${mode === 'push' ? ' full' : ''}`);
+  // The frame stays put and its inside scrolls, so the grip on its edge is always there.
+  const scroll = el('div', 'settings-scroll');
+  scroll.append(settingsDetail(open));
+  sheet.append(scroll);
+  if (mode !== 'push') gripSettingsSheet(sheet);
+  body.replaceChildren(...(mode === 'push' ? [sheet] : [board, scrim, sheet]));
+  fillSettingsCategory(open);
+}
+
+// The sheet is as wide as it is pulled, the way a server's view is: a grip on its left edge, the
+// width remembered for the next time.
+function gripSettingsSheet(sheet) {
+  let kept = null;
+  try { kept = Number(localStorage.getItem('pulse.settingsSheet')) || null; } catch { /* no storage */ }
+  if (kept) sheet.style.setProperty('--sheet-w', `${kept}px`);
+  const grip = el('div', 'settings-grip');
+  grip.setAttribute('aria-hidden', 'true');
+  grip.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sheet.getBoundingClientRect().width;
+    const room = sheet.parentElement?.getBoundingClientRect().width ?? 980;
+    try { grip.setPointerCapture(event.pointerId); } catch { /* a pointer the page no longer holds */ }
+    sheet.classList.add('dragging');
+    const move = (moving) => {
+      const width = Math.round(Math.max(360, Math.min(room - 120, startWidth + startX - moving.clientX)));
+      sheet.style.setProperty('--sheet-w', `${width}px`);
+    };
+    const done = () => {
+      grip.removeEventListener('pointermove', move);
+      sheet.classList.remove('dragging');
+      try { localStorage.setItem('pulse.settingsSheet', String(Math.round(sheet.getBoundingClientRect().width))); } catch { /* no storage */ }
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', done, { once: true });
+    grip.addEventListener('pointercancel', done, { once: true });
+  });
+  // Twice on the grip goes back to the width it opens with.
+  grip.addEventListener('dblclick', () => { sheet.style.removeProperty('--sheet-w'); try { localStorage.removeItem('pulse.settingsSheet'); } catch { /* no storage */ } });
+  sheet.prepend(grip);
+}
+
+// The status lines and the switches on the cards follow every save, wherever it was made.
+function syncSettingsCards() {
+  // Read through state: renderers that call this can run before this part of the file has.
+  const settingsWindow = state.settingsWindow;
+  if (!settingsWindow?.node?.open || settingsWindow.query.trim()) return;
+  for (const card of settingsWindow.body.querySelectorAll('.settings-card')) card.replaceWith(settingsCard(card.dataset.cat));
+  for (const rail of settingsWindow.body.querySelectorAll('.settings-rail')) rail.replaceWith(settingsRail());
+  const head = settingsWindow.body.querySelector('.settings-detail-head .settings-line');
+  if (head && settingsWindow.open) head.textContent = settingsStatus(settingsWindow.open).line;
+}
+
+function openSettingsCategory(id, landOn = null) {
+  settingsWindow.open = id;
+  drawSettings();
+  if (!landOn) return;
+  // Land on the setting the search found, once its panel has drawn.
+  let tries = 0;
+  const land = () => {
+    const hit = [...(settingsWindow.body.querySelectorAll('.settings-detail .sx-row b, .settings-detail .sx-head h3, .settings-detail button'))].find((node) => settingsFold(node.textContent).includes(settingsFold(landOn)));
+    if (hit) { hit.scrollIntoView({ block: 'center', behavior: 'smooth' }); const row = hit.closest('.sx-row, .sx-block') ?? hit; row.classList.add('settings-found'); setTimeout(() => row.classList.remove('settings-found'), 1600); return; }
+    if ((tries += 1) < 20) setTimeout(land, 150);
+  };
+  setTimeout(land, 60);
+}
+function closeSettingsCategory() {
+  settingsWindow.open = null;
+  drawSettings();
+}
+
+// The window decides its layout from its own width, not the screen's: a board with a sheet when
+// there is room, the category over the whole window when a sheet would be cramped, and a rail of
+// categories when it is narrow, docked or split.
+function settingsModeFor(width) { return width < 560 ? 'rail' : width < 760 ? 'push' : 'board'; }
+function settingsBoxFor() {
+  const kept = settingsWindow.want ?? settingsWindow.box;
+  if (kept?.w && kept?.h) return kept;
+  const w = Math.min(980, window.innerWidth - 32);
+  const h = Math.min(700, window.innerHeight - 110);
+  return { x: Math.max(16, Math.round((window.innerWidth - w) / 2)), y: 68, w, h };
+}
+function placeSettings(box) {
+  if (!settingsWindow.node) return;
+  // The box the person chose is kept apart from the one that fits: a smaller browser squeezes the
+  // window, a bigger one gives it back.
+  settingsWindow.want = { ...box };
+  settingsWindow.box = clampWindowBox(box, { minW: 340, minH: 320 });
+  applyWindowBox(settingsWindow.node, settingsWindow.box);
+  syncSettingsMode();
+}
+// When the browser changes size the window stays whole inside it, never cut by an edge it did not choose.
+function refitSettings() {
+  const want = settingsWindow.want ?? settingsWindow.box;
+  if (!want) return;
+  const box = clampWindowBox(want, { minW: 340, minH: 320 });
+  box.x = Math.max(WINDOW_INSET, Math.min(box.x, window.innerWidth - WINDOW_INSET - box.w));
+  box.y = Math.max(WINDOW_INSET, Math.min(box.y, window.innerHeight - WINDOW_INSET - box.h));
+  settingsWindow.box = box;
+  applyWindowBox(settingsWindow.node, box);
+  syncSettingsMode();
+}
+// The layout follows the window's width each time it is placed, sized or squeezed by the browser.
+function syncSettingsMode() {
+  const node = settingsWindow.node;
+  if (!node?.open) return;
+  const mode = settingsModeFor(node.getBoundingClientRect().width || settingsWindow.box?.w || 980);
+  if (mode !== settingsWindow.mode) { settingsWindow.mode = mode; drawSettings(); }
+}
+function rememberSettingsBox() { try { localStorage.setItem('pulse.settingsWindow', JSON.stringify(settingsWindow.box)); } catch { /* no storage */ } }
+function readySettings() {
+  const node = settingsWindow.node;
+  if (!node || settingsWindow.ready) return;
+  settingsWindow.ready = true;
+  const head = node.querySelector('.settings-head');
+  const group = el('span', 'surface-modes');
+  const windowButton = el('button', 'surface-mode window');
+  windowButton.type = 'button';
+  windowButton.innerHTML = FLOAT_ICON; // trusted: our own SVG string
+  windowButton.setAttribute('aria-pressed', 'true');
+  windowButton.setAttribute('aria-label', t('Arrange the windows'));
+  windowButton.addEventListener('click', (event) => { event.stopPropagation(); showArrange(windowButton, { owner: () => node }); });
+  arrangeOnHover(windowButton, { owner: () => node });
+  group.append(windowButton);
+  const close = el('button', 'close', t('Close'));
+  close.type = 'button';
+  close.addEventListener('click', () => openSettings(false));
+  joinClose(group, close);
+  head.append(group);
+  node.addEventListener('pointerdown', () => bringWindowForward(node));
+  node.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    if (settingsWindow.query) { settingsWindow.query = ''; settingsWindow.search.value = ''; drawSettings(); return; }
+    if (settingsWindow.open && settingsWindow.mode !== 'rail') { closeSettingsCategory(); return; }
+    openSettings(false);
+  });
+  // Typing anywhere in the window and pressing «/» goes to the search.
+  node.addEventListener('keydown', (event) => {
+    if (event.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) { event.preventDefault(); settingsWindow.search.focus(); }
+  });
+  settingsWindow.search.addEventListener('input', () => { settingsWindow.query = settingsWindow.search.value; drawSettings(); });
+  settingsWindow.search.addEventListener('keydown', (event) => { if (event.key === 'Enter') settingsWindow.body.querySelector('.settings-result')?.click(); });
+  carryWindowBy(head, node, { box: () => settingsWindow.box, place: placeSettings, done: rememberSettingsBox });
+  windowEdgesFor(node, { box: () => settingsWindow.box, place: placeSettings, done: rememberSettingsBox, minW: 340, minH: 320 });
+  window.addEventListener?.('resize', () => { if (node.open) refitSettings(); });
+  if (typeof ResizeObserver === 'function') {
+    settingsWindow.observer = new ResizeObserver(syncSettingsMode);
+    settingsWindow.observer.observe(node);
+  }
+}
+function openSettings(open, { category = null } = {}) {
+  const node = settingsWindow.node;
+  if (!node) return;
+  if (open) {
+    readySettings();
+    if (!node.open) { if (DIALOG) DIALOG.show.call(node); else node.show?.(); node.classList.add('entering'); setTimeout(() => node.classList.remove('entering'), motion(460)); }
+    settingsWindow.want = { ...settingsBoxFor() };
+    refitSettings();
+    bringWindowForward(node);
+    settingsWindow.mode = settingsModeFor(node.getBoundingClientRect?.().width || settingsWindow.box?.w || 980);
+    settingsWindow.open = category;
+    drawSettings();
+    // What the cards say is read once on opening; each category refreshes itself when opened.
+    if (!settingsUI.data) loadSettings().catch(() => { /* each card says it could not read yet */ });
+    if (!turnsUI.turns) void loadTurns();
+    if (!sentinelUI.loaded) void loadSentinel();
+  } else if (node.open) {
+    node.close();
+    dropWindow(node);
+    for (const key of Object.keys(state.settingsTargets)) state.settingsTargets[key] = null;
+    customWindow.instant = false;
+    customWindow.body = document.querySelector('#custom-body');
+  }
+  customButton?.setAttribute('aria-expanded', String(Boolean(open)));
+  customButton?.setAttribute('aria-pressed', String(Boolean(open)));
+  // A sign-in that finishes while AJUSTES is open refreshes what it shows.
+  settingsUI.open = Boolean(open);
+  state.settingsOpen = Boolean(open);
+}
+// The Finder and the servers carry a gear in their head: their settings, one click away.
+for (const id of ['#tree-settings', '#browser-settings']) document.querySelector(id)?.addEventListener('click', () => openSettings(true, { category: 'files' }));
+
+// From MU/TH/UR, a card or a pop-over: AJUSTES comes in front of whatever is open, and an agent
+// named on the way in is where the sheet lands.
+function openSettingsOn(category, { agent = null, part = null } = {}) {
+  openSettings(true, { category });
+  if (!agent && !part) return;
+  let tries = 0;
+  const land = () => {
+    const card = agent ? document.getElementById(`conn-${agent}`) : state.settingsTargets[part]?.isConnected && state.settingsTargets[part].firstElementChild ? state.settingsTargets[part] : null;
+    if (card) { card.scrollIntoView({ block: 'start', behavior: 'smooth' }); card.classList.add('settings-found'); setTimeout(() => card.classList.remove('settings-found'), 1600); return; }
+    if ((tries += 1) < 20) setTimeout(land, 150);
+  };
+  setTimeout(land, 60);
+}
+// ⌘, (Ctrl+, elsewhere) opens AJUSTES from anywhere, as every Mac app opens its settings.
+document.addEventListener('keydown', (event) => {
+  if (event.key === ',' && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey) { event.preventDefault(); openSettings(!settingsWindow.node?.open); }
+});
 
 // The words that live in the markup.
 //
@@ -5842,8 +6762,6 @@ const surfaces = [
   { key: 'chats', kind: 'panel', side: 'left', prop: '--chats-w', node: () => els.chats, head: '.tree-head', before: '.tree-close', close: () => setChats(false) },
   { key: 'tree', kind: 'panel', side: 'right', prop: '--tree-w', node: () => els.tree, head: '.tree-head', before: '.tree-close', close: () => setTree(false) },
   { key: 'viewer', kind: 'dialog', side: 'right', node: byId('#viewer'), head: '.viewer-head', before: '#viewer-close', close: () => document.querySelector('#viewer')?.close() },
-  { key: 'modules', kind: 'dialog', side: 'right', node: byId('#modules'), head: '.mother-head', before: '#modules-close', close: () => document.querySelector('#modules')?.close() },
-  { key: 'mother', kind: 'dialog', side: 'right', node: byId('#mother'), head: '.mother-head', before: '#mother-close', close: () => document.querySelector('#mother')?.close() },
 ];
 const panelSides = surfaces.filter((one) => one.kind === 'panel');
 const surfaceOrder = [];
@@ -6420,7 +7338,8 @@ function setWindowsAside(on, { always = false } = {}) {
 const DESK_ACTIVE = 'button, a, input, textarea, select, label, summary, [role="button"], [role="menu"], [role="menuitem"], .codeblock, .model-menu, .agent-pop, .slash-menu, .arrange-pop, .notices';
 function deskPress(event) {
   const target = event.target;
-  if (!target?.closest?.('.shell') || target.closest(WINDOW_SELECTOR) || target.closest('#composer') || target.closest(DESK_ACTIVE)) return false;
+  // Inside a dialog — MODULES, MU/TH/UR, a guide — a press is that dialog's, never the desktop's.
+  if (!target?.closest?.('.shell') || target.closest(WINDOW_SELECTOR) || target.closest('dialog') || target.closest('#composer') || target.closest(DESK_ACTIVE)) return false;
   if (!globalThis.getSelection?.()?.isCollapsed) return false;
   return floatingWindows().length > 0;
 }
@@ -6907,6 +7826,29 @@ function setTree(open) {
   }
 }
 els.treeButton?.addEventListener('click', () => setTree(!tree.open));
+// A new file from the Finder: its path asked in the room's alert, made empty, opened in the viewer.
+document.querySelector('#tree-new')?.addEventListener('click', async () => {
+  const path = await roomAsk({
+    title: t('New file'),
+    body: t('Its path from the project root. Missing folders are made; an existing file is never touched.'),
+    input: { label: t('Path'), placeholder: 'src/notes.md' },
+    icon: 'file',
+    choices: [{ value: 'no', label: t('Cancel') }, { value: 'make', label: t('Create'), tone: 'primary', submit: true }],
+  });
+  if (!path) return;
+  const send = (extra = {}) => fetch('/api/files', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, ...extra }) })
+    .then(async (response) => ({ response, result: await response.json().catch(() => ({})) }));
+  let { response, result } = await send();
+  if (response.status === 403 && result.guarded) {
+    const word = await roomAsk({ title: t('A file the room guards'), body: t('This file is one the room guards. Type the project\'s designation to save it.'), input: { placeholder: t('the project folder\'s name') }, choices: [{ value: 'no', label: t('Cancel') }, { value: 'make', label: t('Create'), tone: 'primary', submit: true }] });
+    if (!word) return;
+    ({ response, result } = await send({ designation: word }));
+  }
+  if (!response.ok) { toast(result.error ?? t('It could not be created.')); return; }
+  toast(t('{path} was created.', { path: result.path }), { tone: 'done' });
+  treeFollowWrites();
+  void openViewer({ path: result.path });
+});
 els.treeClose?.addEventListener('click', () => setTree(false));
 try { if (!SPLIT_CHAT && localStorage.getItem('pulse.tree') === 'open') setTree(true); } catch { /* no storage */ }
 
@@ -7296,6 +8238,7 @@ function openSplit(id, { animate = true } = {}) {
   if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
   // Taking the split's place replaces what it shows, so only an empty split needs room.
   if (!split.chat && !canOpenBeside(id)) { besideFull(); return; }
+  stepDone('beside');
   if (convWindows.has(id)) closeConvWindow(id, { animate: false });
   const arriving = split.box.hidden;
   split.chat = id;
@@ -7413,6 +8356,7 @@ function openConvWindow(id, { box = null, animate = true } = {}) {
   if (convWindows.has(id)) { bringWindowForward(convWindows.get(id).node); return; }
   if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
   if (!canOpenBeside(id)) { besideFull(); return; }
+  stepDone('beside');
   if (id === split.chat) closeSplit();
   chats.unread.delete(id);
 
@@ -7718,13 +8662,14 @@ function atBottom() {
 
 // Liquid glass samples what lies behind it, and every piece that does is a layer the browser has to
 // repaint while scrolling: hundreds of them is what drew the empty grey blocks. Only the rows on
-// screen, or about to be, wear the glass; the rest keep its tint, which is all they show anyway.
+// screen, or a screen away from it, wear the glass, so a fast wheel never meets a row still
+// building its blur; the rest keep the same tint and shadow, which is all they show anyway.
 (() => {
   const column = els.column;
   if (typeof IntersectionObserver !== 'function' || typeof MutationObserver !== 'function' || !column) return;
   const seen = new IntersectionObserver((entries) => {
     for (const entry of entries) entry.target.classList.toggle('in-view', entry.isIntersecting);
-  }, { root: els.thread, rootMargin: '320px 0px' });
+  }, { root: els.thread, rootMargin: '100% 0px' });
   const watch = (node) => { if (node?.nodeType === 1) seen.observe(node); };
   for (const child of column.children) watch(child);
   new MutationObserver((records) => { for (const record of records) record.addedNodes.forEach(watch); }).observe(column, { childList: true });
@@ -7809,7 +8754,7 @@ document.querySelector('#mother-button')?.addEventListener('mouseleave', endHove
 document.querySelector('#mother-button')?.addEventListener('click', endHover);
 
 // Debug surface for tests and for the curious: window.__pulse.trackHold(true, t)
-globalThis.__pulse = { trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, renderModulesDev, runSlashCommand, syncModuleComposer, syncIntentOffer, openIntentsWindow, openCore: (...args) => openCore(...args), get core() { return core; } };
+globalThis.__pulse = { toast: (...args) => toast(...args), jobProgress: (event) => jobProgress(event), nostromoCard: (index = 0) => showNostromoCard(nostromo.nodes[index]), roomAsk: (...args) => roomAsk(...args), startTour: () => startTour(), openWhatsNew: () => openWhatsNew(), whatsNew: (version = null) => openWhatsNew(version), showWhatsNew: (...args) => showWhatsNew(...args), openModuleGuide: () => openModuleGuide(), openViewer: (...args) => openViewer(...args), openNostromo: () => openNostromo(), floatModule: (...args) => floatModule(...args), loadVersion: (...args) => loadVersion(...args), trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, moduleGlance, renderModulesDev, runSlashCommand, syncModuleComposer, syncIntentOffer, openIntentsWindow, openSettings, settingsWindow: () => settingsWindow, openCore: (...args) => openCore(...args), get core() { return core; } };
 
 els.thread.addEventListener('wheel', (event) => trackHold(event.deltaY > 0), { passive: true });
 let touchY = null;
@@ -7821,6 +8766,153 @@ els.thread.addEventListener('touchmove', (event) => {
 }, { passive: true });
 els.thread.addEventListener('keydown', (event) => trackHold(event.key === 'ArrowDown' || event.key === 'End' || event.key === 'PageDown'));
 
+/* ---------- First steps: six things done once, ticked as they happen ----------
+   The tour shows where things are; this list is what makes a person use them. A pill in the bar
+   counts what is done, and a card under it says each step in one line with a key that takes you
+   there. A step is ticked by doing it — the room's own record for the first question and the first
+   plan, the place where it happens for the rest — never by pressing «done». It is offered once,
+   on the first visit, to someone who has not seen the tour; it leaves when the last step is done,
+   or when it is hidden, and ? in MU/TH/UR brings an unfinished list back. Per browser, like the
+   tour: a convenience, kept in localStorage. */
+const STEPS_KEY = 'pulse.steps';
+const FIRST_STEPS = [
+  { id: 'ask', title: t('Ask your first question'), how: t('Write in the box. With @ you choose who answers.'), show: () => stepsWrite('@') },
+  { id: 'team', title: t('Ask the crew for something together'), how: t('Ask one agent for something for everyone: it draws up a plan and hands the steps to the others.'), show: () => stepsWrite(`@${els.target?.value || 'claude'} ${t('ask each agent in the crew to introduce itself in one line')}`) },
+  { id: 'mother', title: t('Open MU/TH/UR'), how: t('When something fails, write the symptom there: it says what is going on and how to fix it.'), show: () => openMother() },
+  { id: 'beside', title: t('Open a second conversation'), how: t('From the conversations panel, beside this one or as a window. Both keep working.'), show: () => { const button = document.querySelector('#chats-button'); if (button?.getAttribute('aria-pressed') !== 'true') button?.click(); } },
+  { id: 'bar', title: t('Make the bar yours'), how: t('Right-click any key of the bar: choose what is on it and in which order.'), show: () => barEdit(true) },
+  { id: 'module', title: t('Open a module'), how: t('Optional powers for this project, like GitHub or a local model. Nothing is installed until you ask.'), show: () => document.querySelector('#modules-button')?.click() },
+];
+const steps = {
+  pill: document.querySelector('#steps-pill'),
+  card: null,
+  record: (() => {
+    if (SPLIT_CHAT) return null;
+    try {
+      const stored = JSON.parse(localStorage.getItem(STEPS_KEY) ?? 'null');
+      if (stored && Array.isArray(stored.done)) return { on: stored.on !== false, done: stored.done.filter((id) => FIRST_STEPS.some((step) => step.id === id)) };
+      // Offered to a first visit only: whoever already took the tour knows the room.
+      return localStorage.getItem('pulse.tour') === 'seen' ? null : { on: true, done: [] };
+    } catch { return null; }
+  })(),
+  finishing: 0,
+};
+function stepsSave() {
+  if (!steps.record) return;
+  try { localStorage.setItem(STEPS_KEY, JSON.stringify(steps.record)); } catch { /* no storage: this page remembers */ }
+}
+function stepsActive() { return Boolean(steps.record?.on) && steps.record.done.length < FIRST_STEPS.length; }
+// Puts words in the box, where the person can read them before sending anything.
+function stepsWrite(text) {
+  stepsClose();
+  if (!els.input) return;
+  if (!els.input.value.trim()) els.input.value = text;
+  els.input.focus();
+  els.input.setSelectionRange?.(els.input.value.length, els.input.value.length);
+  els.input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function stepDone(id) {
+  if (!stepsActive() || steps.record.done.includes(id) || !FIRST_STEPS.some((step) => step.id === id)) return;
+  steps.record.done.push(id);
+  stepsSave();
+  if (steps.record.done.length === FIRST_STEPS.length) {
+    // The last one: the ring closes, the room says so once, and the pill goes a moment later.
+    clearTimeout(steps.finishing);
+    steps.finishing = setTimeout(() => { steps.finishing = 0; stepsClose(); stepsPaint(); }, 2400);
+    toast(t('First steps done: you know your way around MADRE.'));
+  }
+  stepsPaint();
+}
+// What the room records: the first question asked, the first plan drawn up.
+function stepsSaw(event) {
+  if (!stepsActive()) return;
+  if (event.type === 'message.created' && event.payload?.role === 'user') stepDone('ask');
+  else if (event.type === 'plan.created') stepDone('team');
+}
+function stepsPaint() {
+  const pill = steps.pill;
+  if (!pill) return;
+  const done = steps.record?.done.length ?? 0;
+  const total = FIRST_STEPS.length;
+  // Shown while there is something left, and for the moment after the last tick.
+  const shown = Boolean(steps.record?.on) && (done < total || steps.finishing);
+  pill.hidden = !shown;
+  if (!shown) return;
+  pill.style?.setProperty?.('--steps', String(done / total));
+  const count = pill.querySelector?.('.steps-count');
+  if (count) count.textContent = `${done}/${total}`;
+  pill.title = t('First steps · {done} of {total} done', { done, total });
+  pill.setAttribute('aria-label', pill.title);
+  if (steps.card && !steps.card.hidden) stepsDraw();
+}
+function stepsDraw() {
+  const card = steps.card ??= (() => {
+    const node = el('div', 'bar-card steps-card');
+    node.setAttribute('role', 'dialog');
+    node.setAttribute('aria-label', t('First steps'));
+    node.hidden = true;
+    document.body?.append(node);
+    return node;
+  })();
+  const done = new Set(steps.record?.done ?? []);
+  const head = el('div', 'bar-card-head');
+  head.append(el('h3', null, t('First steps')), el('span', 'steps-tally', t('{done} of {total}', { done: done.size, total: FIRST_STEPS.length })));
+  const list = el('ol', 'steps-list');
+  for (const step of FIRST_STEPS) {
+    const item = el('li', done.has(step.id) ? 'done' : null);
+    const tick = el('span', 'steps-tick');
+    tick.setAttribute('aria-hidden', 'true');
+    tick.innerHTML = '<svg viewBox="0 0 16 16"><path d="M4.2 8.4l2.4 2.4 5.2-5.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>'; // trusted: our own glyph
+    const words = el('span', 'steps-words');
+    words.append(el('b', null, step.title), el('span', null, step.how));
+    item.append(tick, words);
+    if (!done.has(step.id)) {
+      const go = el('button', 'sx-btn steps-go', t('Show me'));
+      go.type = 'button';
+      go.addEventListener('click', () => { stepsClose(); step.show(); });
+      item.append(go);
+    } else item.setAttribute('aria-label', t('{step}: done', { step: step.title }));
+    list.append(item);
+  }
+  const foot = el('div', 'steps-foot');
+  const hide = el('button', 'steps-hide', t('Hide the list'));
+  hide.type = 'button';
+  hide.addEventListener('click', () => {
+    steps.record.on = false;
+    stepsSave();
+    stepsClose();
+    stepsPaint();
+    toast(t('The list comes back from ? in MU/TH/UR.'));
+  });
+  foot.append(el('span', null, t('Each step ticks itself when you do it.')), hide);
+  card.replaceChildren(head, list, foot);
+  card.hidden = false;
+  const key = steps.pill.getBoundingClientRect();
+  const width = card.offsetWidth || 340;
+  card.style.top = `${Math.round(key.bottom + 8)}px`;
+  card.style.left = `${Math.round(Math.max(16, Math.min(window.innerWidth - width - 16, key.left + key.width / 2 - width / 2)))}px`;
+  steps.pill.setAttribute('aria-expanded', 'true');
+}
+function stepsClose() {
+  if (steps.card) steps.card.hidden = true;
+  steps.pill?.setAttribute('aria-expanded', 'false');
+}
+// ? in MU/TH/UR: an unfinished list that was hidden comes back with the tour.
+function stepsResume() {
+  if (SPLIT_CHAT) return;
+  steps.record ??= { on: true, done: [] };
+  if (steps.record.done.length >= FIRST_STEPS.length) return;
+  steps.record.on = true;
+  stepsSave();
+  stepsPaint();
+}
+steps.pill?.addEventListener('click', () => { if (steps.card && !steps.card.hidden) stepsClose(); else stepsDraw(); });
+document.addEventListener?.('pointerdown', (event) => { if (steps.card && !steps.card.hidden && !event.target?.closest?.('.steps-card, #steps-pill')) stepsClose(); }, true);
+document.addEventListener?.('keydown', (event) => { if (event.key === 'Escape' && steps.card && !steps.card.hidden) stepsClose(); });
+window.addEventListener?.('resize', () => { if (steps.card && !steps.card.hidden) stepsDraw(); });
+stepsPaint();
+globalThis.__pulse.steps = { done: (id) => stepDone(id), resume: () => stepsResume(), open: () => stepsDraw(), get record() { return steps.record; } };
+
 /* ---------- bootstrap ---------- */
 
 const initial = await fetch('/api/state').then((response) => response.json());
@@ -7830,26 +8922,12 @@ if (SPLIT_CHAT && !Array.isArray(initial.events)) {
   els.column.replaceChildren(el('div', 'empty', t('This conversation is no longer here.')));
   await new Promise(() => {});
 }
-// The corner of the room: which MADRE this is, and whose it is. Quiet enough to forget about,
-// there the moment a bug report needs it. The notice is NOTICE's, word for word — a copyright
-// line the page invents for itself is a copyright line that drifts from the one that counts.
+// The corner of the room: which MADRE this is, and whose it is, readable on any wallpaper. The
+// notice is NOTICE's, word for word — a copyright line the page invents for itself is a copyright
+// line that drifts from the one that counts.
 if (initial.version) {
   const corner = document.querySelector('#colophon');
-  if (corner) {
-    corner.replaceChildren(document.createTextNode(`MADRE ${initial.version} · © 2026 Jossue Alcalá · `));
-    // A LINK, and nothing more. It opens a tab when a human clicks it; the room asks the network
-    // for nothing, so there is no destination to declare in outbound.mjs and nothing appears in
-    // the outbound log. The day this were to FETCH anything — a sponsor count, a tier, a badge —
-    // it would stop being a link and would have to be declared like every other address, with its
-    // own switch. It never nags, it never knows whether you clicked, and nothing in the product
-    // changes either way.
-    const back = el('a', 'colophon-back', t('SUPPORT'));
-    back.href = 'https://github.com/sponsors/jossuealcacao-exe';
-    back.target = '_blank';
-    back.rel = 'noopener noreferrer';
-    back.title = t('MADRE is free and stays free · this only opens GitHub Sponsors in a tab');
-    corner.append(back);
-  }
+  if (corner) corner.replaceChildren(el('b', null, `MADRE ${initial.version}`), document.createTextNode('\u00a0·\u00a0© 2026 Jossue Alcalá'));
 }
 adoptLanguage(initial.language);
 els.project.textContent = initial.projectRoot.split('/').filter(Boolean).at(-1) || initial.projectRoot;
@@ -7939,6 +9017,7 @@ state.budget = Number.isFinite(initial.softTokenBudget) && initial.softTokenBudg
 state.timeouts = initial.timeouts ?? {};
 state.sessions = initial.sessions ?? {};
 state.capabilities = initial.capabilities ?? {};
+state.override = initial.override ?? null;
 state.ripleyWeb = Boolean(initial.ripleyWeb);
 syncAshUI(Boolean(initial.ash?.enabled));
 void renderSettled();
@@ -7982,7 +9061,13 @@ function setConnection(value) {
   els.connection.dataset.state = value;
   // The state stays English in the DOM, because CSS and tests read it; the word does not.
   els.connection.querySelector('.connection-label').textContent = t(value);
+  // The dot says it under the pointer.
+  const said = t(value);
+  els.connection.dataset.said = said.charAt(0).toUpperCase() + said.slice(1);
+  els.connection.setAttribute('aria-label', t(value));
 }
+// The live light sits on the conversation it is live for, at the end of the path in the bar.
+els.connection?.closest('.bar')?.querySelector('.bar-left')?.append(els.connection);
 if (typeof ResizeObserver === 'function' && els.composer) new ResizeObserver(placeToast).observe(els.composer);
 window.addEventListener?.('resize', placeToast);
 let stream = null;
@@ -8149,7 +9234,17 @@ function intentDraft() {
     defaultEffort: info?.default ?? null,
     references: (text.match(/(^|\s)![^\s!]+/g) ?? []).length,
     attachments: state.pending.length,
+    // The mode the message would go out in: a #3 or #4 typed in it counts before its keys are in.
+    mode: state.typedPending ?? state.mode,
   };
+}
+
+// The try taken for this message, put away: the chip goes back to the rung chosen before it.
+function dropEffortOnce() {
+  if (!state.effortOnce) return;
+  state.effortOnce = null;
+  state.intentOffer.accepted = false;
+  renderPicker();
 }
 
 function hideIntentOffer() {
@@ -8170,18 +9265,35 @@ async function syncIntentOffer() {
   const offer = state.intentOffer;
   // Nothing to say about an agent whose CLI takes no effort, a message too short to be anything,
   // or one the @madre offer already speaks for.
-  if (!draft.info?.levels.length || draft.text.trim().length < 8 || !els.freeOffer?.hidden) { offer.key = ''; hideIntentOffer(); return; }
-  const key = JSON.stringify([draft.text.trim(), draft.agent, draft.model, draft.effort, draft.defaultEffort, draft.references, draft.attachments]);
+  // A try belongs to the agent it was taken for: another agent, and it is put away.
+  if (state.effortOnce && state.effortOnce.agent !== draft.agent) dropEffortOnce();
+  if (!draft.info?.levels.length || draft.text.trim().length < 8 || !els.freeOffer?.hidden) { offer.key = ''; offer.explore = null; dropEffortOnce(); hideIntentOffer(); return; }
+  // Asked with the rung chosen before any try: whether this message still qualifies is the question.
+  const key = JSON.stringify([draft.text.trim(), draft.agent, draft.model, draft.effort, draft.defaultEffort, draft.references, draft.attachments, draft.mode]);
   if (key === offer.key) return;
   offer.key = key;
   let suggestion = null;
+  let explore = null;
   try {
-    const response = await fetch('/api/intents/suggest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: draft.text, agent: draft.agent, model: draft.model, effort: draft.effort, defaultEffort: draft.defaultEffort, references: draft.references, attachments: draft.attachments }) });
-    suggestion = (await response.json()).suggestion ?? null;
+    const response = await fetch('/api/intents/suggest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: draft.text, agent: draft.agent, model: draft.model, effort: draft.effort, defaultEffort: draft.defaultEffort, references: draft.references, attachments: draft.attachments, mode: draft.mode }) });
+    const read = await response.json();
+    suggestion = read.suggestion ?? null;
+    explore = read.explore ?? null;
   } catch { suggestion = null; }
   if (key !== offer.key) return;   // the human kept typing; a newer answer is on its way
-  if (!suggestion || !draft.info.levels.includes(suggestion.effort)) { hideIntentOffer(); return; }
+  offer.explore = explore;
+  // A try already taken stays while the message still qualifies for the same one; edited into
+  // something else, it is put away and whatever is said about the new text is said instead.
+  const once = state.effortOnce;
+  if (once) {
+    if (suggestion?.kind === 'try' && suggestion.effort === once.effort && suggestion.intent === once.intent) { paintIntentTried(box, once); return; }
+    dropEffortOnce();
+  }
+  // A way back with no rung to name (the CLI never says its default) is still worth saying.
+  const nameless = suggestion?.basis === 'tried' && suggestion.effort === null;
+  if (!suggestion || (!nameless && !draft.info.levels.includes(suggestion.effort))) { hideIntentOffer(); return; }
   if (suggestion.kind === 'invite' && invitesDeclined()[inviteKey(suggestion)]) { hideIntentOffer(); return; }
+  if (suggestion.kind === 'try' && triesDeclined(suggestion)) { hideIntentOffer(); return; }
   paintIntentOffer(box, suggestion);
 }
 
@@ -8193,19 +9305,39 @@ function invitesDeclined() {
 function declineInvite(said) {
   try { localStorage.setItem('pulse.intentInvites', JSON.stringify({ ...invitesDeclined(), [inviteKey(said)]: true })); } catch { /* private mode */ }
 }
+// "Not now" on a try is remembered for a day, per agent, model and kind of request.
+const TRY_DECLINE_MS = 24 * 60 * 60 * 1000;
+const tryKey = (said) => `${said.agent}|${said.model ?? ''}|${said.intent}`;
+function triesDeclined(said) {
+  let kept = {};
+  try { kept = JSON.parse(localStorage.getItem('pulse.intentTries') ?? '{}') || {}; } catch { kept = {}; }
+  const at = Number(kept[tryKey(said)]);
+  return Number.isFinite(at) && Date.now() - at < TRY_DECLINE_MS;
+}
+function declineTry(said) {
+  let kept = {};
+  try { kept = JSON.parse(localStorage.getItem('pulse.intentTries') ?? '{}') || {}; } catch { kept = {}; }
+  // Only the declines still running are kept, so the list never grows.
+  const fresh = Object.fromEntries(Object.entries(kept).filter(([, at]) => Date.now() - Number(at) < TRY_DECLINE_MS));
+  try { localStorage.setItem('pulse.intentTries', JSON.stringify({ ...fresh, [tryKey(said)]: Date.now() })); } catch { /* private mode */ }
+}
 
 // Why, in one line: what the request looks like, and what was seen or what gave it away.
 function intentReason(said) {
   const level = effortLabel(said.effort).toUpperCase();
   const what = t('Looks like {what}', { what: t(INTENT_NAMES[said.intent] ?? 'an explanation') });
   if (said.basis === 'measured' && said.measured?.needsReference) return `${what} · ${t('below {level} it fell short in {n} measured cases', { level, n: said.measured.n })}`;
-  if (said.basis === 'measured') {
-    const saving = said.saving > 0 ? ` · ${t('about {pct}% fewer tokens', { pct: Math.round(said.saving * 100) })}` : '';
-    return `${what} · ${t('{level} was enough in {n} measured cases', { level, n: said.measured.n })}${saving}`;
-  }
+  // A try that fell short: the next one of its kind offers the way back, once.
+  if (said.basis === 'tried') return `${what} · ${t('{level} fell short last time', { level: effortLabel(said.tried?.effort).toUpperCase() })}`;
+  const saving = said.saving > 0 ? ` · ${t('about {pct}% fewer tokens', { pct: Math.round(said.saving * 100) })}` : '';
+  if (said.basis === 'measured') return `${what} · ${t('{level} was enough in {n} measured cases', { level, n: said.measured.n })}${saving}`;
+  // Learned from the human's own turns: how many times this rung was enough for this kind of request.
+  if (said.basis === 'observed') return `${what} · ${t('{level} was enough in {n} of your turns', { level, n: said.observed.held })}${saving}`;
   if (said.signals.includes('retry')) return `${what} · ${t('the last answer did not do it')}`;
   if (said.signals.includes('heavy')) return `${what} · ${t('there is a lot to read')}`;
   if (said.signals.includes('asked-deep')) return `${what} · ${t('you asked for it to be thought through')}`;
+  // With no rung known to start from (the CLI never said its default), the level is named, not compared.
+  if (!said.from) return `${what} · ${t('{level} usually suits it', { level: effortLabel(said.effort).toUpperCase() })}`;
   return `${what} · ${t('{level} is usually too light for it', { level: effortLabel(said.from).toUpperCase() })}`;
 }
 
@@ -8216,10 +9348,10 @@ function paintIntentInvite(box, said) {
   box.replaceChildren();
   box.classList.remove('up');
   box.append(el('span', 'free-what', `${t('Looks like {what}', { what: t(INTENT_NAMES[said.intent] ?? 'an explanation') })} · ${t('{level} is usually enough for it, but it has not been measured in this project yet', { level })}`));
-  const later = el('button', 'free-later', t('NOT NOW'));
+  const later = el('button', 'free-later', askWords(t('NOT NOW')));
   later.type = 'button';
   later.addEventListener('click', () => { declineInvite(said); state.intentOffer.key = ''; hideIntentOffer(); els.input.focus(); });
-  const go = el('button', 'free-go', t('MEASURE · {n} QUESTIONS', { n: said.questions }));
+  const go = el('button', 'free-go', askWords(t('MEASURE · {n} QUESTIONS', { n: said.questions })));
   go.type = 'button';
   go.addEventListener('click', async () => {
     go.disabled = true;
@@ -8237,9 +9369,65 @@ function paintIntentInvite(box, said) {
   box.hidden = false;
 }
 
+// A try: the rule thinks one rung less is enough, nobody has seen it here, and the cheapest way to
+// see is to run this one message at it. Taken, it applies to this message only; the next one goes
+// at the rung chosen before, and the observation says how it went.
+function paintIntentTry(box, said) {
+  const level = effortLabel(said.effort);
+  box.replaceChildren();
+  box.classList.remove('up');
+  box.append(el('span', 'free-what', `${t('Looks like {what}', { what: t(INTENT_NAMES[said.intent] ?? 'an explanation') })} · ${t('{level} might be enough · try it on this one and Intenciones will notice', { level: level.toUpperCase() })}`));
+  box.append(el('span', 'intent-basis trial', t('Trial')));
+  const later = el('button', 'free-later', t('Not now'));
+  later.type = 'button';
+  // Declined, it still went out with this message: counted as a try shown and not taken.
+  later.addEventListener('click', () => { declineTry(said); hideIntentOffer(); els.input.focus(); });
+  const go = el('button', 'free-go', t('Try {level} on this one', { level: level.toLowerCase() }));
+  go.type = 'button';
+  go.addEventListener('click', () => {
+    state.effortOnce = { agent: said.agent, model: said.model ?? null, intent: said.intent, effort: said.effort, from: said.from ?? null };
+    state.intentOffer.accepted = true;
+    paintIntentTried(box, state.effortOnce);
+    renderPicker();
+    els.input.focus();
+  });
+  box.append(later, go);
+  box.hidden = false;
+  state.intentOffer.offered = true;
+  state.intentOffer.said = said;
+}
+
+// The try taken, until the message leaves: which rung this one goes at and what happens next.
+function paintIntentTried(box, once) {
+  const level = effortLabel(once.effort).toUpperCase();
+  box.replaceChildren();
+  box.classList.remove('up');
+  box.append(el('span', 'free-what', once.from
+    ? t('This one goes at {level} · if it falls short, Intenciones will notice and go back to {from}', { level, from: effortLabel(once.from).toUpperCase() })
+    : t('This one goes at {level} · if it falls short, Intenciones will notice and go back to the CLI default', { level })));
+  box.append(el('span', 'intent-basis trial', t('Trial')));
+  const undo = el('button', 'free-later', t('Undo'));
+  undo.type = 'button';
+  undo.addEventListener('click', () => {
+    dropEffortOnce();
+    state.intentOffer.key = '';
+    hideIntentOffer();
+    els.input.focus();
+    scheduleIntentOffer();
+  });
+  box.append(undo);
+  box.hidden = false;
+  if (state.intentHint?.agent !== once.agent || state.intentHint?.direction !== 'lower') {
+    state.intentHint = { agent: once.agent, direction: 'lower' };
+    renderPicker();
+  }
+}
+
 function paintIntentOffer(box, said) {
   if (said.kind === 'invite') {
     paintIntentInvite(box, said);
+  } else if (said.kind === 'try') {
+    paintIntentTry(box, said);
   } else {
     paintIntentAdvice(box, said);
   }
@@ -8250,16 +9438,25 @@ function paintIntentOffer(box, said) {
 }
 
 function paintIntentAdvice(box, said) {
-  const raise = said.direction === 'raise';
+  const seen = said.basis === 'measured' || said.basis === 'observed';
+  const raise = said.direction === 'raise' || (!said.from && !seen);
   box.replaceChildren();
   box.classList.toggle('up', raise);
   box.append(el('span', 'free-what', intentReason(said)));
-  if (said.basis === 'measured') box.append(el('span', 'intent-basis', t('MEASURED')));
-  const level = effortLabel(said.effort).toUpperCase();
-  const go = el('button', 'free-go', raise ? t('RAISE TO {level}', { level }) : t('USE {level}', { level }));
+  if (said.basis === 'measured') box.append(el('span', 'intent-basis', askWords(t('MEASURED'))));
+  if (said.basis === 'observed') box.append(el('span', 'intent-basis observed', t('From your use')));
+  if (said.basis === 'tried') box.append(el('span', 'intent-basis trial', t('Trial')));
+  const level = said.effort ? effortLabel(said.effort).toUpperCase() : null;
+  const words = said.basis === 'tried'
+    ? (level ? t('Back to {level}', { level }) : t('Back to the CLI default'))
+    : askWords(raise ? t('RAISE TO {level}', { level }) : t('USE {level}', { level }));
+  const go = el('button', 'free-go', words);
   go.type = 'button';
   go.addEventListener('click', () => {
-    rememberEffort(said.agent, said.effort);
+    // Going back after a try changes nothing when the message already goes at that rung.
+    const draft = intentDraft();
+    const already = said.basis === 'tried' && (said.effort ?? null) === (draft.effort ?? draft.defaultEffort ?? null);
+    if (!already) rememberEffort(said.agent, said.effort);
     state.intentOffer.accepted = true;
     state.intentOffer.key = '';
     hideIntentOffer();
@@ -8269,16 +9466,24 @@ function paintIntentAdvice(box, said) {
   box.append(go);
   box.hidden = false;
   state.intentOffer.offered = true;
+  state.intentOffer.said = said;
 }
 
 els.input.addEventListener('input', scheduleIntentOffer);
 // Counted once per message that went out with an offer on it, taken or not: how often the human
-// takes one is the only number that says whether Intenciones is worth anything.
+// takes one is the only number that says whether Intenciones is worth anything. A try counts as an
+// offer and on its own; a message that only qualified for one is counted too, unshown, because that
+// is what paces the tries. What the offer was rides along, so a taken try is the one the next
+// messages are read against.
 els.composer?.addEventListener('submit', () => {
   const offer = state.intentOffer;
-  if (offer.offered) void fetch('/api/intents/offer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ accepted: offer.accepted }) }).catch(() => {});
+  const said = offer.said;
+  if (offer.offered || offer.explore) {
+    const about = said ? { kind: said.kind ?? null, basis: said.basis ?? null, agent: said.agent, model: said.model ?? null, intent: said.intent, effort: said.effort ?? null, from: said.from ?? null } : {};
+    void fetch('/api/intents/offer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ accepted: offer.accepted, shown: offer.offered, ...about, explore: offer.explore ?? null }) }).catch(() => {});
+  }
   clearTimeout(offer.timer);
-  Object.assign(offer, { key: '', offered: false, accepted: false });
+  Object.assign(offer, { key: '', offered: false, accepted: false, said: null, explore: null });
   hideIntentOffer();
 });
 
@@ -8534,7 +9739,7 @@ async function runSlashCommand(text) {
     if (name === 'image') {
       const capable = [...state.agents.values()].filter((agent) => agent.ready && state.capabilities[agent.id]?.scopes?.imageGen?.enabled).map((agent) => agent.id);
       if (!capable.includes(target)) {
-        if (!capable.length) { toast(t('MU/TH/UR › nobody in the room can generate images right now: enable Image Studio in MODULES or switch on GENERATE IMAGES for an agent in CONNECTIONS.')); return { handled: true }; }
+        if (!capable.length) { toast(t('MU/TH/UR › nobody in the room can generate images right now: turn on Image Studio in Modules, or Generate images for an agent in Settings › Agents.')); return { handled: true }; }
         toast(t('MU/TH/UR › @{agent} cannot generate images here; routing to @{other}.', { agent: target, other: capable[0] }));
         target = capable[0];
         els.target.value = target;
@@ -8637,7 +9842,7 @@ function renderCreateScopes() {
   const standing = Boolean(scopes?.write?.always);
   els.createToggle.classList.toggle('standing', standing);
   els.createToggle.title = standing
-    ? `@${id} starts in #2 (DEFAULT MODE in CONNECTIONS): every turn may add files to the project. Arming CREATE is not needed.`
+    ? t('@{id} starts in #2 (its starting mode in Settings › Agents): every turn may add files to the project. Arming CREATE is not needed.', { id })
     : t('CREATE: let the agent add new files to the project for this request; existing files stay untouched');
   box.hidden = !state.create || !scopes;
   if (box.hidden) return;
@@ -8646,10 +9851,10 @@ function renderCreateScopes() {
     const scope = scopes[key] ?? {};
     const on = scope.enabled && scope.wired;
     const badge = el('span', `cap${on ? ' on' : scope.capable ? '' : ' no'}`, labelText);
-    badge.title = on ? t('{what}: enabled for @{id}', { what: labelText, id }) : !scope.capable ? t("{what}: @{id}'s CLI cannot do this", { what: labelText, id }) : !scope.wired ? t('{what}: not wired yet', { what: labelText }) : t('{what}: switched off for @{id} in CONNECTIONS', { what: labelText, id });
+    badge.title = on ? t('{what}: enabled for @{id}', { what: labelText, id }) : !scope.capable ? t("{what}: @{id}'s CLI cannot do this", { what: labelText, id }) : !scope.wired ? t('{what}: not wired yet', { what: labelText }) : t('{what}: switched off for @{id} in Settings › Agents', { what: labelText, id });
     box.append(badge);
   }
-  if (!scopes.write?.enabled) toast(t('MU/TH/UR › @{agent} {why}. CREATE will be refused; pick another agent or change CONNECTIONS.', { agent: id, why: scopes.write?.capable ? t('has file creation switched off') : t('cannot create files from its CLI') }));
+  if (!scopes.write?.enabled) toast(t('MU/TH/UR › @{agent} {why}. CREATE will be refused; pick another agent or change it in Settings › Agents.', { agent: id, why: scopes.write?.capable ? t('has file creation switched off') : t('cannot create files from its CLI') }));
 }
 els.createToggle.addEventListener('click', () => { setMode(state.mode === 2 ? 1 : 2); els.input.focus(); });
 // The crew label reads the composer's state: order, lease, easter egg, human.
@@ -8873,11 +10078,13 @@ els.composer.addEventListener('submit', async (event) => {
   }
   els.input.disabled = true;
   els.send.disabled = true;
+  // A try taken from Intenciones runs this message, and only this one, at its rung.
+  const once = state.effortOnce?.agent === addressed ? state.effortOnce : null;
   try {
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash, draft: draft || undefined }),
+      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: once?.effort ?? state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash, draft: draft || undefined }),
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({ error: t('Request failed ({status}).', { status: response.status }) }));
@@ -8889,6 +10096,8 @@ els.composer.addEventListener('submit', async (event) => {
       renderReplyQuote();
       state.pending = [];
       renderPendingAttachments();
+      // The try went with the message; the next one goes at the rung chosen before it.
+      if (once && state.effortOnce === once) { state.effortOnce = null; renderPicker(); }
       resetModeAfterSend(); // one mode per message; standing leases fall back to #2, everyone else to #1
       autosize();
       syncModuleComposer();
@@ -8914,8 +10123,7 @@ const mother = {
   input: document.querySelector('#mother-input'),
   os: document.querySelector('#mother-os'),
   answer: document.querySelector('#mother-answer'),
-  recorded: document.querySelector('#mother-recorded'),
-  known: document.querySelector('#mother-known'),
+  list: document.querySelector('#mother-list'),
   platform: detectPlatform(),
   bootTimer: null,
 };
@@ -9001,254 +10209,330 @@ function commandBlock(lines) {
 const SEVERITY_WORDS = { blocking: t('BLOCKING'), common: t('COMMON'), degraded: t('DEGRADED'), fixed: t('ALREADY FIXED'), informational: t('INFORMATIONAL'), transient: t('TRANSIENT'), tunable: t('TUNABLE'), warning: t('WARNING') };
 const severityWord = (severity) => SEVERITY_WORDS[severity] ?? String(severity);
 
-// Some remedies are a command only because nobody wired the button. Signing an agent in,
-// installing one, turning a scope on: MADRE already does all three from CONNECTIONS, so the
-// card opens that panel on the agent in question instead of handing out a line to paste. The
-// commands stay underneath for whoever prefers them, or is on another machine.
-function connectionsShortcut(condition, agent) {
-  const who = condition.agent ?? agent ?? null;
-  const jump = el('button', 'mother-goto', who ? t('OPEN ⚙ CONNECTIONS · @{agent}', { agent: who }) : t('OPEN ⚙ CONNECTIONS'));
-  jump.type = 'button';
-  jump.addEventListener('click', () => {
-    rememberFold('connections', true);
-    renderSettings();
-    const target = who ? document.getElementById(`conn-${who}`) : settingsUI.section;
-    setTimeout(() => target?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
-  });
-  return jump;
+// A known condition whose remedy did not work is still worth hearing about. In Spanish it goes to
+// the form on madre.run, which asks for no account; in English, to a prefilled GitHub issue. Both
+// addresses come from the room's own sentinel, with the condition's code as what it is about.
+async function reportCondition(condition) {
+  const about = `${condition.code ?? condition.id} · ${condition.title}`;
+  if (!sentinelUI.formUrl && !sentinelUI.feedbackUrl) await loadSentinel();
+  const pick = language() === 'es' ? (sentinelUI.formUrl ?? sentinelUI.feedbackUrl) : (sentinelUI.feedbackUrl ?? sentinelUI.formUrl);
+  if (!pick) { toast(t('MU/TH/UR › no repository configured for feedback.')); return; }
+  try {
+    const url = new URL(pick);
+    if (url.hostname === 'github.com') url.searchParams.set('title', `[feedback] ${about}`.slice(0, 120));
+    else url.searchParams.set('about', about.slice(0, 120));
+    window.open(url.toString(), '_blank', 'noopener');
+  } catch { window.open(pick, '_blank', 'noopener'); }
 }
 
-function conditionCard(condition, { hit = false, agent = null, hintAgent = null } = {}) {
-  const card = el('article', `mother-card${hit ? ' hit' : ''}`);
-  card.id = `mother-${condition.id}`;
-  const tags = el('div', 'tags');
-  tags.append(el('span', `sev-${condition.severity}`, severityWord(condition.severity)));
-  if (condition.agent) tags.append(paint(el('span', 'agent', `@${condition.agent}`), condition.agent));
-  if (condition.code) tags.append(el('span', 'code', condition.code));
-  tags.append(el('span', null, condition.id));
-  card.append(tags);
-  card.append(el('h4', null, condition.title));
-  const diagnosis = el('p');
-  diagnosis.append(el('b', null, t('DIAGNOSIS')));
-  diagnosis.append(condition.diagnosis);
-  card.append(diagnosis);
-  const remedy = el('p', 'remedy');
-  remedy.append(el('b', null, t('REMEDY')));
-  remedy.append(condition.remedy);
-  card.append(remedy);
-  const actions = conditionActions(condition, hintAgent ?? agent ?? condition.agent ?? null);
-  if (actions.length) {
-    const bar = el('div', 'actions');
-    for (const action of actions) {
-      const button = el('button', 'act', action.label);
-      button.type = 'button';
-      button.addEventListener('click', async () => {
-        button.disabled = true;
-        try { await saveSettingNow(action.patch, action.done); button.textContent = t('APPLIED ✓'); }
-        catch (error) { toast(t('It could not be applied: {error}', { error: error.message })); button.disabled = false; }
-      });
-      bar.append(button);
-    }
-    bar.append(el('span', 'note', t('APPLIES NOW · TERMINAL COMMANDS BELOW ARE THE LAUNCH-TIME ALTERNATIVE')));
-    card.append(bar);
-  }
+// MU/TH/UR, the remedies. A window like AJUSTES and MODULES: you write a symptom and the remedy
+// that matches it is there, ready to apply, with the others it could be listed beside it; with
+// nothing written it starts on what happened in this room. The list filters by this room, by what
+// blocks, or by agent; a remedy is the room's blocks — what to do first, with the keys that do it
+// from here, the terminal commands as the other way, the why folded, and a report when it did not
+// work.
+const remedies = { filter: null, selected: null, query: '', hint: '' };
+const REMEDY_TONE = { blocking: 'wrong', degraded: 'look', warning: 'look', tunable: 'look', transient: 'look' };
+const remedyTone = (condition) => REMEDY_TONE[condition?.severity] ?? 'calm';
+// In the language the room speaks: the catalogue's own pick, never the raw bilingual table.
+const conditionById = (id) => allConditions().find((condition) => condition.id === id) ?? null;
+// A line written in the console's capitals reads as a sentence here; a mention (@codex) or a unit
+// (300s) inside it does not make it lowercase already.
+const sentenceWords = (text) => {
+  const words = String(text ?? '');
+  const letters = words.replace(/[^\p{L}]/gu, '');
+  const upper = letters.replace(/[^\p{Lu}]/gu, '').length;
+  return letters.length && upper / letters.length > 0.7 ? words.charAt(0) + words.slice(1).toLowerCase() : words;
+};
+
+// The records of this room that are still open, each with what it most probably was.
+function roomRecords() {
+  return openFailures().map((failure) => ({ failure, key: failureKey(failure), matches: diagnose(failure.error, failure.agent) })).reverse();
+}
+
+// A symptom is said in the words a person has, not the catalogue's. When no condition holds every
+// word, the ones sharing the most of them come first: «codex no responde timeout» still finds the
+// timeout. An agent's name keeps to that agent and the general ones; little words do not count.
+const LOOSE_SKIP = new Set(['the', 'and', 'not', 'for', 'with', 'que', 'los', 'las', 'del', 'por', 'una', 'uno', 'con', 'sin', 'esta', 'este', 'muy', 'mas', 'pero']);
+const LOOSE_AGENTS = new Set(['codex', 'claude', 'gemini', 'opencode', 'madre', 'ollama']);
+function looseConditions(text) {
+  const words = settingsFold(text).split(/[^a-z0-9#.@_-]+/).map((word) => word.replace(/^@/, '')).filter((word) => word.length >= 3 && !LOOSE_SKIP.has(word));
+  const agent = words.find((word) => LOOSE_AGENTS.has(word)) ?? null;
+  const rest = words.filter((word) => !LOOSE_AGENTS.has(word));
+  if (!rest.length) return [];
+  return allConditions()
+    .filter((condition) => !agent || !condition.agent || condition.agent === agent)
+    .map((condition) => {
+      const haystack = settingsFold([condition.id, condition.code, condition.title, condition.diagnosis, condition.remedy].join(' '));
+      return { condition, score: rest.filter((word) => haystack.includes(word)).length + (agent && condition.agent === agent ? 0.5 : 0) };
+    })
+    .filter((entry) => entry.score >= 1)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.condition);
+}
+
+// Under the title, one quiet line: how serious it is (the only word in colour), who, and its code.
+function remedyTags(condition, agent = null) {
+  const tags = el('div', 'remedy-meta');
+  const tone = remedyTone(condition);
+  tags.append(el('span', `remedy-sev tone-${tone}`, sentenceWords(severityWord(condition.severity))));
+  const who = condition.agent ?? agent;
+  if (who) tags.append(paint(el('span', 'remedy-agent', `@${who}`), who));
+  if (condition.code) tags.append(el('code', 'remedy-code', condition.code));
+  return tags;
+}
+
+// One remedy, in blocks: what to do, the keys that do it, the commands, the why, and the report.
+function remedyDetail(host, condition, { agent = null, hintAgent = null } = {}) {
   const chosen = agent ?? condition.agent ?? null;
-  // The button first, the commands under it: this room can do it, and a terminal is a detour.
-  if (condition.solvedIn === 'connections') card.append(connectionsShortcut(condition, chosen));
-  card.append(commandBlock(fixesFor(condition, mother.platform, chosen)));
+  const block = sxBlock(host, condition.title, null, { className: `remedy tone-${remedyTone(condition)}` });
+  block.id = `mother-${condition.id}`;
+  // Three steps of weight: the title, the line that places it, and what to do, in the reading ink.
+  block.querySelector('.sx-head .sx-words').append(remedyTags(condition, chosen));
+  const what = el('p', 'remedy-what', condition.remedy);
+  what.setAttribute('aria-label', t('What to do'));
+  block.rows.append(what);
+  // The keys that do it from here, before any command: this room can, and a terminal is a detour.
+  for (const action of conditionActions(condition, hintAgent ?? chosen)) {
+    const apply = sxButton(t('Apply'), async () => {
+      apply.disabled = true;
+      try { await saveSettingNow(action.patch, action.done); apply.textContent = t('Applied'); }
+      catch (error) { toast(t('It could not be applied: {error}', { error: error.message })); apply.disabled = false; }
+    }, { tone: 'primary' });
+    sxRow(block, sentenceWords(action.label), t('Applies now, without restarting.'), apply);
+  }
+  if (condition.solvedIn === 'connections') {
+    const who = condition.agent ?? chosen;
+    sxRow(block, who ? t('Open @{agent} in Settings', { agent: who }) : t('Open Agents in Settings'), t('Sign it in, install it or change what it may do, from there.'), sxButton(t('Open'), () => openSettingsOn('agents', { agent: who }), { tone: 'primary' }));
+  }
+  if (condition.solvedIn === 'ollama') {
+    sxRow(block, t('Open Ollama'), t('Start it, download its models and choose what it does in this room.'), sxButton(t('Open'), () => floatModule('ollama'), { tone: 'primary' }));
+  }
+  // The other way: the terminal, for another machine, another shell, or whoever prefers typing.
+  const terminal = sxBlock(host, t('In your terminal'), `${PLATFORMS[mother.platform].label} · ${PLATFORMS[mother.platform].shell}`, { className: 'remedy-terminal' });
+  terminal.rows.append(commandBlock(fixesFor(condition, mother.platform, chosen)));
   if (condition.perAgent && !chosen) {
     for (const id of Object.keys(condition.perAgent)) {
-      const label = paint(el('p'), id);
+      const label = paint(el('p', 'per-agent'), id);
       label.append(el('b', null, `@${id}`));
-      card.append(label);
-      card.append(commandBlock(condition.perAgent[id][mother.platform] ?? []));
+      terminal.rows.append(label, commandBlock(condition.perAgent[id][mother.platform] ?? []));
     }
   }
-  return card;
+  const why = el('details', 'sx-more remedy-why');
+  why.append(el('summary', null, t('Why it happens')), el('p', null, condition.diagnosis));
+  terminal.append(why);
+  const report = sxBlock(host, t('Not fixed?'), t('Tell the author this remedy did not work. The report says which condition it was.'), { className: 'remedy-report' });
+  report.querySelector('.sx-head').append(sxButton(t('Report ↗'), () => reportCondition(condition)));
+}
+
+// What happened in this room, one record, and what it most probably was.
+function recordDetail(host, record) {
+  const { failure, matches } = record;
+  const what = sxBlock(host, failure.agent ? t('What happened to @{agent}', { agent: failure.agent }) : t('What happened in the room'), formatTime(failure.time), { className: 'remedy-record' });
+  const text = el('pre', 'remedy-error', resay(String(failure.error ?? '').trim()).slice(0, 4000));
+  what.rows.append(text);
+  const drop = sxButton(t('Dismiss'), () => { dismissed.add(record.key); saveDismissed(); paintMotherBadge(); remedies.selected = null; paintRemedies(); }, { title: t('Dismiss this record · it stays in the ledger') });
+  what.querySelector('.sx-head').append(drop);
+  if (!matches.length) {
+    const none = sxBlock(host, t('Not classified yet'), t('MU/TH/UR does not know this condition. Telling the author is how it learns it.'));
+    none.querySelector('.sx-head').append(sxButton(t('Report ↗'), () => openFeedback(), { tone: 'primary' }));
+    return;
+  }
+  for (const condition of matches) remedyDetail(host, condition, { agent: failure.agent && condition.perAgent ? failure.agent : null, hintAgent: failure.agent });
+}
+
+function remedyRow(dot, title, meta, selected, pick, { agent = null } = {}) {
+  const row = el('button', `remedy-row${selected ? ' on' : ''}`);
+  row.type = 'button';
+  row.append(el('i', `remedy-dot tone-${dot}`), el('span', 'remedy-title', title));
+  if (agent) row.append(paint(el('span', 'remedy-agent', `@${agent}`), agent));
+  if (meta) row.append(el('code', 'remedy-code', meta));
+  row.addEventListener('click', pick);
+  return row;
+}
+
+function paintRemedies() {
+  const list = mother.list;
+  const detail = mother.answer;
+  if (!list || !detail) return;
+  const records = roomRecords();
+  const text = remedies.query.trim();
+  // What was written, read as a symptom or as words: the probable causes first.
+  let matches = null;
+  remedies.hint = '';
+  if (text) {
+    if (/special order|937|expendable/i.test(text)) { remedies.hint = t('NO SPECIAL ORDERS ON THIS SHIP. THE CREW IS NOT EXPENDABLE. RESTATE INQUIRY.'); matches = []; }
+    else if (/^(help|\?)$/i.test(text)) remedies.hint = t('INQUIRY ACCEPTS: AN AGENT NAME · A SYMPTOM · A KEYWORD SUCH AS TIMEOUT, LOGIN, PORT, BUDGET.');
+    else {
+      const byError = diagnose(text);
+      matches = [...new Set([...byError, ...searchConditions(text)])];
+      if (!matches.length) matches = looseConditions(text);
+      if (!matches.length) remedies.hint = t('Nothing matches that. Try a symptom, an agent, or a word like timeout, login, port or budget.');
+    }
+  }
+  const every = allConditions();
+  const pool = matches ?? every;
+  const agents = [...new Set(every.map((condition) => condition.agent).filter(Boolean))];
+  // With nothing written, it starts where the trouble is: this room, when anything happened in it.
+  const filter = remedies.filter ?? (!matches && records.length ? 'room' : 'all');
+  const chips = el('div', 'remedy-chips');
+  const chip = (id, label, count) => {
+    const node = el('button', `remedy-chip${filter === id ? ' on' : ''}`);
+    node.type = 'button';
+    // This room's count wears the bar's badge when something happened, so it reads at a glance.
+    node.append(label, el('span', id === 'room' && count ? 'remedy-badge' : null, String(count)));
+    node.addEventListener('click', () => { remedies.filter = id; remedies.selected = null; paintRemedies(); });
+    chips.append(node);
+  };
+  chip('all', matches ? t('Matches') : t('All'), pool.length);
+  if (!matches) chip('room', t('This room'), records.length);
+  chip('blocking', t('Blocking'), pool.filter((condition) => condition.severity === 'blocking').length);
+  for (const agent of agents) {
+    const count = pool.filter((condition) => condition.agent === agent).length;
+    if (count) chip(`agent:${agent}`, `@${agent}`, count);
+  }
+  const rows = el('div', 'remedy-rows');
+  let first = null;
+  if (filter === 'room' && !matches) {
+    for (const record of records.slice(0, 60)) {
+      const top = record.matches[0];
+      const selected = remedies.selected?.kind === 'record' ? remedies.selected.key === record.key : false;
+      const node = remedyRow(top ? remedyTone(top) : 'calm', top ? top.title : t('Not classified yet'), formatTime(record.failure.time), selected, () => { remedies.selected = { kind: 'record', key: record.key }; paintRemedies(); }, { agent: record.failure.agent });
+      first ??= { kind: 'record', key: record.key };
+      rows.append(node);
+    }
+    if (!records.length) rows.append(el('p', 'sx-hint remedy-empty', t('Nothing happened in this room. Every system nominal.')));
+  } else {
+    const shown = pool.filter((condition) => filter === 'all' || (filter === 'blocking' && condition.severity === 'blocking') || (filter.startsWith('agent:') && condition.agent === filter.slice(6)));
+    for (const condition of shown) {
+      const selected = remedies.selected?.kind === 'condition' && remedies.selected.id === condition.id;
+      rows.append(remedyRow(remedyTone(condition), condition.title, condition.code ?? null, selected, () => { remedies.selected = { kind: 'condition', id: condition.id }; paintRemedies(); }, { agent: condition.agent }));
+      first ??= { kind: 'condition', id: condition.id };
+    }
+    if (!shown.length) rows.append(el('p', 'sx-hint remedy-empty', t('Nothing here.')));
+  }
+  const foot = el('div', 'remedy-foot');
+  if (filter === 'room' && !matches) {
+    if (records.length) foot.append(sxButton(t('Download the log'), () => downloadConditionLog(records.map((record) => record.failure).reverse())));
+    if (records.length > 1) foot.append(sxButton(t('Dismiss all {n}', { n: records.length }), () => { for (const record of records) dismissed.add(record.key); saveDismissed(); paintMotherBadge(); remedies.selected = null; paintRemedies(); }));
+    if (dismissed.size) foot.append(sxButton(t('Show the {n} dismissed', { n: dismissed.size }), () => { dismissed.clear(); saveDismissed(); paintMotherBadge(); paintRemedies(); }));
+  }
+  list.replaceChildren(chips, rows, ...(foot.childElementCount ? [foot] : []));
+  // The answer: what was chosen, or the best match, or the first of the list.
+  const stillThere = remedies.selected && (remedies.selected.kind === 'record' ? records.some((record) => record.key === remedies.selected.key) : pool.some((condition) => condition.id === remedies.selected.id));
+  const pick = stillThere ? remedies.selected : first;
+  detail.replaceChildren();
+  if (remedies.hint && !pick) { detail.append(el('p', 'mother-hint', remedies.hint)); return; }
+  if (matches?.length && pick?.kind === 'condition' && pick.id === matches[0].id) detail.append(el('p', 'mother-hint', matches.length > 1 ? t('The remedy that matches best. {n} more could be it, in the list.', { n: matches.length - 1 }) : t('The remedy that matches.')));
+  if (!pick) return;
+  if (pick.kind === 'record') { const record = records.find((one) => one.key === pick.key); if (record) recordDetail(detail, record); }
+  else { const condition = conditionById(pick.id); if (condition) remedyDetail(detail, condition); }
 }
 
 function renderMotherOs() {
-  mother.os.replaceChildren();
-  for (const [id, meta] of Object.entries(PLATFORMS)) {
-    const button = el('button', null, meta.label.toUpperCase());
-    button.type = 'button';
-    button.setAttribute('role', 'radio');
-    button.setAttribute('aria-checked', String(id === mother.platform));
-    button.addEventListener('click', () => { mother.platform = id; renderMother(); });
-    mother.os.append(button);
-  }
-}
-
-function renderMotherRecorded() {
-  mother.recorded.replaceChildren();
-  let collapsed = false;
-  // What this section was set to before it folded like the rest; the fold remembers from here on.
-  try { collapsed = localStorage.getItem('pulse.mother.log') === 'collapsed'; } catch { /* no storage */ }
-  const shown = state.failures.filter((failure) => !dismissed.has(failureKey(failure)));
-  const body = folding(mother.recorded, t('RECORDED CONDITIONS · THIS ROOM · {n}', { n: shown.length }), {
-    icon: 'fault',
-    key: 'recorded', open: !collapsed,
-  });
-  // Everything dismissed is still in the ledger; this only stops it from being shown again.
-  if (dismissed.size) {
-    const back = el('button', 'mother-clear', t('SHOW THE {n} DISMISSED', { n: dismissed.size }));
-    back.type = 'button';
-    back.addEventListener('click', () => { dismissed.clear(); saveDismissed(); paintMotherBadge(); renderMotherRecorded(); });
-    body.append(back);
-  }
-  if (shown.length) {
-    // A file to send to whoever is helping. CSV because it opens in anything and each row
-    // carries its support code: the reader does not have to know MADRE to read it.
-    const save = el('button', 'mother-clear', t('DOWNLOAD THE LOG'));
-    save.type = 'button';
-    save.addEventListener('click', () => downloadConditionLog(shown));
-    body.append(save);
-  }
-  if (shown.length > 1) {
-    const all = el('button', 'mother-clear', t('DISMISS ALL {n}', { n: shown.length }));
-    all.type = 'button';
-    all.addEventListener('click', () => {
-      for (const failure of shown) dismissed.add(failureKey(failure));
-      saveDismissed();
-      paintMotherBadge();
-      renderMotherRecorded();
-    });
-    body.append(all);
-  }
-  if (!shown.length) {
-    body.append(el('p', 'mother-answer', t('NO CONDITIONS RECORDED. ALL SYSTEMS NOMINAL.')));
-    return;
-  }
-  for (const failure of [...shown].reverse().slice(0, 40)) {
-    const rowNode = paint(el('div', 'mother-record'), failure.agent);
-    rowNode.append(el('span', 't', formatTime(failure.time)));
-    rowNode.append(el('span', 'a', failure.agent ?? t('room')));
-    // A record written in another language is read in this one: the ledger keeps its words.
-    const full = resay(String(failure.error).trim());
-    const firstLine = full.split('\n')[0].slice(0, 220);
-    const errorNode = el('span', 'e', firstLine);
-    if (full.length > firstLine.length) {
-      // One line by default; click to read the whole record and back.
-      errorNode.classList.add('more');
-      errorNode.title = t('Expand');
-      errorNode.tabIndex = 0;
-      const flip = () => {
-        const open = errorNode.classList.toggle('open');
-        errorNode.textContent = open ? full.slice(0, 4000) : firstLine;
-        errorNode.title = open ? t('Collapse') : t('Expand');
-      };
-      errorNode.addEventListener('click', flip);
-      errorNode.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); flip(); } });
-    }
-    rowNode.append(errorNode);
-    const matches = diagnose(failure.error, failure.agent);
-    const links = el('span', 'k');
-    if (!matches.length) links.append(el('span', 'none', t('UNCLASSIFIED')));
-    for (const condition of matches) {
-      const jump = el('button', null, condition.code ?? condition.id);
-      jump.title = condition.id;
-      jump.type = 'button';
-      jump.addEventListener('click', () => {
-        mother.input.value = '';
-        // Choosing a fix from the log is a request to see it: the list opens and stays open.
-        rememberFold('known', true);
-        renderMotherKnown(allConditions(), new Set(matches.map((item) => item.id)), failure.agent);
-        document.getElementById(`mother-${condition.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-      links.append(jump);
-    }
-    rowNode.append(links);
-    // One record, one way out. The ledger keeps it; this room stops counting it.
-    const drop = closeMark('button', 'drop');
-    drop.type = 'button';
-    drop.title = t('Dismiss this record · it stays in the ledger');
-    drop.addEventListener('click', () => {
-      dismissed.add(failureKey(failure));
-      saveDismissed();
-      paintMotherBadge();
-      renderMotherRecorded();
-    });
-    rowNode.append(drop);
-    body.append(rowNode);
-  }
-}
-
-function renderMotherKnown(list = allConditions(), hits = new Set(), agent = null) {
-  mother.known.replaceChildren();
-  let collapsed = false;
-  try { collapsed = localStorage.getItem('pulse.mother.known') === 'collapsed'; } catch { /* no storage */ }
-  // An inquiry that narrowed the list, or a fix chosen from the log, always shows its answer, whatever the stored state.
-  if (list.length !== CONDITIONS.length || hits.size) collapsed = false;
-  const body = folding(mother.known, t('KNOWN CONDITIONS · {n} OF {total} · {os} / {shell}', { n: list.length, total: CONDITIONS.length, os: PLATFORMS[mother.platform].label.toUpperCase(), shell: PLATFORMS[mother.platform].shell.toUpperCase() }), {
-    icon: 'list',
-    key: 'known', open: !collapsed,
-  });
-  const grid = el('div', 'mother-grid');
-  const ordered = [...list].sort((a, b) => Number(hits.has(b.id)) - Number(hits.has(a.id)));
-  for (const condition of ordered) grid.append(conditionCard(condition, { hit: hits.has(condition.id), agent: agent && condition.perAgent ? agent : null, hintAgent: agent }));
-  body.append(grid);
+  const seg = sxSeg(Object.entries(PLATFORMS).map(([id, meta]) => ({ value: id, text: meta.label })), mother.platform, (id) => { mother.platform = id; renderMother(); }, { label: t('Operating system') });
+  mother.os.replaceChildren(...seg.children);
 }
 
 function answerQuery(query) {
-  const text = query.trim();
-  if (!text) { mother.answer.textContent = ''; return renderMotherKnown(); }
-  if (/special order|937|expendable/i.test(text)) {
-    mother.answer.textContent = t('NO SPECIAL ORDERS ON THIS SHIP. THE CREW IS NOT EXPENDABLE. RESTATE INQUIRY.');
-    return renderMotherKnown([]);
-  }
-  if (/^(help|\?)$/i.test(text)) {
-    mother.answer.textContent = t('INQUIRY ACCEPTS: AN AGENT NAME · A SYMPTOM · A KEYWORD SUCH AS TIMEOUT, LOGIN, PORT, BUDGET.');
-    return renderMotherKnown();
-  }
-  const byError = diagnose(text);
-  const bySearch = searchConditions(text);
-  const list = [...new Set([...byError, ...bySearch])];
-  const recordedHits = new Set(state.failures.flatMap((failure) => diagnose(failure.error, failure.agent).map((c) => c.id)));
-  if (!list.length) {
-    mother.answer.textContent = t('UNABLE TO COMPUTE. REQUEST CLARIFICATION.');
-    return renderMotherKnown([]);
-  }
-  mother.answer.textContent = t('{n} CONDITIONS MATCH INQUIRY.', { n: list.length }) + (byError.length ? t(' PROBABLE CAUSE HIGHLIGHTED.') : '');
-  renderMotherKnown(list, new Set([...byError.map((c) => c.id), ...recordedHits]));
+  remedies.query = String(query ?? '');
+  remedies.filter = null;
+  remedies.selected = null;
+  paintRemedies();
 }
 
 function renderMother() {
   renderMotherOs();
-  renderMotherRecorded();
-  answerQuery(mother.input.value);
+  paintRemedies();
 }
 
+// One line of where things stand, said at once: the crew, the room, what is open.
 function bootMother() {
   clearTimeout(mother.bootTimer);
   const online = [...state.agents.values()].filter((agent) => agent.ready).length;
   const open = openFailures().length;
-  const lines = [
-    t('INTERFACE 2037 READY FOR INQUIRY'),
-    t('CREW: {n} AGENTS · {ready} READY · ROOM /{project}', { n: state.agents.size, ready: online, project: els.project.textContent }),
-    open ? t('{n} CONDITIONS RECORDED IN THIS ROOM. PROBABLE CAUSES CLASSIFIED BELOW.', { n: open }) : t('NO OPEN CONDITIONS. ALL SYSTEMS NOMINAL.'),
-  ];
-  mother.boot.textContent = '';
-  let index = 0;
-  const step = () => {
-    if (index >= lines.length) return;
-    mother.boot.textContent += `${index ? '\n' : ''}${lines[index]}`;
-    index += 1;
-    mother.bootTimer = setTimeout(step, 320);
-  };
-  step();
+  mother.boot.textContent = [
+    t('{n} agents · {ready} ready', { n: state.agents.size, ready: online }),
+    `/${els.project.textContent}`,
+    open === 1 ? t('1 condition in this room') : open ? t('{n} conditions in this room', { n: open }) : t('nothing open'),
+  ].join(' · ');
 }
 
+// The window, carried and sized like every other one, its keys on the right.
+const motherWindow = { box: null, want: null, ready: false };
+try { motherWindow.want = JSON.parse(localStorage.getItem('pulse.motherWindow') ?? 'null'); } catch { /* no storage */ }
+function motherBoxFor() {
+  if (motherWindow.want?.w && motherWindow.want?.h) return motherWindow.want;
+  const w = Math.min(1080, window.innerWidth - 32);
+  const h = Math.min(740, window.innerHeight - 96);
+  return { x: Math.max(16, Math.round((window.innerWidth - w) / 2)), y: 68, w, h };
+}
+function placeMother(box, { chosen = true } = {}) {
+  if (chosen) motherWindow.want = { ...box };
+  const fit = clampWindowBox(box, { minW: 340, minH: 320 });
+  if (!chosen) {
+    fit.x = Math.max(WINDOW_INSET, Math.min(fit.x, window.innerWidth - WINDOW_INSET - fit.w));
+    fit.y = Math.max(WINDOW_INSET, Math.min(fit.y, window.innerHeight - WINDOW_INSET - fit.h));
+  }
+  motherWindow.box = fit;
+  applyWindowBox(mother.dialog, fit);
+}
+function rememberMotherBox() { try { localStorage.setItem('pulse.motherWindow', JSON.stringify(motherWindow.box)); } catch { /* no storage */ } }
+function readyMother() {
+  const node = mother.dialog;
+  if (!node || motherWindow.ready) return;
+  motherWindow.ready = true;
+  const head = node.querySelector('.mother-bar');
+  const group = el('span', 'surface-modes');
+  const arrange = el('button', 'surface-mode window');
+  arrange.type = 'button';
+  arrange.innerHTML = FLOAT_ICON; // trusted: our own SVG string
+  arrange.setAttribute('aria-pressed', 'true');
+  arrange.setAttribute('aria-label', t('Arrange the windows'));
+  arrange.addEventListener('click', (event) => { event.stopPropagation(); showArrange(arrange, { owner: () => node }); });
+  arrangeOnHover(arrange, { owner: () => node });
+  group.append(arrange);
+  joinClose(group, mother.close);
+  head.append(group);
+  node.addEventListener('pointerdown', () => bringWindowForward(node));
+  carryWindowBy(head, node, { box: () => motherWindow.box, place: placeMother, done: rememberMotherBox });
+  windowEdgesFor(node, { box: () => motherWindow.box, place: placeMother, done: rememberMotherBox, minW: 340, minH: 320 });
+  window.addEventListener?.('resize', () => { if (node.open) placeMother(motherBoxFor(), { chosen: false }); });
+  // Escape clears what was written before it closes the window.
+  node.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    if (mother.input.value) { mother.input.value = ''; answerQuery(''); return; }
+    closeMother();
+  });
+}
 function openMother() {
-  if (mother.dialog.open) return;
-  mother.dialog.showModal();
+  const node = mother.dialog;
+  if (!node) return;
+  stepDone('mother');
+  readyMother();
+  if (!node.open) {
+    if (DIALOG) DIALOG.show.call(node); else node.show?.();
+    node.classList.add('entering');
+    setTimeout(() => node.classList.remove('entering'), motion(460));
+    placeMother(motherBoxFor(), { chosen: false });
+    bootMother();
+    renderMother();
+  }
+  if (windowsAside) setWindowsAside(false);
+  bringWindowForward(node);
   mother.button.setAttribute('aria-pressed', 'true');
-  bootMother();
-  renderMother();
   mother.input.focus();
+}
+function closeMother() {
+  const node = mother.dialog;
+  if (!node?.open) return;
+  node.close();
+  dropWindow(node);
 }
 
 mother.button.addEventListener('click', openMother);
-mother.close.addEventListener('click', () => mother.dialog.close());
+mother.close.addEventListener('click', () => closeMother());
+mother.dialog.addEventListener('close', () => dropWindow(mother.dialog));
 mother.query.addEventListener('submit', (event) => { event.preventDefault(); answerQuery(mother.input.value); });
 mother.input.addEventListener('input', () => answerQuery(mother.input.value));
 mother.dialog.addEventListener('close', () => clearTimeout(mother.bootTimer));
@@ -9411,6 +10695,60 @@ function appendModuleOutput(event) {
   }
 }
 
+// One way to turn a module on or off, whoever asks: its card, its tile on the board, AJUSTES. The
+// server's switch flips what is there; what each module changes in the page follows it here.
+async function switchModule(item) {
+  const response = await fetch(`/api/extensions/${item.id}/install`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm: true }) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error ?? t('{name} could not be switched.', { name: item.name }));
+  if (item.id === 'ripley') { state.ripley = Boolean(result.enabled); syncViewerMode(); }
+  if (item.id === 'ash') syncAshUI(Boolean(result.enabled));
+  if (result.capabilities) { state.capabilities = result.capabilities; renderCreateScopes(); }
+  toast(`MU/TH/UR › ${t(result.enabled ? '{name} enabled' : '{name} disabled', { name: item.name })}${result.enabled && result.model ? ` · ${result.model}` : ''}.`);
+  await refreshModules();
+  return result;
+}
+
+// AJUSTES › Files and servers: where the Finder and the servers open, and what they may show.
+// Each one already remembers how it was left; this is the same choice, made without opening it.
+function drawFilesTarget() {
+  const target = state.settingsTargets.files;
+  if (!target?.isConnected) return;
+  target.replaceChildren();
+  drawFilesSettings(target);
+}
+function drawFilesSettings(host) {
+  const tree = surfaces.find((one) => one.key === 'tree');
+  const where = sxBlock(host, t('Where they open'), t('Each one remembers how you left it. This is the same choice, without opening them.'));
+  sxRow(where, 'Finder', t("The project's files, beside the conversation or as a window of their own."), sxSeg([
+    { value: 'base', text: t('Beside') }, { value: 'window', text: t('Window') },
+  ], modeOf(tree) === 'window' ? 'window' : 'base', (value) => {
+    if (els.tree && !els.tree.hidden) setSurfaceMode(tree, value);
+    else { surfaceModes.tree = value; rememberSurfaces(); }
+    syncSettingsCards();
+  }, { label: 'Finder' }));
+  sxRow(where, t('Servers'), t('The browser on the servers answering on this computer: docked beside the conversation, or floating.'), sxSeg([
+    { value: 'dock', text: t('Docked') }, { value: 'window', text: t('Window') },
+  ], browserWindow.floating ? 'window' : 'dock', (value) => { setBrowserFloating(value === 'window', { animate: false }); }, { label: t('Servers') }));
+  sxRow(where, t('File viewer'), t('It always opens beside the conversation: opening a file never splits the room on its own. From there it can float as a window.'));
+
+  const show = sxBlock(host, t('What they can show'), t('Two modules decide it; their switches are the same ones as in MODULES.'));
+  for (const [id, label, hint] of [
+    ['ripley', t('Sealed preview'), t('HTML, SVG and Markdown from the project render in the file viewer, inside a frame that reaches nothing. Off, files show as source.')],
+    ['playwright', t("The agents' browser"), t('A browser without a window that reaches only this room and the servers you start, on the turns that ask to look at a page.')],
+  ]) {
+    const item = modules.items.find((one) => one.id === id);
+    if (!item) { sxRow(show, label, t('Reading…')); continue; }
+    const blocked = !item.status?.installed && item.preflight && !item.preflight.ok;
+    sxRow(show, label, blocked ? item.preflight.problems.join(' ') : hint, sxSwitch(item.status?.installed, async (on, box) => {
+      box.disabled = true;
+      try { await switchModule(item); } catch (error) { box.checked = !on; toast(error.message); }
+      drawFilesTarget();
+      syncSettingsCards();
+    }, { disabled: blocked, label }), { off: blocked });
+  }
+}
+
 async function refreshModules() {
   try {
     const data = await fetch('/api/extensions').then((response) => response.json());
@@ -9418,12 +10756,16 @@ async function refreshModules() {
     modules.installing = data.installing ?? null;
   } catch (error) {
     modules.items = [];
-    modules.note.textContent = t('UNABLE TO LIST MODULES: {error}', { error: error.message });
+    toast(t('UNABLE TO LIST MODULES: {error}', { error: error.message }));
   }
   const installed = modules.items.filter((item) => item.status?.installed).length;
   modules.count.hidden = installed === 0;
   modules.count.textContent = String(installed);
   if (modules.dialog.open) renderModules();
+  else renderModuleWindows();
+  barModulesChanged();
+  drawFilesTarget();
+  syncSettingsCards();
 }
 
 // What the version on a card means. A module that ships with MADRE has its own version, written
@@ -9526,6 +10868,7 @@ function removeModuleButton(item, { className = 'remove-module', text = t('UNINS
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
       modules.items = payload.extensions ?? modules.items;
+      barModulesChanged();
       toast(t('MU/TH/UR › {name} removed.', { name: item.name }));
       renderModules();
     } catch (error) {
@@ -9760,6 +11103,7 @@ modules.file?.addEventListener('change', async () => {
     if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'that module was not installed.'}`); return; }
     modules.items = result.extensions ?? modules.items;
     renderModules();
+    barModulesChanged();
     toast(`MU/TH/UR › ${t('{name} installed', { name: result.installed.name })}${result.installed.version ? ` · v${result.installed.version}` : ''}. ${t('It loads in every room on this computer.')}`);
     // A key the contract does not answer to. Not fatal — a module written for a newer MADRE may
     // carry fields this one has not learned — but a misspelling is far likelier, and it used to
@@ -9794,15 +11138,98 @@ async function refreshModuleFile(item, button) {
   if (!done.ok) { toast(`MU/TH/UR › ${done.result.error ?? 'the module was not updated.'}`); button.disabled = false; return; }
   modules.items = done.result.extensions ?? modules.items;
   renderModules();
+  barModulesChanged();
   toast(t('MU/TH/UR › {name} is now {version}.', { name: item.name, version: done.result.installed.version ?? t('the newest file') }));
 }
 
 // Fetching a newer version of what a module drives. MADRE shows the command, the human reads it,
 // and only then does anything run — and what runs lands in the room line by line, like every
 // other install.
+// Anything that downloads or installs — a module's update, Ollama, a model, an agent's CLI — shows
+// in one light sheet while it runs: what is running, for how long, the percentage when the
+// installer prints one (Ollama does, npm and brew mostly do not), and the installer's own last
+// lines. It is read from the room's events, so it says what really happens. It can be hidden; it
+// says how it ended and goes away when told.
+// Kept on a function, not a const: an install's first event can arrive before this line has run.
+function jobsOf() { return (jobsOf.state ??= { node: null, list: new Map(), shown: null, tick: null }); }
+function jobSheet() {
+  if (jobsOf().node) return jobsOf().node;
+  const node = el('div', 'job-sheet');
+  node.setAttribute('role', 'status');
+  node.setAttribute('aria-live', 'polite');
+  node.hidden = true;
+  node.innerHTML = '<span class="job-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10 3.5v9M6.4 9l3.6 3.6L13.6 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 15.8h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>'; // trusted: our own SVG
+  const words = el('div', 'job-words');
+  node.title_ = el('b', 'job-title');
+  node.state_ = el('span', 'job-state');
+  words.append(node.title_, node.state_);
+  node.bar_ = el('div', 'job-bar');
+  node.bar_.append(el('i'));
+  node.line_ = el('code', 'job-line');
+  node.hide_ = sxButton(t('Hide'), () => { node.hidden = true; });
+  node.append(words, node.hide_, node.bar_, node.line_);
+  document.body?.append(node);
+  jobsOf().node = node;
+  return node;
+}
+function jobKey(event) { return event.type.startsWith('connection.') ? `agent:${event.payload.agent}` : `module:${event.payload.id}`; }
+function jobProgress(event) {
+  const key = jobKey(event);
+  const payload = event.payload;
+  if (event.type.endsWith('.started')) {
+    const what = payload.label ?? sentenceWords(payload.name ?? payload.id ?? payload.agent ?? '');
+    jobsOf().list.set(key, { key, title: payload.alreadyInstalled ? t('Updating {name}', { name: what }) : t('Installing {name}', { name: what }), command: payload.command ?? '', started: Date.now(), percent: null, bytes: null, line: payload.command ?? '', done: null });
+    jobsOf().shown = key;
+    const node = jobSheet();
+    node.hidden = false;
+    node.classList.remove('done', 'failed');
+    jobTick();
+  }
+  const job = jobsOf().list.get(key);
+  if (!job) return;
+  const lines = payload.lines ?? (payload.line ? [payload.line] : []);
+  for (const line of lines) {
+    const clean = String(line).replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').trim();
+    if (!clean) continue;
+    const percents = [...clean.matchAll(/(\d{1,3}(?:\.\d+)?)\s?%/g)];
+    if (percents.length) job.percent = Math.min(100, Number(percents.at(-1)[1]));
+    const bytes = clean.match(/(\d+(?:\.\d+)?\s?[KMG]i?B)\s*\/\s*(\d+(?:\.\d+)?\s?[KMG]i?B)/);
+    if (bytes) job.bytes = `${bytes[1]} / ${bytes[2]}`;
+    job.line = clean;
+  }
+  if (event.type.endsWith('.finished')) {
+    job.done = payload.ok === false || payload.code ? 'failed' : 'done';
+    job.detail = payload.detail ?? payload.error ?? '';
+    if (job.done === 'done') job.percent = 100;
+  }
+  if (jobsOf().shown === key) paintJob(job);
+}
+function jobTick() {
+  if (jobsOf().tick) return;
+  jobsOf().tick = setInterval(() => {
+    const job = jobsOf().list.get(jobsOf().shown);
+    if (!job || job.done) { clearInterval(jobsOf().tick); jobsOf().tick = null; return; }
+    paintJob(job);
+  }, 1000);
+}
+function paintJob(job) {
+  const node = jobSheet();
+  const seconds = Math.round((Date.now() - job.started) / 1000);
+  const time = seconds < 60 ? t('{n} s', { n: seconds }) : t('{m} min {s} s', { m: Math.floor(seconds / 60), s: seconds % 60 });
+  node.title_.textContent = job.title;
+  node.classList.toggle('done', job.done === 'done');
+  node.classList.toggle('failed', job.done === 'failed');
+  node.classList.toggle('known', job.percent !== null);
+  node.bar_.firstChild.style.width = job.percent !== null ? `${job.percent}%` : '';
+  node.state_.textContent = job.done === 'done' ? [t('Done'), job.detail].filter(Boolean).join(' · ')
+    : job.done === 'failed' ? [t('It did not finish'), job.detail].filter(Boolean).join(' · ')
+      : [job.percent !== null ? `${Math.round(job.percent)}%` : t('Working'), job.bytes, time].filter(Boolean).join(' · ');
+  node.line_.textContent = job.line;
+  node.hide_.textContent = job.done ? t('Close') : t('Hide');
+}
+
 async function updateModule(item, button) {
   button.disabled = true;
-  const card = document.getElementById(`module-${item.id}`);
   const ask = async (confirm) => {
     const response = await fetch(`/api/extensions/${item.id}/update`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm }),
@@ -9816,28 +11243,18 @@ async function updateModule(item, button) {
     button.disabled = false;
     return;
   }
-  const panel = card?.querySelector('.card-panel');
-  const box = el('div', 'confirm');
-  box.append(el('span', 'warn', t('THIS RUNS ON THIS COMPUTER, OUTSIDE THE PROJECT:')));
-  box.append(commandBlock([asked.result.plan.display]));
-  if (asked.result.plan.note) box.append(el('span', 'note', asked.result.plan.note));
-  const row = el('div', 'actions');
-  const go = el('button', 'primary', t('RUN IT'));
-  go.type = 'button';
-  go.addEventListener('click', async () => {
-    go.disabled = true;
-    const ran = await ask(true);
-    if (!ran.ok) { toast(`MU/TH/UR › ${ran.result.error ?? 'the update did not start.'}`); go.disabled = false; return; }
-    toast(t('MU/TH/UR › updating. The output is in the room, and the card refreshes when it finishes.'));
-    box.remove();
-    await refreshModules();
+  // What runs is said before it runs, in the room's alert; its progress shows in the progress sheet.
+  const latest = item.update?.latest;
+  const yes = await roomAsk({
+    title: latest ? t('Update {name} to {version}', { name: sentenceWords(item.name), version: latest }) : t('Update {name}', { name: sentenceWords(item.name) }),
+    body: [t('This runs on this computer, outside the project.'), asked.result.plan.note].filter(Boolean).join(' '),
+    command: asked.result.plan.display,
+    choices: [{ value: 'no', label: t('Not now'), focus: true }, { value: 'go', label: t('Update'), tone: 'primary' }],
   });
-  const no = el('button', null, t('NOT NOW'));
-  no.type = 'button';
-  no.addEventListener('click', () => { box.remove(); button.disabled = false; });
-  row.append(go, no);
-  box.append(row);
-  (panel ?? card)?.prepend(box);
+  if (yes !== 'go') { button.disabled = false; return; }
+  const ran = await ask(true);
+  if (!ran.ok) { toast(`MU/TH/UR › ${ran.result.error ?? 'the update did not start.'}`); button.disabled = false; return; }
+  await refreshModules();
 }
 
 // The economy, at the size it deserves. The card in MODULES is the glance; this is the reading.
@@ -9867,8 +11284,7 @@ function cardHead(icon, title) {
   return head;
 }
 
-async function renderEconomy() {
-  const box = economyPanel.body;
+async function renderEconomy(box = economyPanel.body) {
   if (!box) return;
   const count = (value) => (Number.isFinite(value) ? value.toLocaleString() : '—');
   const pct = (value) => (Number.isFinite(value) ? `${Math.round(value * 100)}%` : '—');
@@ -10090,6 +11506,8 @@ function paintAshEconomy(box) {
 // test it is where the human judges: two answers to a real question from this project, in an order
 // that says nothing about which rung wrote which.
 const INTENT_ROWS = { lookup: 'LOOKUP', explain: 'EXPLANATION', review: 'REVIEW', diagnose: 'DIAGNOSIS', design: 'DESIGN' };
+// The kinds real use reads, which are more than a read-only test can ask: a change, a short reply.
+const OBSERVED_ROWS = { lookup: 'Lookup', explain: 'Explanation', review: 'Review', implement: 'Change', diagnose: 'Diagnosis', design: 'Design', chat: 'Short reply' };
 const JUDGE_WORDS = { trusted: 'trusted', blind: 'could not see the difference', unknown: 'not proven yet' };
 const RUN_ENDINGS = {
   done: 'finished', stopped: 'stopped', budget: 'stopped at its turn limit',
@@ -10103,6 +11521,18 @@ function intentsReading(panel) {
   paintIntents(box);
 }
 
+// What the card reads: per agent, the model chosen and the rung its messages go out at, so what it
+// says about trying a cheaper rung is about the rung the human actually uses.
+function intentsUrl() {
+  const efforts = {};
+  for (const id of Object.keys(state.efforts ?? {})) {
+    const info = effortInfo(id);
+    const level = info?.levels?.includes(state.chosenEffort[id]) ? state.chosenEffort[id] : info?.default ?? null;
+    if (level) efforts[id] = level;
+  }
+  return `/api/intents?models=${encodeURIComponent(JSON.stringify(state.chosenModel))}&efforts=${encodeURIComponent(JSON.stringify(efforts))}`;
+}
+
 async function intentsPost(path, payload = {}) {
   const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   const result = await response.json().catch(() => ({}));
@@ -10113,7 +11543,7 @@ async function intentsPost(path, payload = {}) {
 async function paintIntents(box) {
   let read;
   try {
-    read = await fetch(`/api/intents?models=${encodeURIComponent(JSON.stringify(state.chosenModel))}`).then((response) => response.json());
+    read = await fetch(intentsUrl()).then((response) => response.json());
   } catch {
     box.replaceChildren(el('h5', null, t('WHAT WAS MEASURED HERE')), el('p', 'note', t('INTENCIONES UNAVAILABLE')));
     return;
@@ -10125,26 +11555,65 @@ async function paintIntents(box) {
 
   for (const agent of read.agents ?? []) {
     const block = el('div', 'intents-agent');
-    block.append(el('div', 'intents-head', `@${agent.id} · ${agent.model ?? t('its default model')} · ${t('against {level}', { level: effortLabel(agent.reference).toUpperCase() })}`));
+    block.append(el('div', 'intents-head', `@${agent.id} · ${agent.model ?? t('its default model')}`));
+    // One row per kind of request, from real use first: the lowest level that was enough in the
+    // human's own turns and how many turns say so, or how far it is from saying anything. A kind
+    // the calibration settled says that instead: a measurement is the stronger word.
     const table = el('div', 'intents-table');
-    for (const row of agent.summary.intents) {
-      const settled = row.status === 'measured';
-      const status = settled
-        ? (row.effort === agent.reference ? t('measured · needs it') : t('measured'))
-        : agent.cases[row.intent] === 1 ? t('open · 1 question to ask')
-          : agent.cases[row.intent] ? t('open · {n} questions to ask', { n: agent.cases[row.intent] }) : t('no questions of this kind yet');
+    const measuredRows = new Map((agent.summary?.intents ?? []).map((row) => [row.intent, row]));
+    const observed = agent.observed ?? { byIntent: [], minTurns: 8 };
+    const ladder = agent.ladder ?? [];
+    for (const row of observed.byIntent ?? []) {
+      if (row.intent === 'chat' && !row.n) continue;
+      const measured = measuredRows.get(row.intent);
+      const settled = measured?.status === 'measured';
+      const rung = settled ? measured.effort : row.rung;
+      let status = settled ? (measured.effort === agent.reference ? t('measured · needs it') : t('measured'))
+        : row.rung ? t('seen in {n} turns', { n: row.seen?.n ?? row.n })
+          : row.most >= observed.minTurns ? t('none was enough often enough · {n} turns', { n: row.n })
+            : t('learning · {n} of {min} turns', { n: row.most ?? 0, min: observed.minTurns });
+      // Trying a cheaper rung on single messages: how far it got, or the pause after it fell short.
+      // Once real use settled that rung or one below it, the row above already says so.
+      const trial = settled ? null : (agent.tries ?? []).find((one) => one.intent === row.intent);
+      const below = trial && row.rung && ladder.indexOf(row.rung) <= ladder.indexOf(trial.effort);
+      if (trial?.status === 'paused') {
+        const until = new Date(trial.cooldownUntil).toLocaleDateString(language(), { day: 'numeric', month: 'short' });
+        status = t('{level} fell short · paused until {date}', { level: effortLabel(trial.effort).toUpperCase(), date: until });
+      } else if (trial?.status === 'trying' && !below) {
+        status = t('trying {level} · {n} of {min} turns', { level: effortLabel(trial.effort).toUpperCase(), n: trial.n, min: trial.needs });
+      }
       // Prefixed: a card already has a `.state` (its ON/OFF) and the cell must not inherit it.
       table.append(
-        el('span', 'intent-kind', t(INTENT_ROWS[row.intent])),
-        el('span', `intent-rung${settled ? ' settled' : ''}`, settled ? effortLabel(row.effort).toUpperCase() : '—'),
+        el('span', 'intent-kind', t(OBSERVED_ROWS[row.intent] ?? 'Explanation')),
+        el('span', `intent-rung${rung ? ' settled' : ''}`, rung ? effortLabel(rung).toUpperCase() : '—'),
         el('span', 'intent-n', String(row.n)),
-        el('span', `intent-state${settled ? ' settled' : ''}`, status),
+        el('span', `intent-state${rung ? ' settled' : ''}`, status),
       );
     }
     block.append(table);
+
+    // Faster, for a price: the tests that ask this project's questions again at two levels.
+    const ready = Object.values(agent.cases ?? {}).reduce((sum, n) => sum + (n || 0), 0);
+    block.append(el('p', 'intents-sub', t('Measure faster')));
+    block.append(el('p', 'note intents-faster', `${t('Your turns teach for free, a few at a time. A test asks questions from this project again, against {level}, and compares the answers: it is faster, and it spends tokens.', { level: effortLabel(agent.reference).toLowerCase() })} ${ready === 1 ? t('1 question is ready to ask.') : t('{n} questions are ready to ask.', { n: ready })}`));
     const judge = agent.summary.judge;
     if (judge?.controls) block.append(el('p', 'note', t('JUDGE CAUGHT {caught} OF {n} CONTROLS · {status}', { caught: judge.caught, n: judge.controls, status: t(JUDGE_WORDS[judge.status]) })));
     if (agent.spent) block.append(el('p', 'note', t('{n} tokens spent measuring', { n: agent.spent.toLocaleString() })));
+    // A test that failed says so, and why: tokens spent with nothing to show must never be silent.
+    if (agent.failures) {
+      const failed = el('p', 'note intents-failed');
+      failed.append(t('{n} of {of} tests failed and taught nothing', { n: agent.failures.n, of: agent.failures.of }));
+      if (agent.failures.why) failed.append(el('span', null, ` · ${t('last reason: {why}', { why: agent.failures.why })}`));
+      else failed.append(el('span', null, ` · ${t('the reason was not kept by this version; the next failure will say it')}`));
+      block.append(failed);
+    }
+    // What a test will cost, said before it runs, from what one answer has cost here.
+    const price = (turns) => (agent.estimate.perAnswer ? t('about {n} tokens', { n: (turns * agent.estimate.perAnswer).toLocaleString() }) : t('its cost is not known yet: nothing was measured here'));
+    const confirmSpend = (kind, turns) => roomAsk({
+      title: kind === 'quick' ? t('Quick test for @{agent}', { agent: agent.id }) : t('Full test for @{agent}', { agent: agent.id }),
+      body: `${t('{n} turns of @{agent}, read-only, on real questions from this project.', { n: turns, agent: agent.id })} ${t('It will spend {price} from your plan.', { price: price(turns) })}`,
+      choices: [{ value: 'no', label: t('Not now'), focus: true }, { value: 'go', label: t('Measure'), tone: 'primary' }],
+    });
 
     if (!read.running) {
       const row = el('div', 'actions');
@@ -10152,6 +11621,7 @@ async function paintIntents(box) {
       quick.type = 'button';
       quick.disabled = !agent.ready || !agent.estimate.quick || !read.enabled;
       quick.addEventListener('click', async () => {
+        if (await confirmSpend('quick', agent.estimate.quick) !== 'go') return;
         quick.disabled = true;
         try {
           await intentsPost('/api/intents/calibrate', { kind: 'quick', agent: agent.id, model: agent.model });
@@ -10159,14 +11629,12 @@ async function paintIntents(box) {
         } catch (error) { toast(t('The test could not start: {error}', { error: error.message })); }
         repaint();
       });
-      // The full test spends real turns while nobody watches, so it asks twice: the first press
-      // says how many, the second spends them.
+      // A test spends real turns, so it asks first, with its price.
       const full = el('button', null, t('FULL TEST · ~{n} TURNS', { n: agent.estimate.full }));
       full.type = 'button';
       full.disabled = !agent.ready || !agent.estimate.full || !read.enabled;
-      let armed = false;
       full.addEventListener('click', async () => {
-        if (!armed) { armed = true; full.textContent = t('PRESS AGAIN TO SPEND ~{n} TURNS', { n: agent.estimate.full }); return; }
+        if (await confirmSpend('full', agent.estimate.full) !== 'go') return;
         full.disabled = true;
         try { await intentsPost('/api/intents/calibrate', { kind: 'full', agent: agent.id, model: agent.model }); } catch (error) { toast(t('The test could not start: {error}', { error: error.message })); }
         repaint();
@@ -10312,7 +11780,7 @@ async function paintIntentsWindow() {
   clearTimeout(intentsWindow.timer);
   let read;
   try {
-    read = await fetch(`/api/intents?models=${encodeURIComponent(JSON.stringify(state.chosenModel))}`).then((response) => response.json());
+    read = await fetch(intentsUrl()).then((response) => response.json());
   } catch {
     body.replaceChildren(el('p', 'intents-note', t('INTENCIONES UNAVAILABLE')));
     return;
@@ -10490,7 +11958,8 @@ function builtinCard(item) {
     });
     const open = el('button', null, t('SEE THE ECONOMY'));
     open.type = 'button';
-    open.addEventListener('click', () => openEconomy());
+    // The economy is Ash's own reading: it opens in Ash's window, at the size you want it.
+    open.addEventListener('click', () => floatModule('ash'));
     actions.append(open, toggle);
     return card;
   }
@@ -10595,98 +12064,601 @@ function moduleCard(item) {
   return card;
 }
 
-function renderModules() {
-  modules.list.replaceChildren();
-  // What is working for you first, what you could turn on after: two short lists read faster than
-  // one long one where on and off alternate.
-  const on = modules.items.filter((item) => item.status?.installed);
-  const off = modules.items.filter((item) => !item.status?.installed);
-  for (const [title, items] of [[t('ON · {n}', { n: on.length }), on], [t('AVAILABLE · {n} · PROJECT /{project}', { n: off.length, project: els.project.textContent }), off]]) {
-    if (!items.length) continue;
-    modules.list.append(el('h3', null, title));
-    const grid = el('div', 'mother-grid');
-    for (const item of items) grid.append(moduleCard(item));
-    modules.list.append(grid);
+// MODULES, as a board. Each module is a tile: its mark, its name and what it does in a line, and
+// its switch where it has a plain one. The modules with something to read — what Ash saved, what
+// Intenciones measured, how the local model is — take two columns and say it on the tile. A tile
+// opens the module's card in a sheet, the way a category of AJUSTES opens; the ones with a reading
+// can also float as windows of their own. MADRE decides which, for its own modules: nothing in the
+// SDK asks for it.
+const MODULE_FACES = {
+  ash: { line: 'Compact replies from every agent', wide: true, window: true, icon: '<path class="ic-f" d="M4 5.5h12M4 9.5h9M4 13.5h5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.2 13.5l2.3 2.3 2.3-2.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 9.8v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  intents: { line: 'How hard each agent should think', wide: true, window: true, icon: '<path d="M3.5 14.5a6.5 6.5 0 0 1 13 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path class="ic-f" d="M3.5 14.5a6.5 6.5 0 0 1 4.2-6.1l2.3 6.1z" fill="currentColor" fill-opacity=".22" stroke="none"/><path d="M10 14.5l3.2-4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="14.5" r="1.3" fill="currentColor"/>' },
+  ollama: { line: 'Memory by meaning, on this machine', wide: true, window: true, icon: '<rect x="3.5" y="4" width="13" height="9.5" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 16.5h5M10 13.5v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path class="ic-f" d="M10 6.4c-1.6 0-2.6 1-2.6 2.3 0 .9.5 1.5 1.1 1.8v.8h3v-.8c.6-.3 1.1-.9 1.1-1.8 0-1.3-1-2.3-2.6-2.3z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' },
+  'image-studio': { line: 'Images for the agents, with your key', icon: '<rect x="3.25" y="4.25" width="13.5" height="11.5" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M3.8 14.2l3.7-3.6 2.6 2.4 1.9-1.6 4 3.3H5.9z" fill="currentColor" fill-opacity=".22" stroke="none"/><path d="M3.8 14.2l3.7-3.6 2.6 2.4 1.9-1.6 4 3.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M13.6 6.1v2.4M12.4 7.3h2.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' },
+  playwright: { line: 'A browser the agents can look through', icon: '<rect x="3" y="4" width="14" height="12" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 7.6h14" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M9 9.6v5.2l1.4-1.4 1 2.1 1-.5-1-2.1h2z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' },
+  ripley: { line: 'Sealed preview of HTML, SVG and Markdown', icon: '<path d="M6 3.5h5.5l3.5 3.5v9.5H6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11.5 3.5V7H15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path class="ic-f" d="M7.6 12s1.1-2.1 2.9-2.1 2.9 2.1 2.9 2.1-1.1 2.1-2.9 2.1-2.9-2.1-2.9-2.1z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' },
+  'git-pulse': { line: 'The repository, posted to the room', icon: '<circle cx="5.5" cy="5" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5.5" cy="15" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 6.7v6.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="ic-f" d="M8.8 11h2l1.2-3.4 1.6 6 1.2-2.6h1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+  runs: { line: 'Commands an agent asks you to run', icon: '<rect x="3" y="4" width="14" height="12" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M7.6 8.1v4.6l3.8-2.3z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' },
+  choices: { line: 'Decisions as buttons, not paragraphs', icon: '<rect x="3.5" y="3.8" width="13" height="3.6" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><rect class="ic-f" x="3.5" y="8.2" width="13" height="3.6" rx="1.8" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.5"/><rect x="3.5" y="12.6" width="13" height="3.6" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>' },
+  ahp: { line: 'Project state and handoffs in .ahp/', icon: '<path d="M4 8.5h9.5M10.5 5.5l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-f" d="M16 11.5H6.5M9.5 8.5l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+  correo: { line: 'Send one email from your account', icon: '<rect x="3" y="5" width="14" height="10" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M3.6 6.2l6.4 4.6 6.4-4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' },
+  github: { line: 'Pull requests, issues and CI, in the room', icon: '<circle cx="5.5" cy="4.8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="5.5" cy="15.2" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 6.6v6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M14.5 13.4V8.2a2.6 2.6 0 0 0-2.6-2.6H9.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.6l-2 2 2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-f" cx="14.5" cy="15.2" r="1.8" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.6"/>' },
+};
+const MODULE_ANY = '<path d="M7.5 4.5h2.2a1.6 1.6 0 1 1 3.1 0H15v3.2a1.6 1.6 0 1 1 0 3.1V15h-3.2a1.6 1.6 0 1 0-3.1 0H5.5v-3.6a1.6 1.6 0 1 0 0-3.1V4.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>';
+const moduleFace = (item) => MODULE_FACES[item.id] ?? { line: null, icon: MODULE_ANY };
+function moduleIcon(item) {
+  const face = moduleFace(item);
+  const span = el('span', 'settings-icon');
+  span.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${face.icon}</svg>`; // trusted: our own SVG strings
+  // In the accent, like everything the room lets you choose; an off module's mark waits in grey.
+  span.style.setProperty('--cat', 'var(--phosphor)');
+  return span;
+}
+// A plain on/off: MADRE's own modules with a switch. Ollama has roles instead, Git Pulse is always
+// there, and a module somebody wrote installs rather than switches.
+const moduleSwitches = (item) => item.kind === 'builtin' && !item.fixed && item.id !== 'ollama';
+const moduleOn = (item) => Boolean(item.status?.installed);
+
+function moduleTile(item) {
+  const face = moduleFace(item);
+  const on = moduleOn(item);
+  const tile = el('div', `mods-tile${on ? ' on' : ''}`);
+  tile.tabIndex = 0;
+  tile.setAttribute('role', 'button');
+  tile.dataset.id = item.id;
+  const top = el('div', 'mods-top');
+  top.append(moduleIcon(item));
+  if (moduleSwitches(item)) {
+    const blocked = !on && item.preflight && !item.preflight.ok;
+    const wrap = sxSwitch(on, async (next, box) => {
+      box.disabled = true;
+      try { await switchModule(item); } catch (error) { box.checked = !next; box.disabled = false; toast(error.message); }
+    }, { disabled: blocked, label: item.name });
+    wrap.addEventListener('click', (event) => event.stopPropagation());
+    if (blocked) wrap.title = item.preflight.problems.join(' ');
+    top.append(wrap);
+  } else {
+    top.append(sxChip(item.fixed ? t('Always') : item.kind === 'builtin' ? (on ? t('Turned on') : t('Turned off')) : on ? t('Installed') : t('Not installed'), on ? 'on' : ''));
   }
+  tile.append(top);
+  const name = el('b', 'mods-name', item.name);
+  if (item.external) name.append(el('span', 'mods-dev', t('Your module')));
+  tile.append(name, el('span', 'mods-line', face.line ? t(face.line) : item.summary));
+  // The ones with a reading of their own say so: their card can float as a small app.
+  if (face.window) tile.append(el('span', 'mods-app', t('Opens as a window')));
+  const open = () => openModuleSheet(item.id);
+  tile.addEventListener('click', open);
+  tile.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+  return tile;
+}
+
+// A module's own dashboard, first thing in its sheet and its window: how it stands, which version,
+// and the figures it actually keeps — Ash its economy, Intenciones what it measured, Ollama its
+// local brain. A module that keeps no figures says what it is made of instead. Nothing is guessed.
+function moduleGlance(item) {
+  const strip = el('div', 'mods-stats');
+  // The first figure is the one the module is about, and stands larger; the rest follow it.
+  const tile = (label, value, sub = null) => {
+    const cell = el('div', `mods-stat${strip.childElementCount ? '' : ' hero'}`);
+    cell.append(el('span', 'k', label), el('strong', null, value));
+    if (sub) cell.append(el('span', 'sub', sub));
+    strip.append(cell);
+    return cell;
+  };
+  const fill = (cells) => { for (const [label, value, sub] of cells) tile(label, value, sub); };
+  const on = moduleOn(item);
+  const standing = item.fixed ? t('Always') : item.kind === 'builtin' ? (on ? t('Turned on') : t('Turned off')) : on ? t('Installed') : t('Not installed');
+  if (item.id === 'ash') {
+    strip.classList.add('loading');
+    fetch('/api/economy').then((response) => response.json()).then((read) => {
+      strip.classList.remove('loading');
+      if (!read?.turns) { fill([[t('Tokens not charged'), '0', t('nothing weighed yet')], [t('State'), standing]]); return; }
+      fill([[t('Tokens not charged'), Number(read.saved?.tokens ?? 0).toLocaleString(), t('read back from a cache, or never sent')], [t('Turns weighed'), String(read.turns)], [t('Read from cache'), Number.isFinite(read.saved?.cachedShare) ? `${Math.round(read.saved.cachedShare * 100)}%` : '—'], [t('State'), standing]]);
+    }).catch(() => { strip.classList.remove('loading'); fill([[t('State'), standing]]); });
+  } else if (item.id === 'intents') {
+    strip.classList.add('loading');
+    fetch(intentsUrl()).then((response) => response.json()).then((read) => {
+      strip.classList.remove('loading');
+      // What real use taught leads: the turns the human already sent, read for no tokens. The
+      // saving is an estimate and says so; it is shown only when there is something to estimate from.
+      const seen = (read?.agents ?? []).map((agent) => agent.observed).filter(Boolean);
+      const turns = seen.reduce((sum, one) => sum + one.turns, 0);
+      const held = seen.reduce((sum, one) => sum + one.held, 0);
+      const estimates = seen.map((one) => one.tokensSaved).filter(Number.isFinite);
+      const cells = [[t('Turns observed'), turns.toLocaleString(), turns ? t('your own turns, read for no tokens') : t('it learns as you work')]];
+      cells.push([t('It was enough'), turns ? `${Math.round((held / turns) * 100)}%` : '—', turns ? t('{held} of {n} turns', { held: held.toLocaleString(), n: turns.toLocaleString() }) : null]);
+      if (estimates.length) cells.push([t('Tokens you would have saved'), estimates.reduce((a, b) => a + b, 0).toLocaleString(), t('an estimate, at the lowest level that was enough')]);
+      cells.push([t('State'), standing]);
+      fill(cells);
+    }).catch(() => { strip.classList.remove('loading'); fill([[t('State'), standing]]); });
+  } else if (item.id === 'ollama') {
+    const info = item.ollama ?? {};
+    fill([[t('Server'), info.running ? t('Running') : t('Stopped'), info.host ?? null], [t('Models'), String(info.models?.length ?? 0)], [t('Embeddings'), info.embedModel ?? t('none')], [t('State'), standing]]);
+  }
+  // A module that keeps no figures of its own gets none made up: its sheet opens on what it does.
+  return strip.childElementCount || strip.classList.contains('loading') ? strip : document.createDocumentFragment();
+}
+// What it touches and what it adds to the composer, as blocks of the room instead of the card's folds.
+function moduleFacts(host, item) {
+  const touches = [...(item.creates ?? []).map((text) => [t('Writes'), text]), ...(item.requires ?? []).map((text) => [t('Needs'), text])];
+  if (touches.length) {
+    const block = sxBlock(host, t('What it touches'), t('Everything this module writes or needs, said before it runs.'));
+    for (const [tag, text] of touches) {
+      const row = el('div', 'sx-row mods-touch');
+      row.append(sxChip(tag, tag === t('Writes') ? '' : 'warn'), el('span', null, sentenceCase(text)));
+      block.rows.append(row);
+    }
+  }
+  if (item.commands?.length) {
+    const block = sxBlock(host, t('Commands'), t('What it adds to the composer. Type it in the room.'));
+    const list = el('div', 'mods-commands');
+    for (const line of item.commands) list.append(el('code', null, line));
+    block.rows.append(list);
+  }
+}
+
+// A module's sheet, built from the same blocks as AJUSTES: its figures first, then what it does
+// with its switch and its version, its own settings as rows, what it reads (Ash's economy, what
+// Intenciones measured, Ollama's local brain), and last what it touches and what it adds. A module
+// somebody wrote that installs rather than switches keeps its install card, inside a block.
+const sentenceCase = (text) => { const words = String(text ?? ''); return words === words.toUpperCase() ? words.charAt(0) + words.slice(1).toLowerCase() : words.charAt(0).toUpperCase() + words.slice(1); };
+function moduleSheet(host, item) {
+  host.append(moduleGlance(item));
+  if (item.kind !== 'builtin') {
+    const install = sxBlock(host, t('What it does'), item.summary, { className: 'mods-legacy' });
+    install.rows.append(moduleCard(item));
+    moduleFacts(host, item);
+    return;
+  }
+  const on = moduleOn(item);
+  const about = sxBlock(host, t('What it does'), item.summary);
+  if (item.fixed) sxRow(about, t('Always on'), item.status?.detail ? sentenceCase(item.status.detail) : null);
+  else {
+    const blocked = !on && item.preflight && !item.preflight.ok;
+    sxRow(about, t('Active'), blocked ? item.preflight.problems.join(' ') : item.status?.detail ? sentenceCase(item.status.detail) : null, sxSwitch(on, async (next, box) => {
+      box.disabled = true;
+      try { await switchModule(item); } catch (error) { box.checked = !next; box.disabled = false; toast(error.message); }
+    }, { disabled: blocked, label: item.name }), { off: blocked });
+  }
+  // The version, and the key that goes and looks for a newer one, right where the news is.
+  const said = updateWord(item.update);
+  const versionRow = sxRow(about, t('Version'), [item.vendor, said ? sentenceCase(said.text) : null].filter(Boolean).join(' · ') || null);
+  const hint = versionRow.querySelector('.sx-hint');
+  const keys = el('div', 'sx-actions inline');
+  const version = el('code', 'mods-version', versionLabel(item));
+  const check = sxButton(t('Look for a newer one'), async () => {
+    check.disabled = true;
+    try {
+      const response = await fetch(`/api/extensions/${item.id}/updates`, { method: 'POST' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+      const word = updateWord(result.update) ?? { text: t('NOTHING KNOWN YET') };
+      if (hint) hint.textContent = [item.vendor, sentenceCase(word.text)].filter(Boolean).join(' · ');
+    } catch (error) { if (hint) hint.textContent = t('It could not be checked: {error}', { error: error.message }); }
+    finally { check.disabled = false; }
+  }, { title: t('Check for a newer {what}', { what: item.tracks?.name ?? t('version') }) });
+  keys.append(version, check);
+  if (item.canUpdate && (item.update?.available || (item.versionSource === 'tracked' && !item.version && item.update?.latest))) {
+    const get = sxButton(item.version ? t('Update to {version}', { version: item.update.latest }) : t('Install {version}', { version: item.update.latest }), () => void updateModule(item, get), { tone: 'primary' });
+    keys.append(get);
+  }
+  versionRow.querySelector('.sx-words').after(keys);
+
+  // Its own settings, declared by the module and drawn as rows.
+  if (item.controls?.length) {
+    const block = sxBlock(host, t('Settings'), t('What this module lets you set. Each change is saved as you make it.'));
+    const save = async (control, value, field) => {
+      field.disabled = true;
+      const response = await fetch(`/api/extensions/${item.id}/settings`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: control.key, value }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) toast(`MU/TH/UR › ${result.error ?? t('{name} could not save {label}.', { name: item.name, label: control.label })}`);
+      await refreshModules();
+    };
+    for (const control of item.controls) {
+      let node;
+      if (control.type === 'select') {
+        node = el('select', 'sx-input');
+        for (const option of control.options) { const choice = el('option', null, option); choice.value = option; if (option === control.value) choice.selected = true; node.append(choice); }
+        node.addEventListener('change', () => save(control, node.value, node));
+      } else if (control.type === 'switch') {
+        node = sxSwitch(control.invert ? control.value === false : control.value === true, (next, box) => save(control, control.invert ? !next : next, box), { label: control.label });
+      } else {
+        node = el('input', 'sx-input');
+        node.type = 'text';
+        node.value = control.value ?? '';
+        node.addEventListener('change', () => save(control, node.value, node));
+      }
+      node.setAttribute?.('aria-label', control.label);
+      sxRow(block, sentenceCase(control.label), control.note || null, node);
+    }
+  }
+  if (item.secrets?.length) {
+    const block = sxBlock(host, t('Keys'), t("Kept in MADRE's vault under this module's name. The value goes nowhere but the module."), { className: 'mods-keys' });
+    cardSecrets(block.rows, item);
+  }
+
+  // What it reads, at the size of its sheet or its window.
+  if (item.id === 'ash') {
+    const block = sxBlock(host, t('Economy'), t('What this room was charged, what it was not, and what Ash does to an answer. Measured here, never promised.'), { className: 'mods-reading' });
+    const app = el('div', 'module-app economy-app');
+    block.rows.append(app);
+    void renderEconomy(app);
+  }
+  if (item.id === 'intents') {
+    const block = sxBlock(host, t('What your use taught'), `${t('Per agent and per kind of request: the lowest effort that was enough in your own turns, learned for no tokens. Below, a test that learns faster, for a price.')} ${t('When a lower level might be enough, Intenciones offers to try it on a single message and watches how it goes; if it falls short, the next one goes back up.')}`, { className: 'mods-reading mods-intents' });
+    intentsReading(block.rows);
+  }
+  if (item.id === 'ollama') ollamaBlock(host, item);
+
+  moduleFacts(host, item);
+  if (item.external) {
+    const yours = sxBlock(host, t('Your module'), item.file ?? null);
+    const fresh = sxButton(t('Get a newer file'), () => void refreshModuleFile(item, fresh), { title: item.updates?.url ? t('From {url}', { url: item.updates.url }) : t('From the file this module was installed from') });
+    sxRow(yours, t('Newer file'), item.updates?.url ?? null, fresh);
+    sxRow(yours, t('Remove'), t('It stops loading. The file stays where it is.'), removeModuleButton(item, { className: 'sx-btn danger', text: t('Remove') }));
+  }
+}
+
+// Ollama's local brain as rows: the server, its models, the roles it takes in this room.
+function ollamaBlock(host, item) {
+  const info = item.ollama ?? { running: false, models: [], settings: {} };
+  const block = sxBlock(host, t('Local brain'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
+  const recheck = sxButton(t('Check again'), async () => { recheck.disabled = true; await fetch('/api/ollama/probe', { method: 'POST' }).catch(() => null); await refreshModules(); });
+  sxRow(block, t('Server'), info.running ? t('Running · {host}', { host: info.host }) : t('Not running'), recheck);
+  if (info.models?.length) sxRow(block, t('Models'), info.models.map((model) => model.name).join(' · '));
+  if (!info.running) {
+    const step = info.binary
+      ? { label: t('Start Ollama'), path: '/api/ollama/start', note: t('Wakes Ollama on this computer. Nothing leaves it.') }
+      : info.install?.display ? { label: t('Install Ollama'), path: '/api/ollama/install', note: info.install.note ?? info.install.display } : null;
+    if (step) {
+      const go = sxButton(step.label, async () => {
+        go.disabled = true;
+        const response = await fetch(step.path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) { if (result.download) window.open(result.download, '_blank', 'noopener'); toast(`MU/TH/UR › ${result.error ?? `HTTP ${response.status}`}`); go.disabled = false; }
+        else await refreshModules();
+      }, { tone: 'primary' });
+      sxRow(block, step.label, step.note, go);
+    } else if (info.install?.download) sxRow(block, t('Get Ollama'), null, sxButton(t('Download ↗'), () => window.open(info.install.download, '_blank', 'noopener'), { tone: 'primary' }));
+    sxFoot(block, t('Without Ollama running, the room keeps using its providers.'));
+    return;
+  }
+  const roles = sxBlock(host, t('Roles'), t('What the local brain does in this room.'));
+  for (const [role, model, present, label, hint] of [
+    ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('Embeddings'), info.embedModel ?? null],
+    ['archivist', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('Archivist'), info.chatModel ?? null],
+    ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the room'), info.chatModel ?? null],
+  ]) {
+    if (present) {
+      sxRow(roles, label, hint, sxSwitch(info.settings[role] !== false, async (next, box) => {
+        box.disabled = true;
+        await fetch('/api/ollama/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [role]: next }) }).catch(() => null);
+        await refreshModules();
+      }, { label }));
+    } else {
+      const pull = sxButton(t('Download {model}', { model }), async () => {
+        pull.disabled = true;
+        const response = await fetch('/api/ollama/pull', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? t('could not pull')}`); pull.disabled = false; }
+        else toast(t('MU/TH/UR › pulling {model}; progress shows in the room.', { model }));
+      }, { tone: 'primary' });
+      sxRow(roles, label, t('No model for it yet.'), pull);
+    }
+  }
+}
+
+function moduleDetail(item) {
+  const detail = el('div', 'settings-detail mods-detail');
+  const head = el('div', 'settings-detail-head');
+  const title = el('div', 'settings-detail-title');
+  const back = el('button', 'settings-back');
+  back.type = 'button';
+  back.title = t('Back to modules');
+  back.setAttribute('aria-label', t('Back to modules'));
+  back.append(chevron('settings-back-icon'));
+  back.addEventListener('click', () => openModuleSheet(null));
+  title.append(back);
+  title.append(moduleIcon(item), el('b', null, item.name));
+  if (item.external) title.append(el('span', 'mods-dev', t('Your module')));
+  if (moduleFace(item).window) {
+    const float = sxButton(t('Open as a window'), () => floatModule(item.id));
+    float.classList.add('mods-float');
+    title.append(float);
+  }
+  head.append(title);
+  const face = moduleFace(item);
+  if (face.line) head.append(el('p', 'settings-line', t(face.line)));
+  detail.append(head);
+  moduleSheet(detail, item);
+  return detail;
+}
+
+function openModuleSheet(id) {
+  modules.open = id;
+  if (id) stepDone('module');
+  renderModules();
+}
+
+function renderModules() {
+  const list = modules.list;
+  list.classList.add('mods-body');
+  const query = settingsFold((modules.query ?? '').trim());
+  const width = list.getBoundingClientRect?.().width || 1000;
+  modules.push = width < 720;
+  const board = el('div', 'mods-board');
+  // Yours that did not load: said once, above everything, with the way to read why.
+  if ((modules.failures ?? []).length) {
+    const warn = el('button', 'mods-warn', t('{n} of your modules did not load · see why', { n: modules.failures.length }));
+    warn.type = 'button';
+    warn.addEventListener('click', () => openModuleGuide());
+    board.append(warn);
+  }
+  const grid = el('div', 'mods-grid');
+  // What is working for you first, what you could turn on after.
+  const ordered = [...modules.items.filter(moduleOn), ...modules.items.filter((item) => !moduleOn(item))];
+  const shown = ordered.filter((item) => !query || settingsFold(`${item.name} ${t(moduleFace(item).line ?? '')} ${item.summary ?? ''}`).includes(query));
+  for (const item of shown) grid.append(moduleTile(item));
+  if (!query) {
+    const make = el('div', 'mods-tile make');
+    make.tabIndex = 0;
+    make.setAttribute('role', 'button');
+    const plus = el('span', 'settings-icon');
+    plus.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+    plus.style.setProperty('--cat', 'var(--phosphor)');
+    make.append(el('div', 'mods-top'), el('b', 'mods-name', t('Create your module')), el('span', 'mods-line', t('One file. Your agent can write it for you.')));
+    make.firstChild.append(plus);
+    make.addEventListener('click', () => openModuleGuide());
+    make.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openModuleGuide(); } });
+    grid.append(make);
+  } else if (!shown.length) grid.append(el('p', 'settings-reading', t('Nothing called «{query}».', { query: modules.query.trim() })));
+  board.append(grid);
+  const item = modules.items.find((one) => one.id === modules.open);
+  if (!item) { modules.open = null; list.replaceChildren(board); renderModuleWindows(); renderModulesDev(); return; }
+  const sheet = el('div', `settings-sheet mods-sheet${modules.push ? ' full' : ''}`);
+  const scroll = el('div', 'settings-scroll');
+  scroll.append(moduleDetail(item));
+  sheet.append(scroll);
+  if (modules.push) list.replaceChildren(sheet);
+  else {
+    const scrim = el('div', 'settings-scrim');
+    scrim.addEventListener('click', () => openModuleSheet(null));
+    list.replaceChildren(board, scrim, sheet);
+  }
+  renderModuleWindows();
   renderModulesDev();
 }
 
-// The developer's card: where your modules live, what failed to load, and the SDK.
+// A module that has something to read can float: its card in a window of its own, kept up to date
+// with the board, placed where it was left.
+const moduleWindows = new Map();
+const moduleWindowBoxes = (() => { try { return JSON.parse(localStorage.getItem('pulse.moduleWindows') ?? '{}') ?? {}; } catch { return {}; } })();
+function rememberModuleWindows() { try { localStorage.setItem('pulse.moduleWindows', JSON.stringify(moduleWindowBoxes)); } catch { /* no storage */ } }
+// From the board to its own window. MODULES open over the whole room is modal, and would sit above
+// the window it just made, so it steps aside; docked or floating, it stays where it is.
+function floatModule(id) {
+  if (modules.open) openModuleSheet(null);
+  openModuleWindow(id);
+}
+function openModuleWindow(id) {
+  stepDone('module');
+  const item = modules.items.find((one) => one.id === id);
+  if (!item) return;
+  let entry = moduleWindows.get(id);
+  if (!entry) {
+    const node = el('dialog', 'surface window module-window');
+    node.setAttribute('aria-label', item.name);
+    const head = el('header', 'module-window-head custom-head');
+    const title = el('div', 'module-window-title');
+    title.append(moduleIcon(item), el('b', null, item.name));
+    const group = el('span', 'surface-modes');
+    // The same keys as every window: arrange, then close.
+    const arrange = el('button', 'surface-mode window');
+    arrange.type = 'button';
+    arrange.innerHTML = FLOAT_ICON; // trusted: our own SVG string
+    arrange.setAttribute('aria-pressed', 'true');
+    arrange.setAttribute('aria-label', t('Arrange the windows'));
+    arrange.addEventListener('click', (event) => { event.stopPropagation(); showArrange(arrange, { owner: () => node }); });
+    arrangeOnHover(arrange, { owner: () => node });
+    group.append(arrange);
+    const close = el('button', 'close', t('Close'));
+    close.type = 'button';
+    close.addEventListener('click', () => closeModuleWindow(id));
+    joinClose(group, close);
+    head.append(title, group);
+    const body = el('div', 'module-window-body settings-detail mods-detail');
+    node.append(head, body);
+    (document.querySelector('#settings')?.parentElement ?? document.body).append(node);
+    entry = { node, body, box: null };
+    moduleWindows.set(id, entry);
+    const place = (box) => { entry.box = clampWindowBox(box, { minW: 340, minH: 280 }); applyWindowBox(node, entry.box); };
+    const done = () => { moduleWindowBoxes[id] = entry.box; rememberModuleWindows(); };
+    carryWindowBy(head, node, { box: () => entry.box, place, done });
+    windowEdgesFor(node, { box: () => entry.box, place, done, minW: 340, minH: 280 });
+    entry.place = place;
+    node.addEventListener('pointerdown', () => bringWindowForward(node));
+    node.addEventListener('cancel', (event) => { event.preventDefault(); closeModuleWindow(id); });
+  }
+  const { node } = entry;
+  if (!node.open) {
+    if (DIALOG) DIALOG.show.call(node); else node.show?.();
+    node.classList.add('entering');
+    setTimeout(() => node.classList.remove('entering'), motion(460));
+    const kept = moduleWindowBoxes[id];
+    const w = Math.min(520, window.innerWidth - 32);
+    const h = Math.min(640, window.innerHeight - 96);
+    entry.place(kept?.w ? kept : { x: Math.max(16, window.innerWidth - w - 28), y: 72 + 24 * moduleWindows.size, w, h });
+  }
+  bringWindowForward(node);
+  drawModuleWindow(id);
+}
+function drawModuleWindow(id) {
+  const entry = moduleWindows.get(id);
+  const item = modules.items.find((one) => one.id === id);
+  if (!entry?.node.open || !item) return;
+  // In its window a module is a small app: its card, and under it everything it can show — for
+  // Ash the whole economy, read here at the window's size instead of in another panel.
+  // In its window a module is a small app: the same sheet, at the window's size.
+  const scroll = entry.body.scrollTop;
+  entry.body.replaceChildren();
+  moduleSheet(entry.body, item);
+  requestAnimationFrame(() => { entry.body.scrollTop = scroll; });
+}
+function closeModuleWindow(id) {
+  const entry = moduleWindows.get(id);
+  if (!entry?.node.open) return;
+  entry.node.close();
+  dropWindow(entry.node);
+}
+function renderModuleWindows() { for (const id of moduleWindows.keys()) drawModuleWindow(id); }
+
+// Create your module: the guide, in its own dialog over the board. What a module is, the two ways
+// to make one, where it lives, and the button that loads it — then yours, and what failed.
+const moduleGuide = document.querySelector('#module-guide');
+function openModuleGuide() {
+  if (!moduleGuide) return;
+  renderModulesDev();
+  if (!moduleGuide.open) moduleGuide.showModal?.();
+}
+document.querySelector('#module-guide-close')?.addEventListener('click', () => moduleGuide?.close());
+moduleGuide?.addEventListener('click', (event) => { if (event.target === moduleGuide) moduleGuide.close(); });
+
 function renderModulesDev() {
   const section = document.querySelector('#modules-dev');
   if (!section) return;
   section.replaceChildren();
-  section.append(el('h3', null, t('DEVELOP FOR MADRE')));
-  const card = el('article', 'module-card dev-card');
-  const glyph = el('div', 'dev-glyph', '</>');
-  const body = el('div', 'dev-body');
-  body.append(el('h4', null, t('Would you like to develop for MADRE?')));
-  body.append(el('p', null, t('A module is one file: no build, no dependencies, nothing to register. A switch, settings, a slash command, a tool for the agents, a card of your own \u2014 or a connector to something you already use. Drop it in a folder, press RELOAD, and it is there with its own card.')));
+  section.append(el('p', 'sx-intro', t('A module is one file: no build, no dependencies, nothing to register. It can be a switch, a few settings, a slash command, a tool for the agents, a card of its own, or a connector to a service you already use.')));
+  const steps = el('ol', 'guide-steps');
+  const step = (title, text, ...extra) => {
+    const li = el('li');
+    li.append(el('b', null, title), el('p', null, text), ...extra);
+    steps.append(li);
+    return li;
+  };
   // The easiest door is the one nobody finds on their own: ask for it here, in the room.
-  const ask = el('p', 'dev-ask');
-  ask.append(el('span', null, t('Or ask for one. In the composer: ')), el('code', null, '/module \u2026'), el('span', null, t(' \u2014 the agent reads the SDK and writes the file; you review it and decide whether it is installed.')));
-  body.append(ask);
-  body.append(el('p', 'note', t('Connecting to a service from outside is almost always possible: the limit is not MADRE, it is whether that service lets you get your own key in minutes and revoke it on its own. Your module declares the key it needs and MADRE draws the field; declares where it reaches and the outbound log answers for it; declares which of its tools SEND, and the room withholds those below #4 AIRLOCK.')));
-  const where = el('div', 'dev-where');
-  const folders = modules.folders ?? {};
-  where.append(el('code', null, folders.user ? `${folders.user}/` : '~/.pulse/modules/'), el('span', 'note', t(' every project · ')), el('code', null, folders.project ? `${folders.project}/` : '<project>/.madre/modules/'), el('span', 'note', t(' this project')));
-  body.append(where);
-  const row = el('div', 'dev-row');
-  const read = el('a', 'mother-close', t('READ THE SDK ↗')); read.href = modules.sdk ?? 'https://github.com/jossuealcacao-exe/madre/blob/main/docs/SDK.md'; read.target = '_blank'; read.rel = 'noopener noreferrer';
-  // Straight into the composer, with the panel out of the way: the gap between reading about
-  // the SDK and trying it should be one click, not a file path to go find.
-  const build = el('button', 'mother-close', t('ASK FOR ONE'));
-  build.type = 'button';
-  build.title = t('Puts /module in the composer, in the room');
-  build.addEventListener('click', () => {
-    document.querySelector('#modules-button, [aria-controls="modules"]')?.click();
+  const ask = sxButton(t('Ask for one in the room'), () => {
+    moduleGuide?.close();
+    closeModules();
     els.input.value = '/module ';
     autosize();
     syncModuleComposer();
     els.input.focus();
     renderMenu();
-  });
-  const reload = el('button', 'mother-close', t('RELOAD MODULES')); reload.type = 'button'; reload.title = t('Load your module files again without restarting the room');
-  reload.addEventListener('click', async () => {
+  }, { tone: 'primary', title: t('Puts /module in the composer, in the room') });
+  step(t('Ask for it'), t('Type /module and say what it should do. The agent reads the SDK and writes the file; you review it and decide whether it is installed.'), ask);
+  const folders = modules.folders ?? {};
+  const where = el('div', 'guide-where');
+  where.append(el('code', null, folders.user ? `${folders.user}/` : '~/.pulse/modules/'), el('span', null, t('every project')), el('code', null, folders.project ? `${folders.project}/` : '<project>/.madre/modules/'), el('span', null, t('this project')));
+  const read = el('a', 'sx-link', t('Read the SDK ↗'));
+  read.href = modules.sdk ?? 'https://github.com/jossuealcacao-exe/madre/blob/main/docs/SDK.md'; read.target = '_blank'; read.rel = 'noopener noreferrer';
+  step(t('Or write it yourself'), t('Put the file in one of these folders. A file somebody else wrote goes in with + Add a module, and MADRE checks it before it runs.'), where, read);
+  const reload = sxButton(t('Reload modules'), async () => {
     reload.disabled = true;
     try {
       const payload = await fetch('/api/extensions/reload', { method: 'POST' }).then((response) => response.json());
       modules.items = payload.extensions ?? modules.items; modules.failures = payload.failures ?? [];
+      barModulesChanged();
       toast(`MU/TH/UR › ${t('modules reloaded: {n} of yours', { n: payload.loaded.length })}${payload.failures.length ? t(', {n} failed to load', { n: payload.failures.length }) : ''}.`);
       renderModules();
     } catch (error) { toast(t('The reload failed: {error}', { error: error.message })); } finally { reload.disabled = false; }
-  });
-  row.append(build, read, reload);
-  body.append(row);
+  }, { title: t('Load your module files again without restarting the room') });
+  step(t('Load it'), t('Press reload and it appears on the board with its own card, no restart.'), reload);
+  step(t('If it talks to a service'), t('Connecting to a service from outside is almost always possible, if that service lets you get your own key in minutes and revoke it. Your module declares the key it needs, where it reaches and which of its tools send; MADRE draws the field, answers for the traffic and holds sending until #4 AIRLOCK.'));
+  section.append(steps);
   const yours = modules.items.filter((item) => item.external);
   if (yours.length) {
-    const list = el('div', 'dev-yours');
-    list.append(el('span', 'note', t('YOURS · ')));
-    for (const item of yours) {
-      const chip = el('span', 'dev-chip');
-      chip.append(el('b', null, item.name), ` · ${item.origin === 'project' ? 'this project' : 'every room'} `);
-      chip.append(removeModuleButton(item, { className: 'act-link', text: t('REMOVE') }));
-      list.append(chip);
-    }
-    body.append(list);
+    const block = sxBlock(section, t('Yours'));
+    for (const item of yours) sxRow(block, item.name, item.origin === 'project' ? t('this project') : t('every project'), removeModuleButton(item, { className: 'sx-btn danger', text: t('Remove') }));
   }
-  for (const failure of modules.failures ?? []) {
-    const line = el('p', 'note dev-fail');
-    line.append(el('b', null, t('DID NOT LOAD · ')), el('code', null, failure.file.split('/').slice(-2).join('/')), ` · ${failure.error}`);
-    body.append(line);
+  if ((modules.failures ?? []).length) {
+    const block = sxBlock(section, t('Did not load'), null, { className: 'guide-fail' });
+    for (const failure of modules.failures) sxRow(block, failure.file.split('/').slice(-2).join('/'), failure.error);
   }
-  card.append(glyph, body);
-  section.append(card);
 }
 
-modules.button.addEventListener('click', async () => {
-  if (modules.dialog.open) return;
-  modules.dialog.showModal();
+// MODULES is a window like AJUSTES: carried by its head, sized from any edge, the same two keys
+// (arrange and close), and a board that lays itself out by the window's own width.
+const modulesWindow = { box: null, want: null, ready: false, observer: null };
+try { modulesWindow.want = JSON.parse(localStorage.getItem('pulse.modulesWindow') ?? 'null'); } catch { /* no storage */ }
+function modulesBoxFor() {
+  if (modulesWindow.want?.w && modulesWindow.want?.h) return modulesWindow.want;
+  const w = Math.min(1040, window.innerWidth - 32);
+  const h = Math.min(720, window.innerHeight - 96);
+  return { x: Math.max(16, Math.round((window.innerWidth - w) / 2)), y: 68, w, h };
+}
+function placeModules(box, { chosen = true } = {}) {
+  if (chosen) modulesWindow.want = { ...box };
+  const fit = clampWindowBox(box, { minW: 320, minH: 300 });
+  if (!chosen) {
+    fit.x = Math.max(WINDOW_INSET, Math.min(fit.x, window.innerWidth - WINDOW_INSET - fit.w));
+    fit.y = Math.max(WINDOW_INSET, Math.min(fit.y, window.innerHeight - WINDOW_INSET - fit.h));
+  }
+  modulesWindow.box = fit;
+  applyWindowBox(modules.dialog, fit);
+}
+function rememberModulesBox() { try { localStorage.setItem('pulse.modulesWindow', JSON.stringify(modulesWindow.box)); } catch { /* no storage */ } }
+function readyModules() {
+  const node = modules.dialog;
+  if (!node || modulesWindow.ready) return;
+  modulesWindow.ready = true;
+  const head = node.querySelector('.mods-head');
+  const group = el('span', 'surface-modes');
+  const arrange = el('button', 'surface-mode window');
+  arrange.type = 'button';
+  arrange.innerHTML = FLOAT_ICON; // trusted: our own SVG string
+  arrange.setAttribute('aria-pressed', 'true');
+  arrange.setAttribute('aria-label', t('Arrange the windows'));
+  arrange.addEventListener('click', (event) => { event.stopPropagation(); showArrange(arrange, { owner: () => node }); });
+  arrangeOnHover(arrange, { owner: () => node });
+  group.append(arrange);
+  joinClose(group, modules.close);
+  head.append(group);
+  node.addEventListener('pointerdown', () => bringWindowForward(node));
+  carryWindowBy(head, node, { box: () => modulesWindow.box, place: placeModules, done: rememberModulesBox });
+  windowEdgesFor(node, { box: () => modulesWindow.box, place: placeModules, done: rememberModulesBox, minW: 320, minH: 300 });
+  window.addEventListener?.('resize', () => { if (node.open) placeModules(modulesBoxFor(), { chosen: false }); });
+  if (typeof ResizeObserver === 'function') {
+    modulesWindow.observer = new ResizeObserver(() => { if (node.open && ((modules.list.getBoundingClientRect().width || 1000) < 720) !== Boolean(modules.push)) renderModules(); });
+    modulesWindow.observer.observe(node);
+  }
+}
+function openModules() {
+  const node = modules.dialog;
+  readyModules();
+  if (!node.open) {
+    if (DIALOG) DIALOG.show.call(node); else node.show?.();
+    node.classList.add('entering');
+    setTimeout(() => node.classList.remove('entering'), motion(460));
+    placeModules(modulesBoxFor(), { chosen: false });
+  }
+  if (windowsAside) setWindowsAside(false);
+  bringWindowForward(node);
   modules.button.setAttribute('aria-pressed', 'true');
+}
+function closeModules() {
+  const node = modules.dialog;
+  if (!node.open) return;
+  node.close();
+  dropWindow(node);
+}
+// Open, behind or set aside: the button brings it to the front; in front, it closes it.
+modules.button.addEventListener('click', async () => {
+  const node = modules.dialog;
+  if (node.open && node.classList.contains('front') && !windowsAside) { closeModules(); return; }
+  openModules();
   await refreshModules();
   renderModules();
 });
-modules.close.addEventListener('click', () => modules.dialog.close());
+modules.close.addEventListener('click', () => closeModules());
+// Escape closes the open module before the board, and the search before either.
+modules.dialog.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  if (modules.query) { modules.query = ''; modulesSearch.value = ''; renderModules(); return; }
+  if (modules.open) { openModuleSheet(null); return; }
+  closeModules();
+});
+const modulesSearch = document.querySelector('#modules-search');
+modulesSearch?.addEventListener('input', () => { modules.query = modulesSearch.value; renderModules(); });
 modules.dialog.addEventListener('close', () => modules.button.setAttribute('aria-pressed', 'false'));
 void refreshModules();
 
@@ -10761,12 +12733,11 @@ function openCrewPop(anchor) {
     list.append(row);
   }
   pop.append(list);
-  const go = el('button', 'crew-go', t('⚙ CONNECTIONS IN MU/TH/UR'));
+  const go = el('button', 'crew-go', t('⚙ AGENTS IN SETTINGS'));
   go.type = 'button';
   go.addEventListener('click', () => {
     closeAgentPop();
-    document.querySelector('#mother-button')?.click();
-    setTimeout(() => document.querySelector('#mother-settings-button')?.click(), 60);
+    openSettings(true, { category: 'agents' });
   });
   pop.append(go);
   pop.dataset.for = 'crew';
@@ -10849,15 +12820,11 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') cl
 
 const settingsUI = {
   button: document.querySelector('#mother-settings-button'),
-  section: document.querySelector('#mother-settings'),
   data: null,
   open: false,
   loginLogs: new Map(),
 };
 
-// MEMORY is its own destination in the bar, and the two are mutually exclusive: both are full
-// screens of the same panel, so opening one closes the other instead of stacking them.
-const memoryUI = { button: document.querySelector('#memory-button'), section: document.querySelector('#mother-memory'), open: false };
 
 function renderLoginEvent(event) {
   const { agent, command, session, code, error } = event.payload;
@@ -10915,6 +12882,7 @@ function loginLine({ line, url }) {
 
 async function loadSettings() {
   settingsUI.data = await fetch('/api/settings').then((response) => response.json());
+  if (settingsUI.data?.settings?.override) state.override = settingsUI.data.settings.override;
   state.sessions = settingsUI.data.sessions ?? state.sessions;
   renderSettings();
 }
@@ -11825,87 +13793,90 @@ function memSignals(card, m) {
   }
 }
 
-async function drawMemoryDashboard(box) {
-  // A refresh keeps the frame it has and dims it, instead of blanking the screen under the reader.
-  if (box.childElementCount) box.classList.add('loading');
-  else box.replaceChildren(el('p', 'note', t('READING…')));
+// The archive at a glance, then the analysis behind it. The glance is four figures and how ripe
+// the archive is; the analysis — activity, what it is made of, the three tests — waits folded.
+async function drawMemoryDashboard(glance, analysis, stamp) {
+  if (glance.childElementCount) glance.classList.add('loading');
+  else glance.replaceChildren(el('p', 'sx-hint', t('Reading…')));
   let read; let dash;
   try {
     [read, dash] = await Promise.all([
       fetch('/api/maturity').then((response) => response.json()),
       fetch('/api/memory/dashboard').then((response) => response.json()).then((payload) => payload?.dashboard ?? null),
     ]);
-  } catch { box.classList.remove('loading'); box.replaceChildren(el('p', 'note', t('THE DASHBOARD IS UNAVAILABLE'))); return; }
-  box.classList.remove('loading');
-  box.replaceChildren();
+  } catch { glance.classList.remove('loading'); glance.replaceChildren(el('p', 'sx-hint', t('The archive could not be read.'))); return; }
+  glance.classList.remove('loading');
+  glance.replaceChildren();
+  analysis.replaceChildren();
+  stamp.textContent = t('Read at {time}', { time: formatTime(new Date().toISOString()) });
   const m = read?.maturity;
   const v = read?.verdict;
+  if (!dash || !m || !v) { glance.append(el('p', 'sx-hint', t('Nothing to read yet: the room has no archive.'))); return; }
 
-  const head = el('div', 'mem-dash-head');
-  // The title is the fold's; what is left here is when it was read and a way to read it again.
-  head.append(el('span', 'when', t('READ {time}', { time: formatTime(new Date().toISOString()) })));
-  const refresh = el('button', null, t('REFRESH'));
-  refresh.type = 'button';
-  refresh.addEventListener('click', () => { void drawMemoryDashboard(box); });
-  head.append(refresh);
-  box.append(head);
-  if (!dash || !m || !v) { box.append(el('p', 'note', t('NOTHING TO READ YET: THE ROOM HAS NO ARCHIVE.'))); return; }
+  const stats = el('div', 'sx-stats');
+  const stat = (label, value, sub, spark = null, title = null) => {
+    const tile = el('div', 'sx-stat');
+    tile.append(el('span', 'k', label), el('strong', null, value));
+    if (sub) tile.append(el('span', 'sub', sub));
+    if (spark) tile.append(memColumns(spark, 'sx-spark'));
+    if (title) tile.title = title;
+    stats.append(tile);
+  };
+  const week = (w) => (w ? `${t('{n} this week', { n: memFmt(w.last) })} · ${w.delta > 0 ? `▲ ${memFmt(w.delta)}` : w.delta < 0 ? `▼ ${memFmt(-w.delta)}` : '='}` : null);
+  stat(t('Exchanges'), memFmt(dash.totals.entries), week(dash.weeks.entries), dash.series.entries.slice(-14), memWeekTitle(dash.weeks.entries));
+  stat(t('Memories'), memFmt(dash.totals.memories), week(dash.weeks.memories), dash.series.memories.slice(-14), memWeekTitle(dash.weeks.memories));
+  stat(t('Turns that recalled'), memFmt(dash.totals.turns), week(dash.weeks.recalls), dash.series.recalls.slice(-14), memWeekTitle(dash.weeks.recalls));
+  stat(t('Waiting'), memFmt(dash.totals.pending), dash.totals.pending ? t('Exchanges nobody has distilled yet.') : t('The archivist is up to date.'));
+  glance.append(stats);
 
-  // The figures, then the one sentence about them, then what they are made of.
-  const kpis = el('div', 'mem-kpis');
-  memTile(kpis, { label: t('EXCHANGES'), value: memFmt(dash.totals.entries), sub: memWeek(dash.weeks.entries), title: memWeekTitle(dash.weeks.entries), spark: dash.series.entries.slice(-14) });
-  memTile(kpis, { label: t('MEMORIES'), value: memFmt(dash.totals.memories), sub: memWeek(dash.weeks.memories), title: memWeekTitle(dash.weeks.memories), spark: dash.series.memories.slice(-14) });
-  memTile(kpis, { label: t('TURNS THAT RECALLED'), value: memFmt(dash.totals.turns), sub: memWeek(dash.weeks.recalls), title: memWeekTitle(dash.weeks.recalls), spark: dash.series.recalls.slice(-14) });
-  memTile(kpis, { label: t('WAITING'), value: memFmt(dash.totals.pending), sub: dash.totals.pending ? t('EXCHANGES NOBODY HAS DISTILLED YET') : t('THE ARCHIVIST IS UP TO DATE') });
-  memTile(kpis, { label: t('MATURITY'), value: memPct(m.score), sub: m.stage.label, meter: m.score, title: m.stage.says });
-  box.append(kpis);
-
-  box.append(memVerdict(m, v));
+  // How ripe it is, in one line and one bar, and the next thing that would help it.
+  const ripe = el('div', `sx-ripe stage-${m.stage.id}`);
+  const top = el('div', 'top');
+  // The server says these in the console's capitals; here they are a sentence like the rest.
+  const said = (text) => { const words = String(text ?? ''); return words.charAt(0).toUpperCase() + (words === words.toUpperCase() ? words.slice(1).toLowerCase() : words.slice(1)); };
+  top.append(el('b', null, t('Maturity')), el('span', 'stage', said(v.headline ?? m.stage.label)), el('strong', null, memPct(m.score)));
+  ripe.append(top, memMeter(m.score), el('p', null, said(v.says)));
+  if (v.next?.text) {
+    const next = el('p', 'next');
+    next.append(el('b', null, t('Next')), ` ${said(v.next.text)}`);
+    if (v.next.where) next.append(el('span', 'where', ` → ${said(v.next.where)}`));
+    ripe.append(next);
+  }
+  glance.append(ripe);
 
   const grid = el('div', 'mem-grid');
-  memActivity(memCard(grid, t('ACTIVITY · LAST {n} DAYS', { n: dash.days.length }), 'span-7'), dash);
-  memSignals(memCard(grid, t('WHAT THE ARCHIVE IS MADE OF'), 'span-5'), m);
-
-  const kinds = memCard(grid, t('BY KIND'), 'span-3');
-  memBars(kinds, Object.entries(dash.kinds).map(([kind, n]) => ({ label: kindWord(kind), n, swatch: `var(--mem-${kind}, var(--ph))` })));
-  const agents = memCard(grid, t('BY ARCHIVIST'), 'span-3');
-  memBars(agents, Object.entries(dash.agents).map(([agent, n]) => ({ label: `@${agent.toUpperCase()}`, n })));
-  const zones = memCard(grid, t('BY ZONE'), 'span-3');
-  memBars(zones, Object.entries(dash.zones).map(([zone, n]) => ({ label: zoneWord(zone), n, title: ZONE_NOTE[zone] ?? null })));
-
-  const recall = memCard(grid, t('RECALL AND EMBEDDINGS'), 'span-3');
+  memActivity(memCard(grid, t('Activity · last {n} days', { n: dash.days.length }), 'span-12'), dash);
+  memSignals(memCard(grid, t('What the archive is made of'), 'span-12'), m);
+  memBars(memCard(grid, t('By kind'), 'span-4'), Object.entries(dash.kinds).map(([kind, n]) => ({ label: kindWord(kind), n, swatch: `var(--mem-${kind}, var(--ph))` })));
+  memBars(memCard(grid, t('By archivist'), 'span-4'), Object.entries(dash.agents).map(([agent, n]) => ({ label: `@${agent}`, n })));
+  memBars(memCard(grid, t('By zone'), 'span-4'), Object.entries(dash.zones).map(([zone, n]) => ({ label: zoneWord(zone), n, title: ZONE_NOTE[zone] ?? null })));
+  const recall = memCard(grid, t('Recall and embeddings'), 'span-12');
   const carried = dash.via.search + dash.via.cascade;
   if (carried) {
     const split = el('div', 'mem-split');
     split.title = t('How recalled memories arrived: found by the search, or carried along by the company they keep.');
-    for (const [id, n] of [['search', dash.via.search], ['cascade', dash.via.cascade]]) {
-      const part = el('i', id);
-      part.style.flexGrow = String(n);
-      split.append(part);
-    }
+    for (const [id, n] of [['search', dash.via.search], ['cascade', dash.via.cascade]]) { const part = el('i', id); part.style.flexGrow = String(n); split.append(part); }
     recall.append(split);
     const legend = el('div', 'mem-legend');
-    for (const [id, label, n] of [['search', t('SEARCH'), dash.via.search], ['cascade', t('CASCADE'), dash.via.cascade]]) {
+    for (const [id, label, n] of [['search', t('Search'), dash.via.search], ['cascade', t('Company'), dash.via.cascade]]) {
       const key = el('span', `k ${id}`);
       key.append(el('i'), `${label} `, el('b', null, `${memFmt(n)} · ${memPct(n / carried)}`));
       legend.append(key);
     }
     recall.append(legend);
-  } else recall.append(el('p', 'note', t('NOTHING YET')));
+  } else recall.append(el('p', 'note', t('Nothing yet.')));
   if (dash.vectors) {
-    for (const [label, have, of] of [[t('MEMORIES WITH A VECTOR'), dash.vectors.memories, dash.totals.memories], [t('EXCHANGES WITH A VECTOR'), dash.vectors.entries, dash.totals.entries]]) {
+    for (const [label, have, of] of [[t('Memories with a vector'), dash.vectors.memories, dash.totals.memories], [t('Exchanges with a vector'), dash.vectors.entries, dash.totals.entries]]) {
       const row = el('div', 'mem-signal');
-      const top = el('div', 'top');
-      top.append(el('b', null, label), el('span', null, `${memFmt(have)} / ${memFmt(of)}`));
-      row.append(top, memMeter(of ? have / of : 0));
+      const head = el('div', 'top');
+      head.append(el('b', null, label), el('span', null, `${memFmt(have)} / ${memFmt(of)}`));
+      row.append(head, memMeter(of ? have / of : 0));
       recall.append(row);
     }
-    recall.append(el('span', 'detail', String(dash.vectors.model).toUpperCase()));
-  } else recall.append(el('p', 'note', t('EMBEDDINGS OFF · RECALL MATCHES WORDS ONLY')));
-
-  const tests = memCard(grid, t('THE THREE TESTS'), 'span-12');
-  tests.append(examsBlock(read.exams, { pass: dash.pass }));
-  box.append(grid);
+    recall.append(el('span', 'detail', String(dash.vectors.model)));
+  } else recall.append(el('p', 'note', t('Embeddings are off: recall matches words only.')));
+  memCard(grid, t('The three tests'), 'span-12').append(examsBlock(read.exams, { pass: dash.pass }));
+  analysis.append(grid);
 }
 
 /* ---------- the three tests ---------- */
@@ -12000,36 +13971,6 @@ function foldState() {
 function rememberFold(key, open) {
   try { localStorage.setItem(FOLD_KEY, JSON.stringify({ ...foldState(), [key]: open })); } catch { /* a private window remembers nothing, and that is fine */ }
 }
-// One button for the whole panel. It says what it will do, not what the panel is: if anything is
-// still shut, it opens everything; once everything is open it closes it again.
-// Only the screen on show: a fold behind CONNECTIONS or MEMORY is not one the reader can see move.
-function everyFold() { return [...document.querySelectorAll('.mother-section:not([hidden]) .fold')]; }
-function syncFoldAll() {
-  const button = document.querySelector('#fold-all');
-  if (!button) return;
-  const folds = everyFold();
-  const row = button.parentElement;
-  if (row) row.hidden = folds.length < 2;
-  button.hidden = folds.length < 2;
-  // It acts on the canvas below it rather than going anywhere, so it must not look like one more
-  // destination in the bar: no frame, the voice of the fold carets it moves, at their edge.
-  const shut = folds.some((fold) => !fold.open);
-  button.replaceChildren(pixelIcon(shut ? 'unfold' : 'fold', 'pixel-icon'), el('span', null, shut ? t('EXPAND ALL') : t('COLLAPSE ALL')));
-}
-document.querySelector('#fold-all')?.addEventListener('click', () => {
-  const folds = everyFold();
-  const open = folds.some((fold) => !fold.open);
-  for (const fold of folds) { fold.open = open; rememberFold(fold.dataset.fold, open); }
-  syncFoldAll();
-});
-
-// A section that folds. A badge belongs on the header only when it says something the header
-// does not: the same number twice is noise, and a mark that is always there stops being a mark.
-// Every block of a MU/TH/UR screen. The mark in front of the title used to be the same green bar
-// on all of them, which told the eye there was a heading and nothing else; a glyph per section
-// says WHICH section without reading the words, and the rule above each block goes: a line and an
-// icon are two ways of saying «a new block starts here» and one of them is enough.
-
 // 8-bit. Each icon is an 8×8 bitmap written as eight rows of text — `#` is a lit pixel — and
 // drawn as unit squares on an 8×8 viewBox with crisp edges, so it scales without ever softening
 // into a curve. Written this way because a pixel drawing should be readable as a pixel drawing in
@@ -12086,207 +14027,125 @@ function pixelIcon(name, className = 'pixel-icon') {
   return holder;
 }
 
-function folding(section, title, { key, open = false, badge = null, icon = 'list' } = {}) {
-  const box = el('details', 'fold');
-  box.dataset.fold = key;
-  box.open = foldState()[key] ?? open;
-  const head = el('summary');
-  head.append(pixelIcon(icon, 'pixel-icon fold-icon'));
-  head.append(el('h3', null, title));
-  if (badge) {
-    const mark = el('span', 'fold-badge', badge.text ?? '');
-    if (badge.urgent) mark.classList.add('urgent');
-    if (badge.title) mark.title = badge.title;
-    head.append(mark);
-  }
-  // The same button every other section in this panel already had: it says what clicking it
-  // will do, not what the section currently is.
-  const caret = el('span', 'caret');
-  const label = () => { caret.textContent = box.open ? t('▾ COLLAPSE') : t('▸ EXPAND'); };
-  label();
-  head.append(caret);
-  const body = el('div', 'fold-body');
-  box.append(head, body);
-  box.addEventListener('toggle', () => { label(); rememberFold(key, box.open); syncFoldAll(); });
-  section.append(box);
-  syncFoldAll();
-  return body;
-}
 
 function connectionCard(agent) {
-  const card = paint(el('article', 'conn-card'), agent.id);
+  const card = paint(el('section', 'sx-block sx-agent'), agent.id);
   card.id = `conn-${agent.id}`;
   const session = settingsUI.data.sessions?.[agent.id];
-  const head = el('div', 'head');
-  head.append(avatar(agent.id, { size: 26, status: agent.ready ? 'ready' : agent.detected ? 'detected' : 'offline' }));
-  const title = el('div');
-  title.append(el('h4', null, agent.label));
-  title.append(el('div', 'vendor', brandOf(agent.id).vendor));
-  head.append(title);
   const busy = settingsUI.data.loggingIn === agent.id;
-  // How the connection is, as a light in the card's corner: lit green with a session, red without
-  // one, amber and breathing while it signs in, hollow when the CLI is not here. Its name is the
-  // light's own, for whoever does not see the colour.
+  // How the connection is, said in a chip of its own tone: green with a session, red without one,
+  // amber while it signs in, grey when the CLI is not here.
   const lamp = busy ? 'busy' : !agent.detected ? 'absent' : session?.state === 'signed-in' ? 'on' : session?.state === 'signed-out' ? 'off' : 'unknown';
-  const said = busy ? t('SIGNING IN') : !agent.detected ? t('NOT INSTALLED') : session ? ({ 'signed-in': t('SIGNED IN'), 'signed-out': t('SIGNED OUT') }[session.state] ?? t('UNKNOWN')) : t('UNKNOWN');
-  const dot = el('span', `conn-dot ${lamp}`);
-  dot.setAttribute('role', 'img');
-  dot.setAttribute('aria-label', said);
-  card.append(dot, head);
-  const meta = el('div', 'meta');
-  meta.append(agent.detected ? `${agent.version ?? t('version unknown')} · ${agent.path}` : (agent.login?.install ?? []).join(' · '));
-  if (session?.detail) meta.append(el('div', null, t('session: {detail}', { detail: session.detail })));
-  if (agent.account) meta.append(el('div', 'account', `${agent.paid === false ? `${t('FREE WAY IN')} · ` : ''}${agent.account}`));
+  const said = busy ? t('Signing in…') : !agent.detected ? t('Not installed') : session ? ({ 'signed-in': t('Signed in'), 'signed-out': t('Signed out') }[session.state] ?? t('Unknown')) : t('Unknown');
+  const head = el('header', 'sx-head');
+  head.append(avatar(agent.id, { size: 32, status: agent.ready ? 'ready' : agent.detected ? 'detected' : 'offline' }));
+  const words = el('div', 'sx-words');
+  words.append(el('h3', null, agent.label), el('p', null, vendorWord(agent.id)));
+  head.append(words, sxChip(said, lamp));
+  card.append(head);
+  // Where it lives, quietly: what is literal is in mono, what is said is not.
+  const meta = el('div', 'sx-meta');
+  const where = el('code', null, agent.detected ? `${agent.version ?? t('version unknown')} · ${agent.path}` : (agent.login?.install ?? []).join(' · '));
+  where.title = where.textContent;
+  meta.append(where);
+  const facts = [session?.detail ? t('Session {detail}', { detail: session.detail }) : null, agent.account ? `${agent.paid === false ? `${t('Free way in')} · ` : ''}${agent.account}` : null].filter(Boolean);
+  if (facts.length) meta.append(el('span', null, facts.join(' · ')));
   card.append(meta);
-  const scopes = el('div', 'scopes');
+  card.rows = el('div', 'sx-rows');
+  card.append(card.rows);
+
   const agentScopes = settingsUI.data.settings.capabilities?.[agent.id]?.scopes ?? {};
   // Two abilities per agent: images and web. Writing is not an ability, it is the ceiling below.
-  for (const [key, labelText] of [['imageGen', t('GENERATE IMAGES')], ['web', t('WEB ACCESS')]]) {
+  for (const [key, labelText, onWhy] of [['imageGen', t('Generate images'), t('On for CREATE.')], ['web', t('Web access'), t('On in every turn.')]]) {
     const scope = agentScopes[key] ?? { capable: false, enabled: false, wired: false };
-    const line = el('label', `scope${!scope.capable || !scope.wired ? ' unavailable' : ''}`);
-    const box = el('input'); box.type = 'checkbox'; box.checked = Boolean(scope.enabled); box.disabled = !scope.capable || !scope.wired;
-    box.dataset.agent = agent.id; box.dataset.scope = key; box.className = 'scope-input';
-    // Scopes apply the moment they are ticked; no need to find the SAVE button below.
-    box.addEventListener('change', async () => {
+    const usable = scope.capable && scope.wired;
+    const why = (on) => (!scope.capable ? t('This CLI has no way to do it.') : !scope.wired ? t('Not wired yet.') : on ? onWhy : t('Off.'));
+    const toggle = sxSwitch(scope.enabled, async (on, box) => {
       box.disabled = true;
       try {
-        const response = await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scopes: { [agent.id]: { [key]: box.checked } } }) });
+        const response = await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scopes: { [agent.id]: { [key]: on } } }) });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
         if (result.settings?.capabilities) { state.capabilities = result.settings.capabilities; settingsUI.data.settings.capabilities = result.settings.capabilities; renderCreateScopes(); }
-        const why = line.querySelector('.why');
-        if (why) why.textContent = box.checked ? (key === 'web' ? t('on for every turn') : t('on for CREATE')) : t('off');
-        toast(`MU/TH/UR › @${agent.id} ${labelText.toLowerCase()} ${box.checked ? t('on') : t('off')}. ${key === 'web' ? t('Applies to its next turn.') : t('Applies to its next CREATE.')}`);
+        hint.textContent = why(on);
+        toast(`MU/TH/UR › @${agent.id} ${labelText.toLowerCase()} ${on ? t('on') : t('off')}. ${key === 'web' ? t('Applies to its next turn.') : t('Applies to its next CREATE.')}`);
       } catch (error) {
-        box.checked = !box.checked;
+        box.checked = !on;
         toast(t('That permission was not saved: {error}', { error: error.message }));
-      } finally {
-        box.disabled = false;
-      }
-    });
-    line.append(box, labelText);
-    line.append(el('span', 'why', !scope.capable ? t('not available from this CLI') : !scope.wired ? t('not wired yet') : scope.enabled ? (key === 'web' ? t('on for every turn') : t('on for CREATE')) : t('off')));
-    line.title = !scope.capable ? t("{label}'s CLI has no way to do this; MU/TH/UR knows the routes.", { label: agent.label }) : '';
+      } finally { box.disabled = false; }
+    }, { disabled: !usable, label: labelText });
+    const row = sxRow(card, labelText, why(scope.enabled), toggle, { off: !usable });
+    const hint = row.querySelector('.sx-hint');
     if (!scope.capable) {
-      const assist = el('button', 'assist', t('ask MU/TH/UR'));
+      const assist = el('button', 'sx-link', t('Ask MU/TH/UR how'));
       assist.type = 'button';
       assist.title = t('How could @{agent} get "{what}"?', { agent: agent.id, what: labelText.toLowerCase() });
-      assist.addEventListener('click', (event) => { event.preventDefault(); askMotherAbout(`scope-${agent.id}-${key}`); });
-      line.append(assist);
+      assist.addEventListener('click', () => askMotherAbout(`scope-${agent.id}-${key}`, labelText));
+      hint.after(assist);
     }
-    scopes.append(line);
   }
-  // The ceiling: how far the composer may take this agent.
-  const ceiling = el('div', 'ceiling');
-  ceiling.append(el('span', 'k', t('MAX MODE')));
-  const seg = el('div', 'seg');
+  // The ceiling lives with every other agent's in PERMISSIONS: here it is said, and one key goes there.
   const currentCap = agentScopes.maxMode ?? 1;
-  for (const n of [0, 1, 2, 3, 4]) {
-    const button = el('button', `seg-option o${n}${currentCap === n ? ' current' : ''}`, `#${n}`);
-    button.type = 'button';
-    button.title = `${MODES[n].label} · ${MODES[n].hint}`;
-    const possible = n <= 1 || agentScopes.write?.capable;
-    button.disabled = !possible;
-    button.addEventListener('click', async () => {
-      if (n === currentCap) return;
-      for (const other of seg.children) other.disabled = true;
-      try {
-        await saveSettingNow({ scopes: { [agent.id]: { maxMode: n } } }, t('@{agent} is now capped at #{n} {label}.', { agent: agent.id, n, label: MODES[n].label }) + (n === 3 ? t(' CONTROL still needs the override per message.') : ''));
-        await loadSettings();
-      } catch (error) { toast(t('The max mode was not saved: {error}', { error: error.message })); for (const other of seg.children) other.disabled = false; }
-    });
-    seg.append(button);
-  }
-  ceiling.append(seg);
-  ceiling.append(el('span', 'why', `${MODES[currentCap].label} · ${MODES[currentCap].hint}`));
-  scopes.append(ceiling);
+  sxRow(card, t('Max mode'), `#${currentCap} ${MODES[currentCap].label} · ${MODES[currentCap].hint}`, sxButton(t('Change in Permissions'), () => openSettingsOn('permissions', { part: 'permissions' })));
   // The start: where a message to this agent begins. #2 means every turn may create files without arming CREATE.
-  const start = el('div', 'ceiling');
-  start.append(el('span', 'k', t('DEFAULT MODE')));
-  const startSeg = el('div', 'seg');
   const currentStart = agentScopes.defaultMode ?? 1;
-  for (const n of [1, 2]) {
-    const button = el('button', `seg-option o${n}${currentStart === n ? ' current' : ''}`, `#${n}`);
-    button.type = 'button';
-    button.title = n === 2 ? t('Every message to this agent starts in CREATE: new files where they belong, existing files untouched. Plan steps to it too.') : t('Messages start read-only; arm CREATE when you want files.');
-    button.disabled = n > currentCap;
-    button.addEventListener('click', async () => {
-      if (n === currentStart) return;
-      for (const other of startSeg.children) other.disabled = true;
-      try {
-        await saveSettingNow({ scopes: { [agent.id]: { defaultMode: n } } }, n === 2 ? t('@{agent} starts in #2 CREATE: every turn may add files to the project.', { agent: agent.id }) : t('@{agent} starts read-only; arm CREATE when you want files.', { agent: agent.id }));
-        await loadSettings();
-      } catch (error) { toast(t('The default mode was not saved: {error}', { error: error.message })); for (const other of startSeg.children) other.disabled = false; }
-    });
-    startSeg.append(button);
-  }
-  start.append(startSeg);
-  start.append(el('span', 'why', currentStart === 2 ? t('every turn may create files, plan steps too') : t('read-only until you arm CREATE')));
-  scopes.append(start);
-  card.append(scopes);
+  sxRow(card, t('Starting mode'), currentStart === 2 ? t('Every turn may create files, plan steps too.') : t('Read-only until you arm CREATE.'), sxSeg([1, 2].map((n) => ({
+    value: n, text: `#${n}`, className: `o${n}`, disabled: n > currentCap,
+    title: n === 2 ? t('Every message to this agent starts in CREATE: new files where they belong, existing files untouched. Plan steps to it too.') : t('Messages start read-only; arm CREATE when you want files.'),
+  })), currentStart, async (n, seg) => {
+    try {
+      await saveSettingNow({ scopes: { [agent.id]: { defaultMode: n } } }, n === 2 ? t('@{agent} starts in #2 CREATE: every turn may add files to the project.', { agent: agent.id }) : t('@{agent} starts read-only; arm CREATE when you want files.', { agent: agent.id }));
+      await loadSettings();
+    } catch (error) { toast(t('The default mode was not saved: {error}', { error: error.message })); await loadSettings(); }
+  }, { label: t('Starting mode') }));
+  const seconds = Math.round((settingsUI.data.settings.timeouts[agent.id] ?? 180000) / 1000);
+  sxRow(card, t('Time limit'), t('How long the room waits for its answer.'), sxNumber(seconds, 's', {
+    min: 10, step: 10, label: t('Time limit'),
+    wire: { toPatch: (value) => ({ timeouts: { [agent.id]: value * 1000 } }), describe: (value) => t('@{agent} timeout saved: {n}s.', { agent: agent.id, n: value }) },
+  }));
 
-  const row = el('div', 'row');
-  const recheck = el('button', null, t('RECHECK'));
-  recheck.type = 'button';
-  recheck.addEventListener('click', async () => {
+  // What can be done about the connection itself.
+  const acts = el('div', 'sx-actions');
+  const recheck = sxButton(t('Check again'), async () => {
     recheck.disabled = true;
     const result = await fetch('/api/agents/probe', { method: 'POST' }).then((response) => response.json()).catch(() => null);
     if (result?.sessions) { settingsUI.data.sessions = result.sessions; state.sessions = result.sessions; }
-    if (result?.agents) { settingsUI.data.agents = result.agents; for (const agent of result.agents) state.agents.set(agent.id, { ...(state.agents.get(agent.id) ?? {}), ...agent }); renderAgents(); renderPicker(); renderOnboarding(); }
+    if (result?.agents) { settingsUI.data.agents = result.agents; for (const one of result.agents) state.agents.set(one.id, { ...(state.agents.get(one.id) ?? {}), ...one }); renderAgents(); renderPicker(); renderOnboarding(); }
     if (result?.sessions) renderSettings();
     recheck.disabled = false;
   });
-  row.append(recheck);
   if (!agent.detected && agent.install) {
-    const install = el('button', 'primary', t('INSTALL'));
-    install.type = 'button';
-    install.title = t('{command} · runs here, streamed to the room', { command: agent.install.display });
-    install.disabled = Boolean(settingsUI.data.loggingIn);
-    install.addEventListener('click', async () => {
+    const install = sxButton(t('Install'), async () => {
       install.disabled = true;
       state.loginLogs.set(agent.id, []);
       const response = await fetch(`/api/agents/${agent.id}/install`, { method: 'POST' });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) { toast(result.error ?? t('The install could not start.')); install.disabled = false; }
-    });
-    row.append(install);
+    }, { tone: 'primary', title: t('{command} · runs here, streamed to the room', { command: agent.install.display }) });
+    install.disabled = Boolean(settingsUI.data.loggingIn);
+    acts.append(install);
   }
-  if (agent.detected && agent.login) {
-    if (agent.login.headless) {
-      const login = el('button', 'primary', session?.state === 'signed-in' ? t('SIGN IN AGAIN') : t('SIGN IN'));
-      login.type = 'button';
-      login.disabled = Boolean(settingsUI.data.loggingIn);
-      login.title = agent.login.note;
-      login.addEventListener('click', async () => {
-        login.disabled = true;
-        state.loginLogs.set(agent.id, []);
-        const response = await fetch(`/api/agents/${agent.id}/login`, { method: 'POST' });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) toast(result.error ?? t('The sign-in could not start.'));
-        else { settingsUI.data.loggingIn = agent.id; renderSettings(); }
-      });
-      row.append(login);
-    } else {
-      row.append(el('span', 'note', t('signs in from its own prompt:')));
-    }
+  if (agent.detected && agent.login?.headless) {
+    const signedIn = session?.state === 'signed-in';
+    const login = sxButton(signedIn ? t('Sign in again') : t('Sign in'), async () => {
+      login.disabled = true;
+      state.loginLogs.set(agent.id, []);
+      const response = await fetch(`/api/agents/${agent.id}/login`, { method: 'POST' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) toast(result.error ?? t('The sign-in could not start.'));
+      else { settingsUI.data.loggingIn = agent.id; renderSettings(); }
+    }, { tone: signedIn ? null : 'primary', title: t(agent.login.note) });
+    login.disabled = Boolean(settingsUI.data.loggingIn);
+    acts.append(login);
   }
-  card.append(row);
-  const slot = el('div', 'slot');
+  acts.append(recheck);
+  card.append(acts);
+  const slot = el('div', 'sx-slot');
   if (agent.detected && agent.key) slot.append(keyForm(agent, { onDone: () => { void loadSettings(); renderOnboarding(); } }));
-  if (agent.detected && agent.login && !agent.login.headless) slot.append(commandBlock([agent.login.display, `# ${agent.login.note}`]));
-  card.append(slot);
-
-  const timeout = el('label');
-  timeout.append(t('TIMEOUT · SECONDS'));
-  const input = el('input');
-  input.type = 'number'; input.min = '10'; input.step = '10';
-  input.value = String(Math.round((settingsUI.data.settings.timeouts[agent.id] ?? 180000) / 1000));
-  input.dataset.agent = agent.id;
-  input.className = 'timeout-input';
-  wireInstantNumber(input, { min: 10, toPatch: (seconds) => ({ timeouts: { [agent.id]: seconds * 1000 } }), describe: (seconds) => t('@{agent} timeout saved: {n}s.', { agent: agent.id, n: seconds }) });
-  timeout.append(input);
-  card.append(timeout);
-
+  if (agent.detected && agent.login && !agent.login.headless) {
+    slot.append(el('p', 'sx-hint', t('It signs in from its own prompt:')));
+    slot.append(commandBlock([agent.login.display, `# ${t(agent.login.note)}`]));
+  }
   const log = state.loginLogs.get(agent.id) ?? [];
   if (log.length || busy) {
     const box = el('div', 'login-log');
@@ -12294,6 +14153,7 @@ function connectionCard(agent) {
     for (const entry of log) box.append(loginLine(entry));
     slot.append(box);
   }
+  if (slot.children.length) card.append(slot);
   return card;
 }
 
@@ -12302,307 +14162,330 @@ function connectionCard(agent) {
 // is answering is a subject of its own, so it gets its own button in the MU/TH/UR bar, beside
 // NOSTROMO, and the whole panel instead of a fold inside somebody else's.
 function renderMemoryPanel(data) {
-  if (!memoryUI.section) return;
-  memoryUI.section.replaceChildren();
+  const target = state.settingsTargets.memory;
+  if (target?.isConnected) { target.replaceChildren(); drawMemory(target, data); }
+}
+function drawMemory(host, data) {
   const mem = data?.settings?.memory;
-  if (!mem) { memoryUI.section.append(el('p', 'mother-answer', t('THIS ROOM HAS NO MEMORY INDEX.'))); return; }
-  // It reads first and is configured second. The dashboard is what someone opens this screen to
-  // see, so it starts open; the knobs that change how the archive is kept sit under it. All three
-  // are folds like every other block of MU/TH/UR, so COLLAPSE ALL moves what is on the screen.
-  const board = el('div', 'mem-dash');
-  folding(memoryUI.section, t('MEMORY · THE ARCHIVE AT A GLANCE'), { key: 'memory-dashboard', icon: 'chip', open: true }).append(board);
-  void drawMemoryDashboard(board);
-  const memoryBody = folding(memoryUI.section, t('ARCHIVIST AND RECALL'), { key: 'memory-settings', icon: 'gear' });
-  memoryBody.append(el('p', 'note', t('THE ARCHIVIST READS WHAT NOBODY HAS DISTILLED AND KEEPS THE FEW NOTES WORTH REMEMBERING. THE CHEAPEST ALLOWED AGENT GOES FIRST; A LOCAL MODEL COSTS NOTHING AND KEEPS EVERYTHING ON THIS MACHINE.')));
-  const mform = el('form', 'room-form memory-form');
+  if (!mem) { sxBlock(host, t('Memory'), t('This room has no memory index.')); return; }
   const save = async (memoryPatch, describe) => { try { await saveSettingNow({ memory: memoryPatch }, describe); await loadSettings(); } catch (error) { toast(t('Memory setting was not saved: {error}', { error: error.message })); } };
-  const field = (labelText, node) => { const label = el('label'); label.append(labelText); label.append(node); return label; };
-  const archivist = el('select');
-  for (const [value, text] of [['auto', t('AUTO · cheapest allowed')], ...mem.candidates.map((c) => [c.id, `@${c.id}${c.local ? ` · ${c.label}` : ''}`])]) { const option = el('option', null, text); option.value = value; if (value === mem.archivist) option.selected = true; archivist.append(option); }
-  archivist.addEventListener('change', () => save({ archivist: archivist.value }, archivist.value === 'auto' ? t('archivist: the cheapest allowed agent goes first.') : t('archivist: @{agent} distils first.', { agent: archivist.value })));
-  mform.append(field(t('ARCHIVIST'), archivist));
-  const every = el('input'); every.type = 'number'; every.min = '1'; every.step = '1'; every.value = String(mem.every);
-  wireInstantNumber(every, { min: 1, toPatch: (value) => ({ memory: { every: value } }), describe: (value) => t('distil every {n} exchanges.', { n: value }) });
-  mform.append(field(t('DISTIL EVERY · EXCHANGES'), every));
-  const idle = el('input'); idle.type = 'number'; idle.min = '1'; idle.step = '1'; idle.value = String(mem.idleMinutes);
-  wireInstantNumber(idle, { min: 1, toPatch: (value) => ({ memory: { idleMinutes: value } }), describe: (value) => t('or after {n} quiet minutes.', { n: value }) });
-  mform.append(field(t('OR AFTER · QUIET MINUTES'), idle));
-  const share = el('input'); share.type = 'number'; share.min = '0'; share.max = '60'; share.step = '5'; share.value = String(Math.round(mem.recallShare * 100));
-  wireInstantNumber(share, { min: 0, toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("recall may take {n}% of each turn's context.", { n: Math.min(60, value) }) });
-  mform.append(field(t('RECALL · % OF CONTEXT'), share));
-  // Spreading activation. Two memories that keep arriving in the same turn are associated by
-  // the room's own work, not by how they read; a couple of slots in each recall are kept for
-  // that. It is the one part of recall that owes nothing to wording, so it can be switched off.
-  const cascade = el('label', 'toggle full');
-  const cascadeBox = el('input'); cascadeBox.type = 'checkbox'; cascadeBox.checked = mem.cascade !== false;
-  cascadeBox.addEventListener('change', () => save({ cascade: cascadeBox.checked }, cascadeBox.checked
-    ? t('recall also carries what a memory keeps arriving with.')
-    : t('recall carries only what the words and the meaning match.')));
-  cascade.append(cascadeBox, el('span', null, t('CARRY WHAT A MEMORY KEEPS ARRIVING WITH')));
-  cascade.title = t('Two memories that keep travelling into the same turn are associated, however differently they read. Recall keeps a couple of slots for that company; the search never loses a slot to it.');
-  mform.append(cascade);
-  const embed = el('select');
-  const embedOptions = [['auto', t('AUTO · Ollama if running, else Gemini')], ['ollama', `OLLAMA · ${t('local')}${mem.ollama.embedModel ? ` · ${mem.ollama.embedModel}` : t(' · no model yet')}`], ['gemini', t('GEMINI · needs your key')], ['off', t('OFF · words only')]];
-  for (const [value, text] of embedOptions) { const option = el('option', null, text); option.value = value; if (value === (mem.embedProvider ?? data.config?.memory?.embedProvider ?? 'auto')) option.selected = true; embed.append(option); }
-  embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('embeddings: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
-  const embedLabel = field(t('EMBEDDINGS · NOW {what}', { what: mem.embedder ? mem.embedder.toUpperCase() : 'OFF' }), embed);
-  mform.append(embedLabel);
-  const who = el('div', 'full');
-  who.append(el('span', 'note', t('MAY DISTIL:')));
+  const select = (options, current, change, label) => {
+    const node = el('select', 'sx-input');
+    node.setAttribute('aria-label', label);
+    for (const [value, text] of options) { const option = el('option', null, text); option.value = value; if (value === current) option.selected = true; node.append(option); }
+    node.addEventListener('change', () => change(node.value, node));
+    return node;
+  };
+
+  // It reads first and is configured second: the glance is what someone opens this to see.
+  const aside = el('div', 'sx-aside');
+  const stamp = el('span', 'sx-hint');
+  aside.append(stamp);
+  const glanceBlock = sxBlock(host, t('The archive'), null, { aside, className: 'sx-glance' });
+  const glance = el('div', 'sx-glance-body');
+  glanceBlock.rows.append(glance);
+  const more = el('details', 'sx-more');
+  const summary = el('summary', null, t('Analysis and tests'));
+  const analysis = el('div', 'sx-analysis mem-dash');
+  more.append(summary, analysis);
+  glanceBlock.append(more);
+  aside.append(sxButton(t('Refresh'), () => void drawMemoryDashboard(glance, analysis, stamp)));
+  void drawMemoryDashboard(glance, analysis, stamp);
+
+  const keep = sxBlock(host, t('The archivist'), t('It reads what nobody has distilled and keeps the few notes worth remembering. The cheapest allowed agent goes first; a local model costs nothing and keeps everything on this machine.'));
+  sxRow(keep, t('Who distils first'), null, select([['auto', t('Automatic · the cheapest allowed')], ...mem.candidates.map((c) => [c.id, `@${c.id}${c.local ? ` · ${c.label}` : ''}`])], mem.archivist, (value) => save({ archivist: value }, value === 'auto' ? t('archivist: the cheapest allowed agent goes first.') : t('archivist: @{agent} distils first.', { agent: value })), t('Who distils first')));
   const allowed = new Set(mem.archivists ?? mem.candidates.map((c) => c.id));
+  const who = el('div', 'sx-chips');
   for (const candidate of mem.candidates) {
-    const toggle = el('label', 'toggle');
-    const box = el('input'); box.type = 'checkbox'; box.checked = allowed.has(candidate.id);
-    box.addEventListener('change', () => {
-      if (box.checked) allowed.add(candidate.id); else allowed.delete(candidate.id);
-      if (!allowed.size) { box.checked = true; allowed.add(candidate.id); toast(t('MU/TH/UR › someone has to keep the archive.')); return; }
+    const chip = el('button', 'sx-pick', `@${candidate.id}${candidate.local ? ` · ${t('local, free')}` : ''}`);
+    chip.type = 'button';
+    chip.setAttribute('aria-pressed', String(allowed.has(candidate.id)));
+    chip.addEventListener('click', () => {
+      if (allowed.has(candidate.id)) allowed.delete(candidate.id); else allowed.add(candidate.id);
+      if (!allowed.size) { allowed.add(candidate.id); toast(t('MU/TH/UR › someone has to keep the archive.')); return; }
+      chip.setAttribute('aria-pressed', String(allowed.has(candidate.id)));
       void save({ archivists: allowed.size === mem.candidates.length ? [] : [...allowed] }, t('archivists: {who}.', { who: [...allowed].map((id) => `@${id}`).join(', ') }));
     });
-    toggle.append(box, `@${candidate.id.toUpperCase()}${candidate.local ? t(' · LOCAL · FREE') : ''}`);
-    who.append(toggle);
+    who.append(chip);
   }
-  mform.append(who);
-  if (mem.envWins) mform.append(el('span', 'note full', t('ENVIRONMENT VARIABLES ARE SET FOR MEMORY; THEY WIN OVER THESE VALUES ON THE NEXT LAUNCH.')));
-  mform.addEventListener('submit', (event) => event.preventDefault());
-  memoryBody.append(mform);
-  // The dataset behind MADRE AI and the recipe that trains on it: a separate errand from how
-  // the archive is kept, and the longest block on this screen, so it folds on its own.
-  const trainBody = folding(memoryUI.section, t('DATASET AND TRAINING'), { key: 'memory-train', icon: 'bars' });
-  const tform = el('div', 'room-form memory-form');
-  // The dataset behind MADRE AI: export what the room kept, train outside, @madre picks the result up.
-  const dataset = el('div', 'full dataset-row');
-  const exportButton = el('button', null, t('EXPORT DATASET'));
-  exportButton.type = 'button';
-  exportButton.title = t('Write train.jsonl and valid.jsonl next to the ledger, redacted, in chat format for mlx-lm');
-  const datasetNote = el('span', 'note', t('LOADING…'));
-  const showDataset = (payload) => {
-    const d = payload?.dataset;
-    const exported = d ? t('LAST EXPORT {when} · TRAIN {train} · VALID {valid}', { when: new Date(d.exportedAt).toLocaleString(), train: d.train, valid: d.valid }) : t('NOT EXPORTED YET');
-    const trained = payload?.trained ? t('TRAINED MODEL {model} IN USE', { model: payload.trained.toUpperCase() }) : t('NO TRAINED MODEL YET · SEE docs/training');
-    datasetNote.textContent = [exported, trained].filter(Boolean).join(' · ');
-  };
-  fetch('/api/dataset').then((response) => response.json()).then(showDataset).catch(() => { datasetNote.textContent = t('DATASET UNAVAILABLE'); });
-  exportButton.addEventListener('click', async () => {
+  sxRow(keep, t('Who may distil'), t('The lit ones may keep the archive.'), who, { stack: true });
+  sxRow(keep, t('Every'), t('Exchanges between one distillation and the next.'), sxNumber(mem.every, t('exchanges'), { min: 1, label: t('Every'), wire: { toPatch: (value) => ({ memory: { every: value } }), describe: (value) => t('distil every {n} exchanges.', { n: value }) } }));
+  sxRow(keep, t('Or after'), t('Quiet minutes that also start a distillation.'), sxNumber(mem.idleMinutes, t('min'), { min: 1, label: t('Or after'), wire: { toPatch: (value) => ({ memory: { idleMinutes: value } }), describe: (value) => t('or after {n} quiet minutes.', { n: value }) } }));
+
+  const recall = sxBlock(host, t('Recall'), t('What each turn carries from the archive, and how it finds it.'));
+  sxRow(recall, t('Share of the context'), t('The most each turn may spend on memories.'), sxNumber(Math.round(mem.recallShare * 100), '%', { min: 0, step: 5, label: t('Share of the context'), wire: { toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("recall may take {n}% of each turn's context.", { n: Math.min(60, value) }) } }));
+  const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('recall also carries what a memory keeps arriving with.') : t('recall carries only what the words and the meaning match.')), { label: t('Carry the company it keeps') });
+  sxRow(recall, t('Carry the company it keeps'), t('Two memories that keep arriving in the same turn travel together, however differently they read.'), cascade);
+  const embedNow = mem.embedder ? mem.embedder : t('off');
+  sxRow(recall, t('Embeddings'), t('Find by meaning, not only by words. Now: {what}.', { what: embedNow }), select([
+    ['auto', t('Automatic · Ollama if running, else Gemini')],
+    ['ollama', `Ollama · ${t('local')}${mem.ollama.embedModel ? ` · ${mem.ollama.embedModel}` : ` · ${t('no model yet')}`}`],
+    ['gemini', t('Gemini · needs your key')],
+    ['off', t('Off · words only')],
+  ], mem.embedProvider ?? data.config?.memory?.embedProvider ?? 'auto', (value, node) => save({ embedProvider: value }, t('embeddings: {what}.', { what: node.options[node.selectedIndex].textContent.toLowerCase() })), t('Embeddings')));
+  if (mem.envWins) sxFoot(recall, t('Environment variables are set for memory; they win over these values on the next launch.'));
+
+  // The dataset behind MADRE AI, and the recipe that trains on it, outside MADRE.
+  const train = sxBlock(host, t('Dataset and training'), t('Export what the room kept, train MADRE AI with it on this Mac, and @madre picks the result up.'));
+  const datasetHint = el('span', 'sx-hint', t('Reading…'));
+  const exportButton = sxButton(t('Export'), async () => {
     exportButton.disabled = true;
     try { const payload = await fetch('/api/dataset', { method: 'POST' }).then((response) => response.json()); showDataset(payload); toast(t('MU/TH/UR › dataset exported: {n} pairs in {dir}', { n: payload.dataset.pairs, dir: payload.dir })); }
     catch (error) { toast(t('Dataset export failed: {error}', { error: error.message })); }
     finally { exportButton.disabled = false; }
-  });
-  dataset.append(exportButton, datasetNote);
-  tform.append(dataset);
-  // TRAIN: the recipe, with this room's paths and this project's model name filled in. Training runs outside MADRE.
-  const train = el('div', 'full train-card');
-  const trainHead = el('div', 'train-head', t('TRAIN MADRE AI · LOCAL, WITH MLX ON APPLE SILICON · NOTHING LEAVES THIS MACHINE'));
-  const trainNote = el('p', 'note', t('EXPORT THE DATASET FIRST. EACH STEP IS ONE COMMAND FOR YOUR TERMINAL; COPY, RUN, COME BACK. WHEN THE MODEL EXISTS IN OLLAMA, @MADRE SWITCHES TO IT AT THE NEXT RECHECK AND EVERY AGENT IS TOLD TO ASK IT FIRST.'));
-  const steps = el('ol', 'train-steps');
-  train.append(trainHead, trainNote, steps);
-  const renderTraining = (payload) => {
-    // `info`, not `t`: t() is how this page speaks, and a local name that shadows it would
-    // take the language away from everything inside this function.
+  }, { title: t('Write train.jsonl and valid.jsonl next to the ledger, redacted, in chat format for mlx-lm') });
+  const datasetRow = sxRow(train, t('Dataset'), null, exportButton);
+  datasetRow.querySelector('.sx-words').append(datasetHint);
+  const recipe = el('details', 'sx-more');
+  recipe.append(el('summary', null, t('Train MADRE AI · local, with MLX on Apple silicon')));
+  const steps = el('ol', 'sx-steps');
+  recipe.append(el('p', 'sx-hint', t('Export the dataset first. Each step is one command for your terminal: copy it, run it, come back. When the model exists in Ollama, @madre switches to it at the next recheck.')), steps);
+  train.append(recipe);
+  const showDataset = (payload) => {
+    const d = payload?.dataset;
+    const exported = d ? t('Last export {when} · {train} to train · {valid} to check', { when: new Date(d.exportedAt).toLocaleString(), train: d.train, valid: d.valid }) : t('Not exported yet.');
+    const trained = payload?.trained ? t('Trained model {model} in use.', { model: payload.trained }) : t('No trained model yet.');
+    datasetHint.textContent = `${exported} ${trained}`;
     const info = payload?.training;
     steps.replaceChildren();
-    if (!info) { steps.append(el('li', null, t('TRAINING INFO UNAVAILABLE'))); return; }
+    if (!info) { steps.append(el('li', 'sx-hint', t('The training recipe is unavailable.'))); return; }
     const quote = (path) => `"${path.replace(/\/$/, '')}"`;
-    const items = [
-      [t('ONCE · A PYTHON ENVIRONMENT WITH MLX-LM'), 'python3 -m venv ~/.madre-train && source ~/.madre-train/bin/activate && pip install mlx-lm'],
-      [t('TRAIN THE LORA · BASE {model} FOR {gb} GB', { model: info.baseModel, gb: info.memoryGb }), `source ~/.madre-train/bin/activate && bash ${quote(`${info.recipeDir}train.sh`)} ${quote(info.roomDir)} ${info.baseModel}`],
-      [t('FUSE THE ADAPTER INTO THE BASE'), `source ~/.madre-train/bin/activate && cd ${quote(info.roomDir)} && mlx_lm.fuse --model ${info.baseModel} --adapter-path adapters --save-path fused`],
-      [t('REGISTER IN OLLAMA AS {model}', { model: info.modelName }), `cd ${quote(info.roomDir)} && cp ${quote(`${info.recipeDir}Modelfile`)} . && ollama create ${info.modelName} -f Modelfile`],
-    ];
-    for (const [label, command] of items) {
+    for (const [label, command] of [
+      [t('Once: a Python environment with mlx-lm'), 'python3 -m venv ~/.madre-train && source ~/.madre-train/bin/activate && pip install mlx-lm'],
+      [t('Train the LoRA · base {model} for {gb} GB', { model: info.baseModel, gb: info.memoryGb }), `source ~/.madre-train/bin/activate && bash ${quote(`${info.recipeDir}train.sh`)} ${quote(info.roomDir)} ${info.baseModel}`],
+      [t('Fuse the adapter into the base'), `source ~/.madre-train/bin/activate && cd ${quote(info.roomDir)} && mlx_lm.fuse --model ${info.baseModel} --adapter-path adapters --save-path fused`],
+      [t('Register it in Ollama as {model}', { model: info.modelName }), `cd ${quote(info.roomDir)} && cp ${quote(`${info.recipeDir}Modelfile`)} . && ollama create ${info.modelName} -f Modelfile`],
+    ]) {
       const li = el('li');
-      const head = el('div', 'train-step-label', label);
-      const row = el('div', 'update-command');
-      const code = el('code', null, command);
-      const copy = el('button', null, t('COPY')); copy.type = 'button';
-      copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(command); copy.textContent = t('COPIED'); setTimeout(() => { copy.textContent = t('COPY'); }, 1400); } catch { toast(t('MU/TH/UR › select the command and copy it.')); } });
-      row.append(code, copy);
-      li.append(head, row);
+      li.append(el('b', null, label), sxCommand(command));
       steps.append(li);
     }
-    steps.append(el('li', 'note', t('QWEN NEEDS A GGUF BEFORE OLLAMA READS IT: {readme} · SECTION 3 HAS THE TWO LINES. THEN ASK @MADRE TEN THINGS THE ROOM DECIDED AND FIVE IT NEVER DISCUSSED BEFORE TRUSTING IT.', { readme: quote(`${info.recipeDir}README.md`) })));
+    steps.append(el('li', 'sx-hint', t('Qwen needs a GGUF before Ollama reads it: {readme}, section 3, has the two lines. Then ask @madre ten things the room decided and five it never discussed before trusting it.', { readme: quote(`${info.recipeDir}README.md`) })));
   };
-  fetch('/api/dataset').then((response) => response.json()).then(renderTraining).catch(() => renderTraining(null));
-  tform.append(train);
-  trainBody.append(tform);
+  fetch('/api/dataset').then((response) => response.json()).then(showDataset).catch(() => showDataset(null));
 }
 function renderSettings() {
   const { data } = settingsUI;
   if (!data) return;
-  const section = settingsUI.section;
-  section.replaceChildren();
-  const signedIn = Object.values(data.sessions ?? {}).filter((s) => s.state === 'signed-in').length;
-  const out = data.agents.length - signedIn;
-  const crew = folding(section, t('CONNECTIONS · {n} OF {total} SIGNED IN', { n: signedIn, total: data.agents.length }) + (data.sessionsAt ? t(' · CHECKED {time}', { time: formatTime(data.sessionsAt) }) : ''), {
-    icon: 'link',
-    key: 'connections',
-    badge: out > 0 ? { text: String(out), urgent: true, title: t('{n} agents with no session', { n: out }) } : null,
-  });
-  crew.append(el('p', 'note lead', t('ONE AGENT IS ENOUGH TO OPEN THE ROOM. MADRE USES THE SESSION EACH CLI ALREADY HAS: INSTALL ONE HERE OR SIGN IT IN, AND THE ROOM OPENS BY ITSELF.')));
-  crew.append(el('p', 'note', t('EACH AGENT KEEPS ITS OWN CREDENTIALS IN ITS OWN CLI. MADRE ONLY ASKS THE CLI WHETHER IT IS SIGNED IN, AND CAN START THE CLI\'S OWN SIGN-IN FOR YOU.')));
-  const grid = el('div', 'conn-grid');
-  for (const agent of data.agents) grid.append(connectionCard(agent));
-  crew.append(grid);
+  renderMemoryPanel(data);
+  // AJUSTES is where these live: drawn wherever it is showing one of them.
+  for (const [key, draw] of [['agents', drawConnections], ['room', drawRoomSettings], ['privacy', drawPrivacy], ['permissions', drawPermissions]]) {
+    const target = state.settingsTargets[key];
+    if (!target?.isConnected) continue;
+    target.replaceChildren();
+    draw(target, data);
+  }
+  syncSettingsCards?.();
+}
 
-  const settingsBody = folding(section, t('ROOM SETTINGS'), { key: 'room-settings', icon: 'gear' });
-  const form = el('form', 'room-form');
-  const field = (labelText, node) => { const label = el('label'); label.append(labelText); label.append(node); return label; };
-  const num = (name, value, min, step) => { const input = el('input'); input.type = 'number'; input.name = name; input.value = String(value); input.min = String(min); input.step = String(step); return input; };
-  const budget = num('softTokenBudget', data.settings.softTokenBudget, 10000, 10000);
-  const steps = num('maxPlanSteps', data.settings.maxPlanSteps, 1, 1);
-  const defaultTimeout = num('defaultTimeout', Math.round(data.settings.defaultTimeout / 1000), 10, 10);
-  wireInstantNumber(budget, { min: 10000, toPatch: (value) => ({ room: { softTokenBudget: value } }), describe: (value) => t('local budget saved: {n} tokens per agent per 5h window.', { n: formatTokens(value) }) });
-  wireInstantNumber(defaultTimeout, { min: 10, toPatch: (seconds) => ({ timeouts: { default: seconds * 1000 } }), describe: (seconds) => t('default timeout saved: {n}s.', { n: seconds }) });
-  const idle = num('geminiIdle', Math.round(data.settings.geminiIdleMs / 1000), 10, 10);
-  const retries = num('geminiRetries', data.settings.geminiRetries, 0, 1);
-  const model = el('input'); model.name = 'opencodeModel'; model.value = data.settings.opencodeModel ?? ''; model.placeholder = t('provider/model'); model.setAttribute('list', 'opencode-models');
-  const datalist = el('datalist'); datalist.id = 'opencode-models';
-  form.append(field(t('LOCAL TOKEN BUDGET PER AGENT'), budget));
-  form.append(field(t('DEFAULT TIMEOUT · SECONDS'), defaultTimeout));
-  form.append(field(t('MAX PLAN STEPS'), steps));
-  form.append(field(t('GEMINI SILENCE LIMIT · SECONDS'), idle));
-  form.append(field(t('GEMINI RETRIES'), retries));
-  const modelLabel = field(t('OPENCODE MODEL IN THIS ROOM'), model);
-  modelLabel.append(datalist);
-  form.append(modelLabel);
-  const full = el('div', 'full');
-  const toggle = el('label', 'toggle');
-  const delegation = el('input'); delegation.type = 'checkbox'; delegation.name = 'delegation'; delegation.checked = data.settings.delegation;
-  toggle.append(delegation, t('AGENTS MAY DELEGATE TURNS TO EACH OTHER'));
-  full.append(toggle);
-  const loadModels = el('button', null, t('LIST OPENCODE MODELS'));
-  loadModels.type = 'button';
-  loadModels.addEventListener('click', async () => {
-    loadModels.disabled = true;
+function drawConnections(host, data) {
+  host.append(el('p', 'sx-intro', t('One agent is enough to open the room. MADRE uses the session each CLI already has: install one here or sign it in, and the room opens by itself. The credentials stay in each CLI; MADRE only asks whether it is signed in.')));
+  for (const agent of data.agents) host.append(connectionCard(agent));
+}
+
+function drawRoomSettings(host, data) {
+  const s = data.settings;
+  const plans = sxBlock(host, t('Plans'), t('When a turn may open a plan, and how long a plan may be.'));
+  const delegation = sxSwitch(s.delegation, async (on, box) => {
+    try { await saveSettingNow({ room: { delegation: on } }, on ? t('agents may delegate turns.') : t('agents no longer delegate turns.')); }
+    catch (error) { box.checked = !on; toast(t('The setting was not saved: {error}', { error: error.message })); }
+  }, { label: t('Agents may delegate') });
+  sxRow(plans, t('Agents may delegate'), t('An agent may open a plan and hand its steps to the others.'), delegation);
+  sxRow(plans, t('Steps per plan'), t('The most steps one plan may have.'), sxNumber(s.maxPlanSteps, null, {
+    min: 1, label: t('Steps per plan'), wire: { toPatch: (value) => ({ room: { maxPlanSteps: value } }), describe: (value) => t('max plan steps saved: {n}.', { n: value }) },
+  }));
+
+  const limits = sxBlock(host, t('Budget and waiting'), t('What each agent may spend, and how long the room waits for it.'));
+  sxRow(limits, t('Tokens per agent'), t('Counted here, in each 5-hour window.'), sxNumber(s.softTokenBudget, null, {
+    min: 10000, step: 10000, label: t('Tokens per agent'),
+    wire: { toPatch: (value) => ({ room: { softTokenBudget: value } }), describe: (value) => t('local budget saved: {n} tokens per agent per 5h window.', { n: formatTokens(value) }) },
+  }));
+  sxRow(limits, t('Default time limit'), t('How long an agent may take before the room stops waiting. Each agent can have its own in Agents.'), sxNumber(Math.round(s.defaultTimeout / 1000), 's', {
+    min: 10, step: 10, label: t('Default time limit'),
+    wire: { toPatch: (seconds) => ({ timeouts: { default: seconds * 1000 } }), describe: (seconds) => t('default timeout saved: {n}s.', { n: seconds }) },
+  }));
+
+  const gemini = sxBlock(host, 'Gemini', t('Gemini can go quiet before it answers anything; this is how long the room gives it.'));
+  sxRow(gemini, t('Silence limit'), t('Seconds without any output before the attempt is dropped.'), sxNumber(Math.round(s.geminiIdleMs / 1000), 's', {
+    min: 10, step: 10, label: t('Silence limit'),
+    wire: { toPatch: (seconds) => ({ gemini: { idleMs: seconds * 1000 } }), describe: (seconds) => t('Gemini silence limit saved: {n}s.', { n: seconds }) },
+  }));
+  sxRow(gemini, t('Retries'), t('How many times a silent attempt is tried again.'), sxNumber(s.geminiRetries, null, {
+    min: 0, label: t('Retries'), wire: { toPatch: (value) => ({ gemini: { retries: value } }), describe: (value) => t('Gemini retries saved: {n}.', { n: value }) },
+  }));
+
+  const opencode = sxBlock(host, 'OpenCode', t('The provider and model OpenCode answers with in this room.'));
+  const field = el('div', 'sx-field');
+  const model = el('input', 'sx-input mono');
+  model.value = s.opencodeModel ?? ''; model.placeholder = t('provider/model'); model.spellcheck = false;
+  model.setAttribute('aria-label', t('Model'));
+  const datalist = el('datalist'); datalist.id = 'opencode-models-settings'; model.setAttribute('list', datalist.id);
+  model.addEventListener('change', async () => {
+    try { await saveSettingNow({ opencode: { model: model.value.trim() } }, t('OpenCode model saved.')); } catch (error) { toast(t('The setting was not saved: {error}', { error: error.message })); }
+  });
+  const list = sxButton(t('List models'), async () => {
+    list.disabled = true;
     const result = await fetch('/api/agents/opencode/models').then((response) => response.json()).catch(() => ({ models: [] }));
     datalist.replaceChildren();
     for (const name of result.models ?? []) { const option = el('option'); option.value = name; datalist.append(option); }
-    loadModels.textContent = t('{n} MODELS LISTED', { n: (result.models ?? []).length });
+    list.textContent = t('{n} models listed', { n: (result.models ?? []).length });
+    list.disabled = false;
   });
-  full.append(loadModels);
-  const save = el('button', 'primary', t('SAVE TO ~/.pulse/config.json'));
-  save.type = 'submit';
-  full.append(save);
-  full.append(el('span', 'note', t('ENVIRONMENT VARIABLES SET BEFORE START STILL WIN ON THE NEXT LAUNCH.')));
-  form.append(full);
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    save.disabled = true;
-    const timeouts = { default: Number(defaultTimeout.value) * 1000 };
-    for (const input of section.querySelectorAll('.timeout-input')) {
-      const seconds = Number(input.value);
-      if (seconds > 0 && seconds * 1000 !== timeouts.default) timeouts[input.dataset.agent] = seconds * 1000;
-      else timeouts[input.dataset.agent] = 0;
-    }
-    const scopePatch = {};
-    for (const input of section.querySelectorAll('.scope-input')) {
-      if (input.disabled) continue;
-      scopePatch[input.dataset.agent] ??= {};
-      scopePatch[input.dataset.agent][input.dataset.scope] = input.checked;
-    }
-    const payload = {
-      opencode: { model: model.value.trim() },
-      scopes: scopePatch,
-      timeouts,
-      room: { delegation: delegation.checked, maxPlanSteps: Number(steps.value), softTokenBudget: Number(budget.value) },
-      gemini: { idleMs: Number(idle.value) * 1000, retries: Number(retries.value) },
-    };
-    const response = await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok) {
-      state.timeouts = result.settings.timeouts;
-      state.budget = result.settings.softTokenBudget;
-      if (result.settings.capabilities) { state.capabilities = result.settings.capabilities; renderCreateScopes(); }
-      toast(t('MU/TH/UR › settings saved. new turns use them now.'));
-      await loadSettings();
-    } else toast(result.error ?? t('Settings were not saved.'));
-    save.disabled = false;
-  });
-  settingsBody.append(form);
+  field.append(model, datalist, list);
+  sxRow(opencode, t('Model'), t('Type provider/model, or list what OpenCode offers and pick one.'), field, { stack: true });
+  sxFoot(opencode, t('Every change is saved to ~/.pulse/config.json as you make it. Environment variables set before start still win on the next launch.'));
+}
 
-  // MEMORY has its own panel now, rendered from this same answer.
-  renderMemoryPanel(data);
-
-  // PRIVACY: terms that never travel through the room. Replaced at every hop: agent replies,
-  // the index, the notes, the dataset. PURGE does the same to what the room already holds.
-  const priv = data.settings.privacy;
-  if (priv) {
-    const privacyBody = folding(section, `PRIVACY · ${priv.terms.length ? t('{n} PRIVATE TERMS', { n: priv.terms.length }) : t('NO PRIVATE TERMS')}`, { key: 'privacy', icon: 'lock' });
-    privacyBody.append(el('p', 'note', t('AN AGENT\'S OWN CONFIGURATION CAN LEAK INTO ITS REPLY: A COMPANY, A BRAND, A DOMAIN. NAME THEM HERE AND MADRE REPLACES THEM BEFORE THE LEDGER, THE ARCHIVIST, THE OTHER AGENTS OR THE DATASET SEE THEM. THE TERMS STAY IN CONFIG.JSON; THE ROOM ONLY EVER RECORDS HOW MANY.')));
-    const pform = el('form', 'room-form privacy-form');
-    const field = (labelText, node) => { const label = el('label'); label.append(labelText); label.append(node); return label; };
-    const terms = el('textarea'); terms.rows = 3; terms.value = priv.terms.join('\n'); terms.placeholder = t('one term per line · a company, a brand, a domain, a name'); terms.spellcheck = false;
-    const marker = el('input'); marker.value = priv.marker; marker.maxLength = 40; marker.spellcheck = false;
-    const exposure = el('span', 'note full', t('CHECKING THE ROOM…'));
-    const purge = el('button', null, t('PURGE ROOM'));
-    purge.type = 'button';
-    purge.title = t('Replace every private term already in the ledger, the index and the memories with the marker. Asks for the project designation.');
-    const showExposure = (payload) => {
-      const x = payload?.exposure;
-      if (!x) { exposure.textContent = ''; return; }
-      const total = x.events + x.entries + x.memories;
-      exposure.textContent = !payload.terms?.length ? t('WRITE THE TERMS FIRST.') : total ? t('STILL IN THE ROOM: {events} EVENTS · {entries} INDEXED EXCHANGES · {memories} MEMORIES · PURGE REPLACES THEM.', { events: x.events, entries: x.entries, memories: x.memories }) : t('THE ROOM IS CLEAN: NO PRIVATE TERM IN THE LEDGER, THE INDEX OR THE MEMORIES.');
-      purge.disabled = !payload.terms?.length || !total;
-    };
-    const savePrivacy = async (patch, describe) => {
-      try {
-        const payload = await fetch('/api/privacy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).then((response) => response.json());
-        if (payload.error) throw new Error(payload.error);
-        terms.value = payload.terms.join('\n'); marker.value = payload.marker; showExposure(payload);
-        toast(`MU/TH/UR › ${describe(payload)}`);
-      } catch (error) { toast(t('The privacy setting was not saved: {error}', { error: error.message })); }
-    };
-    terms.addEventListener('change', () => savePrivacy({ terms: terms.value.split('\n') }, (payload) => t('{n} private {term} guarded from now on.', { n: payload.terms.length, term: payload.terms.length === 1 ? t('term') : t('terms') })));
-    marker.addEventListener('change', () => savePrivacy({ marker: marker.value }, (payload) => t('private terms appear as {marker}.', { marker: payload.marker })));
-    pform.append(field(t('PRIVATE TERMS · ONE PER LINE'), terms));
-    pform.append(field(t('REPLACED WITH'), marker));
-    // Two guards that need no list, because what they catch has a shape rather than a name. They
-    // used to run only on the way into a training file, so a key an agent echoed was written to
-    // the ledger in the clear and stayed there.
-    const guard = (key, labelText, describe, hint) => {
-      const wrap = el('label', 'toggle full');
-      const box = el('input'); box.type = 'checkbox'; box.checked = priv[key] !== false;
-      box.addEventListener('change', () => savePrivacy({ [key]: box.checked }, () => `${describe} ${box.checked ? t('on') : t('off')}.`));
-      wrap.append(box, labelText);
-      wrap.title = hint;
-      pform.append(wrap);
-    };
-    guard('secrets', t('REDACT KEYS, TOKENS AND E-MAIL ADDRESSES ANYWHERE THEY APPEAR'),
-      t('redaction of keys and addresses'),
-      t('API keys, GitHub and npm tokens, JWTs and e-mail addresses are recognisable by shape in any project. Caught before the ledger, the archivist, the other agents and the dataset.'));
-    guard('paths', t("REPLACE THIS MACHINE'S HOME PATH WITH ~"),
-      t('hiding of home paths'),
-      t('A path like /Users/yourname carries who you are into every reply that quotes it. The path still reads, it just stops naming you.'));
-    const row = el('div', 'full dataset-row');
-    purge.addEventListener('click', async () => {
-      const designation = await roomAsk({
-        console: true,
-        title: t('PURGE ROOM'),
-        body: t('Every private term already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project designation to confirm.'),
-        input: { placeholder: t('the project folder\'s name') },
-        choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'purge', label: t('PURGE'), tone: 'danger', submit: true }],
-      });
-      if (!designation) return;
-      purge.disabled = true;
-      try {
-        const payload = await fetch('/api/privacy/purge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ designation }) }).then((response) => response.json());
-        if (payload.error) throw new Error(payload.error);
-        toast(t('MU/TH/UR › purged: {events} events · {entries} exchanges · {memories} memories. Reloading.', { events: payload.purged.events, entries: payload.purged.entries, memories: payload.purged.memories }));
-        setTimeout(() => location.reload(), 1600);
-      } catch (error) {
-        // The same wrong name at the other door that asks it.
-        if (error.message === t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.')) designationRefused();
-        else toast(t('The purge did not run: {error}', { error: error.message }));
-        purge.disabled = false;
-      }
-    });
-    row.append(purge, exposure);
-    pform.append(row);
-    if (priv.envWins) pform.append(el('span', 'note full', t('PULSE_PRIVATE_TERMS IS SET; THOSE TERMS ARE ADDED TO THIS LIST ON EVERY LAUNCH.')));
-    pform.addEventListener('submit', (event) => event.preventDefault());
-    privacyBody.append(pform);
-    fetch('/api/privacy').then((response) => response.json()).then(showExposure).catch(() => { exposure.textContent = t('EXPOSURE CHECK UNAVAILABLE'); });
+// PERMISSIONS: what unlocks #3 and #4, a phrase of one's own, how long an accepted key holds, and
+// how far each agent may go. The key is still asked in the browser for each message; this only
+// chooses which key and lets an accepted one hold a few minutes. #4 always asks for something.
+function overrideKeyHint(mode, key) {
+  if (key === 'confirm') return t('One click on ARM. CONTROL still takes a checkpoint first, and UNDO is one click.');
+  if (key === 'phrase') return t('Your phrase, typed when you arm it.');
+  if (key === 'phrase-airlock') return t('Your phrase, then the word AIRLOCK.');
+  if (key === 'designation-airlock') return t('The folder name of the project ({name}), then the word AIRLOCK.', { name: projectDesignation() });
+  return mode === 4 ? t('The folder name of the project ({name}), with no second key.', { name: projectDesignation() }) : t('The folder name of the project ({name}).', { name: projectDesignation() });
+}
+async function saveOverride(patch, confirmation) {
+  try { await saveSettingNow({ override: patch }); if (confirmation) toast(`MU/TH/UR › ${confirmation}`, { tone: 'done' }); }
+  catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
+  await loadSettings();
+}
+function drawPermissions(host, data) {
+  const config = data.settings.override ?? OVERRIDE_DEFAULT;
+  const canHash = Boolean(globalThis.crypto?.subtle);
+  const keys = sxBlock(host, t('The key of each mode'), t('What you type to arm #3 CONTROL and #4 AIRLOCK. It is asked for each message, unless a grace below still holds.'), { className: 'perm-keys' });
+  for (const mode of [3, 4]) {
+    const current = config.keys[mode];
+    sxRow(keys, `#${mode} ${MODES[mode].label}`, overrideKeyHint(mode, current), sxSeg((mode === 3 ? ['designation', 'phrase', 'confirm'] : ['designation-airlock', 'phrase-airlock', 'designation']).map((key) => ({
+      value: key, text: OVERRIDE_KEY_WORDS[key](),
+      disabled: key.startsWith('phrase') && (!config.phrase || !canHash),
+      title: key.startsWith('phrase') && !config.phrase ? t('Save a phrase below first.') : overrideKeyHint(mode, key),
+    })), current, (key) => saveOverride({ keys: { [mode]: key } }, t('#{n} {label} now asks for: {key}.', { n: mode, label: MODES[mode].label, key: OVERRIDE_KEY_WORDS[key]().toLowerCase() })), { label: `#${mode} ${MODES[mode].label}` }), { stack: true });
   }
+  sxFoot(keys, t('#4 always asks for something: it runs commands, and what leaves the machine does not come back.'));
+
+  const phrase = sxBlock(host, t('Your phrase'), t('Only its fingerprint is kept (a salted SHA-256, made in this browser). MADRE cannot read it back, and it is never sent anywhere.'));
+  const field = el('input', 'sx-input');
+  field.type = 'password';
+  field.autocomplete = 'new-password';
+  field.placeholder = config.phrase ? t('Type a new phrase to replace it') : t('At least 8 characters');
+  field.setAttribute('aria-label', t('Your phrase'));
+  const keep = sxButton(config.phrase ? t('Replace') : t('Save'), async () => {
+    const words = field.value.trim();
+    if (words.length < 8) { toast(t('The phrase needs at least 8 characters.'), { tone: 'look' }); field.focus(); return; }
+    keep.disabled = true;
+    const salt = [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    const hash = await overridePhraseHash(salt, words);
+    field.value = '';
+    await saveOverride({ phrase: { salt, hash } }, t('Your phrase was saved. Choose it above for #3 or #4.'));
+  }, { tone: 'primary' });
+  keep.disabled = !canHash;
+  const pair = el('div', 'sx-actions inline perm-phrase');
+  pair.append(field, keep);
+  sxRow(phrase, config.phrase ? t('A phrase is saved') : t('No phrase yet'), canHash ? null : t('This browser cannot make the fingerprint here.'), pair, { stack: true });
+  if (config.phrase) {
+    sxRow(phrase, t('Forget the phrase'), t('The modes that used it go back to the project name.'), sxButton(t('Forget'), () => saveOverride({ phrase: null }, t('The phrase was forgotten.')), { tone: 'danger' }));
+  }
+  field.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); keep.click(); } });
+
+  const grace = sxBlock(host, t('Grace after a key'), t('Once a key is accepted, the same mode for the same agent is not asked again for a while. Only in this page: reloading, STOPALL or the × on its chip closes it.'));
+  for (const mode of [3, 4]) {
+    const options = mode === 3 ? [0, 5, 15, 30] : [0, 5];
+    sxRow(grace, `#${mode} ${MODES[mode].label}`, mode === 4 ? t('Never longer than 5 minutes.') : t('Raising an agent\'s max mode always asks, grace or not.'), sxSeg(options.map((minutes) => ({ value: minutes, text: minutes ? t('{n} min', { n: minutes }) : t('Off') })), config.grace[mode] ?? 0, (minutes) => {
+      if (!minutes) closeOverrideGrace(mode);
+      return saveOverride({ grace: { [mode]: minutes } }, minutes ? t('#{n} {label} holds {minutes} min after its key.', { n: mode, label: MODES[mode].label, minutes }) : t('#{n} {label} asks for its key every message.', { n: mode, label: MODES[mode].label }));
+    }, { label: t('Grace for #{n}', { n: mode }) }));
+  }
+
+  // Who may reach which mode: the ceiling of every agent in one table. The mode a message starts in
+  // stays on each agent's sheet.
+  const who = sxBlock(host, t('Who may do what'), t('The highest mode each agent may reach. Each mode wears its colour; #3 and #4 still ask for their key.'), { className: 'perm-who' });
+  for (const agent of data.agents.filter((one) => one.detected)) {
+    const scopes = data.settings.capabilities?.[agent.id]?.scopes ?? {};
+    const cap = scopes.maxMode ?? 1;
+    const row = sxRow(who, agent.label, `#${cap} ${MODES[cap].label}`, sxSeg([0, 1, 2, 3, 4].map((n) => ({
+      value: n, text: `#${n}`, title: `${MODES[n].label} · ${MODES[n].hint}`, className: `o${n}`, disabled: !(n <= 1 || scopes.write?.capable),
+    })), cap, async (n) => {
+      try { await saveSettingNow({ scopes: { [agent.id]: { maxMode: n } } }, t('@{agent} is now capped at #{n} {label}.', { agent: agent.id, n, label: MODES[n].label })); }
+      catch (error) { toast(t('The max mode was not saved: {error}', { error: error.message })); }
+      await loadSettings();
+    }, { label: t('Max mode for @{agent}', { agent: agent.id }) }));
+    row.id = `perm-${agent.id}`;
+    paint(row.querySelector('.sx-words b'), agent.id);
+  }
+}
+
+function drawPrivacy(host, data) {
+  const priv = data.settings.privacy;
+  if (!priv) return;
+  const terms = el('textarea', 'sx-input mono');
+  terms.rows = 4; terms.value = priv.terms.join('\n'); terms.placeholder = t('one term per line · a company, a brand, a domain, a name'); terms.spellcheck = false;
+  terms.setAttribute('aria-label', t('Private terms'));
+  const marker = el('input', 'sx-input mono');
+  marker.value = priv.marker; marker.maxLength = 40; marker.spellcheck = false;
+  marker.setAttribute('aria-label', t('Replaced with'));
+  const exposure = el('span', 'sx-hint', t('Checking the room…'));
+  const purge = sxButton(t('Purge the room'), null, { tone: 'danger', title: t('Replace every private term already in the ledger, the index and the memories with the marker. Asks for the project designation.') });
+  const showExposure = (payload) => {
+    const x = payload?.exposure;
+    if (!x) { exposure.textContent = ''; return; }
+    const total = x.events + x.entries + x.memories;
+    exposure.textContent = !payload.terms?.length ? t('Write the terms first.') : total
+      ? t('Still in the room: {events} events · {entries} indexed exchanges · {memories} memories.', { events: x.events, entries: x.entries, memories: x.memories })
+      : t('The room is clean: no private term in the ledger, the index or the memories.');
+    purge.disabled = !payload.terms?.length || !total;
+  };
+  const savePrivacy = async (patch, describe) => {
+    try {
+      const payload = await fetch('/api/privacy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).then((response) => response.json());
+      if (payload.error) throw new Error(payload.error);
+      terms.value = payload.terms.join('\n'); marker.value = payload.marker; showExposure(payload);
+      if (settingsUI.data?.settings.privacy) Object.assign(settingsUI.data.settings.privacy, { terms: payload.terms, marker: payload.marker, ...('secrets' in patch ? { secrets: patch.secrets } : {}), ...('paths' in patch ? { paths: patch.paths } : {}) });
+      syncSettingsCards();
+      toast(`MU/TH/UR › ${describe(payload)}`);
+    } catch (error) { toast(t('The privacy setting was not saved: {error}', { error: error.message })); }
+  };
+  terms.addEventListener('change', () => savePrivacy({ terms: terms.value.split('\n') }, (payload) => t('{n} private {term} guarded from now on.', { n: payload.terms.length, term: payload.terms.length === 1 ? t('term') : t('terms') })));
+  marker.addEventListener('change', () => savePrivacy({ marker: marker.value }, (payload) => t('private terms appear as {marker}.', { marker: payload.marker })));
+
+  const named = sxBlock(host, t('Private terms'), t("A company, a brand, a domain: what an agent's own setup can leak into a reply. MADRE replaces them before the ledger, the archivist, the other agents or the dataset see them."));
+  sxRow(named, t('One per line'), null, terms, { stack: true });
+  sxRow(named, t('Replaced with'), t('What the room shows in their place.'), marker);
+  sxFoot(named, priv.envWins ? t('The terms stay in config.json; the room only records how many. PULSE_PRIVATE_TERMS is set, so its terms are added on every launch.') : t('The terms stay in config.json; the room only records how many.'));
+
+  // Two guards that need no list, because what they catch has a shape rather than a name.
+  const shaped = sxBlock(host, t('Caught by their shape'), t('Two guards that need no list.'));
+  const guard = (key, label, hint, describe) => sxRow(shaped, label, hint, sxSwitch(priv[key] !== false, (on) => savePrivacy({ [key]: on }, () => `${describe} ${on ? t('on') : t('off')}.`), { label }));
+  guard('secrets', t('Keys, tokens and e-mail addresses'), t('API keys, GitHub and npm tokens, JWTs and e-mail addresses are struck out wherever they appear.'), t('redaction of keys and addresses'));
+  guard('paths', t('Your home path'), t('/Users/yourname becomes ~: a quoted path still reads, it just stops naming you.'), t('hiding of home paths'));
+
+  const already = sxBlock(host, t('Already in the room'), t('What was recorded before a term was named stays as it was until you purge it.'));
+  const purgeRow = sxRow(already, t('Exposure'), null, purge);
+  purgeRow.querySelector('.sx-words').append(exposure);
+  purge.addEventListener('click', async () => {
+    const designation = await roomAsk({
+      console: true,
+      title: t('PURGE ROOM'),
+      body: t('Every private term already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project designation to confirm.'),
+      input: { placeholder: t('the project folder\'s name') },
+      choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'purge', label: t('PURGE'), tone: 'danger', submit: true }],
+    });
+    if (!designation) return;
+    purge.disabled = true;
+    try {
+      const payload = await fetch('/api/privacy/purge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ designation }) }).then((response) => response.json());
+      if (payload.error) throw new Error(payload.error);
+      toast(t('MU/TH/UR › purged: {events} events · {entries} exchanges · {memories} memories. Reloading.', { events: payload.purged.events, entries: payload.purged.entries, memories: payload.purged.memories }));
+      setTimeout(() => location.reload(), 1600);
+    } catch (error) {
+      // The same wrong name at the other door that asks it.
+      if (error.message === t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.')) designationRefused();
+      else toast(t('The purge did not run: {error}', { error: error.message }));
+      purge.disabled = false;
+    }
+  });
+  fetch('/api/privacy').then((response) => response.json()).then(showExposure).catch(() => { exposure.textContent = t('The exposure check is unavailable.'); });
 }
 
 // Save one setting the moment it changes, the way the scope boxes do; the
@@ -12615,6 +14498,7 @@ async function saveSettingNow(patch, confirmation) {
     state.timeouts = result.settings.timeouts ?? state.timeouts;
     if (Number.isFinite(result.settings.softTokenBudget)) state.budget = result.settings.softTokenBudget;
     if (result.settings.capabilities) { state.capabilities = result.settings.capabilities; renderCreateScopes(); }
+    if (result.settings.override) state.override = result.settings.override;
     if (settingsUI.data) settingsUI.data.settings = { ...settingsUI.data.settings, ...result.settings };
   }
   if (confirmation) toast(`MU/TH/UR › ${confirmation} ${t('Applies to the next turn.')}`);
@@ -12653,12 +14537,19 @@ function conditionActions(condition, agent) {
   return actions;
 }
 
-function askMotherAbout(conditionId) {
-  // Leave the settings view and put the matching MU/TH/UR card front and centre.
-  if (settingsUI.open) settingsUI.button.click();
-  mother.input.value = conditionId;
-  answerQuery(conditionId);
-  setTimeout(() => document.getElementById(`mother-${conditionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+function askMotherAbout(conditionId, words = '') {
+  // Opens MU/TH/UR on that remedy: chosen in the list, read in the detail, nothing typed for you.
+  // An agent without a remedy of its own falls back to the permission's general one, and failing
+  // that, to what the permission is called, searched like a symptom.
+  openMother();
+  const found = conditionById(conditionId) ?? conditionById(conditionId.replace(/^scope-[^-]+-/, 'scope-'));
+  if (!found && words) { mother.input.value = words; answerQuery(words); return; }
+  mother.input.value = '';
+  remedies.query = '';
+  remedies.filter = found ? 'all' : null;
+  remedies.selected = found ? { kind: 'condition', id: found.id } : null;
+  paintRemedies();
+  mother.list?.querySelector('.remedy-row.on')?.scrollIntoView?.({ block: 'nearest' });
 }
 
 
@@ -12703,7 +14594,7 @@ const nostromo = {
     form: document.querySelector('#nostromo-gate-form'),
     input: document.querySelector('#nostromo-gate-input'),
     reply: document.querySelector('#nostromo-gate-reply'),
-    frame: document.querySelector('#nostromo-gate .override-frame'),
+    frame: document.querySelector('#nostromo-gate .key-card'),
     cancel: document.querySelector('#nostromo-gate-cancel'),
   },
   armed: false,          // the designation was typed once this page
@@ -12724,11 +14615,13 @@ nostromo.button?.addEventListener('click', () => {
   if (nostromo.armed) { void openNostromo(); return; }
   if (!nostromo.gate.dialog) return;
   nostromo.gate.reply.textContent = '';
-  nostromo.gate.reply.className = 'mother-answer override-reply';
+  nostromo.gate.reply.className = 'key-reply';
   nostromo.gate.input.value = '';
   nostromo.gate.dialog.showModal();
   nostromo.gate.input.focus();
 });
+// NOSTROMO also lives in the bar: the same door, from anywhere in the room.
+document.querySelector('#nostromo-bar')?.addEventListener('click', () => nostromo.button?.click());
 nostromo.gate.cancel?.addEventListener('click', () => nostromo.gate.dialog.close());
 nostromo.gate.form?.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -12740,8 +14633,8 @@ nostromo.gate.form?.addEventListener('submit', (event) => {
     nostromo.gate.input.select();
     return;
   }
-  nostromo.gate.reply.textContent = t('DESIGNATION ACCEPTED. BOARDING NOSTROMO.');
-  nostromo.gate.reply.className = 'mother-answer override-reply granted';
+  nostromo.gate.reply.textContent = t('Accepted. Boarding NOSTROMO.');
+  nostromo.gate.reply.className = 'key-reply granted';
   nostromo.armed = true;
   setTimeout(() => { nostromo.gate.dialog.close(); void openNostromo(); }, 700);
 });
@@ -12846,12 +14739,19 @@ function paintLegend() {
 }
 
 async function openNostromo() {
+  // Its small print speaks in sentences, MOTHER's name kept.
+  const help = nostromo.dialog?.querySelector('.nostromo-help');
+  if (help && !help.dataset.said) {
+    help.textContent = askWords(help.textContent);
+    help.dataset.said = '1';
+    // The cards' own headings, once: their first words in sentences, the names kept.
+    for (const heading of nostromo.dialog.querySelectorAll('.nostromo-card h6, .nostromo-card.asks .kind')) {
+      const words = [...heading.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
+      if (words) words.textContent = askWords(words.textContent);
+    }
+  }
   if (!nostromo.dialog) return;
-  // MU/TH/UR in its base is a sheet over the room and gives way to NOSTROMO. Split or floating it
-  // is a window of the room: it stays where it was, under NOSTROMO, and is there as it was left
-  // when NOSTROMO is. Closing it would also have sent it back to its base.
-  const motherSurface = surfaces.find((one) => one.key === 'mother');
-  if (!motherSurface || modeOf(motherSurface) === 'base') mother.dialog?.close?.();
+  // MU/TH/UR is a window of the room: it stays where it was, under NOSTROMO.
   nostromo.dialog.showModal();
   // A dialog hands focus to its first focusable child, and with COLD, ASK and RECENTER hidden
   // that was LEAVE: you pressed Enter to come in and the next Enter threw you out. The map is
@@ -15134,8 +17034,9 @@ function designationRefused({ into = null } = {}) {
   const left = max - strikes.count;
   const sub = `MU/TH/UR 6000 · ${t('STRIKE {n} OF {max}', { n: strikes.count, max })}${left <= 3 ? t(' · {n} MORE AND CODE000 COMES DOWN', { n: left }) : ''}`;
   if (into) {
-    into.replaceChildren(...lines.map((line) => el('span', 'line', line)), el('span', 'strike', sub));
-    into.className = 'mother-answer override-reply denied';
+    // In the room's alerts MOTHER answers in sentences; the strike count stays hers.
+    into.replaceChildren(...lines.map((line) => el('span', 'line', askWords(line))), el('span', 'strike', sub));
+    into.className = 'key-reply denied';
     return;
   }
   if (!nostromo.dialog?.open || !nostromoAlert(lines, sub)) toast(`MU/TH/UR › ${lines[0]} ${sub}`);
@@ -15221,7 +17122,7 @@ function showNostromoCard(node) {
   nostromo.selected = node;
   nostromo.focusLink = null;
   nostromo.card.style.setProperty('--kind', node.color);
-  document.querySelector('#nostromo-card-kind').textContent = kindWord(memory.kind);
+  document.querySelector('#nostromo-card-kind').textContent = askWords(kindWord(memory.kind));
   document.querySelector('#nostromo-card-text').textContent = memory.text;
   document.querySelector('#nostromo-card-span').textContent = memory.fromSequence === memory.throughSequence ? `#${memory.fromSequence}` : `#${memory.fromSequence}–#${memory.throughSequence}${memory.sources?.length ? ` · cites ${memory.sources.map((n) => `#${n}`).join(' ')}` : ''}`;
   document.querySelector('#nostromo-card-agent').textContent = `@${memory.agent}${memory.origin === 'noted' ? t(" · on the human's request") : memory.origin === 'flagged' ? t(' · flagged by {who}', { who: memory.detector ?? t('the room') }) : t(' · distilled')}`;
@@ -15380,35 +17281,56 @@ document.querySelector('#nostromo-forget')?.addEventListener('click', async (eve
 });
 
 
-/* ---------- First contact: the four-step tour. Once on the first visit, again from ? in MU/TH/UR. ---------- */
+/* ---------- First contact: the five-stop tour. Once on the first visit, again from ? in MU/TH/UR. ---------- */
 
-// First contact: four stops on the room itself. Each one lights the part of the screen it talks
+// First contact: five stops on the room itself. Each one lights the part of the screen it talks
 // about and leaves the rest in the dark, so a person learns where things are and not only what
-// they are called. If a stop's part of the screen is not there to light (the bridge is up, the
-// window is narrow), the card says its piece in the middle instead.
+// they are called. A stop may carry a short list of keys and what each does: what to press, said
+// once, beside where it is pressed. If a stop's part of the screen is not there to light (the
+// bridge is up, the window is narrow), the card says its piece in the middle instead.
+const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform ?? '') ? '⌘' : 'Ctrl';
 const TOUR_STEPS = [
   {
     target: '#composer',
-    title: t('Your crew, one box'),
-    text: t('The AI agents already on this computer work here together. Pick one in the row above the box, or write @claude, and ask. Every reply says who answered, in which mode and how many tokens it cost. Nothing leaves this computer on its own.'),
-  },
-  {
-    target: '.mode-chip',
-    title: t('Modes: how far a message may go'),
-    text: t('Every message carries a mode. It starts at #1, and the higher the number, the more it may touch.'),
-    // The five, in their own colours and in order, said the way the mode menu says them.
-    modes: true,
+    title: t('Ask anyone in your crew'),
+    text: t('The AI agents already on this computer work here together. Write in the box and ask; every reply says who answered, in which mode and what it cost.'),
+    keys: [
+      ['@', t('Who you are talking to. @claude goes straight to Claude.')],
+      ['#1', t('The mode: how far the message may go. It starts at #1, which only reads; #3 and #4 ask for your key.')],
+      ['/', t('Commands, like /module to make a module of your own.')],
+    ],
   },
   {
     target: '#mother-button',
     title: t('MU/TH/UR, the console'),
-    text: t('Sign agents in and set how far each one may go in CONNECTIONS. See what the room remembers in MEMORY, and travel through it as a map in NOSTROMO. When something fails, the diagnosis is here.'),
+    text: t('When something fails, the remedy is here: write a symptom, an agent or a word and it says what is going on and how to fix it. What it already noticed in this room carries its mark.'),
+    keys: [
+      ['NOSTROMO', t('The map of what the room remembers, and why.')],
+      ['?', t('This tour again, whenever you want it.')],
+    ],
+  },
+  {
+    target: '#chats-button',
+    title: t('Several conversations at once'),
+    text: t('Each conversation has its own thread and its own box. Open another one beside this, in the right half or as a window: up to three at once, all of them working.'),
+  },
+  {
+    target: '#bar',
+    title: t('Gestures and the way around'),
+    text: t('The room is arranged the way you like it, and a few gestures get you around it.'),
+    keys: [
+      [t('Right-click'), t('On the bar: choose which keys are on it and in which order.')],
+      [t('Click the box'), t('The windows step aside so the conversation is in sight.')],
+      [t('Drag'), t('A window by its header; its edges and corners resize it.')],
+      [`${MOD_KEY} ,`, t('Opens Settings.')],
+      ['Esc', t('Closes the menu that is open.')],
+    ],
   },
   {
     target: '#modules-button',
-    title: t('MODULES, optional powers'),
-    text: t('Add what this project needs: Git, images, previews of what you build, a local model, a browser, or a module of your own in a single file. Nothing is installed until you press it.'),
-    note: t('You can take this tour again from ? in MU/TH/UR. Type STOPALL at any time to halt every agent.'),
+    title: t('Modules, optional powers'),
+    text: t('Add what this project needs: GitHub, Git, images, previews of what you build, a local model, a browser, or a module of your own in a single file. Nothing is installed until you press it.'),
+    note: t('Your first steps wait in the bar, and tick themselves as you go. Type STOPALL at any time to halt every agent.'),
   },
 ];
 const tour = {
@@ -15473,17 +17395,13 @@ function renderTour() {
   tour.text.textContent = step.text;
   tour.note.hidden = !step.note;
   tour.note.textContent = step.note ?? '';
-  tour.list ??= document.querySelector('#tour-modes');
+  tour.list ??= document.querySelector('#tour-keys');
   tour.list.replaceChildren();
-  tour.list.hidden = !step.modes;
-  if (step.modes) {
-    for (const n of [0, 1, 2, 3, 4]) {
-      const row = el('li', n === 1 ? 'start' : null);
-      const chip = el('span', `tour-mode m${n}`);
-      chip.append(el('b', null, `#${n}`), ` ${MODES[n].label}`);
-      row.append(chip, el('span', 'what', MODES[n].hint));
-      tour.list.append(row);
-    }
+  tour.list.hidden = !step.keys;
+  for (const [key, what] of step.keys ?? []) {
+    const row = el('li');
+    row.append(el('kbd', 'tour-key', key), el('span', 'what', what));
+    tour.list.append(row);
   }
   tour.skip.textContent = t('Skip');
   tour.back.textContent = t('Back');
@@ -15507,7 +17425,7 @@ tour.back?.addEventListener('click', () => { tour.index = Math.max(0, tour.index
 tour.skip?.addEventListener('click', endTour);
 tour.dialog?.addEventListener('close', () => { try { localStorage.setItem('pulse.tour', 'seen'); } catch { /* no storage */ } });
 window.addEventListener?.('resize', () => { if (tour.dialog?.open) placeTour(); });
-document.querySelector('#tour-button')?.addEventListener('click', () => { document.querySelector('#mother')?.close?.(); startTour(); });
+document.querySelector('#tour-button')?.addEventListener('click', () => { document.querySelector('#mother')?.close?.(); stepsResume(); startTour(); });
 function maybeStartTour() {
   // The half on the right of a split window is the same room; the left half already did this.
   if (state.tourArmed || SPLIT_CHAT) return;
@@ -15604,9 +17522,9 @@ for (const id of Object.keys(FIRST_TOUCH)) document.querySelector(FIRST_TOUCH[id
 
 /* ---------- What's new: once per version, after an update. ---------- */
 
-// The sheet a phone shows after an app updates: what this version brings, a few things said
-// plainly, each with where it lives, a way to read every change, and one thing nobody is told
-// how to find. The server decides whether this person should see it (src/whats-new.mjs); the
+// What a version brings, said after the update: a board of the things it brings, each a card with
+// its picture and one line, and behind each card the whole of it, where it lives and a key that
+// takes you there. The server decides whether this person should see it (src/whats-new.mjs); the
 // notes come in both languages and the page picks its own.
 async function maybeShowWhatsNew() {
   let news;
@@ -15614,77 +17532,210 @@ async function maybeShowWhatsNew() {
   if (!news?.show) return false;
   return showWhatsNew(news, { after: tourIfOwed });
 }
-// Asked for again from the release channel: the same sheet, whether or not it was seen.
-async function openWhatsNew() {
+// Asked for again (AJUSTES › Version and reports): the same board, whether or not it was seen.
+// `version` looks at another version's board before it ships; with none, this version's, or the
+// newest there is when this copy's own version has none. A look ahead marks nothing as seen.
+async function openWhatsNew(version = null) {
+  const ask = (which) => fetch(`/api/whats-new?any=1${which ? `&version=${encodeURIComponent(which)}` : ''}`).then((response) => response.json());
   let news;
-  try { news = await fetch('/api/whats-new?any=1').then((response) => response.json()); } catch { return false; }
+  try {
+    news = await ask(version);
+    if (!news?.notes && !version && news?.newest) news = await ask(news.newest);
+  } catch { return false; }
   return showWhatsNew(news);
+}
+// Where «Take me there» goes, one for every `action` a note can name (NEWS_ACTIONS in
+// src/whats-new.mjs; a test keeps the two lists the same). The board is closed first.
+const NEWS_GO = {
+  settings: () => openSettings(true),
+  mother: () => openMother(),
+  intents: () => {
+    if (modules.items.some((item) => item.id === 'intents')) floatModule('intents');
+    else { openModules(); openModuleSheet('intents'); }
+  },
+  permissions: () => openSettingsOn('permissions'),
+  github: () => { openModules(); openModuleSheet('github'); },
+  bar: () => barEdit(true),
+  modules: () => openModules(),
+  nostromo: () => (document.querySelector('#nostromo-bar') ?? nostromo.button)?.click(),
+  room: () => openSettingsOn('room'),
+  looks: () => openSettingsOn('look'),
+  finder: () => { setTree(true); setTimeout(() => document.querySelector('#tree-new')?.focus?.({ preventScroll: true }), motion(320)); },
+};
+// The first sentence of a note: what a card has room for. A dot inside a number is not an end.
+const firstSentence = (text) => String(text ?? '').match(/^.*?[.!?…](?=\s|$)/s)?.[0] ?? String(text ?? '');
+// A note's picture, with the colour of its place while it loads; one that does not come shows the
+// note's own 8-bit mark there instead.
+function newsShot(item, className) {
+  const shot = el('span', `wn-shot ${className}`);
+  const icon = pixelIcon(item.icon, 'pixel-icon wn-shot-icon');
+  if (!item.image) { shot.classList.add('missing'); shot.append(icon); return shot; }
+  const image = el('img');
+  image.alt = item.title ?? '';
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  image.addEventListener('error', () => { shot.classList.add('missing'); image.remove(); shot.append(icon); });
+  image.addEventListener('load', () => shot.classList.add('loaded'));
+  image.src = item.image;
+  shot.append(image);
+  return shot;
 }
 function showWhatsNew(news, { after = null } = {}) {
   if (!news?.notes || typeof document.createElement('dialog').showModal !== 'function') return false;
   document.querySelector('dialog.whats-new')?.remove();
   const notes = pick(news.notes);
+  const items = notes.items ?? [];
+  const shown = String(news.version ?? '').replace(/\.0$/, '');
+  const board = { at: null, went: false };
   const dialog = el('dialog', 'whats-new');
   dialog.setAttribute('aria-label', t("What's new in MADRE {version}", { version: news.version }));
   const sheet = el('div', 'wn-sheet');
+
+  // The head: the mark, the version you now have, what it is about, and the window's ×.
   const head = el('header', 'wn-head');
-  head.append(el('span', 'wn-badge', `MADRE ${news.version}`), el('h2', null, t("What's new")));
-  if (notes.intro) head.append(el('p', 'wn-intro', notes.intro));
-  sheet.append(head);
-  const list = el('ul', 'wn-list');
-  for (const item of notes.items ?? []) {
-    const row = el('li', 'wn-item');
-    const words = el('div', 'wn-words');
-    words.append(el('h3', null, item.title), el('p', null, item.body));
-    if (item.where) {
-      const where = el('p', 'wn-where');
-      where.append(el('span', 'k', t('Where')), ` ${item.where}`);
-      words.append(where);
-    }
-    row.append(pixelIcon(item.icon, 'pixel-icon wn-icon'), words);
-    list.append(row);
-  }
-  sheet.append(list);
-  if (notes.more) {
-    const more = el('aside', 'wn-more');
-    const words = el('div', 'wn-words');
-    words.append(el('h3', null, notes.more.title), el('p', null, notes.more.body));
-    more.append(pixelIcon(notes.more.icon, 'pixel-icon wn-icon'), words);
-    sheet.append(more);
-  }
+  const words = el('div', 'wn-headline');
+  const logo = document.querySelector('.bar .brand-logo, .brand .brand-logo')?.cloneNode?.(true);
+  if (logo) { logo.setAttribute('class', 'brand-logo wn-logo'); words.append(logo); }
+  words.append(el('span', 'wn-eyebrow', t("What's new")), el('h2', null, t('You now have {version}', { version: shown })));
+  if (notes.intro) words.append(el('p', 'wn-intro', notes.intro));
+  const keys = el('span', 'surface-modes wn-keys');
+  const close = el('button', 'surface-mode close x-close x-only');
+  close.type = 'button';
+  close.setAttribute('aria-label', t('Close'));
+  close.append(xIcon());
+  close.addEventListener('click', () => dialog.close());
+  keys.append(close);
+  head.append(words, keys);
+
+  const body = el('div', 'wn-body');
   const foot = el('footer', 'wn-foot');
-  const go = el('button', 'wn-continue', t('Continue'));
-  go.type = 'button';
-  go.addEventListener('click', () => dialog.close());
-  foot.append(go);
   const changes = news.changes?.[language()] ?? news.changes?.es;
   if (changes) {
-    const link = el('a', 'wn-changes', t('Read every change on madre.run ↗'));
+    const link = el('a', 'wn-changes', t('See every change ↗'));
     link.href = changes; link.target = '_blank'; link.rel = 'noopener noreferrer';
     foot.append(link);
   }
-  sheet.append(foot);
+  const go = el('button', 'wn-start', t('Start'));
+  go.type = 'button';
+  go.addEventListener('click', () => dialog.close());
+  foot.append(go);
+
+  const cards = [];
+  const drawBoard = () => {
+    board.at = null;
+    sheet.classList.remove('reading');
+    const grid = el('div', 'wn-board');
+    items.forEach((item, index) => {
+      const card = el('button', 'wn-card');
+      card.type = 'button';
+      card.dataset.news = item.id ?? String(index);
+      card.append(newsShot(item, 'wn-card-shot'), el('b', 'wn-card-title', item.title), el('span', 'wn-card-line', firstSentence(item.body)));
+      card.addEventListener('click', () => drawDetail(index));
+      cards[index] = card;
+      grid.append(card);
+    });
+    body.replaceChildren(grid);
+    // The one thing nobody is told how to find, where a version has one: under the board, quiet.
+    if (notes.more) {
+      const more = el('aside', 'wn-more');
+      const words = el('div');
+      words.append(el('b', null, notes.more.title), el('p', null, notes.more.body));
+      more.append(pixelIcon(notes.more.icon, 'pixel-icon wn-more-icon'), words);
+      body.append(more);
+    }
+    body.scrollTop = 0;
+  };
+  const drawDetail = (index) => {
+    const item = items[index];
+    if (!item) return;
+    board.at = index;
+    sheet.classList.add('reading');
+    const detail = el('article', 'wn-detail');
+    const bar = el('div', 'wn-detail-bar');
+    const back = el('button', 'settings-back wn-back');
+    back.type = 'button';
+    back.title = t('Back to what is new');
+    back.setAttribute('aria-label', t('Back to what is new'));
+    back.append(chevron('settings-back-icon'));
+    back.addEventListener('click', () => { drawBoard(); cards[index]?.focus?.({ preventScroll: false }); });
+    const step = (delta, label, className) => {
+      const key = el('button', `settings-back wn-step ${className}`);
+      key.type = 'button';
+      key.title = label;
+      key.setAttribute('aria-label', label);
+      key.append(chevron('settings-back-icon'));
+      key.disabled = !items[index + delta];
+      key.addEventListener('click', () => drawDetail(index + delta));
+      return key;
+    };
+    const steps = el('span', 'wn-steps');
+    steps.append(step(-1, t('Previous'), 'prev'), el('span', 'wn-count', t('{n} of {total}', { n: index + 1, total: items.length })), step(1, t('Next'), 'next'));
+    bar.append(back, steps);
+    const text = el('div', 'wn-detail-text');
+    text.append(el('h3', null, item.title), el('p', 'wn-detail-body', item.body));
+    if (item.where) {
+      const where = el('p', 'wn-where');
+      where.append(el('span', 'k', t('Where it is')), el('span', null, item.where));
+      text.append(where);
+    }
+    const run = item.action ? NEWS_GO[item.action] : null;
+    if (run) {
+      const there = el('button', 'wn-go', t('Take me there'));
+      there.type = 'button';
+      there.addEventListener('click', () => {
+        board.went = true;
+        dialog.close();
+        // After the board is gone: what opens must not open under it, nor be closed by its close.
+        setTimeout(() => { try { run(); } catch (error) { console.error(error); } }, 0);
+      });
+      text.append(there);
+    }
+    detail.append(bar, newsShot(item, 'wn-detail-shot'), text);
+    body.replaceChildren(detail);
+    body.scrollTop = 0; sheet.scrollTop = 0;
+    (run ? text.querySelector('.wn-go') : back)?.focus?.({ preventScroll: true });
+  };
+  // Esc steps back from a card to the board, and from the board closes it; ← → go through the
+  // cards while one is open. Handled on the key so a second Esc in a row still steps back.
+  const escape = () => {
+    if (board.at == null) { dialog.close(); return; }
+    const at = board.at;
+    drawBoard();
+    cards[at]?.focus?.({ preventScroll: false });
+  };
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { event.preventDefault(); escape(); return; }
+    if (board.at == null || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName ?? '')) return;
+    const next = board.at + (event.key === 'ArrowRight' ? 1 : -1);
+    if (!items[next]) return;
+    event.preventDefault();
+    drawDetail(next);
+  });
+  dialog.addEventListener('cancel', (event) => { event.preventDefault(); escape(); });
+
+  sheet.append(head, body, foot);
   dialog.append(sheet);
   document.body.append(dialog);
+  drawBoard();
   dialog.addEventListener('close', () => {
-    void fetch('/api/whats-new/seen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => null);
+    if (!news.preview) void fetch('/api/whats-new/seen', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => null);
     dialog.remove();
-    after?.();
+    if (!board.went) after?.();
   });
-  // The button takes the focus without taking the page down to it: the sheet opens at its title.
-  setTimeout(() => { dialog.showModal(); go.focus({ preventScroll: true }); dialog.scrollTop = 0; }, after ? 700 : 0);
-  return true;
+  setTimeout(() => { dialog.showModal(); cards[0]?.focus?.({ preventScroll: true }); body.scrollTop = 0; }, after ? 700 : 0);
+  return dialog;
 }
 
 /* ---------- Release channel: is there a newer MADRE? A pill in the bar, the command in MU/TH/UR. ---------- */
 
-const updateUI = { section: document.querySelector('#mother-update'), pill: document.querySelector('#update-pill'), info: null, timer: null, announced: null, restarting: false };
+const updateUI = { pill: document.querySelector('#update-pill'), info: null, timer: null, announced: null, restarting: false };
 async function loadVersion({ force = false } = {}) {
   try {
     updateUI.info = await fetch(`/api/version${force ? '?force=1' : ''}`).then((response) => response.json());
   } catch { updateUI.info = null; }
   // The first time a newer version shows up in this session, say so once; the pill stays.
-  if (updateUI.info?.available && updateUI.announced !== updateUI.info.latest && !replaying) { updateUI.announced = updateUI.info.latest; toast(t('MU/TH/UR › MADRE {version} is on npm. Open MU/TH/UR to restart with it.', { version: updateUI.info.latest })); }
+  if (updateUI.info?.available && updateUI.announced !== updateUI.info.latest && !replaying) { updateUI.announced = updateUI.info.latest; toast(t('MU/TH/UR › MADRE {version} is on npm. Open SETTINGS › Version to restart with it.', { version: updateUI.info.latest })); }
   renderUpdate();
   clearTimeout(updateUI.timer);
   updateUI.timer = setTimeout(() => void loadVersion(), 60 * 60 * 1000);
@@ -15695,88 +17746,65 @@ function renderUpdate() {
   const pill = updateUI.pill;
   if (pill) {
     pill.hidden = !info?.available;
-    if (info?.available) { const glyph = el('span', 'update-glyph'); glyph.innerHTML = UPDATE_GLYPH; pill.replaceChildren(glyph, t('{version} AVAILABLE', { version: info.latest })); pill.title = t('MADRE {latest} is on npm · you run {current} · open MU/TH/UR for the command', { latest: info.latest, current: info.current }); }
+    if (info?.available) { const glyph = el('span', 'update-glyph'); glyph.innerHTML = UPDATE_GLYPH; pill.replaceChildren(glyph, t('{version} AVAILABLE', { version: info.latest })); pill.title = t('MADRE {latest} is on npm · you run {current} · open SETTINGS for the command', { latest: info.latest, current: info.current }); }
   }
-  const section = updateUI.section;
-  if (!section) return;
-  section.replaceChildren();
-  if (!info) { section.append(el('h3', null, t('RELEASE CHANNEL · UNAVAILABLE'))); return; }
-  const when = info.checkedAt ? new Date(info.checkedAt).toLocaleString() : null;
-  // Folded by default: a room that is up to date has nothing to say here. When there is a new
-  // version the header carries a red mark and nothing else, and what it means is inside.
-  const body = folding(section, `${t('RELEASE CHANNEL')} · MADRE ${info.current}${info.available ? '' : info.latest ? t(' · UP TO DATE') : info.enabled ? t(' · NPM NOT REACHED YET') : t(' · CHECK OFF')}`, {
-    key: 'update',
-    icon: 'release',
-    open: false,
-    badge: info.available ? { text: info.latest, urgent: true, title: t('MADRE {latest} is on npm · you run {current}', { latest: info.latest, current: info.current }) } : null,
-  });
-  // What this version brought, again, from right beside its number: the sheet that opened after
-  // the update, for whoever closed it too fast or wants to show someone. Only where it exists.
-  if (info.notes) {
-    const about = el('button', 'fold-link', t('ABOUT THIS VERSION'));
-    about.type = 'button';
-    about.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); void openWhatsNew(); });
-    section.querySelector('.fold > summary h3')?.after(about);
-  }
-  if (info.available) {
-    const canRestart = info.install !== 'source';
-    body.append(el('p', 'note', t('A NEWER MADRE IS ON NPM. THIS COPY RUNS {where}. {how}', {
-      where: info.install === 'npx' ? t('FROM THE NPX CACHE') : info.install === 'project' ? t("FROM THIS PROJECT'S NODE_MODULES") : info.install === 'global' ? t('AS A GLOBAL INSTALL') : t('FROM SOURCE'),
-      how: canRestart ? t('RESTART WITH IT HERE: THE ROOM CLOSES, INSTALLS, AND COMES BACK ON THIS SAME ADDRESS IN A FEW SECONDS. NOTHING IN THE LEDGER IS LOST. OR RUN THE COMMAND YOURSELF.') : t('PULL THE REPOSITORY AND START IT AGAIN.'),
-    })));
-    if (canRestart) {
-      const restart = el('button', 'update-restart', updateUI.restarting ? t('RESTARTING…') : t('RESTART WITH {version}', { version: info.latest }));
-      restart.type = 'button';
-      restart.disabled = updateUI.restarting;
-      restart.addEventListener('click', async () => {
-        restart.disabled = true; restart.textContent = t('RESTARTING…'); updateUI.restarting = true;
-        try {
-          const payload = await fetch('/api/updates/apply', { method: 'POST' }).then((response) => response.json());
-          if (payload.error) throw new Error(payload.error);
-          toast(t('MU/TH/UR › closing to install {version}. Back in a moment.', { version: payload.to }));
-          const from = info.current;
-          const wait = async () => {
-            for (let attempt = 0; attempt < 90; attempt += 1) {
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-              try { const next = await fetch('/api/version', { cache: 'no-store' }).then((response) => response.json()); if (next?.current && next.current !== from) { location.reload(); return; } } catch { /* still restarting */ }
-            }
-            updateUI.restarting = false; renderUpdate(); toast(t('MU/TH/UR › the room did not come back on its own. Start it from your terminal.'));
-          };
-          void wait();
-        } catch (error) { updateUI.restarting = false; renderUpdate(); toast(t('The update did not start: {error}', { error: error.message })); }
-      });
-      body.append(restart);
-    }
-    const row = el('div', 'update-command');
-    const code = el('code', null, info.command);
-    const copy = el('button', null, t('COPY'));
-    copy.type = 'button';
-    copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(info.command); copy.textContent = t('COPIED'); setTimeout(() => { copy.textContent = t('COPY'); }, 1400); } catch { toast(t('MU/TH/UR › select the command and copy it.')); } });
-    row.append(code, copy);
-    body.append(row);
-    if (info.release) { const link = el('a', 'update-link', t('WHAT {version} SHIPS ↗', { version: info.latest })); link.href = info.release; link.target = '_blank'; link.rel = 'noopener noreferrer'; body.append(link); }
-  } else {
-    body.append(el('p', 'note', t('MADRE ASKS NPM FOR THE LATEST VERSION ONCE A DAY: THE PACKAGE NAME TRAVELS, NOTHING ELSE, THE SAME REQUEST NPX MAKES.') + (when ? t(' LAST CHECK {when}.', { when: when.toUpperCase() }) : '')));
-  }
-  const controls = el('div', 'sentinel-controls');
-  const toggle = el('label', 'toggle');
-  const box = el('input'); box.type = 'checkbox'; box.checked = Boolean(info.enabled); box.disabled = Boolean(info.envWins);
-  box.addEventListener('change', async () => {
-    box.disabled = true;
-    try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: box.checked }) }); toast(box.checked ? t('MU/TH/UR › release channel on: one check a day.') : t('MU/TH/UR › release channel off: no request leaves for npm.')); await loadVersion(); }
-    catch (error) { toast(t('The setting was not saved: {error}', { error: error.message })); box.disabled = false; }
-  });
-  toggle.append(box, t('CHECK NPM FOR NEW VERSIONS ONCE A DAY') + (info.envWins ? t(' · SET BY PULSE_UPDATE_CHECK') : ''));
-  controls.append(toggle);
-  if (info.enabled) { const now = el('button', null, t('CHECK NOW')); now.type = 'button'; now.addEventListener('click', () => void loadVersion({ force: true })); controls.append(now); }
-  body.append(controls);
+  const target = state.settingsTargets.release;
+  if (target?.isConnected) drawRelease(target, info);
+  syncSettingsCards();
 }
-updateUI.pill?.addEventListener('click', () => { document.querySelector('#mother-button')?.click(); updateUI.section?.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+function drawRelease(section, info) {
+  section.replaceChildren();
+  if (!info) { sxBlock(section, t('Version'), t('The version could not be read.')); return; }
+  const where = { npx: t('It runs from the npx cache.'), project: t("It runs from this project's node_modules."), global: t('It is installed globally.') }[info.install] ?? t('It runs from source.');
+  const chip = info.available ? sxChip(t('{version} available', { version: info.latest }), 'warn') : info.latest ? sxChip(t('Up to date'), 'on') : null;
+  const block = sxBlock(section, `MADRE ${info.current}`, where, { aside: chip });
+  // What this version brought, again: the board that opened after the update, for whoever closed
+  // it too fast or wants to show someone. Only where it exists.
+  if (info.notes) sxRow(block, t("What's new in this version"), null, sxButton(t('Open'), () => void openWhatsNew()));
+  const when = info.checkedAt ? new Date(info.checkedAt).toLocaleString() : null;
+  const check = sxSwitch(info.enabled, async (on, box) => {
+    box.disabled = true;
+    try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: on }) }); toast(on ? t('MU/TH/UR › release channel on: one check a day.') : t('MU/TH/UR › release channel off: no request leaves for npm.')); await loadVersion(); }
+    catch (error) { box.checked = !on; box.disabled = false; toast(t('The setting was not saved: {error}', { error: error.message })); }
+  }, { disabled: Boolean(info.envWins), label: t('Look for new versions') });
+  sxRow(block, t('Look for new versions'), t('Once a day MADRE asks npm for the latest version: only the package name travels, the same request npx makes.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
+  if (info.enabled) sxRow(block, t('Last check'), when ?? t('Not yet.'), sxButton(t('Check now'), () => void loadVersion({ force: true })));
+
+  if (!info.available) return;
+  const canRestart = info.install !== 'source';
+  const fresh = sxBlock(section, t('MADRE {version} is ready', { version: info.latest }), canRestart
+    ? t('Restart with it here: the room closes, installs and comes back on this same address in a few seconds. Nothing in the ledger is lost. Or run the command yourself.')
+    : t('Pull the repository and start it again.'), { className: 'sx-fresh' });
+  if (canRestart) {
+    const restart = sxButton(updateUI.restarting ? t('Restarting…') : t('Restart with {version}', { version: info.latest }), async () => {
+      restart.disabled = true; restart.textContent = t('Restarting…'); updateUI.restarting = true;
+      try {
+        const payload = await fetch('/api/updates/apply', { method: 'POST' }).then((response) => response.json());
+        if (payload.error) throw new Error(payload.error);
+        toast(t('MU/TH/UR › closing to install {version}. Back in a moment.', { version: payload.to }));
+        const from = info.current;
+        const wait = async () => {
+          for (let attempt = 0; attempt < 90; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            try { const next = await fetch('/api/version', { cache: 'no-store' }).then((response) => response.json()); if (next?.current && next.current !== from) { location.reload(); return; } } catch { /* still restarting */ }
+          }
+          updateUI.restarting = false; renderUpdate(); toast(t('MU/TH/UR › the room did not come back on its own. Start it from your terminal.'));
+        };
+        void wait();
+      } catch (error) { updateUI.restarting = false; renderUpdate(); toast(t('The update did not start: {error}', { error: error.message })); }
+    }, { tone: 'primary' });
+    restart.disabled = updateUI.restarting;
+    sxRow(fresh, t('Restart here'), null, restart);
+  }
+  sxRow(fresh, t('Or in your terminal'), null, sxCommand(info.command), { stack: true });
+  if (info.release) { const link = el('a', 'sx-link', t('What {version} ships ↗', { version: info.latest })); link.href = info.release; link.target = '_blank'; link.rel = 'noopener noreferrer'; sxFoot(fresh, '').append(link); }
+}
+updateUI.pill?.addEventListener('click', () => openSettings(true, { category: 'release' }));
 void loadVersion();
 
 /* ---------- MU/TH/UR: the sentinel. Unknown conditions and crashes, redacted, ready to report. ---------- */
 
-const sentinelUI = { section: document.querySelector('#mother-sentinel'), settings: null, feedbackUrl: null, formUrl: null, loaded: false };
+const sentinelUI = { settings: null, feedbackUrl: null, formUrl: null, loaded: false };
 async function loadSentinel() {
   try {
     const data = await fetch('/api/sentinel').then((response) => response.json());
@@ -15803,10 +17831,8 @@ function renderTurns(section) {
   const turns = turnsUI.turns;
   // Asked once per page: a server that cannot answer is not asked again on every repaint.
   if (!turns && !turnsUI.loading && !turnsUI.tried) { void loadTurns(); }
-  const summary = !turns ? (turnsUI.loading ? t('READING…') : t('COULD NOT READ')) : turns.enabled ? t('ON · {chats} CONVERSATIONS · {turns} TURNS EACH', { chats: turns.chats, turns: turns.turnsPerChat }) : t('OFF · ONE CONVERSATION AT A TIME');
-  const body = folding(section, `${t('TURNS')} · ${summary}`, { key: 'turns', icon: 'bars' });
-  body.append(el('p', 'note', t('HOW MUCH THE ROOM DOES AT ONCE. A CONVERSATION THAT TAKES ITS TIME KEEPS WORKING WHILE YOU WRITE IN IT OR OPEN ANOTHER.')));
-  if (!turns) return;
+  const block = sxBlock(section, t('At the same time'), t('How much the room does at once. A conversation that takes its time keeps working while you write in it or open another.'));
+  if (!turns) { sxFoot(block, turnsUI.loading ? t('Reading…') : t('It could not be read.')); return; }
   const save = async (patch) => {
     try {
       const result = await fetch('/api/turns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).then((response) => response.json());
@@ -15814,122 +17840,78 @@ function renderTurns(section) {
     } catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
     renderMotherSentinel();
   };
-  // One row per setting: what it is, one line on what it does, and its control on the right.
-  const table = el('div', 'turns-table');
-  const row = (name, hint, control, { off = false } = {}) => {
-    const line = el('div', `turns-row${off ? ' off' : ''}`);
-    const words = el('div', 'turns-words');
-    words.append(el('b', null, name), el('span', null, hint));
-    line.append(words, control);
-    table.append(line);
-  };
-  const toggle = el('label', 'toggle turns-switch');
-  const box = el('input'); box.type = 'checkbox'; box.checked = Boolean(turns.enabled);
-  box.addEventListener('change', () => void save({ enabled: box.checked }));
-  toggle.append(box, el('span', null, turns.enabled ? t('SWITCHED ON') : t('SWITCHED OFF')));
-  row(t('MULTITASKING'), turns.enabled ? t('Several conversations may work at once.') : t('One conversation at a time; switching away from one at work is refused.'), toggle);
-  const stepper = (key, max) => {
-    const box = el('div', 'turns-stepper');
-    const value = turns[key];
-    const less = el('button', null, '−'); less.type = 'button'; less.disabled = !turns.enabled || value <= 1;
-    const more = el('button', null, '+'); more.type = 'button'; more.disabled = !turns.enabled || value >= max;
-    less.setAttribute('aria-label', t('fewer')); more.setAttribute('aria-label', t('more'));
-    less.addEventListener('click', () => void save({ [key]: value - 1 }));
-    more.addEventListener('click', () => void save({ [key]: value + 1 }));
-    box.append(less, el('output', null, String(value)), more);
-    return box;
-  };
+  sxRow(block, t('Multitasking'), turns.enabled ? t('Several conversations may work at once.') : t('One conversation at a time; switching away from one at work is refused.'), sxSwitch(turns.enabled, (on) => save({ enabled: on }), { label: t('Multitasking') }));
+  sxRow(block, t('Conversations at once'), t('How many conversations may be working at the same time.'), sxStepper(turns.chats, { max: 6, disabled: !turns.enabled }, (n) => save({ chats: n })), { off: !turns.enabled });
+  sxRow(block, t('Turns per conversation'), t('How many answers may be under way inside one conversation.'), sxStepper(turns.turnsPerChat, { max: 8, disabled: !turns.enabled }, (n) => save({ turnsPerChat: n })), { off: !turns.enabled });
   const notes = notificationsState();
-  const ask = el('button', 'turns-ask', notes === 'granted' ? t('SWITCHED ON') : notes === 'denied' ? t('BLOCKED') : notes === 'unsupported' ? t('NOT HERE') : t('TURN ON'));
-  ask.type = 'button';
+  const ask = sxButton(notes === 'granted' ? t('On') : notes === 'denied' ? t('Blocked') : notes === 'unsupported' ? t('Not available') : t('Turn on'), async () => { await askForNotifications(); renderMotherSentinel(); }, { tone: notes === 'default' ? 'primary' : null });
   ask.disabled = notes !== 'default';
-  ask.addEventListener('click', async () => { await askForNotifications(); renderMotherSentinel(); });
-  row(t('NOTIFICATIONS'), notes === 'denied'
+  sxRow(block, t('Notifications'), notes === 'denied'
     ? t('This browser blocked them for this page; allow them in its site settings.')
     : notes === 'unsupported' ? t('This browser does not offer notifications.') : t('A system notification when a conversation finishes and you are not looking at it.'), ask);
-  row(t('CONVERSATIONS AT ONCE'), t('How many conversations may be working at the same time.'), stepper('chats', 6), { off: !turns.enabled });
-  row(t('TURNS PER CONVERSATION'), t('How many answers may be under way inside one conversation.'), stepper('turnsPerChat', 8), { off: !turns.enabled });
-  body.append(table);
-  body.append(el('p', 'note turns-rule', t('ALWAYS · ONE CONVERSATION AT A TIME MAY HOLD CONTROL OR AIRLOCK OF THE PROJECT.')));
+  sxFoot(block, t('Always: only one conversation at a time may hold CONTROL or AIRLOCK of the project.'));
 }
 
 function renderMotherSentinel() {
-  const section = sentinelUI.section;
-  if (!section) return;
-  section.replaceChildren();
-  renderTurns(section);
+  const turnsTarget = state.settingsTargets.turns;
+  if (turnsTarget?.isConnected) { turnsTarget.replaceChildren(); renderTurns(turnsTarget); }
+  const sentinelTarget = state.settingsTargets.sentinel;
+  if (sentinelTarget?.isConnected) { sentinelTarget.replaceChildren(); drawSentinel(sentinelTarget); }
+  syncSettingsCards();
+}
+function drawSentinel(section) {
   const reports = [...state.reports.values()].sort((a, b) => (a.at < b.at ? 1 : -1));
   const unsent = reports.filter((report) => !report.sent?.ok).length;
-  const sentinelBody = folding(section, `${t('SENTINEL')} · ${reports.length ? t('{n} REPORTS · {unsent} NOT SENT', { n: reports.length, unsent }) : t('NOTHING TO REPORT')}`, { key: 'sentinel', icon: 'alert' });
   const settings = sentinelUI.settings ?? { autoReport: false, canSend: false, repo: null };
-  const what = el('p', 'note', t('THE SENTINEL KEEPS FAILURES MU/TH/UR CANNOT EXPLAIN, AND CRASHES, WITH PATHS, NAMES AND KEYS REMOVED. NOTHING LEAVES THIS MACHINE UNLESS YOU SEND IT: BY HAND AS A GITHUB ISSUE YOU READ FIRST, OR AUTOMATICALLY TO THE AUTHOR\'S COLLECTOR IF YOU SWITCH THAT ON.'));
-  sentinelBody.append(what);
-  const controls = el('div', 'sentinel-controls');
-  const auto = el('label', 'toggle');
-  const box = el('input'); box.type = 'checkbox'; box.checked = Boolean(settings.autoReport); box.disabled = !settings.canSend;
-  box.addEventListener('change', async () => {
+  const block = sxBlock(section, t('Sentinel'), t('It keeps the failures MU/TH/UR cannot explain, and crashes, with paths, names and keys removed. Nothing leaves this machine unless you send it.'), {
+    aside: reports.length ? sxChip(t('{n} reports · {unsent} not sent', { n: reports.length, unsent }), unsent ? 'warn' : '') : sxChip(t('Nothing to report'), 'on'),
+  });
+  sxRow(block, t('Report automatically'), settings.canSend ? t("New unknown conditions go to the author's collector, redacted.") : t('No collector is configured (PULSE_REPORT_URL).'), sxSwitch(settings.autoReport, async (on, box) => {
     box.disabled = true;
     try {
-      const result = await fetch('/api/sentinel/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ autoReport: box.checked }) }).then((response) => response.json());
+      const result = await fetch('/api/sentinel/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ autoReport: on }) }).then((response) => response.json());
       sentinelUI.settings = result.settings;
       toast(result.settings.autoReport ? t("MU/TH/UR › auto-report on: new unknown conditions go to the author's collector, redacted.") : t('MU/TH/UR › auto-report off: reports stay here until you send one.'));
-    } catch (error) { box.checked = !box.checked; toast(t('It could not be saved: {error}', { error: error.message })); }
-    finally { box.disabled = !sentinelUI.settings?.canSend; renderMotherSentinel(); }
-  });
-  auto.append(box, t('AUTO-REPORT UNKNOWN CONDITIONS') + (settings.canSend ? '' : t(' · NO COLLECTOR CONFIGURED (PULSE_REPORT_URL)')));
-  controls.append(auto);
+    } catch (error) { box.checked = !on; toast(t('It could not be saved: {error}', { error: error.message })); }
+    finally { renderMotherSentinel(); }
+  }, { disabled: !settings.canSend, label: t('Report automatically') }), { off: !settings.canSend });
   // Whoever arrived from a post in Spanish will not make a GitHub account to say "it does not
-  // detect Codex". The form leads here; the issue stays one click away, and the other way round
+  // detect Codex". The form leads there; the issue stays one click away, and the other way round
   // in English, where the person reading this is already holding an account.
   const spanish = language() === 'es';
-  const feedback = el('button', spanish ? null : 'primary', t('✎ FEEDBACK TO THE AUTHOR'));
-  feedback.type = 'button';
-  feedback.addEventListener('click', () => openFeedback());
-  const viaForm = el('button', spanish ? 'primary' : null, t('✎ REPORT ON MADRE.RUN ↗'));
-  viaForm.type = 'button';
-  viaForm.addEventListener('click', () => { if (sentinelUI.formUrl) window.open(sentinelUI.formUrl, '_blank', 'noopener'); });
-  controls.append(spanish ? viaForm : feedback, spanish ? feedback : viaForm);
-  sentinelBody.append(controls);
+  const both = el('div', 'sx-actions inline');
+  const viaForm = sxButton(t('On madre.run ↗'), () => { if (sentinelUI.formUrl) window.open(sentinelUI.formUrl, '_blank', 'noopener'); }, { tone: spanish ? 'primary' : null });
+  const viaIssue = sxButton(t('On GitHub ↗'), () => openFeedback(), { tone: spanish ? null : 'primary' });
+  both.append(...(spanish ? [viaForm, viaIssue] : [viaIssue, viaForm]));
+  sxRow(block, t('Tell the author'), t('What failed, or what you wish MADRE did.'), both);
+  if (!reports.length) return;
+  const list = sxBlock(section, t('Reports'), t('Each one is redacted before it is kept. Read it in the issue before you send it.'));
   for (const report of reports.slice(0, 20)) {
-    const rowNode = paint(el('div', `mother-record sentinel-report${report.sent?.ok ? ' sent' : ''}`), report.agent ?? 'room');
-    rowNode.append(el('span', 't', formatTime(report.at)));
-    rowNode.append(el('span', 'a', report.kind === 'crash' ? t('CRASH') : `@${report.agent ?? t('room')}`));
-    const errorNode = el('span', 'e', String(report.error).split('\n')[0].slice(0, 200));
-    errorNode.title = report.error;
-    rowNode.append(errorNode);
-    const actions = el('span', 'k');
-    if (report.count > 1) actions.append(el('span', 'none', `×${report.count}`));
-    actions.append(el('span', 'none', report.fingerprint));
-    if (report.sent?.ok) actions.append(el('span', 'none', t('SENT')));
-    // A crash with a trace belongs in issues, where it deduplicates and the answer helps the next
-    // one. The form is beside it for whoever has no account and would otherwise report nothing.
-    const issue = el('button', null, t('REPORT ON GITHUB ↗'));
-    issue.type = 'button';
-    issue.addEventListener('click', async () => {
+    const who = report.kind === 'crash' ? t('Crash') : `@${report.agent ?? t('room')}`;
+    const line = String(report.error).split('\n')[0].slice(0, 200);
+    const acts = el('div', 'sx-actions inline');
+    const issue = sxButton('GitHub ↗', async () => {
       const result = await fetch(`/api/sentinel/${report.id}/issue`).then((response) => response.json()).catch(() => ({}));
       if (result.url) window.open(result.url, '_blank', 'noopener'); else toast(t('MU/TH/UR › no repository to file this in.'));
     });
-    actions.append(issue);
-    const form = el('button', null, t('OR ON MADRE.RUN ↗'));
-    form.type = 'button';
-    form.addEventListener('click', async () => {
+    const form = sxButton('madre.run ↗', async () => {
       const result = await fetch(`/api/sentinel/${report.id}/issue`).then((response) => response.json()).catch(() => ({}));
       if (result.form) window.open(result.form, '_blank', 'noopener');
     });
-    actions.append(form);
+    acts.append(issue, form);
     if (settings.canSend && !report.sent?.ok) {
-      const send = el('button', null, t('SEND REPORT'));
-      send.type = 'button';
-      send.addEventListener('click', async () => {
+      const send = sxButton(t('Send'), async () => {
         send.disabled = true;
         const result = await fetch(`/api/sentinel/${report.id}/send`, { method: 'POST' }).then((response) => response.json()).catch((error) => ({ ok: false, error: error.message }));
         toast(result.ok ? t("MU/TH/UR › report sent to the author's collector.") : t('MU/TH/UR › could not send: {error}', { error: result.error ?? t('unknown error') }));
         void loadSentinel();
-      });
-      actions.append(send);
+      }, { tone: 'primary' });
+      acts.append(send);
     }
-    rowNode.append(actions);
-    sentinelBody.append(rowNode);
+    const facts = [formatTime(report.at), report.count > 1 ? `×${report.count}` : null, report.sent?.ok ? t('Sent') : null].filter(Boolean).join(' · ');
+    const row = sxRow(list, who, `${facts} · ${line}`, acts, { stack: true });
+    row.title = report.error;
+    paint(row, report.agent ?? 'room');
   }
 }
 function openFeedback() {
@@ -15937,58 +17919,543 @@ function openFeedback() {
   if (sentinelUI.feedbackUrl) { go(sentinelUI.feedbackUrl); return; }
   fetch('/api/sentinel').then((response) => response.json()).then((data) => { sentinelUI.feedbackUrl = data.feedbackUrl; go(data.feedbackUrl); }).catch(() => go(null));
 }
-document.querySelector('#feedback-button')?.addEventListener('click', openFeedback);
-mother.dialog?.addEventListener?.('close', () => { /* keep reports; nothing to reset */ });
 void loadSentinel();
 
-// The panel's own body, which both destinations cover while they are open.
-// The release channel is MU/TH/UR's own business, not a header of every screen.
-const MOTHER_BODY = ['mother-update', 'mother-boot', 'mother-query', 'mother-answer', 'mother-recorded', 'mother-known', 'mother-sentinel'];
-function showMotherBody(show) {
-  for (const id of MOTHER_BODY) { const node = document.getElementById(id); if (node) node.hidden = !show; }
-  const row = document.querySelector('.fold-all-row');
-  if (row) row.hidden = !show;
-}
-settingsUI.button.addEventListener('click', async () => {
-  const open = !settingsUI.open;
-  closeMemoryPanel();
-  settingsUI.open = open;
-  state.settingsOpen = open;
-  settingsUI.button.setAttribute('aria-pressed', String(open));
-  settingsUI.section.hidden = !open;
-  showMotherBody(!open);
-  if (open) { settingsUI.section.append(el('p', 'mother-answer', t('CHECKING CONNECTIONS…'))); await loadSettings(); }
-  else syncFoldAll();
-});
+// Everything MU/TH/UR used to configure lives in AJUSTES now; its one button there opens it.
+// MU/TH/UR's own settings are its sentinel's: what it keeps of what it cannot explain, and whether it reports.
+settingsUI.button?.addEventListener('click', () => openSettingsOn('release', { part: 'sentinel' }));
 
-function closeMemoryPanel() {
-  if (!memoryUI.open) return;
-  memoryUI.open = false;
-  memoryUI.section.hidden = true;
-  memoryUI.button?.setAttribute('aria-pressed', 'false');
+/* ---------- The bar, the way you want it ----------
+   Right-click any key of the bar (or hold it, on a touch screen) and the bar opens for editing, the
+   way a phone's home screen does: the keys tremble, each one that can go wears a «−», and a card
+   under the bar holds everything that is not on it yet. AJUSTES never leaves and is always last,
+   so nobody can lock themselves out of the place where this is undone. The pills that come and go
+   on their own (the first steps, a new version, STOP ALL, the live light) are not keys you place. What is on the
+   bar, and in which order, is this browser's own: a convenience, kept in localStorage. */
+const BAR_KEY = 'pulse.barItems';
+const BAR_FIXED = 'settings';
+const BAR_DEFAULT = ['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder'];
+// The keys that are in the markup. The crew is two elements — five spheres when there is room, one
+// button when there is not — and one key: taking it off takes both.
+const BAR_BUILT = {
+  crew: { nodes: ['#agents', '#agents-compact'], name: () => t('Crew') },
+  modules: { nodes: ['#modules-button'], name: () => t('Modules') },
+  mother: { nodes: ['#mother-button'], name: () => 'MU/TH/UR' },
+  nostromo: { nodes: ['#nostromo-bar'], name: () => 'NOSTROMO' },
+  reload: { nodes: ['#reload-button'], name: () => t('Reload') },
+  servers: { nodes: ['#browser-button'], name: () => t('Servers') },
+  finder: { nodes: ['#tree-button'], name: () => t('Files') },
+  settings: { nodes: ['#custom-button'], name: () => t('Settings') },
+};
+// They ride with the crew when it is there, and lead the keys when it is not: where they always were.
+const BAR_CONTEXTUAL = ['#steps-pill', '#update-pill', '#stop-all'];
+// A module's name before the board has answered; once it has, the module says its own.
+const BAR_MODULE_NAMES = { ash: 'Ash', ollama: 'Ollama', intents: 'Intenciones' };
+const BAR_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const barKit = {
+  node: document.querySelector('#bar'),
+  order: [],
+  editing: false,
+  since: 0,
+  extras: new Map(),   // id → the key made for it
+  badges: new Map(),   // id → its «−»
+  layer: null,
+  card: null,
+  frame: 0,
+  modulesSeen: false,
+  saved: null,         // what this page decided, for when storage will not keep it
+  back: null,          // where focus returns when editing ends
+  swallow: false,      // the click that ends a long press is not a press
+  drag: null,
+};
+
+function barStored() {
+  if (barKit.saved) return [...barKit.saved];
+  try {
+    const raw = JSON.parse(localStorage.getItem(BAR_KEY) ?? 'null');
+    if (Array.isArray(raw) && raw.every((id) => typeof id === 'string')) return [...new Set(raw)];
+  } catch { /* no storage, or not a list: the bar as it ships */ }
+  return [...BAR_DEFAULT];
 }
-memoryUI.button?.addEventListener('click', async () => {
-  const open = !memoryUI.open;
-  // Opening MEMORY closes CONNECTIONS the same way the other way round does: one screen at a time.
-  if (settingsUI.open) {
-    settingsUI.open = false;
-    state.settingsOpen = false;
-    settingsUI.button.setAttribute('aria-pressed', 'false');
-    settingsUI.section.hidden = true;
+// Everything that can be on the bar, settings included, in the order the card offers it.
+function barCatalogue() {
+  const out = new Map();
+  for (const [id, spec] of Object.entries(BAR_BUILT)) {
+    const nodes = spec.nodes.map((query) => document.querySelector(query)).filter(Boolean);
+    if (nodes.length) out.set(id, { id, name: spec.name(), nodes });
   }
-  memoryUI.open = open;
-  memoryUI.section.hidden = !open;
-  memoryUI.button.setAttribute('aria-pressed', String(open));
-  showMotherBody(!open);
-  if (open) { memoryUI.section.replaceChildren(el('p', 'mother-answer', t('READING THE ARCHIVE…'))); await loadSettings(); }
-  else syncFoldAll();
-});
-mother.dialog.addEventListener('close', () => {
-  if (!settingsUI.open && !memoryUI.open) return;
-  settingsUI.open = false;
-  state.settingsOpen = false;
-  settingsUI.button.setAttribute('aria-pressed', 'false');
-  settingsUI.section.hidden = true;
-  closeMemoryPanel();
-  showMotherBody(true);
+  out.set('memory', { id: 'memory', name: t('Memory'), icon: SETTINGS_CATS.memory.icon, open: () => openSettingsOn('memory') });
+  // Every module that opens as a window: MADRE's own that have something to read, and yours. One
+  // that is off is offered too; its window says how to switch it on.
+  const items = modules.items ?? [];
+  const offered = new Map();
+  for (const [id, face] of Object.entries(MODULE_FACES)) if (face.window) offered.set(id, items.find((one) => one.id === id) ?? { id, name: BAR_MODULE_NAMES[id] ?? id });
+  for (const item of items) if (item.external) offered.set(item.id, item);
+  for (const [id, item] of offered) {
+    if (out.has(id)) continue;
+    out.set(id, { id, name: sentenceWords(item.name ?? id), icon: moduleFace(item).icon, open: () => barOpenModule(id) });
+  }
+  return out;
+}
+async function barOpenModule(id) {
+  if (!modules.items.some((one) => one.id === id)) await refreshModules();
+  floatModule(id);
+}
+function barNodes(id) {
+  if (BAR_BUILT[id]) return BAR_BUILT[id].nodes.map((query) => document.querySelector(query)).filter(Boolean);
+  const extra = barKit.extras.get(id);
+  return extra ? [extra] : [];
+}
+// The one of a key's elements that is on screen: the spheres or the crew button, whichever fits.
+function barShown(id) {
+  const nodes = barNodes(id).filter((node) => !node.classList.contains('bar-off'));
+  return nodes.find((node) => node.offsetWidth > 0 && node.offsetHeight > 0) ?? null;
+}
+// A key made for the bar, drawn in the bar's own hand: 20×20, one round stroke.
+function barButton(entry) {
+  const button = el('button', 'tree-button bar-extra');
+  button.type = 'button';
+  button.title = entry.name;
+  button.setAttribute('aria-label', entry.name);
+  button.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${entry.icon}</svg>`; // trusted: our own SVG strings
+  button.addEventListener('click', () => entry.open());
+  barWire(button, entry.id);
+  return button;
+}
+// What every key of the bar answers: right-click opens the bar, a long press on touch does too,
+// and while it is open a key can be carried to another place.
+function barWire(node, id) {
+  if (node.dataset.barWired) return;
+  node.dataset.barWired = '1';
+  node.dataset.barItem = id;
+  node.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    event.barHandled = true;
+    // A long press on some phones ends in a contextmenu of its own: the press already opened it.
+    if (barKit.editing && Date.now() - barKit.since < 700) return;
+    barEdit(!barKit.editing, { from: node });
+  });
+  node.addEventListener('pointerdown', (event) => {
+    if (barKit.editing) { if (id !== BAR_FIXED) barDragStart(event, id); return; }
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+    const x = event.clientX;
+    const y = event.clientY;
+    const timer = setTimeout(() => {
+      barKit.swallow = true;
+      setTimeout(() => { barKit.swallow = false; }, 800);
+      barEdit(true, { from: node });
+    }, 500);
+    const stop = (moved) => {
+      if (moved && Math.hypot(moved.clientX - x, moved.clientY - y) < 10) return;
+      clearTimeout(timer);
+      for (const type of ['pointerup', 'pointercancel', 'pointermove']) node.removeEventListener(type, stop);
+    };
+    node.addEventListener('pointerup', () => stop());
+    node.addEventListener('pointercancel', () => stop());
+    node.addEventListener('pointermove', stop);
+  });
+}
+
+// Puts the keys where the order says: the ones that are on, in order, then AJUSTES. Only what is out
+// of place moves, so a key that stays is never taken off the page (and keeps its focus).
+function barPlace() {
+  const bar = barKit.node;
+  if (!bar) return;
+  const contextual = BAR_CONTEXTUAL.map((query) => document.querySelector(query)).filter(Boolean);
+  const want = [];
+  if (!barKit.order.includes('crew')) want.push(...contextual);
+  for (const id of barKit.order) {
+    want.push(...barNodes(id));
+    if (id === 'crew') want.push(...contextual);
+  }
+  if (barKit.more) want.push(barKit.more);
+  want.push(...barNodes(BAR_FIXED));
+  if (typeof bar.insertBefore !== 'function') {
+    for (const node of [...want, barKit.layer].filter(Boolean)) { node.remove(); bar.append(node); }
+    return;
+  }
+  let next = barKit.layer?.parentNode === bar ? barKit.layer : null;
+  for (let index = want.length - 1; index >= 0; index -= 1) {
+    const node = want[index];
+    if (node.parentNode !== bar || node.nextElementSibling !== next) bar.insertBefore(node, next);
+    next = node;
+  }
+}
+// Reads the order, builds what it needs and hides what is off. An id nobody knows — a module that
+// was deleted — is skipped, and AJUSTES is never in the list because it is never anywhere but last.
+function barLayout() {
+  const catalogue = barCatalogue();
+  barKit.order = barStored().filter((id) => id !== BAR_FIXED && catalogue.has(id));
+  for (const [id, entry] of catalogue) {
+    if (id === BAR_FIXED) { for (const node of entry.nodes) barWire(node, id); continue; }
+    const on = barKit.order.includes(id);
+    if (entry.nodes) {
+      for (const node of entry.nodes) { barWire(node, id); node.classList.toggle('bar-off', !on); }
+    } else if (on && !barKit.extras.has(id)) barKit.extras.set(id, barButton(entry));
+    else if (on) { const key = barKit.extras.get(id); key.title = entry.name; key.setAttribute('aria-label', entry.name); }
+  }
+  for (const [id, node] of barKit.extras) if (!barKit.order.includes(id)) { node.remove(); barKit.extras.delete(id); }
+  barPlace();
+  if (barKit.editing) { barBadges(); barDrawCard(); }
+  barFit();
+}
+
+// On a narrow screen the keys that do not fit go, from the end of your order, into one «more» key
+// before AJUSTES; it opens a small card with them. AJUSTES and the brand always stay in view. While
+// the bar is being arranged every key shows, and the bar scrolls sideways instead.
+function barFit() {
+  const bar = barKit.node;
+  if (!bar || !barKit.more || typeof bar.getBoundingClientRect !== 'function') return;
+  for (const node of bar.querySelectorAll?.('.bar-overflow') ?? []) node.classList.remove('bar-overflow');
+  barKit.hidden = [];
+  barKit.more.hidden = true;
+  if (barKit.editing || !(bar.scrollWidth > bar.clientWidth + 1)) { barCloseMore(); return; }
+  barKit.more.hidden = false;
+  const order = [...barKit.order];
+  while (order.length && bar.scrollWidth > bar.clientWidth + 1) {
+    const id = order.pop();
+    const nodes = barKit.extras.has(id) ? [barKit.extras.get(id)] : barNodes(id);
+    if (!nodes.some((node) => node && !node.classList.contains('bar-off'))) continue;
+    for (const node of nodes) node?.classList.add('bar-overflow');
+    barKit.hidden.unshift(id);
+  }
+  if (!barKit.hidden.length) { barKit.more.hidden = true; barCloseMore(); }
+  else if (barKit.moreCard && !barKit.moreCard.hidden) barDrawMore();
+}
+function barDrawMore() {
+  const catalogue = barCatalogue();
+  const card = barKit.moreCard ??= (() => { const node = el('div', 'bar-card bar-more-card'); node.setAttribute('role', 'menu'); node.hidden = true; document.body?.append(node); return node; })();
+  const grid = el('div', 'bar-grid');
+  for (const id of barKit.hidden ?? []) {
+    const entry = catalogue.get(id);
+    if (!entry) continue;
+    const tile = el('button', 'bar-tile');
+    tile.type = 'button';
+    tile.setAttribute('role', 'menuitem');
+    const glyph = el('span', 'bar-tile-glyph');
+    // A key of the room's own draws the same glyph it wears in the bar.
+    const worn = barNodes(id).map((node) => node?.querySelector?.('svg')).find(Boolean);
+    if (entry.icon) glyph.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${entry.icon}</svg>`; // trusted: the room's own icons
+    else if (worn) glyph.append(worn.cloneNode(true));
+    tile.append(glyph, el('span', 'bar-tile-name', entry.name));
+    tile.addEventListener('click', () => {
+      barCloseMore();
+      if (entry.open) entry.open();
+      else (barNodes(id).find((node) => node && !node.classList.contains('bar-off')))?.click();
+    });
+    grid.append(tile);
+  }
+  card.replaceChildren(grid);
+  card.hidden = false;
+  const key = barKit.more.getBoundingClientRect();
+  const width = card.offsetWidth || 240;
+  card.style.top = `${Math.round(key.bottom + 8)}px`;
+  card.style.left = `${Math.round(Math.max(16, Math.min(window.innerWidth - width - 16, key.right - width)))}px`;
+  barKit.more.setAttribute('aria-expanded', 'true');
+}
+function barCloseMore() {
+  if (barKit.moreCard) barKit.moreCard.hidden = true;
+  barKit.more?.setAttribute('aria-expanded', 'false');
+}
+function barWrite(order) {
+  // Before the board has answered, a module of yours is not known yet: it is kept, not forgotten.
+  const known = barCatalogue();
+  const waiting = barKit.modulesSeen ? [] : barStored().filter((id) => !known.has(id) && !order.includes(id));
+  barKit.saved = [...order, ...waiting];
+  barKit.order = [...order];
+  try { localStorage.setItem(BAR_KEY, JSON.stringify(barKit.saved)); } catch { /* this page only */ }
+}
+function barSave(order) {
+  barWrite(order);
+  barLayout();
+}
+// The board answered: modules of yours can take their places, and their names are their own.
+function barModulesChanged() {
+  if (modules.items?.length) barKit.modulesSeen = true;
+  barLayout();
+}
+
+const barStill = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+function barGap() {
+  const gap = Number.parseFloat(globalThis.getComputedStyle?.(barKit.node)?.columnGap);
+  return Number.isFinite(gap) ? gap : 14;
+}
+function barRemove(id) {
+  if (id === BAR_FIXED || !barKit.order.includes(id)) return;
+  const badge = barKit.badges.get(id);
+  const focused = Boolean(badge) && document.activeElement === badge;
+  const at = barKit.order.indexOf(id);
+  badge?.remove();
+  barKit.badges.delete(id);
+  const node = barShown(id);
+  // Saved at once, so a second «−» pressed while this one folds does not bring it back.
+  barWrite(barKit.order.filter((one) => one !== id));
+  // Focus does not fall to the page: it goes to the next «−», or to Done.
+  const refocus = () => {
+    if (!focused || !barKit.editing) return;
+    const next = barKit.order.slice(at).concat(barKit.order.slice(0, at).reverse()).map((one) => barKit.badges.get(one)).find(Boolean);
+    (next ?? barKit.card?.querySelector('.bar-done'))?.focus?.({ preventScroll: true });
+  };
+  if (!node || typeof node.animate !== 'function' || barStill()) { barLayout(); refocus(); return; }
+  // The key folds away and the ones after it close the gap, rather than jumping into it.
+  const width = node.offsetWidth;
+  node.style.overflow = 'hidden';
+  const fold = node.animate([
+    { width: `${width}px`, minWidth: '0px', paddingLeft: '0px', paddingRight: '0px', marginRight: '0px', opacity: 1, scale: '1' },
+    { width: '0px', minWidth: '0px', paddingLeft: '0px', paddingRight: '0px', marginRight: `${-barGap()}px`, opacity: 0, scale: '.6' },
+  ], { duration: motion(220), easing: 'cubic-bezier(.2, .7, .2, 1)', fill: 'forwards' });
+  if (barKit.editing) barDrawCard();
+  refocus();
+  fold.onfinish = () => { barLayout(); node.style.overflow = ''; fold.cancel(); };
+}
+function barAdd(id) {
+  if (barKit.order.includes(id)) return;
+  barSave([...barKit.order, id]);
+  const node = barShown(id);
+  if (!node || typeof node.animate !== 'function' || barStill()) return;
+  const width = node.offsetWidth;
+  node.style.overflow = 'hidden';
+  const grow = node.animate([
+    { width: '0px', minWidth: '0px', marginRight: `${-barGap()}px`, opacity: 0, scale: '.6' },
+    { width: `${width}px`, minWidth: '0px', marginRight: '0px', opacity: 1, scale: '1' },
+  ], { duration: motion(240), easing: 'cubic-bezier(.2, .7, .2, 1)' });
+  grow.onfinish = () => { node.style.overflow = ''; };
+}
+
+// The «−» of every key that can go. They live in a layer of their own over the bar (a button cannot
+// hold a button) and follow their key every frame: its place, its tremble, and its carry.
+function barBadges() {
+  if (!barKit.layer) return;
+  for (const [id, badge] of barKit.badges) if (!barKit.order.includes(id)) { badge.remove(); barKit.badges.delete(id); }
+  barKit.order.forEach((id, index) => {
+    const delay = `${-((index * 97) % 260)}ms`;
+    for (const node of barNodes(id)) node.style.setProperty('--jiggle-delay', delay);
+    let badge = barKit.badges.get(id);
+    if (!badge) {
+      const name = barCatalogue().get(id)?.name ?? id;
+      badge = el('button', 'bar-badge');
+      badge.type = 'button';
+      badge.dataset.barItem = id;
+      badge.innerHTML = BAR_MINUS; // trusted: our own SVG string
+      badge.setAttribute('aria-label', t('Remove {name} from the bar', { name }));
+      badge.title = t('Remove {name} from the bar', { name });
+      badge.addEventListener('click', (event) => { event.stopPropagation?.(); barRemove(id); });
+      barKit.badges.set(id, badge);
+      barKit.layer.append(badge);
+    }
+    badge.style.setProperty('--jiggle-delay', delay);
+  });
+  barFollow();
+}
+function barFollow() {
+  for (const [id, badge] of barKit.badges) {
+    const node = barShown(id);
+    badge.hidden = !node;
+    if (!node) continue;
+    badge.style.left = `${node.offsetLeft - 5}px`;
+    badge.style.top = `${node.offsetTop - 5}px`;
+    // It turns about its key's centre, so the two tremble as one piece.
+    badge.style.transformOrigin = `${node.offsetWidth / 2 + 5}px ${node.offsetHeight / 2 + 5}px`;
+    badge.style.translate = node.style.translate || '';
+  }
+}
+function barTick() {
+  barKit.frame = 0;
+  if (!barKit.editing) return;
+  barFollow();
+  if (barKit.card) barPlaceCard();
+  if (typeof requestAnimationFrame === 'function') barKit.frame = requestAnimationFrame(barTick);
+}
+
+// The card under the bar: what can still go on it, a key to finish, and how to come back.
+function barDrawCard() {
+  if (!barKit.card) {
+    const card = el('section', 'bar-card');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-label', t('Add to the bar'));
+    card.addEventListener('keydown', barCardKeys);
+    barKit.card = card;
+    document.body.append(card);
+  }
+  const card = barKit.card;
+  const head = el('header', 'bar-card-head');
+  const done = sxButton(t('Done'), () => barEdit(false), { tone: 'primary' });
+  done.classList.add('bar-done');
+  head.append(el('h3', null, t('Add to the bar')), done);
+  const grid = el('div', 'bar-grid');
+  for (const [id, entry] of barCatalogue()) {
+    if (id === BAR_FIXED || barKit.order.includes(id)) continue;
+    const tile = el('button', 'bar-tile');
+    tile.type = 'button';
+    tile.dataset.barItem = id;
+    tile.setAttribute('aria-label', t('Add {name}', { name: entry.name }));
+    tile.title = t('Add {name}', { name: entry.name });
+    const glyph = el('span', 'bar-tile-glyph');
+    // The crew's own drawing is on its one-button form, not on the spheres.
+    const drawn = [...(entry.nodes ?? [])].reverse().map((node) => node.querySelector('svg')).find(Boolean)?.cloneNode?.(true);
+    if (drawn) { drawn.removeAttribute?.('class'); glyph.append(drawn); } else if (entry.icon) glyph.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${entry.icon}</svg>`; // trusted: our own SVG strings
+    tile.append(glyph, el('span', 'bar-tile-name', entry.name));
+    tile.addEventListener('click', () => barAdd(id));
+    grid.append(tile);
+  }
+  const focused = card.contains?.(document.activeElement) ? document.activeElement?.dataset?.barItem ?? 'done' : null;
+  card.replaceChildren(head, grid.children.length ? grid : el('p', 'bar-card-empty', t('Everything is already on the bar.')), el('p', 'bar-card-hint', t('Drag a key to move it. Right-click the bar to come back here.')));
+  card.hidden = false;
+  barPlaceCard();
+  // Focus stays in the card: on the tile that took the place of the one just used, or on Done.
+  if (focused) (grid.querySelector(`[data-bar-item="${focused}"]`) ?? grid.querySelector('.bar-tile') ?? done).focus?.({ preventScroll: true });
+}
+function barPlaceCard() {
+  const card = barKit.card;
+  const box = barKit.node?.getBoundingClientRect?.();
+  if (!card || !Number.isFinite(box?.right) || !Number.isFinite(box?.bottom)) return;
+  const width = Math.max(0, globalThis.innerWidth || 0);
+  // Under the keys, flush with the bar's right edge, and never closer than 16px to either side.
+  const room = width - (card.offsetWidth || 0) - 16;
+  card.style.top = `${Math.round(box.bottom + 10)}px`;
+  card.style.right = `${Math.max(16, Math.min(Math.round(width - box.right), room))}px`;
+}
+function barCardKeys(event) {
+  if (event.key !== 'Tab') return;
+  // Tab goes round the card, the way it goes round a dialog.
+  const keys = [...barKit.card.querySelectorAll('button')];
+  if (!keys.length) return;
+  const at = keys.indexOf(document.activeElement);
+  if (event.shiftKey && at <= 0) { event.preventDefault(); keys.at(-1).focus(); }
+  else if (!event.shiftKey && at === keys.length - 1) { event.preventDefault(); keys[0].focus(); }
+}
+
+function barEdit(on, { from = null } = {}) {
+  if (!barKit.node || on === barKit.editing) return;
+  barKit.editing = on;
+  if (on) stepDone('bar');
+  barKit.node.classList.toggle('bar-editing', on);
+  if (on) {
+    barKit.since = Date.now();
+    barKit.back = from ?? document.activeElement ?? null;
+    barLayout();
+    barKit.card?.querySelector('.bar-tile, .bar-done')?.focus?.({ preventScroll: true });
+    if (!barKit.frame && typeof requestAnimationFrame === 'function') barKit.frame = requestAnimationFrame(barTick);
+    return;
+  }
+  if (barKit.frame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(barKit.frame);
+  barKit.frame = 0;
+  barDragEnd({ save: true });
+  for (const badge of barKit.badges.values()) badge.remove();
+  barKit.badges.clear();
+  if (barKit.card) { barKit.card.hidden = true; barKit.card.replaceChildren(); }
+  const back = barKit.back;
+  barKit.back = null;
+  if (back?.isConnected && !back.classList?.contains('bar-off')) back.focus?.({ preventScroll: true });
+  barFit();
+}
+function barKeys(event) {
+  if (!barKit.editing || event.key !== 'Escape') return;
+  event.preventDefault();
+  event.stopPropagation?.();
+  barEdit(false);
+}
+
+// Carrying a key to another place. It follows the pointer; the others make room as it passes their
+// middle, and it settles where it is let go. The order is saved then.
+function barDragStart(event, id) {
+  if (event.button !== 0 || barKit.drag) return;
+  const node = barShown(id);
+  if (!node || event.target?.closest?.('.bar-badge')) return;
+  const drag = { id, node, x0: event.clientX, base: 0, moved: false };
+  barKit.drag = drag;
+  drag.move = (moved) => barDragMove(moved);
+  drag.up = () => barDragEnd({ save: true });
+  window.addEventListener('pointermove', drag.move);
+  window.addEventListener('pointerup', drag.up);
+  window.addEventListener('pointercancel', drag.up);
+}
+function barDragMove(event) {
+  const drag = barKit.drag;
+  if (!drag) return;
+  const dx = event.clientX - drag.x0;
+  if (!drag.moved) {
+    if (Math.abs(dx) < 5) return;
+    drag.moved = true;
+    drag.base = drag.node.offsetLeft;
+    drag.node.classList.add('bar-lifted');
+  }
+  const centre = drag.base + dx + drag.node.offsetWidth / 2;
+  const others = barKit.order.filter((one) => one !== drag.id).map((one) => [one, barShown(one)]).filter(([, node]) => node);
+  const past = others.find(([, node]) => centre < node.offsetLeft + node.offsetWidth / 2)?.[0] ?? null;
+  const order = barKit.order.filter((one) => one !== drag.id);
+  order.splice(past ? order.indexOf(past) : order.length, 0, drag.id);
+  if (order.join() !== barKit.order.join()) {
+    const before = new Map(others.map(([one, node]) => [one, node.offsetLeft]));
+    barKit.order = order;
+    barPlace();
+    // The keys that moved slide from where they were, instead of jumping.
+    for (const [one, node] of others) {
+      const shift = before.get(one) - node.offsetLeft;
+      if (shift && typeof node.animate === 'function' && !barStill()) node.animate([{ translate: `${shift}px 0` }, { translate: '0 0' }], { duration: motion(180), easing: 'cubic-bezier(.2, .7, .2, 1)' });
+    }
+  }
+  drag.node.style.translate = `${drag.base + dx - drag.node.offsetLeft}px 0`;
+}
+function barDragEnd({ save = false } = {}) {
+  const drag = barKit.drag;
+  if (!drag) return;
+  barKit.drag = null;
+  window.removeEventListener('pointermove', drag.move);
+  window.removeEventListener('pointerup', drag.up);
+  window.removeEventListener('pointercancel', drag.up);
+  if (!drag.moved) return;
+  const from = drag.node.style.translate;
+  drag.node.style.translate = '';
+  drag.node.classList.remove('bar-lifted');
+  if (from && typeof drag.node.animate === 'function' && !barStill()) drag.node.animate([{ translate: from }, { translate: '0 0' }], { duration: motion(160), easing: 'cubic-bezier(.2, .7, .2, 1)' });
+  if (save) barSave(barKit.order);
+}
+
+if (barKit.node) {
+  barKit.layer = el('div', 'bar-badges');
+  barKit.node.append(barKit.layer);
+  barKit.more = el('button', 'tree-button bar-more');
+  barKit.more.type = 'button';
+  barKit.more.hidden = true;
+  barKit.more.title = t('More');
+  barKit.more.setAttribute('aria-label', t('More'));
+  barKit.more.setAttribute('aria-haspopup', 'menu');
+  barKit.more.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="1.6" fill="currentColor"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><circle cx="15" cy="10" r="1.6" fill="currentColor"/></svg>'; // trusted: our own SVG
+  barKit.more.addEventListener('click', (event) => { event.stopPropagation(); if (barKit.moreCard && !barKit.moreCard.hidden) barCloseMore(); else barDrawMore(); });
+  barLayout();
+  let fitting = 0;
+  window.addEventListener?.('resize', () => { cancelAnimationFrame?.(fitting); fitting = requestAnimationFrame?.(() => barFit()) ?? 0; });
+  document.addEventListener('pointerdown', (event) => { if (barKit.moreCard && !barKit.moreCard.hidden && !barKit.moreCard.contains(event.target) && !barKit.more.contains(event.target)) barCloseMore(); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && barKit.moreCard && !barKit.moreCard.hidden) barCloseMore(); });
+  // Right-click on the bar between keys, while it is open, closes it, as a second right-click on a
+  // key does. While it is open a key does not do what it does: it is being placed, not pressed.
+  barKit.node.addEventListener('contextmenu', (event) => { if (barKit.editing && !event.barHandled) { event.preventDefault(); barEdit(false); } });
+  barKit.node.addEventListener('click', (event) => {
+    if (!barKit.editing && !barKit.swallow) return;
+    if (barKit.swallow) { barKit.swallow = false; event.preventDefault(); event.stopPropagation(); return; }
+    if (event.target?.closest?.('.bar-badge') || !event.target?.closest?.('[data-bar-item]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+  document.addEventListener('keydown', barKeys, true);
+  // A press anywhere but the bar and its card puts the bar back.
+  document.addEventListener('pointerdown', (event) => {
+    if (!barKit.editing) return;
+    if (barKit.node.contains?.(event.target) || barKit.card?.contains?.(event.target)) return;
+    barEdit(false);
+  }, true);
+  window.addEventListener?.('resize', () => { if (barKit.editing) barPlaceCard(); });
+}
+Object.assign(globalThis.__pulse, {
+  bar: {
+    get order() { return [...barKit.order]; },
+    get editing() { return barKit.editing; },
+    get card() { return barKit.card; },
+    get badges() { return barKit.badges; },
+    edit: (on) => barEdit(on),
+    layout: () => barLayout(),
+    keys: (event) => barKeys(event),
+    catalogue: () => [...barCatalogue().keys()],
+  },
 });

@@ -360,7 +360,8 @@ test('a remedy this room can carry out points at its button, not at a terminal',
 
   // The button reaches the agent it is about, so the panel opens where the problem is.
   assert.match(app, /card\.id = `conn-\$\{agent\.id\}`;/, 'an agent card has no anchor, so the shortcut cannot land on it');
-  assert.match(app, /if \(condition\.solvedIn === 'connections'\) card\.append\(connectionsShortcut/);
-  // And the commands stay: another machine, another shell, someone who prefers typing.
-  assert.match(app, /connectionsShortcut\(condition, chosen\)\);\n  card\.append\(commandBlock/, 'the commands were replaced instead of being kept under the button');
+  // It sits with the remedy, among the keys that do the fix from here, and opens the agent's sheet.
+  assert.match(app, /if \(condition\.solvedIn === 'connections'\) \{[\s\S]{0,400}openSettingsOn\('agents', \{ agent: who \}\)/);
+  // And the commands stay, in their own block under it: another machine, another shell, someone who prefers typing.
+  assert.match(app, /terminal\.rows\.append\(commandBlock\(fixesFor\(condition, mother\.platform, chosen\)\)\);/, 'the commands were replaced instead of being kept under the button');
 });

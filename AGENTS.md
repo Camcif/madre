@@ -26,7 +26,7 @@ destilador, lee `docs/ZONAS.md`.**
 - Las reacciones **nunca entran en un prompt**. Ponderan el corpus; no se le cuentan al modelo.
 - Hay decisiones abiertas (`D-002`…`D-006`). **No las cierres por tu cuenta**: anótalas.
 
-## Trabajo en curso · puerto a Windows (1.0)
+## Trabajo en curso · puerto a Windows (1.1)
 
 **Se está preparando el puerto a Windows. Antes de tocar cualquier cosa que ejecute
 procesos, resuelva rutas o aplique permisos, lee `docs/WINDOWS.md`.**
@@ -36,7 +36,7 @@ Lo que hay que saber sin abrir el documento:
 - **Hasta nuevo aviso, MADRE no declara soporte ni no-soporte de Windows.** No lo
   afirmes ni lo niegues en la copia del producto, el README, el sitio ni los mensajes
   de la interfaz.
-- El puerto va en la rama `windows/1.0`. `main` sigue recibiendo los arreglos de 0.5.x.
+- El puerto va en la rama `windows/1.0` (la rama conserva su nombre; la versión objetivo es 1.1.0, ver D-003 en `docs/WINDOWS.md`). `main` sigue recibiendo los arreglos de 0.5.x.
 - Un arreglo que sirve en las tres plataformas va en `main`; solo lo específico de
   Windows va en la rama.
 - Cada hallazgo tiene id permanente (`WIN-001`…). Si encuentras uno nuevo, **añádelo a

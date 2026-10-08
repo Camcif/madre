@@ -164,7 +164,7 @@ export const CONDITIONS = [
     title: 'Agent installed but signed out',
     match: /not logged in|sign in required|Error authenticating|unauthorized|please (?:log|sign) ?in|no credentials/i,
     diagnosis: 'The CLI is on this computer but has no session for its provider. MADRE never stores credentials; each agent keeps its own.',
-    remedy: 'Press SIGN IN on the agent\'s card: on first contact the room opens on the bridge, and later the same button lives in ⚙ CONNECTIONS. Codex and Claude sign in with a browser flow MADRE runs for you; Gemini and OpenCode hand you their command. `madre setup` does the same from a terminal.',
+    remedy: 'Press Sign in on the agent: on first contact the room opens on the bridge with the button on each card, and later it lives in Settings → Agents, which the row below opens. Codex and Claude sign in with a browser flow MADRE runs for you; Gemini and OpenCode hand you their command. `madre setup` does the same from a terminal.',
     fixes: same(['npx @jossuealcala/madre setup', '# or directly:', 'codex login', 'claude auth login', 'opencode auth login', 'gemini   # then /auth']),
     perAgent: loginAgent,
   },
@@ -173,9 +173,9 @@ export const CONDITIONS = [
     code: 'MU-009',
     severity: 'blocking',
     title: 'Agent not found on this computer',
-    match: /is not installed on this computer|not found on this computer|ENOENT.*(codex|claude|gemini|opencode)/i,
+    match: /(?<!\bmadre )is not installed on this computer|not found on this computer|ENOENT.*(codex|claude|gemini|opencode)/i,
     diagnosis: 'MADRE looks for `codex`, `claude`, `gemini` and `opencode` on PATH plus a few known locations. Nothing answered.',
-    remedy: 'Press INSTALL on the agent\'s card: MADRE shows the exact command, runs it here and looks again when it finishes, no restart. `madre setup` does the same from a terminal.',
+    remedy: 'Press Install on the agent in Settings → Agents: MADRE shows the exact command, runs it here and looks again when it finishes, no restart. `madre setup` does the same from a terminal.',
     fixes: same(['# pick the agent you want; see per-agent commands below']),
     perAgent: installAgent,
   },
@@ -209,10 +209,10 @@ export const CONDITIONS = [
     // Spanish recorded «no contestó antes del tiempo límite» and filed it as unclassified.
     match: /did not respond before the timeout|went silent for|no contestó antes del tiempo límite|se quedó callad/i,
     diagnosis: 'The agent was still reading files or reasoning when its time limit expired (by default 180 s for a turn that reads and 600 s for one that writes), or Gemini stayed silent for 90 s (PULSE_GEMINI_IDLE_MS) and was stopped after one automatic retry. Long questions over many files take longer; MADRE killed the whole process tree. Whatever a writing turn left before it stopped is listed under the failure, with UNDO.',
-    remedy: 'Press the RAISE button on this card, or type a new number in ⚙ CONNECTIONS (DEFAULT TIMEOUT · SECONDS, or the field on the agent\'s card): fields save the moment you leave them. It applies to the next turn and persists in ~/.pulse/config.json. Environment variables work too, but only for a server started after exporting them; a running room never sees a later export.',
+    remedy: 'Press Apply below, or type a new number in Settings: Default time limit in Room and turns, or Time limit on the agent in Agents. Each field saves the moment you leave it. It applies to the next turn and persists in ~/.pulse/config.json. Environment variables work too, but only for a server started after exporting them; a running room never sees a later export.',
     fixes: {
-      darwin: ['# live, no restart: ⚙ CONNECTIONS → DEFAULT TIMEOUT · SECONDS → SAVE', '# at launch only (env wins over config.json):', 'PULSE_AGENT_TIMEOUT_MS=300000 PULSE_CLAUDE_TIMEOUT_MS=600000 madre start', '# or ~/.pulse/config.json → {"timeouts":{"default":300000,"claude":600000}}'],
-      linux: ['# live, no restart: ⚙ CONNECTIONS → DEFAULT TIMEOUT · SECONDS → SAVE', 'PULSE_AGENT_TIMEOUT_MS=300000 PULSE_CLAUDE_TIMEOUT_MS=600000 madre start', '# or ~/.pulse/config.json → {"timeouts":{"default":300000,"claude":600000}}']
+      darwin: ['# live, no restart: Settings → Room and turns → Default time limit', '# at launch only (env wins over config.json):', 'PULSE_AGENT_TIMEOUT_MS=300000 PULSE_CLAUDE_TIMEOUT_MS=600000 madre start', '# or ~/.pulse/config.json → {"timeouts":{"default":300000,"claude":600000}}'],
+      linux: ['# live, no restart: Settings → Room and turns → Default time limit', 'PULSE_AGENT_TIMEOUT_MS=300000 PULSE_CLAUDE_TIMEOUT_MS=600000 madre start', '# or ~/.pulse/config.json → {"timeouts":{"default":300000,"claude":600000}}']
     },
   },
   {
@@ -255,10 +255,10 @@ export const CONDITIONS = [
     title: 'Local token budget exhausted for an agent',
     match: /MADRE exhausted|local room token budget/i,
     diagnosis: 'The room keeps a soft per-agent budget (500,000 tokens by default) so one agent does not quietly eat a whole session. It is MADRE\'s own bookkeeping from the usage each CLI reports after a turn, not the provider\'s quota: nothing is blocked, the room only warns and suggests other agents. Cache reads weigh a tenth of a fresh token.',
-    remedy: 'Continue with another agent, press RAISE LOCAL BUDGET on this card, or type a number in ⚙ CONNECTIONS → LOCAL TOKEN BUDGET PER AGENT (saves on leaving the field). The provider\'s real limits show in each sphere\'s popover when the CLI reports them.',
+    remedy: 'Continue with another agent, press Apply below, or type a number in Settings → Room and turns → Tokens per agent (it saves when you leave the field). The provider\'s real limits show in each sphere\'s popover when the CLI reports them.',
     fixes: {
-      darwin: ['# live: ⚙ CONNECTIONS → LOCAL TOKEN BUDGET PER AGENT → SAVE', '# at launch: PULSE_SOFT_TOKEN_BUDGET=1000000 madre start', '# or ~/.pulse/config.json → {"room":{"softTokenBudget":1000000}}'],
-      linux: ['# live: ⚙ CONNECTIONS → LOCAL TOKEN BUDGET PER AGENT → SAVE', 'PULSE_SOFT_TOKEN_BUDGET=1000000 madre start']
+      darwin: ['# live: Settings → Room and turns → Tokens per agent', '# at launch: PULSE_SOFT_TOKEN_BUDGET=1000000 madre start', '# or ~/.pulse/config.json → {"room":{"softTokenBudget":1000000}}'],
+      linux: ['# live: Settings → Room and turns → Tokens per agent', 'PULSE_SOFT_TOKEN_BUDGET=1000000 madre start']
     },
   },
   {
@@ -314,8 +314,8 @@ export const CONDITIONS = [
     title: 'Gemini: generating images',
     match: /scope-gemini-imageGen/,
     diagnosis: 'Gemini CLI 0.60 has no image-generation tool in headless mode, even though Google offers image models. MADRE fills the gap with the Image Studio module: its own MCP server exposing generate_image on the Gemini API image models, attached to Gemini only inside a creation lease with the image scope on, billing your Gemini key.',
-    remedy: 'Enable Image Studio in MODULES (needs a Gemini API key with credits), then tick GENERATE IMAGES for Gemini in CONNECTIONS. Without the module, ask @codex or let the orchestrator route the image step to it.',
-    fixes: same(['# MODULES → Image Studio → ENABLE', '# ⚙ CONNECTIONS → Gemini → GENERATE IMAGES → SAVE', '# then: CREATE + "generate … as name.png"']),
+    remedy: 'Turn Image Studio on in Modules (it needs a Gemini API key with credits), then switch on Generate images for Gemini in Settings → Agents. Without the module, ask @codex or let the orchestrator route the image step to it.',
+    fixes: same(['# Modules → Image Studio → Active', '# Settings → Agents → Gemini → Generate images', '# then: CREATE + "generate … as name.png"']),
   },
   {
     id: 'scope-claude-imageGen',
@@ -325,8 +325,8 @@ export const CONDITIONS = [
     title: 'Claude Code: generating images',
     match: /scope-claude-imageGen/,
     diagnosis: 'Claude Code has no image-generation tool; Claude models describe and reason about images, they do not render them. The Image Studio module gives Claude the MCP tool generate_image (MADRE\'s own server on the Gemini API), attached with --mcp-config only inside a creation lease.',
-    remedy: 'Enable Image Studio in MODULES, tick GENERATE IMAGES for Claude in CONNECTIONS, then use CREATE. Or route the image step to @codex.',
-    fixes: same(['# MODULES → Image Studio → ENABLE', '# ⚙ CONNECTIONS → Claude → GENERATE IMAGES → SAVE']),
+    remedy: 'Turn Image Studio on in Modules, switch on Generate images for Claude in Settings → Agents, then use CREATE. Or route the image step to @codex.',
+    fixes: same(['# Modules → Image Studio → Active', '# Settings → Agents → Claude → Generate images']),
   },
   {
     id: 'scope-opencode-imageGen',
@@ -336,8 +336,8 @@ export const CONDITIONS = [
     title: 'OpenCode: generating images',
     match: /scope-opencode-imageGen/,
     diagnosis: 'OpenCode exposes no image-generation tool of its own. The Image Studio module adds MADRE\'s MCP image server to OpenCode\'s ephemeral config inside a creation lease.',
-    remedy: 'Enable Image Studio in MODULES, tick GENERATE IMAGES for OpenCode in CONNECTIONS, then use CREATE. Or route the image step to @codex.',
-    fixes: same(['# MODULES → Image Studio → ENABLE', '# ⚙ CONNECTIONS → OpenCode → GENERATE IMAGES → SAVE']),
+    remedy: 'Turn Image Studio on in Modules, switch on Generate images for OpenCode in Settings → Agents, then use CREATE. Or route the image step to @codex.',
+    fixes: same(['# Modules → Image Studio → Active', '# Settings → Agents → OpenCode → Generate images']),
   },
   {
     id: 'scope-web',
@@ -346,8 +346,8 @@ export const CONDITIONS = [
     title: 'Web access for an agent',
     match: /scope-[a-z]+-web/,
     diagnosis: 'Every CLI can browse: Codex with --search, Claude Code with WebFetch/WebSearch, Gemini with google_web_search/web_fetch, OpenCode with webfetch/websearch. MADRE keeps it off until you enable it per agent.',
-    remedy: 'Tick WEB ACCESS in that agent\'s card in CONNECTIONS and save. It applies to every turn of that agent; content fetched is sent to its provider.',
-    fixes: same(['# ⚙ CONNECTIONS → agent card → WEB ACCESS → SAVE']),
+    remedy: 'Switch on Web access for that agent in Settings → Agents; it saves at once. It applies to every turn of that agent; content fetched is sent to its provider.',
+    fixes: same(['# Settings → Agents → the agent → Web access']),
   },
   {
     id: 'slash-commands',
@@ -356,7 +356,7 @@ export const CONDITIONS = [
     title: 'Commands and mentions in the field box',
     match: /slash|command|\/git|\/ahp|mention|@agent/i,
     diagnosis: 'Type "/" for the room\'s commands: /create arms the lease, /image routes an image request to an agent that can draw, /stopall is the brake, /git (Git Pulse) and /ahp (AHP+) run read-only in the project and post a fact card everyone, agents included, can read. Type "@" to mention an agent; the name becomes a label. Type "!" to point at a project file ("!src/room.mjs:12-20" for lines): the agent reads it first. In the viewer, click a line number (Shift+click for a range) and REVIEW WITH sends those lines to an agent.',
-    remedy: 'A struck-through command is a module that is not available in this project: open MODULES to install or enable it (Git Pulse needs a git repository; AHP+ needs to be installed).',
+    remedy: 'A struck-through command is a module that is not available in this project: open Modules to install it or turn it on (Git Pulse needs a git repository; AHP+ needs to be installed).',
     fixes: same(['# type / or @ in the field box', '/git status', '/git log 10', '/ahp check', '/image a poster for the launch']),
   },
   {
@@ -365,9 +365,9 @@ export const CONDITIONS = [
     severity: 'informational',
     title: 'Permission modes: #0 GHOST · #1 EXCHANGE · #2 CREATE · #3 CONTROL · #4 AIRLOCK',
     match: /mode|ghost|exchange|control|airlock|deploy|despleg|producci|override|designation|max mode|#[0-4]\b/i,
-    diagnosis: 'Every message goes out at a mode, chosen in the chip after TO @agent (or typed as #2 in the text). #0 GHOST is off the record: nothing is saved, no other agent remembers it, gone on reload, no delegation. #1 EXCHANGE is the default: read and coordinate. #2 CREATE lets the agent add new files and folders anywhere in the project, where they belong; whatever existed before is put back after the turn and the room says so. #3 CONTROL puts one agent in command of the project itself: a git checkpoint is taken first, every change is listed afterwards, writes into .git, .pulse or .env files are reverted on the spot, and UNDO restores the checkpoint. One holder at a time; it needs MAX MODE 3 and a git repository. Your mode is the ceiling of any plan the message starts, and #3 is never delegated. Each agent has a MAX MODE in CONNECTIONS; above it, #2 is answered read-only and #3 is refused. When a #1 plan reaches a step that wants to create something, the room pauses and asks you: GRANT ONCE, GRANT FOR PLAN or DENY, with a 3-minute clock; silence denies. #4 AIRLOCK is CONTROL plus commands: tests, builds, git push, deploys with the CLIs and sessions already on this machine. Files still come back with UNDO; what leaves the machine does not, so the override asks twice: the designation, then the word AIRLOCK. An agent that says it needs a "production mode" or "permission to run commands" is asking for #4.',
-    remedy: 'Pick the mode in the chip, or type #0..#4 in the message. Raise an agent\'s MAX MODE in ⚙ CONNECTIONS. CONTROL asks for the project designation (the folder name) in the override; AIRLOCK asks for the designation and then the word AIRLOCK.',
-    fixes: same(['# chip: TO @codex  #1 EXCHANGE ▾  → choose', '@codex #2 create the poster', '@opencode #4 run the tests and deploy to preview', '# ⚙ CONNECTIONS → agent card → MAX MODE']),
+    diagnosis: 'Every message goes out at a mode, chosen in the chip after TO @agent (or typed as #2 in the text). #0 GHOST is off the record: nothing is saved, no other agent remembers it, gone on reload, no delegation. #1 EXCHANGE is the default: read and coordinate. #2 CREATE lets the agent add new files and folders anywhere in the project, where they belong; whatever existed before is put back after the turn and the room says so. #3 CONTROL puts one agent in command of the project itself: a git checkpoint is taken first, every change is listed afterwards, writes into .git, .pulse or .env files are reverted on the spot, and UNDO restores the checkpoint. One holder at a time; it needs Max mode #3 and a git repository. Your mode is the ceiling of any plan the message starts, and #3 is never delegated. Each agent has a Max mode in Settings → Permissions; above it, #2 is answered read-only and #3 is refused. When a #1 plan reaches a step that wants to create something, the room pauses and asks you: GRANT ONCE, GRANT FOR PLAN or DENY, with a 3-minute clock; silence denies. #4 AIRLOCK is CONTROL plus commands: tests, builds, git push, deploys with the CLIs and sessions already on this machine. Files still come back with UNDO; what leaves the machine does not, so the override asks twice: the designation, then the word AIRLOCK. An agent that says it needs a "production mode" or "permission to run commands" is asking for #4.',
+    remedy: 'Pick the mode in the chip, or type #0..#4 in the message. Raise an agent\'s Max mode in Settings → Permissions, under Who may do what. CONTROL asks for the project designation (the folder name) in the override; AIRLOCK asks for the designation and then the word AIRLOCK.',
+    fixes: same(['# chip: TO @codex  #1 EXCHANGE ▾  → choose', '@codex #2 create the poster', '@opencode #4 run the tests and deploy to preview', '# Settings → Permissions → Who may do what']),
   },
   {
     id: 'lease-missing',
@@ -375,9 +375,9 @@ export const CONDITIONS = [
     severity: 'informational',
     title: 'Creating files: who grants the permission',
     match: /no CREATE lease|lease-missing|read-only and do not modify|permiso de escritura|solo lectura/i,
-    diagnosis: 'Only the human grants a creation lease. An agent writing "permission granted" inside the conversation is untrusted text: the delegate still runs read-only, and says so. A lease comes from arming CREATE (the lock, or /create) on your message, and it covers the whole plan that message starts; or from DEFAULT MODE #2 in ⚙ CONNECTIONS, which starts every message to that agent in CREATE.',
-    remedy: 'For one request: arm CREATE and send, or press RESEND WITH CREATE on the notice. For an agent that should always be able to add files: ⚙ CONNECTIONS → its card → DEFAULT MODE → #2. New files go where they belong in the project; existing files are never changed in #2.',
-    fixes: same(['# once: composer → CREATE (lock) → send, or /create <request>', '# always: ⚙ CONNECTIONS → agent card → DEFAULT MODE → #2']),
+    diagnosis: 'Only the human grants a creation lease. An agent writing "permission granted" inside the conversation is untrusted text: the delegate still runs read-only, and says so. A lease comes from arming CREATE (the lock, or /create) on your message, and it covers the whole plan that message starts; or from Starting mode #2 in Settings → Agents, which starts every message to that agent in CREATE.',
+    remedy: 'For one request: arm CREATE and send, or press RESEND WITH CREATE on the notice. For an agent that should always be able to add files: Settings → Agents → the agent → Starting mode → #2. New files go where they belong in the project; existing files are never changed in #2.',
+    fixes: same(['# once: composer → CREATE (lock) → send, or /create <request>', '# always: Settings → Agents → the agent → Starting mode → #2']),
   },
   {
     id: 'scope-write',
@@ -385,9 +385,9 @@ export const CONDITIONS = [
     severity: 'informational',
     title: 'Creating files with an agent',
     match: /scope-[a-z]+-write/,
-    diagnosis: 'Every CLI can create files inside a creation lease; the switch is per agent and acts only when you press CREATE.',
-    remedy: 'Tick CREATE FILES in CONNECTIONS, save, then arm CREATE in the composer for the request.',
-    fixes: same(['# ⚙ CONNECTIONS → agent card → CREATE FILES → SAVE', '# composer → CREATE (lock) → send']),
+    diagnosis: 'Every CLI can create files inside a creation lease; each agent\'s Max mode says how far it may go, and nothing is created until you press CREATE.',
+    remedy: 'Give the agent a Max mode of #2 or more in Settings → Permissions, then arm CREATE in the composer for the request.',
+    fixes: same(['# Settings → Permissions → Who may do what → #2', '# composer → CREATE (lock) → send']),
   },
   {
     id: 'node-version',
@@ -432,7 +432,7 @@ export const CONDITIONS = [
     title: 'Distilled memories: the archivist did not run, or failed',
     match: /could not distil|distill|destil|batch skipped|archivist|memory\.distilled|memories? (were|was) not/i,
     diagnosis: 'Every PULSE_DISTILL_EVERY undistilled exchanges (10), or after PULSE_DISTILL_IDLE_MS of quiet (10 min), the cheapest available agent (Gemini, then OpenCode, Codex, Claude) reads the newest undistilled batch and keeps up to five notes. It runs only when no turn is in flight and one batch per trigger, so a long backlog drains slowly. A run that fails is retried; after three failures on the same batch it is skipped and the room says so. Common causes: the archivist agent is rate-limited or signed out, or PULSE_DISTILL=0.',
-    remedy: 'Check the archivist\'s session in ⚙ CONNECTIONS, or pick another with PULSE_DISTILL_AGENT. Lower PULSE_DISTILL_EVERY to distil sooner; raise PULSE_DISTILL_MAX_CHARS to read more per run. Set PULSE_DISTILL=0 to stop paying for it.',
+    remedy: 'Check the archivist\'s session in Settings → Agents, or pick another in Settings → Memory (Who distils first) or with PULSE_DISTILL_AGENT. Lower PULSE_DISTILL_EVERY to distil sooner; raise PULSE_DISTILL_MAX_CHARS to read more per run. Set PULSE_DISTILL=0 to stop paying for it.',
     fixes: same(['madre doctor', ...envExport('PULSE_DISTILL_AGENT', 'claude').darwin, ...envExport('PULSE_DISTILL_EVERY', '6').darwin, 'PULSE_DISTILL=0 madre start   # off']),
   },
   {
@@ -471,7 +471,7 @@ export const CONDITIONS = [
     match: /save (a |the |this )?memory|guarda.*memoria|memory saved|off the record.*nothing can be saved|remember this|memory_note/i,
     diagnosis: 'Memories are distilled automatically; you never need to ask. When you do ask an agent to remember or save something, it calls memory_note and a pill appears under its reply with the note; clicking the pill opens it in NOSTROMO. In a GHOST turn the note is refused: nothing off the record reaches the archive. "Already remembered" means the same note exists.',
     remedy: 'Ask in any mode but #0: "remember that …" or "save this as a decision: …". Notes saved this way are marked "on the human\'s request" in NOSTROMO and can be forgotten there.',
-    fixes: same(['@claude remember: the webhook verifies the signature before parsing', '# then: MU/TH/UR → ◉ NOSTROMO']),
+    fixes: same(['@claude remember: the webhook verifies the signature before parsing', '# then: MU/TH/UR → NOSTROMO']),
   },
   {
     id: 'nostromo-access',
@@ -481,7 +481,7 @@ export const CONDITIONS = [
     match: /nostromo|designation|UNABLE TO COMPUTE|ARCHIVE IS SEALED|forget this memory/i,
     diagnosis: 'NOSTROMO is the human\'s view of the archive, from MU/TH/UR. Boarding asks for the project designation: the name of the project folder, exactly as CONTROL does; a wrong one answers UNABLE TO COMPUTE. Access stays open until the page reloads. Inside, every distilled memory is a planet around the room\'s core; drag to move, wheel to zoom, click a planet for its card. The only edit is FORGET (two presses): the note leaves every future turn, the ledger stays. If the archive answers SEALED with a number of minutes, wait them out: repeated strikes at the core close it for a while and the composer reads INTRUDER until it opens again.',
     remedy: 'Type the folder name shown in the room header as the designation. To find a memory quickly, ask an agent to search instead. Do not strike the core.',
-    fixes: same(['# MU/TH/UR → ◉ NOSTROMO → designation = project folder name', 'basename "$PWD"']),
+    fixes: same(['# MU/TH/UR → NOSTROMO → designation = project folder name', 'basename "$PWD"']),
   },
   {
     id: 'ripley',
@@ -489,32 +489,35 @@ export const CONDITIONS = [
     severity: 'informational',
     title: 'RIPLEY: rendering HTML, SVG and Markdown in the viewer',
     match: /ripley|RIPLEY is off|renders \.html|render(ed|ing)? (the )?(html|svg|markdown)/i,
-    diagnosis: 'With RIPLEY on (MODULES), the file viewer renders .html and .svg through /preview/project/<path> inside a sealed frame: the page\'s own scripts run, but the frame has no origin, no network, no forms and no way to reach MADRE, and it loads CSS, JS, images and fonts only from the project through MADRE. Relative links work. Markdown renders in place; PREVIEW / SOURCE switches. Off, those files show as text with a note. 412 means RIPLEY is off. Plain /api/files always serves HTML as text.',
-    remedy: 'Enable RIPLEY in MODULES. If a page looks broken in PREVIEW it is usually because it fetches something from the internet or another server, which the frame forbids by design: open it with OPEN RAW in a normal tab if you trust it.',
-    fixes: same(['# MODULES → RIPLEY → ENABLE RIPLEY', '# viewer → PREVIEW / SOURCE']),
+    diagnosis: 'With RIPLEY on (in Modules), the file viewer renders .html and .svg through /preview/project/<path> inside a sealed frame: the page\'s own scripts run, but the frame has no origin, no network, no forms and no way to reach MADRE, and it loads CSS, JS, images and fonts only from the project through MADRE. Relative links work. Markdown renders in place; PREVIEW / SOURCE switches. Off, those files show as text with a note. 412 means RIPLEY is off. Plain /api/files always serves HTML as text.',
+    remedy: 'Turn RIPLEY on in Modules. If a page looks broken in PREVIEW it is usually because it fetches something from the internet or another server, which the frame forbids by design: open it with OPEN RAW in a normal tab if you trust it.',
+    fixes: same(['# Modules → RIPLEY → Active', '# viewer → PREVIEW / SOURCE']),
+  },
+  {
+    id: 'madre-agent',
+    solvedIn: 'ollama',
+    code: 'MU-036',
+    severity: 'informational',
+    title: '@madre: the room\'s own memory, as an agent',
+    // Older rooms recorded @madre leaving as "madre is not installed": it is this condition, not MU-009.
+    match: /@madre|madre-local|needs Ollama running with a chat model|\bmadre is not installed on this computer|@madre left the room/i,
+    diagnosis: 'When Ollama runs with a chat model, a fifth agent joins the room: @madre. It answers from the whole archive (distilled notes and exact quotes, cited as [#n]) and from what the message carries, locally, for free. It never writes, draws, browses or delegates; when the room never discussed something it says so. Other agents may delegate a step to it to check what was decided. It leaves the room when Ollama stops, and MU/TH/UR says so.',
+    remedy: 'Start Ollama and download a chat model from Ollama in Modules; its @madre in the room switch turns the agent off if you do not want it. Ask it "what did we decide about …" or "did we ever discuss …".',
+    fixes: same(['ollama serve', 'ollama pull qwen2.5:3b', '@madre what did we decide about the webhook?']),
   },
   {
     id: 'ollama',
+    solvedIn: 'ollama',
     code: 'MU-035',
     severity: 'informational',
     title: 'Ollama: local embeddings and a local archivist',
     match: /ollama|11434|local model|nomic-embed|qwen|llama3/i,
-    diagnosis: 'When Ollama runs on this machine with an embedding model and a chat model, MADRE embeds the memory locally (recall by meaning without any key) and distils memories with the local model first, before Gemini and the others. Nothing leaves the machine for remembering. Off or absent, everything falls back to the providers. MODULES shows what Ollama has, lets you pull the recommended models, and switches each role.',
-    remedy: 'Install Ollama (ollama.com), start it, then in MODULES press RECHECK and PULL the models it suggests. Set PULSE_OLLAMA_MODEL or PULSE_OLLAMA_EMBED_MODEL to prefer others; PULSE_EMBED_PROVIDER=gemini keeps embeddings on Gemini even with Ollama running.',
+    diagnosis: 'When Ollama runs on this machine with an embedding model and a chat model, MADRE embeds the memory locally (recall by meaning without any key) and distils memories with the local model first, before Gemini and the others. Nothing leaves the machine for remembering. Off or absent, everything falls back to the providers. The Ollama module, in Modules, shows what Ollama has, downloads the recommended models, and switches each role.',
+    remedy: 'Install Ollama (ollama.com), start it, then open Ollama in Modules, press Check again and download the models it suggests. Set PULSE_OLLAMA_MODEL or PULSE_OLLAMA_EMBED_MODEL to prefer others; PULSE_EMBED_PROVIDER=gemini keeps embeddings on Gemini even with Ollama running.',
     fixes: {
       darwin: ['brew install ollama', 'ollama serve', 'ollama pull nomic-embed-text', 'ollama pull qwen2.5:3b'],
       linux: ['curl -fsSL https://ollama.com/install.sh | sh', 'ollama serve', 'ollama pull nomic-embed-text', 'ollama pull qwen2.5:3b']
     },
-  },
-  {
-    id: 'madre-agent',
-    code: 'MU-036',
-    severity: 'informational',
-    title: '@madre: the room\'s own memory, as an agent',
-    match: /@madre|madre-local|needs Ollama running with a chat model/i,
-    diagnosis: 'When Ollama runs with a chat model, a fifth agent joins the room: @madre. It answers from the whole archive (distilled notes and exact quotes, cited as [#n]) and from what the message carries, locally, for free. It never writes, draws, browses or delegates; when the room never discussed something it says so. Other agents may delegate a step to it to check what was decided. It leaves the room when Ollama stops, and MU/TH/UR says so.',
-    remedy: 'Start Ollama and PULL a chat model in MODULES → OLLAMA; the switch @MADRE IN THE ROOM turns the agent off if you do not want it. Ask it "what did we decide about …" or "did we ever discuss …".',
-    fixes: same(['ollama serve', 'ollama pull qwen2.5:3b', '@madre what did we decide about the webhook?']),
   },
   {
     id: 'install-needs-admin',
@@ -523,7 +526,7 @@ export const CONDITIONS = [
     title: 'Installing a CLI: npm cannot write to the system folder',
     match: /EACCES|EPERM|permission denied|Missing write access|npm ERR!.*sudo|administrator/i,
     diagnosis: 'A global npm install writes into a folder that belongs to the system. With Node installed from its own installer that folder needs an administrator, so npm stops with a permission error. MADRE does not ask for your password: when it sees that wall it installs the CLI into a folder of its own, ~/.pulse/tools, and looks there as well as along PATH. The agent works the same; only the file lives somewhere else.',
-    remedy: 'Nothing to do: press INSTALL again and MADRE takes the second way by itself. If you would rather have the CLI everywhere in your terminal, install it yourself with your package manager, or give npm a folder of your own.',
+    remedy: 'Nothing to do: press Install again and MADRE takes the second way by itself. If you would rather have the CLI everywhere in your terminal, install it yourself with your package manager, or give npm a folder of your own.',
     fixes: {
       darwin: ['# MADRE does this for you; these are the alternatives:', 'brew install --cask claude-code', 'npm config set prefix ~/.npm-global   # then add ~/.npm-global/bin to your PATH'],
       linux: ['# MADRE does this for you; these are the alternatives:', 'npm config set prefix ~/.npm-global   # then add ~/.npm-global/bin to your PATH']
@@ -536,8 +539,8 @@ export const CONDITIONS = [
     title: 'Privacy: an agent brought its own configuration into the room',
     match: /privacy\.redacted|privacy\.purged|private terms?|\[ENTIDAD-ORG\]|organi[sz]ation(al)? instructions|leak(ed)? (a|the) (name|company|domain)/i,
     diagnosis: 'A CLI agent runs with its own system context: organisation instructions, the account it is signed in with, CLAUDE.md files elsewhere. It can mistake that private context for shared context and write a company, a brand or a domain into a reply. Once in the ledger the term reaches the archivist, every other agent and the dataset.',
-    remedy: 'Name the terms in ⚙ CONNECTIONS → PRIVACY. From then on MADRE replaces them with the marker before the ledger, the index, the notes and the dataset see them, and every reply that needed it shows a privacy line. PURGE ROOM rewrites what the room already holds; re-export the dataset afterwards. The terms never leave config.json.',
-    fixes: same(['# ⚙ CONNECTIONS → PRIVACY → one term per line → PURGE ROOM', 'export PULSE_PRIVATE_TERMS="Acme Corp,acme.com"   # same list from the environment', 'grep -c "ENTIDAD-ORG" ~/.pulse/rooms/*/events.jsonl']),
+    remedy: 'Name the terms in Settings → Privacy, under Private terms. From then on MADRE replaces them with the marker before the ledger, the index, the notes and the dataset see them, and every reply that needed it shows a privacy line. Purge the room rewrites what the room already holds; re-export the dataset afterwards. The terms never leave config.json.',
+    fixes: same(['# Settings → Privacy → Private terms, one per line → Purge the room', 'export PULSE_PRIVATE_TERMS="Acme Corp,acme.com"   # same list from the environment', 'grep -c "ENTIDAD-ORG" ~/.pulse/rooms/*/events.jsonl']),
   },
   {
     id: 'control-changes',
@@ -545,8 +548,8 @@ export const CONDITIONS = [
     severity: 'informational',
     title: 'CONTROL: what changed, what was reverted, UNDO',
     match: /control\.changed|forbidden zones?|reverted|UNDO|checkpoint|changed \d+ file/i,
-    diagnosis: 'A #3 CONTROL turn takes a git checkpoint before the agent runs, then lists every file it added, modified or deleted. Writes into .git, .pulse or any .env file are reverted on the spot and named. UNDO restores the checkpoint in one click; STOPALL revokes CONTROL. One holder at a time, never delegated, needs MAX MODE 3 and a git repository.',
-    remedy: 'Read the list under the reply before moving on. If the change is wrong press UNDO; if the agent should not have had it, lower its MAX MODE in ⚙ CONNECTIONS.',
+    diagnosis: 'A #3 CONTROL turn takes a git checkpoint before the agent runs, then lists every file it added, modified or deleted. Writes into .git, .pulse or any .env file are reverted on the spot and named. UNDO restores the checkpoint in one click; STOPALL revokes CONTROL. One holder at a time, never delegated, needs Max mode #3 and a git repository.',
+    remedy: 'Read the list under the reply before moving on. If the change is wrong press UNDO; if the agent should not have had it, lower its Max mode in Settings → Permissions.',
     fixes: same(['git log --oneline -5   # checkpoints are ordinary commits on a side ref', 'git stash list', '# room → UNDO under the CONTROL notice']),
   },
   {
@@ -557,7 +560,7 @@ export const CONDITIONS = [
     match: /conversation|already open for this project|ROOM_IN_USE|a turn is running in this conversation|new conversation|chats\.json/i,
     diagnosis: 'A project has one memory and many conversations. The archive, the crew, the modules and the privacy list belong to the project and do not start over when you open another thread; a conversation is only the record of one line of work, and everything said in any of them feeds the same archive. The first conversation is the ledger that was always there, so a room that existed before opens exactly as it did. The numbering is the project\'s, not the thread\'s: a new conversation starts where the project got to, which is why a citation like #1411 means the same exchange in all of them. One conversation drives the crew at a time — two threads editing the same working tree is a way to lose work — so opening another while a turn runs is refused until it finishes. And one server per project: a second `madre start` on the same project is refused with the address of the room that is already open, because two servers would hand out the same sequence twice and the archive would quietly keep one of them.',
     remedy: 'The panel on the left of the canvas lists them: open one, or start another at the bottom. Deleting one takes its transcript and nothing else — what the archivist distilled from it is the project\'s memory and stays. If MADRE says the project is already open, use that room and open a conversation inside it instead of starting a second server.',
-    fixes: same(['# room → the handle under the bar, on the left → NEW CONVERSATION', '# the address of the open room is in the refusal itself', 'ls ~/.pulse/rooms/*/chats.json   # their names and which one is open']),
+    fixes: same(['# room → Conversations → NEW CONVERSATION', '# the address of the open room is in the refusal itself', 'ls ~/.pulse/rooms/*/chats.json   # their names and which one is open']),
   },
   {
     id: 'memory-aberrations',
@@ -566,8 +569,8 @@ export const CONDITIONS = [
     title: 'Aberrations: what the room established is false',
     match: /aberration|aberraci|eyecat|contradict|refut|false claim|hallucinat|alucina/i,
     diagnosis: 'An aberration is a claim the room established is false, kept on purpose rather than deleted: it is what the local model learns not to repeat. It never travels into a turn, and the note it refutes is taken out of circulation with it — a refuted memory is never recalled again, by words or by meaning. EYECAT watches for two agents saying opposite things about the same subject and raises the pair for a third agent to judge, one that took no part in either side. Confirming files the aberration and quarantines what it refutes; dismissing says the room was right and the pair is never raised again. Forgetting an aberration gives its note back.',
-    remedy: 'NOSTROMO shows them as collapsed bodies: open one to read what it took down, or clear it if the room was wrong about being wrong. The three tests report open contradictions under CONSISTENCY.',
-    fixes: same(['# room → ◉ NOSTROMO → the dark bodies are aberrations', '# ⚙ CONNECTIONS → MEMORY → THE THREE TESTS → CONSISTENCY']),
+    remedy: 'NOSTROMO shows them as collapsed bodies: open one to read what it took down, or clear it if the room was wrong about being wrong. The second of the three tests, in Settings → Memory, reports open contradictions.',
+    fixes: same(['# MU/TH/UR → NOSTROMO → the dark bodies are aberrations', '# Settings → Memory → Analysis and tests → the second test']),
   },
   {
     id: 'memory-cascade',
@@ -576,8 +579,8 @@ export const CONDITIONS = [
     title: 'Memory used · N by association',
     match: /by association|cascade|spreading activation|keeps arriving with|memory used/i,
     diagnosis: 'Under a reply, MADRE says what the archive handed that turn. Most of it was matched to what you asked, by words and by meaning. A note marked "by association" came along for a different reason: this room keeps carrying it in the same turn as one of the others, so the archive brings it too, however differently it reads. The strength is a ratio over the turns where each was found on its own merits — a memory the room reaches for constantly does not end up attached to everything, and a pair that stops meeting fades on its own. Association adds and never displaces: recall keeps two slots for it and hands back the ones it does not use.',
-    remedy: 'Click a note to see it in NOSTROMO, where the wires it travels on are drawn. It is the one part of recall that owes nothing to how a memory reads, so it can be switched off in MEMORY.',
-    fixes: same(['# ⚙ CONNECTIONS → MEMORY → CARRY WHAT A MEMORY KEEPS ARRIVING WITH', 'PULSE_RECALL_CASCADE=0 npx @jossuealcala/madre start']),
+    remedy: 'Click a note to see it in NOSTROMO, where the wires it travels on are drawn. It is the one part of recall that owes nothing to how a memory reads, so it can be switched off in Settings → Memory, with Carry the company it keeps.',
+    fixes: same(['# Settings → Memory → Carry the company it keeps', 'PULSE_RECALL_CASCADE=0 npx @jossuealcala/madre start']),
   },
   {
     id: 'memory-cold',
@@ -587,7 +590,7 @@ export const CONDITIONS = [
     match: /cold memor|cold zone|never once carried|had its chances/i,
     diagnosis: 'A memory is cold when three things are true at once: no turn has ever carried it, it shares a subject with nothing so nothing can reach it sideways either, and the archive has been opened at least a dozen times since it was written. The third is what makes the label worth acting on — never-recalled is what every memory is on the day it is written. Chances are counted in turns that actually reached into the archive, and only from the day the room started keeping that trail, so what was never written down is not held against the note.',
     remedy: 'NOSTROMO shows COLD · N in its header when there are any; pressing it rings each one on the map. Open one and its card says the number plainly, with FORGET one press away. Asking about it is the other way out: the room writes that question for you under ASK.',
-    fixes: same(['# room → ◉ NOSTROMO → COLD', '# room → ◉ NOSTROMO → ASK → PUT IN THE COMPOSER']),
+    fixes: same(['# MU/TH/UR → NOSTROMO → COLD', '# MU/TH/UR → NOSTROMO → ASK → PUT IN THE COMPOSER']),
   },
   {
     id: 'maturity-tests',
@@ -596,8 +599,8 @@ export const CONDITIONS = [
     title: 'The three tests: whether the archive works',
     match: /three tests|coverage|consistency|held-out|match test|maturity|madurez|ready to be worked in/i,
     diagnosis: 'The six readings count what the archive is made of; they cannot say whether it works, because nothing about a pile of notes says whether the right one comes back when it is needed. COVERAGE takes real questions from this room, runs recall at the exact point each was asked, and scores what came back against the reply that was actually given. CONSISTENCY reads the contradictions EYECAT still holds and whether aberrations are being filed more often lately. MATCH puts real questions a frontier CLI answered back to the local model with this archive behind it. All three measure against a control, because everything in one room is about the same handful of subjects and any two pieces of it read as close to an embedder: to count, what the archive handed over has to beat what it would have handed over for a different question.',
-    remedy: 'Read the one sentence and the one instruction at the top of MEMORY; the readings and the tests are a fold below it. The free test is read as the panel opens, the cheap one keeps itself fresh once a day while the embeddings are local, and the slow one is yours to start and to stop. None of them spends a provider turn.',
-    fixes: same(['# ⚙ CONNECTIONS → MEMORY → THE THREE TESTS', '# MATCH needs Ollama running with a chat model, and embeddings on']),
+    remedy: 'Read the one sentence and the one instruction at the top of Settings → Memory; the readings and the tests are in Analysis and tests, below it. The free test is read as the panel opens, the cheap one keeps itself fresh once a day while the embeddings are local, and the slow one is yours to start and to stop. None of them spends a provider turn.',
+    fixes: same(['# Settings → Memory → Analysis and tests → The three tests', '# MATCH needs Ollama running with a chat model, and embeddings on']),
   },
   {
     id: 'module-update',
@@ -605,7 +608,7 @@ export const CONDITIONS = [
     severity: 'common',
     title: 'Updating what a module drives',
     match: /EACCES|permission denied.*npm|npm ERR!.*EACCES|update to \d|newest is|brew upgrade|install -g @playwright/i,
-    diagnosis: 'When something newer exists and the module knows how to fetch it, the button is beside the version on its card. It asks twice on purpose: the first press answers with the command, the second runs exactly that, and the output lands in the room line by line. Nothing installs by itself — putting software on your computer unannounced would break the one thing MADRE promises, that a command is seen before it runs. The usual failure is npm refusing a global install with EACCES, which means the global prefix belongs to root; sudo works and leaves you with root-owned files, so a user-owned prefix or a version manager is the better answer.',
+    diagnosis: 'When something newer exists and the module knows how to fetch it, the button is beside the version on its page in Modules. It asks twice on purpose: the first press answers with the command, the second runs exactly that, and the output lands in the room line by line. Nothing installs by itself — putting software on your computer unannounced would break the one thing MADRE promises, that a command is seen before it runs. The usual failure is npm refusing a global install with EACCES, which means the global prefix belongs to root; sudo works and leaves you with root-owned files, so a user-owned prefix or a version manager is the better answer.',
     remedy: 'Press the button beside the version, read the command, run it. If npm refuses with EACCES, point npm at a prefix you own or use a version manager, then press it again.',
     fixes: {
       darwin: ['npm config get prefix', 'npm config set prefix ~/.npm-global', 'echo \'export PATH="$HOME/.npm-global/bin:$PATH"\' >> ~/.zshrc', '# or: brew install node   # a Homebrew node owns its own prefix'],
@@ -618,9 +621,9 @@ export const CONDITIONS = [
     severity: 'common',
     title: 'Installing a module somebody else wrote',
     match: /already taken|must live under \/api\/x\/|not a module|default export must be a module|module file|\.module\.mjs|add a module/i,
-    diagnosis: 'MODULES has + ADD A MODULE for a .mjs somebody wrote. It comes through the same door as everything else: written to a scratch copy, imported there, checked against the house rules, and installed only if it passes. Three things get a file refused, each with the reason: an id that belongs to a module MADRE ships with, a route outside its own corner of the API (/api/x/<id>/), and a file that will not load at all. Said plainly, because it is what it is: a module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and stays in its corral; what the code intends is the one thing nobody can check for you.',
-    remedy: 'Install it only if you trust where it came from. A module you wrote can also be updated from where you publish it: declare updates: { url } in the file, or install it from a file and MADRE remembers which, and its card carries GET A NEWER FILE.',
-    fixes: same(['# MODULES → + ADD A MODULE', 'ls ~/.pulse/modules   # every module you installed, and where it came from', '# docs/SDK.md is the whole contract, and docs/sdk/hello-module.mjs is one that works']),
+    diagnosis: 'Modules has + Add a module for a .mjs somebody wrote. It comes through the same door as everything else: written to a scratch copy, imported there, checked against the house rules, and installed only if it passes. Three things get a file refused, each with the reason: an id that belongs to a module MADRE ships with, a route outside its own corner of the API (/api/x/<id>/), and a file that will not load at all. Said plainly, because it is what it is: a module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and stays in its corral; what the code intends is the one thing nobody can check for you.',
+    remedy: 'Install it only if you trust where it came from. A module you wrote can also be updated from where you publish it: declare updates: { url } in the file, or install it from a file and MADRE remembers which, and its page in Modules carries Get a newer file.',
+    fixes: same(['# Modules → + Add a module', 'ls ~/.pulse/modules   # every module you installed, and where it came from', '# docs/SDK.md is the whole contract, and docs/sdk/hello-module.mjs is one that works']),
   },
   {
     id: 'local-ready',
@@ -667,7 +670,7 @@ export const CONDITIONS = [
     fixes: same([
       '# NOSTROMO → click the core → WHAT LEFT THIS MACHINE',
       'cat ~/.pulse/rooms/*/outbound.jsonl | tail -20   # the same log, on disk',
-      '# embeddings, to keep memories on this computer: MU/TH/UR → MEMORY → EMBEDDINGS → OLLAMA',
+      '# embeddings, to keep memories on this computer: Settings → Memory → Embeddings → Ollama',
       'PULSE_UPDATE_CHECK=0 madre start   # no version checks at all',
     ]),
   },

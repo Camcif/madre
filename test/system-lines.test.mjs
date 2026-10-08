@@ -70,8 +70,7 @@ test('three workspaces say what they are the first time they are opened, once ea
   assert.match(block, /localStorage\.setItem\(HINTS_KEY/, 'the card is never remembered as shown');
 });
 
-test('the release channel offers this version\'s sheet beside its number, only where there is one', () => {
-  assert.match(app, /if \(info\.notes\) \{[\s\S]{0,400}t\('ABOUT THIS VERSION'\)/);
-  assert.match(app, /event\.preventDefault\(\); event\.stopPropagation\(\); void openWhatsNew\(\);/, 'pressing it opens or closes the fold instead');
-  assert.match(app, /fetch\('\/api\/whats-new\?any=1'\)/);
+test('the release channel offers this version\'s board beside its number, only where there is one', () => {
+  assert.match(app, /if \(info\.notes\) sxRow\(block, t\("What's new in this version"\), null, sxButton\(t\('Open'\), \(\) => void openWhatsNew\(\)\)\);/);
+  assert.match(app, /fetch\(`\/api\/whats-new\?any=1\$\{/);
 });

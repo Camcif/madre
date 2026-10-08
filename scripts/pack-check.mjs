@@ -25,6 +25,8 @@ try {
   for (const asset of ['abduction-cat.png', 'abduction-cat-blink.png', 'abduction-cat-control-left.png', 'abduction-cat-control-right.png']) {
     check(files.includes(`public/assets/${asset}`), `tarball contains ${asset}`);
   }
+  // The pictures of the «what's new» board ship with the page that shows them.
+  check(files.some((file) => file.startsWith('public/assets/news/')), 'tarball contains the pictures of what is new');
   check(!files.some((file) => file.startsWith('test/') || file.startsWith('scripts/')), 'tarball excludes test/ and scripts/');
 
   const consumer = join(workspace, 'consumer');

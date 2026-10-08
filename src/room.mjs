@@ -563,7 +563,7 @@ export class Room {
     }
     if (which === 'match') {
       const invoke = this.#invokers[MADRE_ADAPTER];
-      if (!invoke) return { error: 'The local model is not running. Open MODULES → OLLAMA.' };
+      if (!invoke) return { error: 'The local model is not running. Start Ollama, or open Ollama in Modules.' };
       this.#examRunning = 'match';
       this.#examProgress = { done: 0, total: 0 };
       // Answered in the background: the human keeps the room while it runs.
@@ -697,7 +697,7 @@ export class Room {
     if (wanted >= 3) {
       // #3 CONTROL and #4 AIRLOCK: the ceiling must allow it, and there is one holder at a time.
       // A project without git still checkpoints, in MADRE's shadow repository.
-      if (scopes.maxMode < wanted) return { ok: false, status: 403, mode: wanted, maxMode: scopes.maxMode, error: `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label}; raise its MAX MODE to #${wanted} in CONNECTIONS to arm ${MODES[wanted].label}.` };
+      if (scopes.maxMode < wanted) return { ok: false, status: 403, mode: wanted, maxMode: scopes.maxMode, error: `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label}; raise its max mode to #${wanted} in Settings › Permissions to arm ${MODES[wanted].label}.` };
       if (this.#controlDesk.holder) return { ok: false, status: 409, mode: wanted, maxMode: scopes.maxMode, error: `@${this.#controlDesk.holder.agent} already holds ${MODES[this.#controlDesk.holder.mode ?? 3].label} of this project; one holder at a time. STOPALL revokes it.` };
       return { ok: true, mode: wanted, maxMode: scopes.maxMode };
     }
@@ -1032,11 +1032,11 @@ export class Room {
         await this.#emit('lease.refused', {
           messageId,
           agent: parsed.target,
-          reason: !scopes.write.capable ? `@${parsed.target} cannot create files from its CLI` : scopes.maxMode < 2 ? `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label} in CONNECTIONS` : `file creation is switched off for @${parsed.target}`,
+          reason: !scopes.write.capable ? `@${parsed.target} cannot create files from its CLI` : scopes.maxMode < 2 ? `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label} in Settings › Permissions` : `file creation is switched off for @${parsed.target}`,
           unavailable,
           disabled,
           alternatives,
-          message: `@${parsed.target} will answer read-only: ${scopes.write.capable ? 'file creation is switched off for it (enable it in CONNECTIONS)' : 'its CLI cannot create files'}${unavailableSaid.length ? `; it cannot ${unavailableSaid.join(' or ')}` : ''}.${alternatives.length ? ` For creation ask ${alternatives.join(' or ')}.` : ''}`,
+          message: `@${parsed.target} will answer read-only: ${scopes.write.capable ? 'file creation is switched off for it (turn it on in Settings › Agents)' : 'its CLI cannot create files'}${unavailableSaid.length ? `; it cannot ${unavailableSaid.join(' or ')}` : ''}.${alternatives.length ? ` For creation ask ${alternatives.join(' or ')}.` : ''}`,
         });
       } else {
         // `/module` asks for less than #2: one file in its own draft folder. Only a #2 message can
@@ -1225,7 +1225,12 @@ export class Room {
     if (this.#shuttingDown) return null;
     const agent = this.#agents.find((item) => item.id === targetId);
     if (!agent?.detected) {
-      await this.#emit('message.failed', { messageId, target: targetId, planId, error: `${targetId} is not installed on this computer.` });
+      // @madre is not a CLI to install: it is the room's local agent, here while Ollama runs with a
+      // chat model. Saying "not installed" sent people to install something that does not exist.
+      const error = agent?.local || targetId === 'madre'
+        ? `@${targetId} left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.`
+        : `${targetId} is not installed on this computer.`;
+      await this.#emit('message.failed', { messageId, target: targetId, planId, error });
       return null;
     }
     if (!agent.ready) {

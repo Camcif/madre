@@ -69,7 +69,8 @@ export const DESTINATIONS = [
     inside: true,
   },
   {
-    id: 'github', host: 'api.github.com', to: 'GitHub',
+    // Only the release read: the rest of api.github.com is the GitHub module's, and says so itself.
+    id: 'github', host: 'api.github.com', match: (url) => /\/releases\/latest$/.test(url.pathname), to: 'GitHub',
     what: 'The name of a repository, to read the tag of its latest release. Nothing about you or your project.',
     when: 'at most once a day per repository, while the release channel is on',
     where: 'MU/TH/UR → RELEASE CHANNEL · or PULSE_UPDATE_CHECK=0',
@@ -86,7 +87,7 @@ export const DESTINATIONS = [
     id: 'anthropic', host: 'api.anthropic.com', to: 'Anthropic',
     what: 'Your Claude Code token, to read how much of your plan is left. It is read from where Claude keeps it and never stored by MADRE.',
     when: 'while a Claude session is being watched for its quota',
-    where: '⚙ CONNECTIONS → CLAUDE',
+    where: 'Settings › Agents › Claude',
     inside: true,
   },
   {

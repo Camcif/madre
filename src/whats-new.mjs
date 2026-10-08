@@ -22,75 +22,162 @@ const FILE = 'whats-new.json';
 
 // `icon` names one of the room's 8-bit icons. `where` says where it lives, in the words the
 // screens use. `more` is the one thing nobody is told how to find.
+//
+// From 1.0 a sheet is a board: each item also has an `id`, a picture (`image`, under
+// /assets/news/<major.minor>/, whitelisted in server.mjs) and an `action`, the place «Take me
+// there» opens, or null when there is nowhere to go. The page knows exactly these places.
+export const NEWS_ACTIONS = ['settings', 'mother', 'intents', 'permissions', 'github', 'bar', 'modules', 'nostromo', 'room', 'looks', 'finder'];
+
 export const NOTES = {
-  '0.8.0': {
+  '1.0.0': {
     intro: {
-      es: 'Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventana, varias conversaciones trabajan a la vez y los servidores de tu proyecto viven dentro de MADRE.',
-      en: 'This version lets you arrange the room your way: everything opens beside you or in a window, several conversations work at once, and your project’s servers live inside MADRE.',
+      es: 'MADRE 1.0 se ve y se usa como un producto: todo lo que configuras en un solo lugar, ayudas que aprenden de cómo trabajas y una sala que acomodas a tu gusto.',
+      en: 'MADRE 1.0 looks and works like a product: everything you configure in one place, help that learns from how you work, and a room you arrange your way.',
     },
     items: [
       {
-        icon: 'grid',
-        title: { es: 'Todo se abre al lado o en ventana', en: 'Everything opens beside you or in a window' },
-        body: {
-          es: 'Conversaciones, Archivos, el navegador, el visor, MÓDULOS y MU/TH/UR se ponen a un lado de la conversación o flotan en una ventana que mueves y cambias de tamaño. Nada te tapa la caja de texto.',
-          en: 'Conversations, Files, the browser, the viewer, MODULES and MU/TH/UR sit beside the conversation or float in a window you move and resize. Nothing covers the message box.',
-        },
-        where: { es: 'En el encabezado de cada panel · split y ventana, junto a la ×', en: 'In the header of every panel · split and window, next to the ×' },
-      },
-      {
+        id: 'settings',
         icon: 'gear',
-        title: { es: 'MADRE a tu gusto', en: 'MADRE the way you like it' },
+        image: '/assets/news/1.0/settings.webp',
+        title: { es: 'Ajustes en una ventana', en: 'Settings in one window' },
         body: {
-          es: 'Elige el acento, el fondo, el tamaño de las burbujas y del texto de la conversación, y el idioma. Seis acentos y seis fondos, cada uno pensado para tema claro y oscuro; sobre un fondo, la respuesta toma un velo de su color.',
-          en: 'Choose the accent, the wallpaper, the size of the bubbles and of the conversation’s text, and the language. Six accents and six wallpapers, each made for light and dark themes; over a wallpaper, the reply takes a veil of its colour.',
+          es: 'Todo lo que configuras está junto: apariencia, sala, agentes, memoria, permisos, privacidad y versión. Cada tarjeta dice cómo está antes de abrirla, y lo que más usas se cambia ahí mismo. Un buscador encuentra cualquier ajuste.',
+          en: 'Everything you configure is together: appearance, room, agents, memory, permissions, privacy and version. Each card tells you how things stand before you open it, and what you use most changes right there. A search finds any setting.',
         },
-        where: { es: 'El botón PERSONALIZAR de la barra, junto a MU/TH/UR', en: 'The PERSONALIZE button in the bar, next to MU/TH/UR' },
+        where: { es: 'El botón de ajustes de la barra · también ⌘,', en: 'The settings button in the bar · also ⌘,' },
+        action: 'settings',
       },
       {
-        icon: 'bell',
-        title: { es: 'Varias conversaciones trabajando a la vez', en: 'Several conversations working at once' },
-        body: {
-          es: 'Mientras un agente responde, escribe en otra conversación: la primera sigue trabajando. Cuando termina una que no estás mirando, la sala te avisa, y si lo permites llega una notificación.',
-          en: 'While an agent answers, write in another conversation: the first keeps working. When one you are not watching finishes, the room tells you, and a notification arrives if you allow it.',
-        },
-        where: { es: 'MU/TH/UR › TURNOS · ahí también se activan las NOTIFICACIONES', en: 'MU/TH/UR › TURNS · NOTIFICATIONS are switched on there too' },
-      },
-      {
-        icon: 'branch',
-        title: { es: 'Dos conversaciones, una en cada mitad', en: 'Two conversations, one in each half' },
-        body: {
-          es: 'Abre una segunda conversación en la mitad derecha, en vivo, con su propia caja de texto. Arrastra el borde para repartir el ancho o intercambia las mitades.',
-          en: 'Open a second conversation in the right half, live, with its own message box. Drag the edge to share the width or swap the halves.',
-        },
-        where: { es: 'CONVERSACIONES · el botón junto a la × de cada conversación', en: 'CONVERSATIONS · the button next to the × of each conversation' },
-      },
-      {
-        icon: 'link',
-        title: { es: 'Los servidores de tu proyecto, dentro de la sala', en: 'Your project’s servers, inside the room' },
-        body: {
-          es: 'Un comando que abre un puerto sigue vivo en RUNS y se abre en SERVIDORES, que muestra solo los de este proyecto. Con SEÑALAR marcas un punto o un área de la página y se lo preguntas a un agente.',
-          en: 'A command that opens a port stays alive in RUNS and opens in SERVERS, which shows only this project’s. With POINT you mark a spot or an area of the page and ask an agent about it.',
-        },
-        where: { es: 'RUNS › ABRIR EN SERVIDORES · en SERVIDORES, SEÑALAR', en: 'RUNS › OPEN IN SERVERS · in SERVERS, POINT' },
-      },
-      {
-        icon: 'list',
-        title: { es: 'Un editor de código en el visor', en: 'A code editor in the viewer' },
-        body: {
-          es: 'Edita los archivos de texto del proyecto con números de línea, coloreado, indentación automática y los atajos de siempre, sin salir de MADRE.',
-          en: 'Edit the project’s text files with line numbers, highlighting, automatic indentation and the usual shortcuts, without leaving MADRE.',
-        },
-        where: { es: 'Abre un archivo en el visor › EDITAR', en: 'Open a file in the viewer › EDIT' },
-      },
-      {
+        id: 'mother',
         icon: 'check',
-        title: { es: 'Escribir un proyecto de principio a fin', en: 'Writing a project from start to finish' },
+        image: '/assets/news/1.0/mother.webp',
+        title: { es: 'MU/TH/UR te da el remedio', en: 'MU/TH/UR gives you the remedy' },
         body: {
-          es: 'Un turno que escribe tiene 10 minutos, y si se acaba ves lo que alcanzó a hacer y puedes reintentar con más tiempo. Si dos agentes quieren escribir, el segundo espera su turno.',
-          en: 'A writing turn has 10 minutes, and if it runs out you see what it managed to do and can retry with more time. If two agents want to write, the second waits its turn.',
+          es: 'Escribe lo que pasa con tus palabras y ves qué hacer, con la tecla que lo resuelve sin salir de la sala. Lo que falló en esta sala aparece primero y marcado, para que no tengas que adivinar.',
+          en: 'Describe what is happening in your own words and you see what to do, with the key that fixes it without leaving the room. What failed in this room shows first and marked, so you do not have to guess.',
         },
-        where: { es: 'Al subir el modo a #2 o más', en: 'When you raise the mode to #2 or above' },
+        where: { es: 'El botón MU/TH/UR de la barra', en: 'The MU/TH/UR button in the bar' },
+        action: 'mother',
+      },
+      {
+        id: 'intents',
+        icon: 'chip',
+        image: '/assets/news/1.0/intents.webp',
+        title: { es: 'Intenciones aprende de tu uso', en: 'Intenciones learns from how you work' },
+        body: {
+          es: 'Mientras escribes, sugiere cuánto debe pensar cada agente para lo que pides, a partir de tus propios turnos y sin gastar tokens. Puede proponerte un nivel más bajo para un solo mensaje, y si se quedó corto vuelve a subir.',
+          en: 'As you write, it suggests how hard each agent should think for what you ask, learned from your own turns at no token cost. It can offer a lower level for a single message, and if that fell short it goes back up.',
+        },
+        where: { es: 'Bajo la caja de texto · Módulos › Intenciones', en: 'Under the message box · Modules › Intenciones' },
+        action: 'intents',
+      },
+      {
+        id: 'permissions',
+        icon: 'lock',
+        image: '/assets/news/1.0/permissions.webp',
+        title: { es: 'Permisos a tu manera', en: 'Permissions your way' },
+        body: {
+          es: 'Elige qué abre #3 y #4: el nombre del proyecto, una frase tuya o, en #3, solo confirmar. Una llave aceptada puede valer unos minutos, y el modo máximo de cada agente cabe en una sola tabla.',
+          en: 'Choose what unlocks #3 and #4: the project name, a phrase of your own or, for #3, just a confirmation. An accepted key can hold for a few minutes, and every agent’s highest mode fits in one table.',
+        },
+        where: { es: 'Ajustes › Permisos', en: 'Settings › Permissions' },
+        action: 'permissions',
+      },
+      {
+        id: 'github',
+        icon: 'branch',
+        image: '/assets/news/1.0/github.webp',
+        title: { es: 'GitHub en la sala', en: 'GitHub in the room' },
+        body: {
+          es: 'Revisa pull requests, CI e issues con /gh, usando la sesión de gh que ya tienes. Antes de publicar algo te enseña qué saldría y te pregunta, y los agentes solo publican en #4.',
+          en: 'Check pull requests, CI and issues with /gh, using the gh session you already have. Before anything is posted it shows you what would go out and asks, and agents only post in #4.',
+        },
+        where: { es: 'Módulos › GitHub · luego /gh en la caja', en: 'Modules › GitHub · then /gh in the box' },
+        action: 'github',
+      },
+      {
+        id: 'bar',
+        icon: 'bars',
+        image: '/assets/news/1.0/bar.webp',
+        title: { es: 'Tu barra, a tu gusto', en: 'Your bar, your way' },
+        body: {
+          es: 'Clic derecho en la barra y los íconos tiemblan: quita con − lo que no usas y agrega Memoria, Ash, Intenciones, Ollama o cualquier módulo con ventana. En un teléfono, lo que no cabe espera detrás de «Más».',
+          en: 'Right-click the bar and the icons jiggle: take off what you do not use with − and add Memory, Ash, Intenciones, Ollama or any module with a window. On a phone, whatever does not fit waits behind “More”.',
+        },
+        where: { es: 'Clic derecho en la barra · o déjala presionada', en: 'Right-click the bar · or press and hold it' },
+        action: 'bar',
+      },
+      {
+        id: 'modules',
+        icon: 'grid',
+        image: '/assets/news/1.0/modules.webp',
+        title: { es: 'Módulos como apps', en: 'Modules as apps' },
+        body: {
+          es: 'Los módulos son un tablero de mosaicos, cada uno con su interruptor y su ficha. Ash, Intenciones y Ollama se abren en su propia ventana, y las descargas e instalaciones muestran su avance real.',
+          en: 'Modules are a board of tiles, each with its switch and its sheet. Ash, Intenciones and Ollama open in a window of their own, and downloads and installs show their real progress.',
+        },
+        where: { es: 'El botón de módulos de la barra', en: 'The modules button in the bar' },
+        action: 'modules',
+      },
+      {
+        id: 'nostromo',
+        icon: 'orbit',
+        image: '/assets/news/1.0/nostromo.webp',
+        title: { es: 'NOSTROMO a un clic', en: 'NOSTROMO one click away' },
+        body: {
+          es: 'El cerebro de la memoria tiene su propio botón en la barra. Las conexiones entre memorias se ven aunque Ollama esté apagado.',
+          en: 'The memory brain has its own button in the bar. The links between memories show even with Ollama off.',
+        },
+        where: { es: 'El botón NOSTROMO de la barra', en: 'The NOSTROMO button in the bar' },
+        action: 'nostromo',
+      },
+      {
+        id: 'room',
+        icon: 'home',
+        image: '/assets/news/1.0/room.webp',
+        title: { es: 'La sala, acomodada a tu gusto', en: 'The room, arranged your way' },
+        body: {
+          es: 'Cada panel se abre al lado o en una ventana que mueves. Varias conversaciones trabajan a la vez, los servidores de tu proyecto viven dentro de la sala y el visor edita código.',
+          en: 'Every panel opens beside you or in a window you move. Several conversations work at once, your project’s servers live inside the room, and the viewer edits code.',
+        },
+        where: { es: 'El encabezado de cada panel · Ajustes › Sala y turnos', en: 'The header of every panel · Settings › Room and turns' },
+        action: 'room',
+      },
+      {
+        id: 'looks',
+        icon: 'star',
+        image: '/assets/news/1.0/looks.webp',
+        title: { es: '17 acentos y 12 fondos', en: '17 accents and 12 wallpapers' },
+        body: {
+          es: 'Cada uno pensado para tema claro y oscuro. Las respuestas se leen sobre vidrio esmerilado encima de tu fondo, y las tarjetas tienen un relieve suave.',
+          en: 'Each one made for light and dark themes. Replies read on frosted glass over your wallpaper, and cards stand out in soft relief.',
+        },
+        where: { es: 'Ajustes › Apariencia', en: 'Settings › Appearance' },
+        action: 'looks',
+      },
+      {
+        id: 'alerts',
+        icon: 'bell',
+        image: '/assets/news/1.0/alerts.webp',
+        title: { es: 'Alertas más claras', en: 'Clearer alerts' },
+        body: {
+          es: 'Las confirmaciones y las llaves de #3 y #4 llegan en una sola hoja clara, con lo que vas a aprobar a la vista. El menú «revisarlo con» ya no se corta.',
+          en: 'Confirmations and the keys for #3 and #4 arrive as one clear sheet, with what you are approving in view. The “review it with” menu is no longer cut off.',
+        },
+        where: { es: 'Aparecen solas cuando la sala necesita tu palabra', en: 'They appear on their own when the room needs your word' },
+        action: null,
+      },
+      {
+        id: 'finder',
+        icon: 'list',
+        image: '/assets/news/1.0/finder.webp',
+        title: { es: 'Archivos nuevos desde Finder', en: 'New files from the Finder' },
+        body: {
+          es: 'Una tecla junto al buscador crea un archivo y lo abre en el visor, listo para escribir. Las carpetas que falten se crean solas.',
+          en: 'A key beside the search creates a file and opens it in the viewer, ready to write. Any missing folders are made for you.',
+        },
+        where: { es: 'Finder › junto al buscador', en: 'Finder › next to the search' },
+        action: 'finder',
       },
     ],
   },
@@ -167,6 +254,8 @@ export const NOTES = {
 };
 
 export const notesFor = (version) => NOTES[version] ?? null;
+// The newest version that has a sheet: what a preview opens on a copy whose own version has none.
+export const newestNotes = () => Object.keys(NOTES).sort(compareVersions).at(-1) ?? null;
 
 // Whether this person should see the sheet for this version. Someone who has seen an older one,
 // or who used the room before the sheet existed, sees it once; a first install never does.

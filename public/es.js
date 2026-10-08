@@ -43,6 +43,18 @@ export const ES = {
   'you asked for it to be thought through': 'pediste que lo pensara a fondo',
   '{level} is usually too light for it': '{level} suele quedarse corto para esto',
   'MEASURED': 'MEDIDO',
+  '{level} was enough in {n} of your turns': '{level} alcanzó en {n} de tus turnos',
+  'From your use': 'De tu uso',
+  // Probar un nivel más bajo en un solo mensaje.
+  '{level} might be enough · try it on this one and Intenciones will notice': 'podría bastar {level} · pruébalo en esta y Intenciones lo nota',
+  'Trial': 'Prueba',
+  'Try {level} on this one': 'Probar {level} en esta',
+  'This one goes at {level} · if it falls short, Intenciones will notice and go back to {from}': 'Esta va con {level} · si no alcanza, lo notará y volverá a {from}',
+  'This one goes at {level} · if it falls short, Intenciones will notice and go back to the CLI default': 'Esta va con {level} · si no alcanza, lo notará y volverá al nivel del CLI',
+  'Undo': 'Deshacer',
+  '{level} fell short last time': '{level} no alcanzó la última vez',
+  'Back to {level}': 'Volver a {level}',
+  'Back to the CLI default': 'Volver al nivel del CLI',
   'USE {level}': 'USAR {level}',
   'RAISE TO {level}': 'SUBIR A {level}',
   '{level} is usually enough for it, but it has not been measured in this project yet': '{level} suele bastar para esto, pero aún no lo medí en este proyecto',
@@ -151,7 +163,6 @@ export const ES = {
   'JETTISONED': 'ESCLUSA',
   'ZONE': 'ZONA',
   'OUT OF CIRCULATION': 'FUERA DE CIRCULACIÓN',
-  'STOPPING': 'DETENIENDO',
   'No module by that name is loaded.': 'No hay ningún módulo cargado con ese nombre.',
   'Gemini tried to hand this turn to one of its own subagents. MADRE does not allow that: a subagent answers outside the lease, so nothing it wrote would be checked, shown or undoable.':
     'Gemini intentó pasarle este turno a uno de sus propios subagentes. MADRE no lo permite: un subagente contesta fuera del arriendo, así que nada de lo que escribiera quedaría comprobado, mostrado ni reversible.',
@@ -168,9 +179,6 @@ export const ES = {
   '{n} steps': '{n} pasos',
   '@{who} finished · {steps}': '@{who} terminó · {steps}',
   '@{who} stopped after {steps} · {why}': '@{who} se detuvo tras {steps} · {why}',
-  'SUPPORT': 'APOYAR',
-  'MADRE is free and stays free · this only opens GitHub Sponsors in a tab':
-    'MADRE es gratis y seguirá siéndolo · esto solo abre GitHub Sponsors en una pestaña',
   'Enter sends · ⌥ Enter (Alt on Linux) breaks the line':
     'Enter manda · ⌥ Enter (Alt en Linux) salta de línea',
   'Stop this answer · the room and the other agents keep going':
@@ -293,7 +301,6 @@ export const ES = {
 
   // ── LA BARRA ──────────────────────────────────────────────────────────────
   'Project room': 'La sala de este proyecto',
-  'Live updates': 'Conexión con la sala',
   'connecting': 'conectando',
   'live': 'en vivo',
   'reconnecting': 'reconectando',
@@ -512,8 +519,8 @@ export const ES = {
     '{n} TÉRMINOS SE REEMPLAZAN CON {marker} ANTES DE QUE ALGO SALGA DE ESTA SALA.',
   'I WILL NOT PRINT THEM. THE WORDS LIVE IN YOUR CONFIG AND THE LEDGER KEEPS THE COUNT, NEVER THE WORD.':
     'NO LOS VOY A IMPRIMIR. LAS PALABRAS VIVEN EN TU CONFIG Y EL LEDGER GUARDA LA CUENTA, NUNCA LA PALABRA.',
-  'NO TERM IS BEING PROTECTED IN THIS ROOM. ⚙ CONNECTIONS → PRIVACY IS WHERE THEY GO.':
-    'EN ESTA SALA NO SE ESTÁ PROTEGIENDO NINGÚN TÉRMINO. VAN EN ⚙ CONNECTIONS → PRIVACY.',
+  'No term is being protected in this room. They go in Settings › Privacy.':
+    'En esta sala no se está protegiendo ningún término. Se agregan en Ajustes › Privacidad.',
   'where this archive stands, and the one thing to do about it': 'dónde está este archivo, y la única cosa que hacer al respecto',
   'NEXT: {what}': 'SIGUE: {what}',
   'WHERE: {where}': 'DÓNDE: {where}',
@@ -570,6 +577,53 @@ export const ES = {
   'nothing in the project': 'nada en el proyecto',
   'a switch in ~/.pulse/config.json': 'un interruptor en ~/.pulse/config.json',
 
+  // AJUSTES: una sola ventana para todos los ajustes.
+  'Search any setting': 'Busca cualquier ajuste',
+  'You': 'Tú',
+  'How it looks and how the room works': 'Cómo se ve y cómo trabaja la sala',
+  'The crew': 'La tripulación',
+  'Who works, and what the room remembers': 'Quién trabaja y qué recuerda la sala',
+  'System': 'Sistema',
+  'Appearance': 'Apariencia',
+  'Room and turns': 'Sala y turnos',
+  'Memory': 'Memoria',
+  'Privacy': 'Privacidad',
+  'Version and reports': 'Versión y reportes',
+  'Settings': 'Ajustes',
+  'Auto': 'Auto',
+  'Turns': 'Turnos',
+  'Limits': 'Límites',
+  'Version': 'Versión',
+  'Sentinel': 'Centinela',
+  'Multitasking': 'Multitarea',
+  'Multitasking · {n} at once': 'Multitarea · {n} a la vez',
+  'One conversation at a time': 'Una conversación a la vez',
+  '{n} tokens per agent': '{n} tokens por agente',
+  '{n} of {total} signed in': '{n} de {total} con sesión',
+  '{agents} without a session': '{agents} sin sesión',
+  'This room has no memory index': 'Esta sala no tiene índice de memoria',
+  'the cheapest agent': 'el agente más barato',
+  'Archived by {who} · embeddings {how}': 'Archiva {who} · embeddings {how}',
+  '{n} private terms': '{n} términos privados',
+  'No private terms': 'Sin términos privados',
+  'keys redacted': 'llaves tachadas',
+  'keys not redacted': 'llaves sin tachar',
+  'auto-report on': 'auto-reporte encendido',
+  'auto-report off': 'auto-reporte apagado',
+  '{version} available': '{version} disponible',
+  'up to date': 'al día',
+  '{version} is on npm': '{version} ya está en npm',
+  'Redact keys and e-mail addresses': 'Tachar llaves y correos',
+  'Auto-report unknown conditions': 'Auto-reportar condiciones desconocidas',
+  'Nothing called «{query}».': 'Nada se llama «{query}».',
+  'The page reloads in the new language.': 'La página se recarga en el idioma nuevo.',
+  'max plan steps saved: {n}.': 'pasos máximos por plan guardados: {n}.',
+  'Gemini silence limit saved: {n}s.': 'límite de silencio de Gemini guardado: {n} s.',
+  'Gemini retries saved: {n}.': 'reintentos de Gemini guardados: {n}.',
+  'OpenCode model saved.': 'modelo de OpenCode guardado.',
+  'agents may delegate turns.': 'los agentes pueden delegarse turnos.',
+  'agents no longer delegate turns.': 'los agentes ya no se delegan turnos.',
+
   // INTENCIONES, en MODULES.
   'Suggests how hard Claude Code and Codex should think for the message you are writing, from what was measured on this project. It suggests; you choose.':
     'Sugiere cuánto deben pensar Claude Code y Codex para el mensaje que escribes, a partir de lo que se midió en este proyecto. Sugiere; tú eliges.',
@@ -580,16 +634,30 @@ export const ES = {
   'INTENCIONES UNAVAILABLE': 'INTENCIONES NO DISPONIBLE',
   'NO AGENT HERE TAKES AN EFFORT PER TURN · CLAUDE CODE AND CODEX DO': 'NINGÚN AGENTE AQUÍ ACEPTA ESFUERZO POR TURNO · CLAUDE CODE Y CODEX SÍ',
   'its default model': 'su modelo por defecto',
-  'against {level}': 'contra {level}',
   'LOOKUP': 'BÚSQUEDA',
   'EXPLANATION': 'EXPLICACIÓN',
   'REVIEW': 'REVISIÓN',
   'DESIGN': 'DISEÑO',
+  // Lo que enseñó el uso real: los turnos que ya mandaste, leídos sin gastar tokens.
+  'Lookup': 'Búsqueda',
+  'Explanation': 'Explicación',
+  'Review': 'Revisión',
+  'Change': 'Cambio',
+  'Diagnosis': 'Diagnóstico',
+  'Design': 'Diseño',
+  'Short reply': 'Respuesta corta',
+  'seen in {n} turns': 'visto en {n} turnos',
+  'trying {level} · {n} of {min} turns': 'probando {level} · {n} de {min} turnos',
+  '{level} fell short · paused until {date}': '{level} no alcanzó · en pausa hasta {date}',
+  'learning · {n} of {min} turns': 'aprendiendo · {n} de {min} turnos',
+  'none was enough often enough · {n} turns': 'ninguno alcanzó las veces suficientes · {n} turnos',
+  'Measure faster': 'Medir más rápido',
+  'Your turns teach for free, a few at a time. A test asks questions from this project again, against {level}, and compares the answers: it is faster, and it spends tokens.':
+    'Tus turnos enseñan gratis, de pocos en pocos. Una prueba vuelve a hacer preguntas de este proyecto, contra {level}, y compara las respuestas: es más rápida, y gasta tokens.',
+  '1 question is ready to ask.': 'Hay 1 pregunta lista para hacer.',
+  '{n} questions are ready to ask.': 'Hay {n} preguntas listas para hacer.',
   'measured': 'medido',
   'measured · needs it': 'medido · lo necesita',
-  'open · {n} questions to ask': 'abierto · {n} preguntas por hacer',
-  'open · 1 question to ask': 'abierto · 1 pregunta por hacer',
-  'no questions of this kind yet': 'aún no hay preguntas de este tipo',
   'JUDGE CAUGHT {caught} OF {n} CONTROLS · {status}': 'EL JUEZ ATRAPÓ {caught} DE {n} CONTROLES · {status}',
   'trusted': 'confiable',
   'could not see the difference': 'no vio la diferencia',
@@ -597,7 +665,6 @@ export const ES = {
   '{n} tokens spent measuring': '{n} tokens gastados en medir',
   'QUICK TEST · {n} TURNS': 'PRUEBA RÁPIDA · {n} TURNOS',
   'FULL TEST · ~{n} TURNS': 'PRUEBA COMPLETA · ~{n} TURNOS',
-  'PRESS AGAIN TO SPEND ~{n} TURNS': 'PULSA OTRA VEZ PARA GASTAR ~{n} TURNOS',
   'The test could not start: {error}': 'La prueba no pudo empezar: {error}',
   'The test could not finish: {error}': 'La prueba no pudo terminar: {error}',
   '{kind} TEST RUNNING · @{agent} · {turns} OF ~{estimate} TURNS': 'PRUEBA {kind} EN CURSO · @{agent} · {turns} DE ~{estimate} TURNOS',
@@ -739,117 +806,54 @@ export const ES = {
   'off · files show as source': 'apagado · los archivos se ven como código',
 
   // ── ⚙ CONNECTIONS: la tripulación, la sala, la memoria, la privacidad ─────
-  'CONNECTIONS · {n} OF {total} SIGNED IN': 'CONEXIONES · {n} DE {total} CON SESIÓN',
-  ' · CHECKED {time}': ' · REVISADO {time}',
-  '{n} agents with no session': '{n} agentes sin sesión',
-  'ONE AGENT IS ENOUGH TO OPEN THE ROOM. MADRE USES THE SESSION EACH CLI ALREADY HAS: INSTALL ONE HERE OR SIGN IT IN, AND THE ROOM OPENS BY ITSELF.':
-    'CON UN AGENTE BASTA PARA ABRIR LA SALA. MADRE USA LA SESIÓN QUE CADA CLI YA TIENE: INSTALA UNO AQUÍ O INICIA SU SESIÓN, Y LA SALA SE ABRE SOLA.',
-  "EACH AGENT KEEPS ITS OWN CREDENTIALS IN ITS OWN CLI. MADRE ONLY ASKS THE CLI WHETHER IT IS SIGNED IN, AND CAN START THE CLI'S OWN SIGN-IN FOR YOU.":
-    'CADA AGENTE GUARDA SUS CREDENCIALES EN SU PROPIO CLI. MADRE SOLO LE PREGUNTA AL CLI SI TIENE SESIÓN, Y PUEDE ARRANCAR POR TI EL INICIO DE SESIÓN DEL PROPIO CLI.',
   'ROOM SETTINGS': 'AJUSTES DE LA SALA',
-  'LOCAL TOKEN BUDGET PER AGENT': 'PRESUPUESTO LOCAL DE TOKENS POR AGENTE',
-  'DEFAULT TIMEOUT · SECONDS': 'TIEMPO LÍMITE POR DEFECTO · SEGUNDOS',
-  'MAX PLAN STEPS': 'PASOS MÁXIMOS POR PLAN',
-  'GEMINI SILENCE LIMIT · SECONDS': 'LÍMITE DE SILENCIO DE GEMINI · SEGUNDOS',
-  'GEMINI RETRIES': 'REINTENTOS DE GEMINI',
-  'OPENCODE MODEL IN THIS ROOM': 'MODELO DE OPENCODE EN ESTA SALA',
-  'AGENTS MAY DELEGATE TURNS TO EACH OTHER': 'LOS AGENTES PUEDEN DELEGARSE TURNOS ENTRE ELLOS',
-  'LIST OPENCODE MODELS': 'LISTAR MODELOS DE OPENCODE',
-  '{n} MODELS LISTED': '{n} MODELOS LISTADOS',
-  'SAVE TO ~/.pulse/config.json': 'GUARDAR EN ~/.pulse/config.json',
-  'ENVIRONMENT VARIABLES SET BEFORE START STILL WIN ON THE NEXT LAUNCH.':
-    'LAS VARIABLES DE ENTORNO PUESTAS ANTES DE ARRANCAR SIGUEN GANANDO EN EL PRÓXIMO INICIO.',
   'local budget saved: {n} tokens per agent per 5h window.': 'presupuesto local guardado: {n} tokens por agente cada 5 h.',
   'default timeout saved: {n}s.': 'tiempo límite por defecto guardado: {n}s.',
-  'MU/TH/UR › settings saved. new turns use them now.': 'MU/TH/UR › ajustes guardados. los turnos nuevos ya los usan.',
-  'Settings were not saved.': 'Los ajustes no se guardaron.',
 
   // Memoria.
-  'THE ARCHIVIST READS WHAT NOBODY HAS DISTILLED AND KEEPS THE FEW NOTES WORTH REMEMBERING. THE CHEAPEST ALLOWED AGENT GOES FIRST; A LOCAL MODEL COSTS NOTHING AND KEEPS EVERYTHING ON THIS MACHINE.':
-    'EL ARCHIVISTA LEE LO QUE NADIE HA DESTILADO Y SE QUEDA CON LAS POCAS NOTAS QUE VALE LA PENA RECORDAR. VA PRIMERO EL AGENTE PERMITIDO MÁS BARATO; UN MODELO LOCAL NO CUESTA NADA Y DEJA TODO EN ESTA COMPUTADORA.',
-  'AUTO · cheapest allowed': 'AUTO · el más barato permitido',
   'archivist: the cheapest allowed agent goes first.': 'archivista: va primero el agente permitido más barato.',
   'archivist: @{agent} distils first.': 'archivista: @{agent} destila primero.',
   'ARCHIVIST': 'ARCHIVISTA',
   'distil every {n} exchanges.': 'destilar cada {n} intercambios.',
-  'DISTIL EVERY · EXCHANGES': 'DESTILAR CADA · INTERCAMBIOS',
   'or after {n} quiet minutes.': 'o después de {n} minutos en silencio.',
-  'OR AFTER · QUIET MINUTES': 'O DESPUÉS DE · MINUTOS EN SILENCIO',
   "recall may take {n}% of each turn's context.": 'el recall puede tomar {n}% del contexto de cada turno.',
   'RECALL · % OF CONTEXT': 'RECALL · % DEL CONTEXTO',
   'recall also carries what a memory keeps arriving with.': 'el recall también carga con lo que una memoria llega acompañada.',
   'recall carries only what the words and the meaning match.': 'el recall carga solo lo que coincide por palabras y por significado.',
-  'CARRY WHAT A MEMORY KEEPS ARRIVING WITH': 'CARGAR CON LO QUE UNA MEMORIA SIEMPRE LLEGA ACOMPAÑADA',
-  'Two memories that keep travelling into the same turn are associated, however differently they read. Recall keeps a couple of slots for that company; the search never loses a slot to it.':
-    'Dos memorias que siempre viajan al mismo turno quedan asociadas, por distinto que se lean. El recall guarda un par de lugares para esa compañía; la búsqueda nunca pierde un lugar por eso.',
   'AUTO · Ollama if running, else Gemini': 'AUTO · Ollama si está corriendo, si no Gemini',
   'local': 'local',
   ' · no model yet': ' · todavía sin modelo',
   'GEMINI · needs your key': 'GEMINI · necesita tu llave',
   'OFF · words only': 'APAGADO · solo palabras',
   'embeddings: {what}.': 'embeddings ahora: {what}.',
-  'EMBEDDINGS · NOW {what}': 'EMBEDDINGS · AHORA {what}',
-  'MAY DISTIL:': 'PUEDEN DESTILAR:',
   'MU/TH/UR › someone has to keep the archive.': 'MU/TH/UR › alguien tiene que cuidar el archivo.',
   'archivists: {who}.': 'archivistas: {who}.',
-  ' · LOCAL · FREE': ' · LOCAL · GRATIS',
   'Memory setting was not saved: {error}': 'El ajuste de memoria no se guardó: {error}',
-  'EXPORT DATASET': 'EXPORTAR DATASET',
   'Write train.jsonl and valid.jsonl next to the ledger, redacted, in chat format for mlx-lm':
     'Escribe train.jsonl y valid.jsonl junto al ledger, redactados, en formato chat para mlx-lm',
   'LOADING…': 'CARGANDO…',
-  'LAST EXPORT {when} · TRAIN {train} · VALID {valid}': 'ÚLTIMA EXPORTACIÓN {when} · TRAIN {train} · VALID {valid}',
-  'NOT EXPORTED YET': 'TODAVÍA NO SE HA EXPORTADO',
-  'TRAINED MODEL {model} IN USE': 'MODELO ENTRENADO {model} EN USO',
-  'NO TRAINED MODEL YET · SEE docs/training': 'TODAVÍA NO HAY MODELO ENTRENADO · VE docs/training',
-  'DATASET UNAVAILABLE': 'DATASET NO DISPONIBLE',
   'MU/TH/UR › dataset exported: {n} pairs in {dir}': 'MU/TH/UR › dataset exportado: {n} pares en {dir}',
   'Dataset export failed: {error}': 'La exportación del dataset falló: {error}',
 
   // Entrenar.
-  'TRAIN MADRE AI · LOCAL, WITH MLX ON APPLE SILICON · NOTHING LEAVES THIS MACHINE':
-    'ENTRENAR MADRE AI · LOCAL, CON MLX EN APPLE SILICON · NO SALE NADA DE ESTA COMPUTADORA',
-  'EXPORT THE DATASET FIRST. EACH STEP IS ONE COMMAND FOR YOUR TERMINAL; COPY, RUN, COME BACK. WHEN THE MODEL EXISTS IN OLLAMA, @MADRE SWITCHES TO IT AT THE NEXT RECHECK AND EVERY AGENT IS TOLD TO ASK IT FIRST.':
-    'EXPORTA PRIMERO EL DATASET. CADA PASO ES UN COMANDO PARA TU TERMINAL; COPIA, CORRE, REGRESA. CUANDO EL MODELO EXISTA EN OLLAMA, @MADRE SE CAMBIA A ÉL EN EL SIGUIENTE RECHECK Y A CADA AGENTE SE LE DICE QUE LE PREGUNTE PRIMERO.',
-  'TRAINING INFO UNAVAILABLE': 'INFORMACIÓN DE ENTRENAMIENTO NO DISPONIBLE',
-  'ONCE · A PYTHON ENVIRONMENT WITH MLX-LM': 'UNA VEZ · UN ENTORNO DE PYTHON CON MLX-LM',
-  'TRAIN THE LORA · BASE {model} FOR {gb} GB': 'ENTRENA EL LORA · BASE {model} PARA {gb} GB',
-  'FUSE THE ADAPTER INTO THE BASE': 'FUSIONA EL ADAPTADOR CON LA BASE',
-  'REGISTER IN OLLAMA AS {model}': 'REGÍSTRALO EN OLLAMA COMO {model}',
   'MU/TH/UR › select the command and copy it.': 'MU/TH/UR › selecciona el comando y cópialo.',
-  'QWEN NEEDS A GGUF BEFORE OLLAMA READS IT: {readme} · SECTION 3 HAS THE TWO LINES. THEN ASK @MADRE TEN THINGS THE ROOM DECIDED AND FIVE IT NEVER DISCUSSED BEFORE TRUSTING IT.':
-    'QWEN NECESITA UN GGUF ANTES DE QUE OLLAMA LO LEA: {readme} · LA SECCIÓN 3 TIENE LAS DOS LÍNEAS. DESPUÉS PREGÚNTALE A @MADRE DIEZ COSAS QUE LA SALA DECIDIÓ Y CINCO QUE NUNCA DISCUTIÓ, ANTES DE CONFIARTE.',
-  'ENVIRONMENT VARIABLES ARE SET FOR MEMORY; THEY WIN OVER THESE VALUES ON THE NEXT LAUNCH.':
-    'HAY VARIABLES DE ENTORNO PUESTAS PARA LA MEMORIA; GANAN SOBRE ESTOS VALORES EN EL PRÓXIMO INICIO.',
 
   // Privacidad.
-  '{n} PRIVATE TERMS': '{n} TÉRMINOS PRIVADOS',
-  'NO PRIVATE TERMS': 'SIN TÉRMINOS PRIVADOS',
-  "AN AGENT'S OWN CONFIGURATION CAN LEAK INTO ITS REPLY: A COMPANY, A BRAND, A DOMAIN. NAME THEM HERE AND MADRE REPLACES THEM BEFORE THE LEDGER, THE ARCHIVIST, THE OTHER AGENTS OR THE DATASET SEE THEM. THE TERMS STAY IN CONFIG.JSON; THE ROOM ONLY EVER RECORDS HOW MANY.":
-    'LA CONFIGURACIÓN DE UN AGENTE SE LE PUEDE COLAR EN LA RESPUESTA: UNA EMPRESA, UNA MARCA, UN DOMINIO. NÓMBRALOS AQUÍ Y MADRE LOS REEMPLAZA ANTES DE QUE LOS VEAN EL LEDGER, EL ARCHIVISTA, LOS DEMÁS AGENTES O EL DATASET. LOS TÉRMINOS SE QUEDAN EN CONFIG.JSON; LA SALA SOLO REGISTRA CUÁNTOS.',
   'one term per line · a company, a brand, a domain, a name': 'un término por línea · una empresa, una marca, un dominio, un nombre',
-  'CHECKING THE ROOM…': 'REVISANDO LA SALA…',
   'PURGE ROOM': 'PURGAR LA SALA',
 
   // Las fichas de ⚙ CONNECTIONS, una por agente.
-  'SIGNING IN': 'INICIANDO SESIÓN',
   'UNKNOWN': 'SIN DETERMINAR',
-  'session: {detail}': 'sesión: {detail}',
-  'GENERATE IMAGES': 'GENERAR IMÁGENES',
   'WEB ACCESS': 'ACCESO A LA WEB',
-  'on for every turn': 'encendido en cada turno',
   'on for CREATE': 'encendido para CREATE',
   'Applies to its next turn.': 'Aplica desde su próximo turno.',
   'Applies to its next CREATE.': 'Aplica desde su próximo CREATE.',
   'That permission was not saved: {error}': 'Ese permiso no se guardó: {error}',
   'not available from this CLI': 'este CLI no lo puede hacer',
   'not wired yet': 'todavía no está cableado',
-  "{label}'s CLI has no way to do this; MU/TH/UR knows the routes.": 'El CLI de {label} no tiene manera de hacer esto; MU/TH/UR conoce los caminos.',
-  'ask MU/TH/UR': 'pregúntale a MU/TH/UR',
   'How could @{agent} get "{what}"?': '¿Cómo podría @{agent} tener «{what}»?',
   'MAX MODE': 'MODO MÁXIMO',
   '@{agent} is now capped at #{n} {label}.': '@{agent} queda con techo #{n} {label}.',
-  ' CONTROL still needs the override per message.': ' CONTROL sigue necesitando la anulación en cada mensaje.',
   'The max mode was not saved: {error}': 'El modo máximo no se guardó: {error}',
   'DEFAULT MODE': 'MODO INICIAL',
   'Every message to this agent starts in CREATE: new files where they belong, existing files untouched. Plan steps to it too.':
@@ -861,14 +865,11 @@ export const ES = {
   '@{agent} starts read-only; arm CREATE when you want files.':
     '@{agent} arranca en solo lectura; arma CREATE cuando quieras archivos.',
   'The default mode was not saved: {error}': 'El modo inicial no se guardó: {error}',
-  'every turn may create files, plan steps too': 'cada turno puede crear archivos, y los pasos de un plan también',
-  'read-only until you arm CREATE': 'solo lectura hasta que armes CREATE',
   'RECHECK': 'REVISAR OTRA VEZ',
   '{command} · runs here, streamed to the room': '{command} · corre aquí, con la salida en la sala',
   'The install could not start.': 'La instalación no pudo arrancar.',
   'SIGN IN AGAIN': 'INICIAR SESIÓN OTRA VEZ',
   'SIGN IN': 'INICIAR SESIÓN',
-  'TIMEOUT · SECONDS': 'TIEMPO LÍMITE · SEGUNDOS',
   '@{agent} timeout saved: {n}s.': 'tiempo límite de @{agent} guardado: {n}s.',
 
   // ── DÓNDE ESTÁ LA SALA · LAS TRES PRUEBAS ─────────────────────────────────
@@ -877,9 +878,7 @@ export const ES = {
   'WHAT THE ARCHIVE IS MADE OF': 'DE QUÉ ESTÁ HECHO EL ARCHIVO',
   'THE THREE TESTS': 'LAS TRES PRUEBAS',
   // El tablero de MEMORIA: lo que el archivo hizo día por día y de qué está hecho.
-  'MEMORY · THE ARCHIVE AT A GLANCE': 'MEMORIA · EL ARCHIVO DE UN VISTAZO',
   'READ {time}': 'LEÍDO {time}',
-  'REFRESH': 'ACTUALIZAR',
   'EXCHANGES': 'INTERCAMBIOS',
   'MEMORIES': 'MEMORIAS',
   'TURNS THAT RECALLED': 'TURNOS QUE RECORDARON',
@@ -889,7 +888,6 @@ export const ES = {
   '{last} in the last 7 days, {before} in the 7 before': '{last} en los últimos 7 días, {before} en los 7 anteriores',
   'EXCHANGES NOBODY HAS DISTILLED YET': 'INTERCAMBIOS QUE NADIE HA DESTILADO TODAVÍA',
   'THE ARCHIVIST IS UP TO DATE': 'EL ARCHIVISTA VA AL DÍA',
-  'ACTIVITY · LAST {n} DAYS': 'ACTIVIDAD · ÚLTIMOS {n} DÍAS',
   'NEW MEMORIES': 'MEMORIAS NUEVAS',
   'PEAK {n}': 'MÁXIMO {n}',
   'TODAY': 'HOY',
@@ -898,21 +896,11 @@ export const ES = {
   'BY DAY · TABLE': 'POR DÍA · TABLA',
   'NOTHING HAPPENED IN THESE DAYS.': 'NO PASÓ NADA EN ESTOS DÍAS.',
   'DAY': 'DÍA',
-  'THE DASHBOARD IS UNAVAILABLE': 'EL TABLERO NO ESTÁ DISPONIBLE',
-  'BY KIND': 'POR CLASE',
-  'BY ARCHIVIST': 'POR ARCHIVISTA',
-  'BY ZONE': 'POR ZONA',
-  'RECALL AND EMBEDDINGS': 'RECALL Y EMBEDDINGS',
   'How recalled memories arrived: found by the search, or carried along by the company they keep.':
     'Cómo llegaron las memorias que se recordaron: las encontró la búsqueda, o las trajo la compañía que tienen.',
   'SEARCH': 'BÚSQUEDA',
   'CASCADE': 'CASCADA',
-  'MEMORIES WITH A VECTOR': 'MEMORIAS CON VECTOR',
-  'EXCHANGES WITH A VECTOR': 'INTERCAMBIOS CON VECTOR',
-  'EMBEDDINGS OFF · RECALL MATCHES WORDS ONLY': 'EMBEDDINGS APAGADOS · EL RECALL SOLO EMPAREJA PALABRAS',
   'PASSES AT {n}': 'PASA CON {n}',
-  'ARCHIVIST AND RECALL': 'ARCHIVISTA Y RECALL',
-  'DATASET AND TRAINING': 'DATASET Y ENTRENAMIENTO',
   'CAN THE ARCHIVE ANSWER WHAT THIS PROJECT ASKS?': '¿EL ARCHIVO PUEDE CONTESTAR LO QUE ESTE PROYECTO PREGUNTA?',
   'DOES THE ARCHIVE CONTRADICT ITSELF?': '¿EL ARCHIVO SE CONTRADICE A SÍ MISMO?',
   'DOES THE LOCAL MODEL LAND WHERE THE AGENTS LANDED?': '¿EL MODELO LOCAL ATERRIZA DONDE ATERRIZÓ LA TRIPULACIÓN?',
@@ -941,7 +929,6 @@ export const ES = {
   'The test could not run: {error}': 'La prueba no pudo correr: {error}',
 
   // ── NOSTROMO ──────────────────────────────────────────────────────────────
-  'DESIGNATION ACCEPTED. BOARDING NOSTROMO.': 'DESIGNACIÓN ACEPTADA. ABORDANDO LA NOSTROMO.',
   'YELLOW DWARF': 'ENANA AMARILLA',
   'WHITE DWARF': 'ENANA BLANCA',
   'GREEN DWARF': 'ENANA VERDE',
@@ -1088,9 +1075,6 @@ export const ES = {
   'The room was right. This pair is never raised again.': 'La sala tenía razón. Este par no se vuelve a levantar.',
   'DEV': 'DEV',
   'MU/TH/UR › a module is a .mjs file.': 'MU/TH/UR › un módulo es un archivo .mjs.',
-  'RUN IT': 'CORRERLO',
-  'MU/TH/UR › updating. The output is in the room, and the card refreshes when it finishes.':
-    'MU/TH/UR › actualizando. La salida está en la sala, y la ficha se refresca al terminar.',
   'NOT NOW': 'AHORA NO',
   'The room rejected the message.': 'La sala rechazó el mensaje.',
   'ECONOMY · THIS ROOM': 'ECONOMÍA · ESTA SALA',
@@ -1104,18 +1088,11 @@ export const ES = {
   'CANNOT ENABLE YET': 'TODAVÍA NO SE PUEDE ENCENDER',
   'THIS WRITES INTO THE PROJECT. MADRE WILL RUN, IN THE PROJECT FOLDER:':
     'ESTO ESCRIBE DENTRO DEL PROYECTO. MADRE VA A CORRER, EN LA CARPETA DEL PROYECTO:',
-  'DEVELOP FOR MADRE': 'DESARROLLA PARA MADRE',
-  'Would you like to develop for MADRE?': '¿Te gustaría desarrollar para MADRE?',
-  ' every project · ': ' todos los proyectos · ',
   ' this project': ' este proyecto',
-  'READ THE SDK ↗': 'LEER EL SDK ↗',
-  'RELOAD MODULES': 'RECARGAR MÓDULOS',
   'Load your module files again without restarting the room': 'Vuelve a cargar tus archivos de módulo sin reiniciar la sala',
-  'YOURS · ': 'TUYOS · ',
   'REMOVE': 'QUITAR',
   'UNINSTALL': 'DESINSTALAR',
   'Delete module file {file}': 'Borrar el archivo del módulo {file}',
-  'DID NOT LOAD · ': 'NO CARGÓ · ',
   'connections › ': 'conexiones › ',
   'HELP': 'AYUDA',
   'MU/TH/UR › the whole briefing is on your clipboard, exactly as the agent receives it.':
@@ -1125,17 +1102,9 @@ export const ES = {
   // Privacidad, lo que faltaba.
   'Replace every private term already in the ledger, the index and the memories with the marker. Asks for the project designation.':
     'Reemplaza con el marcador cada término privado que ya esté en el ledger, el índice y las memorias. Pide la designación del proyecto.',
-  'PRIVATE TERMS · ONE PER LINE': 'TÉRMINOS PRIVADOS · UNO POR LÍNEA',
   'REPLACED WITH': 'SE REEMPLAZAN CON',
-  'REDACT KEYS, TOKENS AND E-MAIL ADDRESSES ANYWHERE THEY APPEAR':
-    'TACHAR LLAVES, TOKENS Y CORREOS DONDEQUIERA QUE APAREZCAN',
   'redaction of keys and addresses': 'el tachado de llaves y correos',
-  'API keys, GitHub and npm tokens, JWTs and e-mail addresses are recognisable by shape in any project. Caught before the ledger, the archivist, the other agents and the dataset.':
-    'Las API keys, los tokens de GitHub y npm, los JWT y los correos se reconocen por su forma en cualquier proyecto. Se atrapan antes del ledger, del archivista, de los demás agentes y del dataset.',
-  "REPLACE THIS MACHINE'S HOME PATH WITH ~": 'CAMBIAR LA RUTA HOME DE ESTA COMPUTADORA POR ~',
   'hiding of home paths': 'el ocultamiento de las rutas home',
-  'A path like /Users/yourname carries who you are into every reply that quotes it. The path still reads, it just stops naming you.':
-    'Una ruta como /Users/tunombre mete quién eres en cada respuesta que la cite. La ruta se sigue leyendo, nada más deja de nombrarte.',
   // Asking about something on the screen: the questions it raises.
   'SUGGESTED FOR THIS': 'SUGERIDAS PARA ESTO',
   'FROM THE MEMORY': 'DE LA MEMORIA',
@@ -1191,9 +1160,6 @@ export const ES = {
   'UPDATE': 'ACTUALIZAR',
   'Every private term already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project designation to confirm.':
     'Cada término privado ya registrado se vuelve el marcador, en el registro, el índice y las memorias. No se puede deshacer. Escribe la designación del proyecto para confirmar.',
-  'PULSE_PRIVATE_TERMS IS SET; THOSE TERMS ARE ADDED TO THIS LIST ON EVERY LAUNCH.':
-    'PULSE_PRIVATE_TERMS ESTÁ PUESTA; ESOS TÉRMINOS SE AGREGAN A ESTA LISTA EN CADA INICIO.',
-  'EXPOSURE CHECK UNAVAILABLE': 'LA REVISIÓN DE EXPOSICIÓN NO ESTÁ DISPONIBLE',
 
   // ── EL HILO: lo que pasa en la sala, mensaje por mensaje ──────────────────
   'ASH': 'ASH',
@@ -1273,6 +1239,14 @@ export const ES = {
   'Phantom purple': 'Púrpura Fantasma',
   'Malbec red': 'Tinto Malbec',
   'Dijon yellow': 'Amarillo Dijon',
+  'Pacific blue': 'Azul Pacífico',
+  'Love pink': 'Rosa Amor',
+  'Sierra blue': 'Azul Sierra',
+  'Dynamo black': 'Negro Dinamo',
+  'Marina blue': 'Azul Marina',
+  'Pulse green': 'Verde Pulso',
+  'Loyal orange': 'Naranja Leal',
+  'Sweet yellow': 'Amarillo Dulce',
   'Comfortable': 'Cómodo',
   'Large': 'Grande',
   'Compact': 'Compacto',
@@ -1396,8 +1370,6 @@ export const ES = {
   'RESENT WITH CREATE': 'REENVIADO CON CREATE',
   'It could not be resent: {error}': 'No se pudo reenviar: {error}',
   'ALWAYS FOR THIS AGENT': 'SIEMPRE PARA ESTE AGENTE',
-  'Give @{agent} a standing lease in CONNECTIONS: every turn may create files.':
-    'Dale a @{agent} un permiso permanente en CONEXIONES: cada turno puede crear archivos.',
   'GRANT ONCE': 'CONCEDER UNA VEZ',
   'GRANT FOR PLAN': 'CONCEDER PARA EL PLAN',
   'Every remaining writable step of this plan shares one lease directory.':
@@ -1424,9 +1396,6 @@ export const ES = {
   'loading models…': 'cargando modelos…',
   'other model name…': 'otro nombre de modelo…',
   'DESIGNATION ›': 'DESIGNACIÓN ›',
-  'DESIGNATION ACCEPTED. SECOND KEY: TYPE AIRLOCK TO OPEN THE SHIP.':
-    'DESIGNACIÓN ACEPTADA. SEGUNDA LLAVE: ESCRIBE AIRLOCK PARA ABRIR LA NAVE.',
-  'SECOND KEY ›': 'SEGUNDA LLAVE ›',
   'AIRLOCK': 'AIRLOCK',
   'PROVIDER': 'PROVEEDOR',
   'SAVE KEY': 'GUARDAR LLAVE',
@@ -1450,8 +1419,7 @@ export const ES = {
   'This conversation is no longer here.': 'Esta conversación ya no está aquí.',
   'end of record. nothing else is down here, human. crew status under review.':
     'fin del registro. aquí abajo no hay nada más, humano. estado de la tripulación en revisión.',
-  'MU/TH/UR › nobody in the room can generate images right now: enable Image Studio in MODULES or switch on GENERATE IMAGES for an agent in CONNECTIONS.':
-    'MU/TH/UR › ahora mismo nadie en la sala puede generar imágenes: enciende Image Studio en MÓDULOS o préndele GENERAR IMÁGENES a un agente en CONEXIONES.',
+  'MU/TH/UR › nobody in the room can generate images right now: turn on Image Studio in Modules, or Generate images for an agent in Settings › Agents.': 'MU/TH/UR › nadie en la sala puede generar imágenes ahora: enciende Image Studio en Módulos, o Generar imágenes para un agente en Ajustes › Agentes.',
   'Remove': 'Quitar',
   'MU/TH/UR › the archive is open again. Behave.': 'MU/TH/UR › el archivo está abierto otra vez. Compórtate.',
   'MU/TH/UR › ASH: every agent will answer in compact prose. What you write is never altered.':
@@ -1460,17 +1428,10 @@ export const ES = {
   'SELECT': 'SELECCIONA',
   'DIAGNOSIS': 'DIAGNÓSTICO',
   'REMEDY': 'REMEDIO',
-  'APPLIED ✓': 'APLICADO ✓',
-  'APPLIES NOW · TERMINAL COMMANDS BELOW ARE THE LAUNCH-TIME ALTERNATIVE':
-    'SE APLICA AHORA · LOS COMANDOS DE ABAJO SON LA ALTERNATIVA PARA EL PRÓXIMO ARRANQUE',
-  'NO CONDITIONS RECORDED. ALL SYSTEMS NOMINAL.': 'SIN CONDICIONES REGISTRADAS. TODOS LOS SISTEMAS NOMINALES.',
-  'Expand': 'Expandir',
-  'UNCLASSIFIED': 'SIN CLASIFICAR',
   'NO SPECIAL ORDERS ON THIS SHIP. THE CREW IS NOT EXPENDABLE. RESTATE INQUIRY.':
     'EN ESTA NAVE NO HAY ÓRDENES ESPECIALES. LA TRIPULACIÓN NO ES PRESCINDIBLE. REFORMULA LA CONSULTA.',
   'INQUIRY ACCEPTS: AN AGENT NAME · A SYMPTOM · A KEYWORD SUCH AS TIMEOUT, LOGIN, PORT, BUDGET.':
     'LA CONSULTA ACEPTA: UN NOMBRE DE AGENTE · UN SÍNTOMA · UNA PALABRA COMO TIMEOUT, LOGIN, PUERTO, PRESUPUESTO.',
-  'UNABLE TO COMPUTE. REQUEST CLARIFICATION.': 'IMPOSIBLE DE PROCESAR. SE SOLICITA ACLARACIÓN.',
   'NOSTROMO › the question is in the composer. Send it to whoever should answer it, or to @madre, which costs nothing.':
     'NOSTROMO › la pregunta está en el compositor. Mándasela a quien deba contestarla, o a @madre, que no cuesta nada.',
   'Stop offering this one. Nothing is forgotten and nothing is written.':
@@ -1483,14 +1444,8 @@ export const ES = {
   'PRESS AGAIN TO FORGET · FOREVER': 'VUELVE A APRETAR PARA OLVIDAR · PARA SIEMPRE',
   'FORGET THIS MEMORY': 'OLVIDAR ESTA MEMORIA',
   'FORGETTING…': 'OLVIDANDO…',
-  'RELEASE CHANNEL · UNAVAILABLE': 'CANAL DE RELEASES · NO DISPONIBLE',
-  'RESTARTING…': 'REINICIANDO…',
   'MU/TH/UR › the room did not come back on its own. Start it from your terminal.':
     'MU/TH/UR › la sala no regresó sola. Arráncala desde tu terminal.',
-  'CHECK NOW': 'REVISAR AHORA',
-  "THE SENTINEL KEEPS FAILURES MU/TH/UR CANNOT EXPLAIN, AND CRASHES, WITH PATHS, NAMES AND KEYS REMOVED. NOTHING LEAVES THIS MACHINE UNLESS YOU SEND IT: BY HAND AS A GITHUB ISSUE YOU READ FIRST, OR AUTOMATICALLY TO THE AUTHOR'S COLLECTOR IF YOU SWITCH THAT ON.":
-    'EL CENTINELA GUARDA LAS FALLAS QUE MU/TH/UR NO SABE EXPLICAR, Y LOS CRASHES, SIN RUTAS, NOMBRES NI LLAVES. NADA SALE DE ESTA COMPUTADORA A MENOS QUE TÚ LO MANDES: A MANO COMO UN ISSUE DE GITHUB QUE LEES PRIMERO, O SOLO AL RECOLECTOR DEL AUTOR SI ENCIENDES ESA OPCIÓN.',
-  '✎ FEEDBACK TO THE AUTHOR': '✎ COMENTARIOS AL AUTOR',
 
   // ── EL MARCADO: diálogos, paneles y modales de index.html ─────────────────
   'STOP ALL': 'PARAR TODO',
@@ -1499,42 +1454,13 @@ export const ES = {
   'CLOSE ×': 'CERRAR ×',
   'BUILT NOW · STORED NOWHERE · SENT NOWHERE · READ, NEVER WRITTEN':
     'ARMADO AHORA · GUARDADO EN NINGÚN LADO · MANDADO A NINGÚN LADO · SE LEE, NUNCA SE ESCRIBE',
-  'MADRE · OPTIONAL INTEGRATIONS · INSTALLED BY THEIR OWN TOOLS':
-    'MADRE · INTEGRACIONES OPCIONALES · INSTALADAS CON SUS PROPIAS HERRAMIENTAS',
-  '+ ADD A MODULE': '+ AGREGAR UN MÓDULO',
-  'BUILT-IN MODULES CHANGE ONLY MADRE SETTINGS. EXTERNAL MODULES WRITE INTO THE PROJECT ONLY AFTER YOU CONFIRM.':
-    'LOS MÓDULOS DE CASA SOLO CAMBIAN AJUSTES DE MADRE. LOS EXTERNOS ESCRIBEN EN EL PROYECTO SOLO DESPUÉS DE QUE CONFIRMES.',
-  'BUILT-INS STAY IN MADRE · PROJECT INSTALLS SHOW THE COMMAND FIRST · YOUR MODULES LOAD FROM ~/.pulse/modules':
-    'LOS DE CASA SE QUEDAN EN MADRE · LAS INSTALACIONES EN EL PROYECTO ENSEÑAN EL COMANDO PRIMERO · TUS MÓDULOS CARGAN DESDE ~/.pulse/modules',
-  'MADRE · INTERFACE 2037 · TROUBLESHOOTING': 'MADRE · INTERFAZ 2037 · DIAGNÓSTICO',
-  '⚙ CONNECTIONS': '⚙ CONEXIONES',
-  '✎ FEEDBACK': '✎ COMENTARIOS',
   'EXPAND ALL': 'ABRIR TODO',
   // MEMORIA, emancipada de CONEXIONES: su propio botón en la barra de MU/TH/UR.
-  '\u25a4 MEMORY': '\u25a4 MEMORIA',
-  'What the archive holds, who distils it, and how well it is answering': 'Qué guarda el archivo, quién lo destila y qué tan bien está contestando',
-  'THIS ROOM HAS NO MEMORY INDEX.': 'ESTA SALA NO TIENE ÍNDICE DE MEMORIA.',
-  'READING THE ARCHIVE…': 'LEYENDO EL ARCHIVO…',
-  'COLLAPSE ALL': 'CERRAR TODO',
-  'CLOSE MU/TH/UR ×': 'CERRAR MU/TH/UR ×',
-  'NO SPECIAL ORDERS ON THIS SHIP · THE CREW IS NOT EXPENDABLE · ESC TO CLOSE':
-    'EN ESTA NAVE NO HAY ÓRDENES ESPECIALES · LA TRIPULACIÓN NO ES PRESCINDIBLE · ESC PARA CERRAR',
   'One conversation. Every agent.': 'Una conversación. Todos los agentes.',
   'Pick an agent and ask, or start with a mention such as': 'Elige un agente y pregunta, o empieza con una mención como',
-  'EMERGENCY COMMAND OVERRIDE 100375': 'ANULACIÓN DE MANDO DE EMERGENCIA 100375',
-  'CANCEL ×': 'CANCELAR ×',
-  'PRIORITY ONE. CONTROL MODE GIVES ONE AGENT THE PROJECT ITSELF: READ, CREATE, MODIFY, NO APPROVAL PER ACTION.':
-    'PRIORIDAD UNO. EL MODO CONTROL LE DA A UN AGENTE EL PROYECTO ENTERO: LEER, CREAR, MODIFICAR, SIN APROBAR ACCIÓN POR ACCIÓN.',
   'ARM': 'ARMAR',
-  'ONE HOLDER AT A TIME · EVERY TURN IS CHECKPOINTED · WHAT LEAVES THE SHIP DOES NOT COME BACK · STOPALL REVOKES IT':
-    'UN SOLO PORTADOR A LA VEZ · CADA TURNO LLEVA CHECKPOINT · LO QUE SALE DE LA NAVE NO REGRESA · STOPALL LO REVOCA',
   'BACK': 'ATRÁS',
-  'MEMORY RESEARCH · ACCESS CONTROL': 'INVESTIGACIÓN DE MEMORIA · CONTROL DE ACCESO',
-  'THE ARCHIVE OF THIS ROOM: EVERY MEMORY THE CREW DISTILLED, LINKED BY WHAT THEY SHARE. READING IS FREE; FORGETTING IS FOREVER. TYPE THE PROJECT DESIGNATION TO BOARD.':
-    'EL ARCHIVO DE ESTA SALA: CADA MEMORIA QUE DESTILÓ LA TRIPULACIÓN, ENLAZADA POR LO QUE COMPARTEN. LEER ES GRATIS; OLVIDAR ES PARA SIEMPRE. ESCRIBE LA DESIGNACIÓN DEL PROYECTO PARA ABORDAR.',
   'BOARD': 'ABORDAR',
-  'ACCESS STAYS OPEN UNTIL THIS PAGE RELOADS · GHOST NEVER REACHES THE ARCHIVE':
-    'EL ACCESO SIGUE ABIERTO HASTA QUE SE RECARGUE LA PÁGINA · GHOST NUNCA LLEGA AL ARCHIVO',
   'DECISION': 'DECISIÓN',
   'FACT': 'HECHO',
   'PREFERENCE': 'PREFERENCIA',
@@ -1564,32 +1490,79 @@ export const ES = {
   'A project can hold many conversations and a single memory. Start a new one for a new subject: they all feed the same archive, and every agent recalls what was said in the others.':
     'Un proyecto puede tener muchas conversaciones y una sola memoria. Empieza otra para un tema nuevo: todas alimentan el mismo archivo y cualquier agente recuerda lo que se dijo en las demás.',
   'Got it': 'Entendido',
-  // Primer contacto: el recorrido sobre la sala.
-  'Your crew, one box': 'Tu tripulación, una sola caja',
-  'The AI agents already on this computer work here together. Pick one in the row above the box, or write @claude, and ask. Every reply says who answered, in which mode and how many tokens it cost. Nothing leaves this computer on its own.':
-    'Los agentes de IA que ya tienes en esta computadora trabajan aquí juntos. Elige uno en la fila sobre la caja, o escribe @claude, y pregunta. Cada respuesta dice quién contestó, en qué modo y cuántos tokens costó. Nada sale de esta computadora por su cuenta.',
-  'Modes: how far a message may go': 'Los modos: hasta dónde llega un mensaje',
-  'Every message carries a mode. It starts at #1, and the higher the number, the more it may touch.':
-    'Cada mensaje lleva un modo. Empieza en #1, y entre más alto el número, más puede tocar.',
+  // Primer contacto: el recorrido sobre la sala, en cinco paradas.
+  'Ask anyone in your crew': 'Pregúntale a quien quieras de tu tripulación',
+  'The AI agents already on this computer work here together. Write in the box and ask; every reply says who answered, in which mode and what it cost.':
+    'Los agentes de IA que ya tienes en esta computadora trabajan aquí juntos. Escribe en la caja y pregunta; cada respuesta dice quién contestó, en qué modo y cuánto costó.',
+  'Who you are talking to. @claude goes straight to Claude.': 'A quién le hablas. @claude va directo a Claude.',
+  'The mode: how far the message may go. It starts at #1, which only reads; #3 and #4 ask for your key.':
+    'El modo: hasta dónde puede llegar el mensaje. Empieza en #1, que solo lee; #3 y #4 te piden tu llave.',
+  'Commands, like /module to make a module of your own.': 'Comandos, como /module para crear un módulo tuyo.',
   'MU/TH/UR, the console': 'MU/TH/UR, la consola',
-  'Sign agents in and set how far each one may go in CONNECTIONS. See what the room remembers in MEMORY, and travel through it as a map in NOSTROMO. When something fails, the diagnosis is here.':
-    'En CONEXIONES inicias sesión con tus agentes y decides hasta dónde puede llegar cada uno. En MEMORIA ves lo que la sala recuerda, y en NOSTROMO lo recorres como un mapa. Cuando algo falla, el diagnóstico está aquí.',
-  'MODULES, optional powers': 'MÓDULOS, poderes opcionales',
-  'Add what this project needs: Git, images, previews of what you build, a local model, a browser, or a module of your own in a single file. Nothing is installed until you press it.':
-    'Agrega lo que este proyecto necesite: Git, imágenes, vistas previas de lo que construyes, un modelo local, un navegador, o un módulo tuyo en un solo archivo. Nada se instala hasta que tú lo pidas.',
-  'You can take this tour again from ? in MU/TH/UR. Type STOPALL at any time to halt every agent.':
-    'Puedes volver a ver este recorrido desde ? en MU/TH/UR. Escribe STOPALL en cualquier momento para frenar a todos los agentes.',
+  'When something fails, the remedy is here: write a symptom, an agent or a word and it says what is going on and how to fix it. What it already noticed in this room carries its mark.':
+    'Cuando algo falla, aquí está el remedio: escribe un síntoma, un agente o una palabra y te dice qué pasa y cómo arreglarlo. Lo que ya detectó en esta sala lleva su marca.',
+  'The map of what the room remembers, and why.': 'El mapa de lo que recuerda la sala, y por qué.',
+  'This tour again, whenever you want it.': 'Este recorrido otra vez, cuando quieras.',
+  'Several conversations at once': 'Varias conversaciones a la vez',
+  'Each conversation has its own thread and its own box. Open another one beside this, in the right half or as a window: up to three at once, all of them working.':
+    'Cada conversación tiene su propio hilo y su propia caja. Abre otra junto a esta, en la mitad derecha o como ventana: hasta tres a la vez, y todas siguen trabajando.',
+  'Gestures and the way around': 'Gestos y cómo moverte',
+  'The room is arranged the way you like it, and a few gestures get you around it.': 'La sala se acomoda a tu gusto, y unos cuantos gestos te llevan por ella.',
+  'Right-click': 'Clic derecho',
+  'On the bar: choose which keys are on it and in which order.': 'En la barra: eliges qué botones lleva y en qué orden.',
+  'Click the box': 'Clic en la caja',
+  'The windows step aside so the conversation is in sight.': 'Las ventanas se hacen a un lado para que veas la conversación.',
+  'Drag': 'Arrastrar',
+  'A window by its header; its edges and corners resize it.': 'Una ventana por su encabezado; sus bordes y esquinas cambian su tamaño.',
+  'Opens Settings.': 'Abre Ajustes.',
+  'Closes the menu that is open.': 'Cierra el menú que esté abierto.',
+  'Modules, optional powers': 'Módulos, poderes opcionales',
+  'Add what this project needs: GitHub, Git, images, previews of what you build, a local model, a browser, or a module of your own in a single file. Nothing is installed until you press it.':
+    'Agrega lo que este proyecto necesite: GitHub, Git, imágenes, vistas previas de lo que construyes, un modelo local, un navegador, o un módulo tuyo en un solo archivo. Nada se instala hasta que tú lo pidas.',
+  'Your first steps wait in the bar, and tick themselves as you go. Type STOPALL at any time to halt every agent.':
+    'Tus primeros pasos te esperan en la barra y se marcan solos conforme avanzas. Escribe STOPALL en cualquier momento para frenar a todos los agentes.',
+  // Primeros pasos: la lista que se marca sola.
+  'First steps': 'Primeros pasos',
+  'First steps · {done} of {total} done': 'Primeros pasos · {done} de {total} hechos',
+  '{done} of {total}': '{done} de {total}',
+  'Ask your first question': 'Haz tu primera pregunta',
+  'Write in the box. With @ you choose who answers.': 'Escribe en la caja. Con @ eliges quién contesta.',
+  'Ask the crew for something together': 'Pide algo a toda la tripulación',
+  'Ask one agent for something for everyone: it draws up a plan and hands the steps to the others.':
+    'Pídele a un agente algo para todos: arma un plan y reparte los pasos entre los demás.',
+  'ask each agent in the crew to introduce itself in one line': 'pídele a cada agente de la tripulación que se presente en una línea',
+  'Open MU/TH/UR': 'Abre MU/TH/UR',
+  'When something fails, write the symptom there: it says what is going on and how to fix it.':
+    'Cuando algo falle, escribe ahí el síntoma: te dice qué pasa y cómo arreglarlo.',
+  'Open a second conversation': 'Abre una segunda conversación',
+  'From the conversations panel, beside this one or as a window. Both keep working.':
+    'Desde el panel de conversaciones, junto a esta o como ventana. Las dos siguen trabajando.',
+  'Make the bar yours': 'Acomoda la barra a tu gusto',
+  'Right-click any key of the bar: choose what is on it and in which order.':
+    'Clic derecho en cualquier botón de la barra: eliges qué lleva y en qué orden.',
+  'Open a module': 'Abre un módulo',
+  'Optional powers for this project, like GitHub or a local model. Nothing is installed until you ask.':
+    'Poderes opcionales para este proyecto, como GitHub o un modelo local. Nada se instala hasta que lo pidas.',
+  'Show me': 'Llévame',
+  '{step}: done': '{step}: hecho',
+  'Hide the list': 'Ocultar la lista',
+  'Each step ticks itself when you do it.': 'Cada paso se marca solo cuando lo haces.',
+  'The list comes back from ? in MU/TH/UR.': 'La lista vuelve desde ? en MU/TH/UR.',
+  'First steps done: you know your way around MADRE.': 'Primeros pasos completos: ya sabes moverte por MADRE.',
   '{n} of {total}': '{n} de {total}',
   'Skip': 'Saltar',
   'Next': 'Siguiente',
   'Start': 'Empezar',
-  // Novedades: la hoja que se abre una vez después de actualizar.
-  'ABOUT THIS VERSION': 'ACERCA DE ESTA VERSIÓN',
+  // Novedades: el tablero que se abre una vez después de actualizar.
   "What's new in MADRE {version}": 'Novedades en MADRE {version}',
   "What's new": 'Novedades',
-  'Where': 'Dónde',
-  'Continue': 'Continuar',
-  'Read every change on madre.run ↗': 'Lee todos los cambios en madre.run ↗',
+  'You now have {version}': 'Ya tienes la {version}',
+  'See every change ↗': 'Ver todos los cambios ↗',
+  'Back to what is new': 'Volver a las novedades',
+  'Previous': 'Anterior',
+  'Where it is': 'Dónde está',
+  'Take me there': 'Llévame ahí',
+  "What's new in this version": 'Novedades de esta versión',
   // NOSTROMO: la mira sobre la enana elegida.
   'TARGET LOCKED': 'BLANCO FIJADO',
   'DRAG TO TURN · SHIFT+DRAG TO MOVE · WHEEL TO ZOOM · CLICK A MEMORY · DO NOT TOUCH MOTHER':
@@ -1625,24 +1598,14 @@ export const ES = {
   'Install a module somebody wrote. MADRE checks it before it runs.':
     'Instala un módulo que escribió alguien más. MADRE lo revisa antes de que corra.',
   'MU/TH/UR troubleshooting': 'Diagnóstico de MU/TH/UR',
-  "The crew and this room's settings: install an agent, sign it in, set what each one may do":
-    'La tripulación y los ajustes de esta sala: instala un agente, inicia su sesión, define qué puede hacer cada uno',
   'NOSTROMO · memory research · needs the project designation':
     'NOSTROMO · investigación de memoria · necesita la designación del proyecto',
-  "Tell MADRE's author what happened or what you wish for · opens a prefilled issue":
-    'Dile al autor de MADRE qué pasó o qué te gustaría · abre un issue prellenado',
-  'Open or close every section of this panel': 'Abre o cierra todas las secciones de este panel',
-  'The four-step tour of MADRE': 'El recorrido de MADRE en cuatro pasos',
+  'The tour of MADRE': 'El recorrido de MADRE',
   'Tour': 'Recorrido',
-  'INQUIRY (type a symptom, an agent, or a keyword)': 'CONSULTA (escribe un síntoma, un agente o una palabra)',
   'Operating system': 'Sistema operativo',
   'Attach': 'Adjuntar',
   'Agent usage': 'Uso del agente',
-  'Emergency command override': 'Anulación de mando de emergencia',
-  "type the current project's folder name to arm": 'nombre de la carpeta del proyecto',
   'MADRE tour': 'Recorrido por MADRE',
-  'NOSTROMO access': 'Acceso a NOSTROMO',
-  "type the current project's folder name to board": 'escribe el nombre de la carpeta del proyecto para abordar',
   'NOSTROMO memory research': 'NOSTROMO · investigación de memoria',
   'Memory kinds': 'Clases de memoria',
   'YELLOW DWARF · DECISION': 'ENANA AMARILLA · DECISIÓN',
@@ -1740,14 +1703,14 @@ export const ES = {
   'Agent installed but signed out': 'El agente está instalado pero sin sesión',
   'The CLI is on this computer but has no session for its provider. MADRE never stores credentials; each agent keeps its own.':
     'El CLI está en esta computadora pero no tiene sesión con su proveedor. MADRE nunca guarda credenciales; cada agente guarda las suyas.',
-  "Press SIGN IN on the agent's card: on first contact the room opens on the bridge, and later the same button lives in ⚙ CONNECTIONS. Codex and Claude sign in with a browser flow MADRE runs for you; Gemini and OpenCode hand you their command. `madre setup` does the same from a terminal.":
-    'Dale INICIAR SESIÓN en la ficha del agente: en el primer contacto la sala abre en el puente, y después el mismo botón vive en ⚙ CONEXIONES. Codex y Claude inician sesión con un flujo de navegador que MADRE corre por ti; Gemini y OpenCode te entregan su comando. `madre setup` hace lo mismo desde una terminal.',
+  "Press Sign in on the agent: on first contact the room opens on the bridge with the button on each card, and later it lives in Settings → Agents, which the row below opens. Codex and Claude sign in with a browser flow MADRE runs for you; Gemini and OpenCode hand you their command. `madre setup` does the same from a terminal.":
+    'Pulsa Iniciar sesión en el agente: en el primer contacto la sala abre en el puente, con el botón en cada ficha, y después está en Ajustes → Agentes, que se abre desde la fila de abajo. Codex y Claude inician sesión con un flujo de navegador que MADRE corre por ti; Gemini y OpenCode te entregan su comando. `madre setup` hace lo mismo desde una terminal.',
 
   'Agent not found on this computer': 'El agente no está en esta computadora',
   'MADRE looks for `codex`, `claude`, `gemini` and `opencode` on PATH plus a few known locations. Nothing answered.':
     'MADRE busca `codex`, `claude`, `gemini` y `opencode` en el PATH y en unos cuantos lugares conocidos. No contestó ninguno.',
-  "Press INSTALL on the agent's card: MADRE shows the exact command, runs it here and looks again when it finishes, no restart. `madre setup` does the same from a terminal.":
-    'Dale INSTALAR en la ficha del agente: MADRE te enseña el comando exacto, lo corre aquí y vuelve a buscar cuando termina, sin reiniciar. `madre setup` hace lo mismo desde una terminal.',
+  "Press Install on the agent in Settings → Agents: MADRE shows the exact command, runs it here and looks again when it finishes, no restart. `madre setup` does the same from a terminal.":
+    'Pulsa Instalar en el agente, en Ajustes → Agentes: MADRE te enseña el comando exacto, lo corre aquí y vuelve a buscar cuando termina, sin reiniciar. `madre setup` hace lo mismo desde una terminal.',
 
   'Agent detected, adapter not enabled': 'Se detectó el agente, pero su adaptador no está habilitado',
   'Your MADRE build predates the adapter for this agent, or a newer CLI changed its interface.':
@@ -1761,8 +1724,8 @@ export const ES = {
 
   'Agent did not respond before the timeout': 'El agente no contestó antes del tiempo límite',
   'The agent was still reading files or reasoning when its time limit expired (by default 180 s for a turn that reads and 600 s for one that writes), or Gemini stayed silent for 90 s (PULSE_GEMINI_IDLE_MS) and was stopped after one automatic retry. Long questions over many files take longer; MADRE killed the whole process tree. Whatever a writing turn left before it stopped is listed under the failure, with UNDO.': 'El agente seguía leyendo archivos o razonando cuando se acabó su tiempo límite (por defecto 180 s para un turno que lee y 600 s para uno que escribe), o Gemini se quedó callado 90 s (PULSE_GEMINI_IDLE_MS) y se detuvo después de un reintento automático. Las preguntas largas sobre muchos archivos tardan más; MADRE mató el árbol de procesos completo. Lo que un turno que escribe dejó antes de detenerse aparece bajo el fallo, con DESHACER.',
-  "Press the RAISE button on this card, or type a new number in ⚙ CONNECTIONS (DEFAULT TIMEOUT · SECONDS, or the field on the agent's card): fields save the moment you leave them. It applies to the next turn and persists in ~/.pulse/config.json. Environment variables work too, but only for a server started after exporting them; a running room never sees a later export.":
-    'Dale al botón SUBIR de esta ficha, o escribe otro número en ⚙ CONEXIONES (TIEMPO LÍMITE POR DEFECTO · SEGUNDOS, o el campo de la ficha del agente): los campos se guardan al salir de ellos. Aplica desde el próximo turno y queda en ~/.pulse/config.json. Las variables de entorno también sirven, pero solo para un servidor arrancado después de exportarlas; una sala que ya está corriendo nunca ve un export posterior.',
+  "Press Apply below, or type a new number in Settings: Default time limit in Room and turns, or Time limit on the agent in Agents. Each field saves the moment you leave it. It applies to the next turn and persists in ~/.pulse/config.json. Environment variables work too, but only for a server started after exporting them; a running room never sees a later export.":
+    'Pulsa Aplicar, abajo, o escribe otro número en Ajustes: Tiempo límite por defecto en Sala y turnos, o Tiempo límite en el agente, en Agentes. Cada campo se guarda en cuanto sales de él. Aplica desde el próximo turno y queda en ~/.pulse/config.json. Las variables de entorno también sirven, pero solo para un servidor arrancado después de exportarlas; una sala que ya está corriendo nunca ve un export posterior.',
 
   'Turn interrupted by a MADRE restart': 'Turno interrumpido por un reinicio de MADRE',
   'MADRE closed (Ctrl+C, SIGTERM or a crash) while this agent was answering. The log records the turn as failed so the room never shows a ghost "thinking" bubble.':
@@ -1783,8 +1746,8 @@ export const ES = {
   'Local token budget exhausted for an agent': 'Se acabó el presupuesto local de tokens de un agente',
   'The room keeps a soft per-agent budget (500,000 tokens by default) so one agent does not quietly eat a whole session. It is MADRE\'s own bookkeeping from the usage each CLI reports after a turn, not the provider\'s quota: nothing is blocked, the room only warns and suggests other agents. Cache reads weigh a tenth of a fresh token.':
     'La sala lleva un presupuesto blando por agente (500,000 tokens por defecto) para que uno solo no se coma una sesión entera sin avisar. Es la contabilidad propia de MADRE, hecha con lo que cada CLI reporta después de un turno, no la cuota del proveedor: no se bloquea nada, la sala solo avisa y sugiere otros agentes. Las lecturas de caché pesan una décima de un token fresco.',
-  "Continue with another agent, press RAISE LOCAL BUDGET on this card, or type a number in ⚙ CONNECTIONS → LOCAL TOKEN BUDGET PER AGENT (saves on leaving the field). The provider's real limits show in each sphere's popover when the CLI reports them.":
-    'Sigue con otro agente, dale SUBIR EL PRESUPUESTO LOCAL en esta ficha, o escribe un número en ⚙ CONEXIONES → PRESUPUESTO LOCAL DE TOKENS POR AGENTE (se guarda al salir del campo). Los límites reales del proveedor salen en el globo de cada esfera cuando el CLI los reporta.',
+  "Continue with another agent, press Apply below, or type a number in Settings → Room and turns → Tokens per agent (it saves when you leave the field). The provider's real limits show in each sphere's popover when the CLI reports them.":
+    'Sigue con otro agente, pulsa Aplicar, abajo, o escribe un número en Ajustes → Sala y turnos → Tokens por agente (se guarda al salir del campo). Los límites reales del proveedor salen en el globo de cada esfera cuando el CLI los reporta.',
 
   'Port already in use': 'El puerto ya está ocupado',
   'Another process, often another MADRE, is listening on the port.': 'Otro proceso, seguido otra MADRE, está escuchando en ese puerto.',
@@ -1811,51 +1774,51 @@ export const ES = {
   'Gemini: generating images': 'Gemini: generar imágenes',
   'Gemini CLI 0.60 has no image-generation tool in headless mode, even though Google offers image models. MADRE fills the gap with the Image Studio module: its own MCP server exposing generate_image on the Gemini API image models, attached to Gemini only inside a creation lease with the image scope on, billing your Gemini key.':
     'El CLI de Gemini 0.60 no tiene herramienta de generación de imágenes en modo headless, aunque Google sí ofrece modelos de imagen. MADRE tapa el hueco con el módulo Image Studio: su propio servidor MCP con generate_image sobre los modelos de imagen de la API de Gemini, enganchado a Gemini solo dentro de un permiso de creación con el alcance de imagen encendido, y cobrando a tu llave de Gemini.',
-  'Enable Image Studio in MODULES (needs a Gemini API key with credits), then tick GENERATE IMAGES for Gemini in CONNECTIONS. Without the module, ask @codex or let the orchestrator route the image step to it.':
-    'Enciende Image Studio en MÓDULOS (necesita una API key de Gemini con créditos) y luego préndele GENERAR IMÁGENES a Gemini en CONEXIONES. Sin el módulo, pídeselo a @codex o deja que el orquestador le mande ese paso.',
+  'Turn Image Studio on in Modules (it needs a Gemini API key with credits), then switch on Generate images for Gemini in Settings → Agents. Without the module, ask @codex or let the orchestrator route the image step to it.':
+    'Enciende Image Studio en Módulos (necesita una API key de Gemini con créditos) y luego activa Generar imágenes para Gemini en Ajustes → Agentes. Sin el módulo, pídeselo a @codex o deja que el orquestador le mande ese paso.',
 
   'Claude Code: generating images': 'Claude Code: generar imágenes',
   "Claude Code has no image-generation tool; Claude models describe and reason about images, they do not render them. The Image Studio module gives Claude the MCP tool generate_image (MADRE's own server on the Gemini API), attached with --mcp-config only inside a creation lease.":
     'Claude Code no tiene herramienta de generación de imágenes; los modelos de Claude describen y razonan sobre imágenes, no las dibujan. El módulo Image Studio le da a Claude la herramienta MCP generate_image (el servidor propio de MADRE sobre la API de Gemini), enganchada con --mcp-config solo dentro de un permiso de creación.',
-  'Enable Image Studio in MODULES, tick GENERATE IMAGES for Claude in CONNECTIONS, then use CREATE. Or route the image step to @codex.':
-    'Enciende Image Studio en MÓDULOS, préndele GENERAR IMÁGENES a Claude en CONEXIONES y usa CREATE. O mándale ese paso a @codex.',
+  'Turn Image Studio on in Modules, switch on Generate images for Claude in Settings → Agents, then use CREATE. Or route the image step to @codex.':
+    'Enciende Image Studio en Módulos, activa Generar imágenes para Claude en Ajustes → Agentes y usa CREATE. O mándale ese paso a @codex.',
 
   'OpenCode: generating images': 'OpenCode: generar imágenes',
   "OpenCode exposes no image-generation tool of its own. The Image Studio module adds MADRE's MCP image server to OpenCode's ephemeral config inside a creation lease.":
     'OpenCode no expone ninguna herramienta propia de generación de imágenes. El módulo Image Studio agrega el servidor MCP de imagen de MADRE a la configuración efímera de OpenCode, dentro de un permiso de creación.',
-  'Enable Image Studio in MODULES, tick GENERATE IMAGES for OpenCode in CONNECTIONS, then use CREATE. Or route the image step to @codex.':
-    'Enciende Image Studio en MÓDULOS, préndele GENERAR IMÁGENES a OpenCode en CONEXIONES y usa CREATE. O mándale ese paso a @codex.',
+  'Turn Image Studio on in Modules, switch on Generate images for OpenCode in Settings → Agents, then use CREATE. Or route the image step to @codex.':
+    'Enciende Image Studio en Módulos, activa Generar imágenes para OpenCode en Ajustes → Agentes y usa CREATE. O mándale ese paso a @codex.',
 
   'Web access for an agent': 'Acceso a la web para un agente',
   'Every CLI can browse: Codex with --search, Claude Code with WebFetch/WebSearch, Gemini with google_web_search/web_fetch, OpenCode with webfetch/websearch. MADRE keeps it off until you enable it per agent.':
     'Todos los CLIs pueden navegar: Codex con --search, Claude Code con WebFetch/WebSearch, Gemini con google_web_search/web_fetch, OpenCode con webfetch/websearch. MADRE lo deja apagado hasta que tú lo enciendas por agente.',
-  "Tick WEB ACCESS in that agent's card in CONNECTIONS and save. It applies to every turn of that agent; content fetched is sent to its provider.":
-    'Préndele ACCESO A LA WEB en la ficha de ese agente en CONEXIONES y guarda. Aplica a todos sus turnos; lo que traiga de la web viaja a su proveedor.',
+  "Switch on Web access for that agent in Settings → Agents; it saves at once. It applies to every turn of that agent; content fetched is sent to its provider.":
+    'Activa Acceso a la web para ese agente en Ajustes → Agentes; se guarda al instante. Aplica a todos sus turnos; lo que traiga de la web viaja a su proveedor.',
 
   'Commands and mentions in the field box': 'Comandos y menciones en el campo',
   'Type "/" for the room\'s commands: /create arms the lease, /image routes an image request to an agent that can draw, /stopall is the brake, /git (Git Pulse) and /ahp (AHP+) run read-only in the project and post a fact card everyone, agents included, can read. Type "@" to mention an agent; the name becomes a label. Type "!" to point at a project file ("!src/room.mjs:12-20" for lines): the agent reads it first. In the viewer, click a line number (Shift+click for a range) and REVIEW WITH sends those lines to an agent.':
     'Escribe «/» para los comandos de la sala: /create arma el permiso, /image manda una petición de imagen a un agente que sepa dibujar, /stopall es el freno, y /git (Git Pulse) y /ahp (AHP+) corren en solo lectura sobre el proyecto y publican una ficha que todos —agentes incluidos— pueden leer. Escribe «@» para mencionar a un agente; el nombre se vuelve una etiqueta. Escribe «!» para apuntar a un archivo del proyecto («!src/room.mjs:12-20» para líneas): el agente lo lee primero. En el visor, haz clic en un número de línea (Shift+clic para un rango) y REVISAR CON le manda esas líneas a un agente.',
-  'A struck-through command is a module that is not available in this project: open MODULES to install or enable it (Git Pulse needs a git repository; AHP+ needs to be installed).':
-    'Un comando tachado es un módulo que no está disponible en este proyecto: abre MÓDULOS para instalarlo o encenderlo (Git Pulse necesita un repositorio git; AHP+ hay que instalarlo).',
+  'A struck-through command is a module that is not available in this project: open Modules to install it or turn it on (Git Pulse needs a git repository; AHP+ needs to be installed).':
+    'Un comando tachado es un módulo que no está disponible en este proyecto: abre Módulos para instalarlo o encenderlo (Git Pulse necesita un repositorio git; AHP+ hay que instalarlo).',
 
   'Permission modes: #0 GHOST · #1 EXCHANGE · #2 CREATE · #3 CONTROL · #4 AIRLOCK':
     'Modos de permiso: #0 GHOST · #1 EXCHANGE · #2 CREATE · #3 CONTROL · #4 AIRLOCK',
-  'Every message goes out at a mode, chosen in the chip after TO @agent (or typed as #2 in the text). #0 GHOST is off the record: nothing is saved, no other agent remembers it, gone on reload, no delegation. #1 EXCHANGE is the default: read and coordinate. #2 CREATE lets the agent add new files and folders anywhere in the project, where they belong; whatever existed before is put back after the turn and the room says so. #3 CONTROL puts one agent in command of the project itself: a git checkpoint is taken first, every change is listed afterwards, writes into .git, .pulse or .env files are reverted on the spot, and UNDO restores the checkpoint. One holder at a time; it needs MAX MODE 3 and a git repository. Your mode is the ceiling of any plan the message starts, and #3 is never delegated. Each agent has a MAX MODE in CONNECTIONS; above it, #2 is answered read-only and #3 is refused. When a #1 plan reaches a step that wants to create something, the room pauses and asks you: GRANT ONCE, GRANT FOR PLAN or DENY, with a 3-minute clock; silence denies. #4 AIRLOCK is CONTROL plus commands: tests, builds, git push, deploys with the CLIs and sessions already on this machine. Files still come back with UNDO; what leaves the machine does not, so the override asks twice: the designation, then the word AIRLOCK. An agent that says it needs a "production mode" or "permission to run commands" is asking for #4.':
-    'Cada mensaje sale con un modo, elegido en el chip que está después de PARA @agente (o escrito como #2 en el texto). #0 GHOST es fuera de registro: no se guarda nada, ningún otro agente lo recuerda, se pierde al recargar y no hay delegación. #1 EXCHANGE es el de siempre: leer y coordinar. #2 CREATE deja que el agente agregue archivos y carpetas nuevos donde les toque en el proyecto; lo que ya existía se restaura al terminar el turno y la sala lo dice. #3 CONTROL le da a un agente el mando del proyecto mismo: primero se toma un checkpoint de git, al final se listan todos los cambios, lo que se escriba en .git, .pulse o archivos .env se revierte en el acto, y DESHACER restaura el checkpoint. Un solo portador a la vez; necesita MODO MÁXIMO 3 y un repositorio git. Tu modo es el techo de cualquier plan que arranque ese mensaje, y el #3 nunca se delega. Cada agente tiene su MODO MÁXIMO en CONEXIONES; por encima de él, el #2 se contesta en solo lectura y el #3 se rechaza. Cuando un plan en #1 llega a un paso que quiere crear algo, la sala se detiene y te pregunta: CONCEDER UNA VEZ, CONCEDER PARA EL PLAN o NEGAR, con un reloj de 3 minutos; el silencio niega. #4 AIRLOCK es CONTROL más comandos: pruebas, builds, git push, despliegues con los CLIs y las sesiones que ya están en esta computadora. Los archivos siguen regresando con DESHACER; lo que sale de la máquina no, así que la anulación pregunta dos veces: la designación y luego la palabra AIRLOCK. Un agente que dice que necesita «modo producción» o «permiso para correr comandos» está pidiendo el #4.',
-  "Pick the mode in the chip, or type #0..#4 in the message. Raise an agent's MAX MODE in ⚙ CONNECTIONS. CONTROL asks for the project designation (the folder name) in the override; AIRLOCK asks for the designation and then the word AIRLOCK.":
-    'Elige el modo en el chip, o escribe #0..#4 en el mensaje. Sube el MODO MÁXIMO de un agente en ⚙ CONEXIONES. CONTROL pide la designación del proyecto (el nombre de la carpeta) en la anulación; AIRLOCK pide la designación y luego la palabra AIRLOCK.',
+  'Every message goes out at a mode, chosen in the chip after TO @agent (or typed as #2 in the text). #0 GHOST is off the record: nothing is saved, no other agent remembers it, gone on reload, no delegation. #1 EXCHANGE is the default: read and coordinate. #2 CREATE lets the agent add new files and folders anywhere in the project, where they belong; whatever existed before is put back after the turn and the room says so. #3 CONTROL puts one agent in command of the project itself: a git checkpoint is taken first, every change is listed afterwards, writes into .git, .pulse or .env files are reverted on the spot, and UNDO restores the checkpoint. One holder at a time; it needs Max mode #3 and a git repository. Your mode is the ceiling of any plan the message starts, and #3 is never delegated. Each agent has a Max mode in Settings → Permissions; above it, #2 is answered read-only and #3 is refused. When a #1 plan reaches a step that wants to create something, the room pauses and asks you: GRANT ONCE, GRANT FOR PLAN or DENY, with a 3-minute clock; silence denies. #4 AIRLOCK is CONTROL plus commands: tests, builds, git push, deploys with the CLIs and sessions already on this machine. Files still come back with UNDO; what leaves the machine does not, so the override asks twice: the designation, then the word AIRLOCK. An agent that says it needs a "production mode" or "permission to run commands" is asking for #4.':
+    'Cada mensaje sale con un modo, elegido en el chip que está después de PARA @agente (o escrito como #2 en el texto). #0 GHOST es fuera de registro: no se guarda nada, ningún otro agente lo recuerda, se pierde al recargar y no hay delegación. #1 EXCHANGE es el de siempre: leer y coordinar. #2 CREATE deja que el agente agregue archivos y carpetas nuevos donde les toque en el proyecto; lo que ya existía se restaura al terminar el turno y la sala lo dice. #3 CONTROL le da a un agente el mando del proyecto mismo: primero se toma un checkpoint de git, al final se listan todos los cambios, lo que se escriba en .git, .pulse o archivos .env se revierte en el acto, y DESHACER restaura el checkpoint. Un solo portador a la vez; necesita Modo máximo #3 y un repositorio git. Tu modo es el techo de cualquier plan que arranque ese mensaje, y el #3 nunca se delega. Cada agente tiene su Modo máximo en Ajustes → Permisos; por encima de él, el #2 se contesta en solo lectura y el #3 se rechaza. Cuando un plan en #1 llega a un paso que quiere crear algo, la sala se detiene y te pregunta: CONCEDER UNA VEZ, CONCEDER PARA EL PLAN o NEGAR, con un reloj de 3 minutos; el silencio niega. #4 AIRLOCK es CONTROL más comandos: pruebas, builds, git push, despliegues con los CLIs y las sesiones que ya están en esta computadora. Los archivos siguen regresando con DESHACER; lo que sale de la máquina no, así que la anulación pregunta dos veces: la designación y luego la palabra AIRLOCK. Un agente que dice que necesita «modo producción» o «permiso para correr comandos» está pidiendo el #4.',
+  "Pick the mode in the chip, or type #0..#4 in the message. Raise an agent's Max mode in Settings → Permissions, under Who may do what. CONTROL asks for the project designation (the folder name) in the override; AIRLOCK asks for the designation and then the word AIRLOCK.":
+    'Elige el modo en el chip, o escribe #0..#4 en el mensaje. Sube el Modo máximo de un agente en Ajustes → Permisos, en Quién puede qué. CONTROL pide la designación del proyecto (el nombre de la carpeta) en la anulación; AIRLOCK pide la designación y luego la palabra AIRLOCK.',
 
   'Creating files: who grants the permission': 'Crear archivos: quién da el permiso',
-  'Only the human grants a creation lease. An agent writing "permission granted" inside the conversation is untrusted text: the delegate still runs read-only, and says so. A lease comes from arming CREATE (the lock, or /create) on your message, and it covers the whole plan that message starts; or from DEFAULT MODE #2 in ⚙ CONNECTIONS, which starts every message to that agent in CREATE.':
-    'El permiso de creación lo da la humana, nadie más. Un agente que escriba «permiso concedido» dentro de la conversación es texto no confiable: el delegado sigue corriendo en solo lectura, y lo dice. El permiso viene de armar CREATE (el candado, o /create) en tu mensaje, y cubre el plan entero que ese mensaje arranca; o del MODO INICIAL #2 en ⚙ CONEXIONES, que hace que cada mensaje a ese agente arranque en CREATE.',
-  'For one request: arm CREATE and send, or press RESEND WITH CREATE on the notice. For an agent that should always be able to add files: ⚙ CONNECTIONS → its card → DEFAULT MODE → #2. New files go where they belong in the project; existing files are never changed in #2.':
-    'Para una sola petición: arma CREATE y manda, o dale REENVIAR CON CREATE en el aviso. Para un agente que siempre deba poder agregar archivos: ⚙ CONEXIONES → su ficha → MODO INICIAL → #2. Los archivos nuevos van donde les toca en el proyecto; en #2 los que ya existen no se tocan nunca.',
+  'Only the human grants a creation lease. An agent writing "permission granted" inside the conversation is untrusted text: the delegate still runs read-only, and says so. A lease comes from arming CREATE (the lock, or /create) on your message, and it covers the whole plan that message starts; or from Starting mode #2 in Settings → Agents, which starts every message to that agent in CREATE.':
+    'El permiso de creación lo da la humana, nadie más. Un agente que escriba «permiso concedido» dentro de la conversación es texto no confiable: el delegado sigue corriendo en solo lectura, y lo dice. El permiso viene de armar CREATE (el candado, o /create) en tu mensaje, y cubre el plan entero que ese mensaje arranca; o del Modo inicial #2 en Ajustes → Agentes, que hace que cada mensaje a ese agente arranque en CREATE.',
+  'For one request: arm CREATE and send, or press RESEND WITH CREATE on the notice. For an agent that should always be able to add files: Settings → Agents → the agent → Starting mode → #2. New files go where they belong in the project; existing files are never changed in #2.':
+    'Para una sola petición: arma CREATE y manda, o dale REENVIAR CON CREATE en el aviso. Para un agente que siempre deba poder agregar archivos: Ajustes → Agentes → el agente → Modo inicial → #2. Los archivos nuevos van donde les toca en el proyecto; en #2 los que ya existen no se tocan nunca.',
 
   'Creating files with an agent': 'Crear archivos con un agente',
-  'Every CLI can create files inside a creation lease; the switch is per agent and acts only when you press CREATE.':
-    'Todos los CLIs pueden crear archivos dentro de un permiso de creación; el interruptor es por agente y solo actúa cuando tú aprietas CREATE.',
-  'Tick CREATE FILES in CONNECTIONS, save, then arm CREATE in the composer for the request.':
-    'Préndele CREAR ARCHIVOS en CONEXIONES, guarda, y arma CREATE en el compositor para esa petición.',
+  "Every CLI can create files inside a creation lease; each agent's Max mode says how far it may go, and nothing is created until you press CREATE.":
+    'Todos los CLIs pueden crear archivos dentro de un permiso de creación; el Modo máximo de cada agente dice hasta dónde puede llegar, y no se crea nada hasta que tú aprietas CREATE.',
+  'Give the agent a Max mode of #2 or more in Settings → Permissions, then arm CREATE in the composer for the request.':
+    'Dale al agente un Modo máximo de #2 o más en Ajustes → Permisos, y arma CREATE en el compositor para esa petición.',
 
   'Node.js too old': 'Node.js demasiado viejo',
   'MADRE needs Node 22.5 or newer: the room memory runs on node:sqlite, and the rest on ES modules, fetch and AbortSignal. The bin refuses to start on older versions and says so.':
@@ -1878,8 +1841,8 @@ export const ES = {
   'Distilled memories: the archivist did not run, or failed': 'Memorias destiladas: el archivista no corrió, o falló',
   'Every PULSE_DISTILL_EVERY undistilled exchanges (10), or after PULSE_DISTILL_IDLE_MS of quiet (10 min), the cheapest available agent (Gemini, then OpenCode, Codex, Claude) reads the newest undistilled batch and keeps up to five notes. It runs only when no turn is in flight and one batch per trigger, so a long backlog drains slowly. A run that fails is retried; after three failures on the same batch it is skipped and the room says so. Common causes: the archivist agent is rate-limited or signed out, or PULSE_DISTILL=0.':
     'Cada PULSE_DISTILL_EVERY intercambios sin destilar (10), o después de PULSE_DISTILL_IDLE_MS en silencio (10 min), el agente disponible más barato (Gemini, luego OpenCode, Codex, Claude) lee el lote más nuevo sin destilar y se queda con hasta cinco notas. Corre solo cuando no hay ningún turno en vuelo, y un lote por disparo, así que una cola larga baja despacio. Una corrida que falla se reintenta; después de tres fallas en el mismo lote se salta y la sala lo dice. Causas comunes: al archivista le pusieron límite de tasa o no tiene sesión, o PULSE_DISTILL=0.',
-  'Check the archivist\'s session in ⚙ CONNECTIONS, or pick another with PULSE_DISTILL_AGENT. Lower PULSE_DISTILL_EVERY to distil sooner; raise PULSE_DISTILL_MAX_CHARS to read more per run. Set PULSE_DISTILL=0 to stop paying for it.':
-    'Revisa la sesión del archivista en ⚙ CONEXIONES, o elige otro con PULSE_DISTILL_AGENT. Baja PULSE_DISTILL_EVERY para destilar antes; sube PULSE_DISTILL_MAX_CHARS para que lea más por corrida. Pon PULSE_DISTILL=0 para dejar de pagarlo.',
+  'Check the archivist\'s session in Settings → Agents, or pick another in Settings → Memory (Who distils first) or with PULSE_DISTILL_AGENT. Lower PULSE_DISTILL_EVERY to distil sooner; raise PULSE_DISTILL_MAX_CHARS to read more per run. Set PULSE_DISTILL=0 to stop paying for it.':
+    'Revisa la sesión del archivista en Ajustes → Agentes, o elige otro en Ajustes → Memoria (Quién destila primero) o con PULSE_DISTILL_AGENT. Baja PULSE_DISTILL_EVERY para destilar antes; sube PULSE_DISTILL_MAX_CHARS para que lea más por corrida. Pon PULSE_DISTILL=0 para dejar de pagarlo.',
 
   'Embeddings paused: recall is lexical only': 'Embeddings en pausa: el recall es solo léxico',
   "Meaning-aware recall and the links between memories in NOSTROMO need Gemini embeddings through your own key (GEMINI_API_KEY or the Gemini CLI's keychain entry). Without a key, or when the API answers 429/5xx, MADRE pauses vectors for a minute and retries; recall keeps working on words alone.":
@@ -1907,41 +1870,41 @@ export const ES = {
     'Escribe como designación el nombre de carpeta que aparece en el encabezado de la sala. Para encontrar una memoria rápido, mejor pídele a un agente que busque. No le pegues al núcleo.',
 
   'RIPLEY: rendering HTML, SVG and Markdown in the viewer': 'RIPLEY: dibujar HTML, SVG y Markdown en el visor',
-  'With RIPLEY on (MODULES), the file viewer renders .html and .svg through /preview/project/<path> inside a sealed frame: the page\'s own scripts run, but the frame has no origin, no network, no forms and no way to reach MADRE, and it loads CSS, JS, images and fonts only from the project through MADRE. Relative links work. Markdown renders in place; PREVIEW / SOURCE switches. Off, those files show as text with a note. 412 means RIPLEY is off. Plain /api/files always serves HTML as text.':
-    'Con RIPLEY encendido (MÓDULOS), el visor de archivos dibuja los .html y .svg por /preview/project/<ruta> dentro de un marco sellado: los scripts de la página sí corren, pero el marco no tiene origen, ni red, ni formularios, ni manera de alcanzar a MADRE, y carga CSS, JS, imágenes y tipografías solo desde el proyecto, a través de MADRE. Los enlaces relativos funcionan. El Markdown se dibuja en su lugar; PREVIEW / SOURCE cambia entre uno y otro. Apagado, esos archivos se ven como texto con una nota. Un 412 significa que RIPLEY está apagado. El /api/files normal siempre sirve el HTML como texto.',
-  'Enable RIPLEY in MODULES. If a page looks broken in PREVIEW it is usually because it fetches something from the internet or another server, which the frame forbids by design: open it with OPEN RAW in a normal tab if you trust it.':
-    'Enciende RIPLEY en MÓDULOS. Si una página se ve rota en PREVIEW, casi siempre es porque pide algo de internet o de otro servidor, cosa que el marco prohíbe a propósito: ábrela con ABRIR EN CRUDO en una pestaña normal si confías en ella.',
+  'With RIPLEY on (in Modules), the file viewer renders .html and .svg through /preview/project/<path> inside a sealed frame: the page\'s own scripts run, but the frame has no origin, no network, no forms and no way to reach MADRE, and it loads CSS, JS, images and fonts only from the project through MADRE. Relative links work. Markdown renders in place; PREVIEW / SOURCE switches. Off, those files show as text with a note. 412 means RIPLEY is off. Plain /api/files always serves HTML as text.':
+    'Con RIPLEY encendido (en Módulos), el visor de archivos dibuja los .html y .svg por /preview/project/<ruta> dentro de un marco sellado: los scripts de la página sí corren, pero el marco no tiene origen, ni red, ni formularios, ni manera de alcanzar a MADRE, y carga CSS, JS, imágenes y tipografías solo desde el proyecto, a través de MADRE. Los enlaces relativos funcionan. El Markdown se dibuja en su lugar; PREVIEW / SOURCE cambia entre uno y otro. Apagado, esos archivos se ven como texto con una nota. Un 412 significa que RIPLEY está apagado. El /api/files normal siempre sirve el HTML como texto.',
+  'Turn RIPLEY on in Modules. If a page looks broken in PREVIEW it is usually because it fetches something from the internet or another server, which the frame forbids by design: open it with OPEN RAW in a normal tab if you trust it.':
+    'Enciende RIPLEY en Módulos. Si una página se ve rota en PREVIEW, casi siempre es porque pide algo de internet o de otro servidor, cosa que el marco prohíbe a propósito: ábrela con ABRIR EN CRUDO en una pestaña normal si confías en ella.',
 
   'Ollama: local embeddings and a local archivist': 'Ollama: embeddings locales y un archivista local',
-  'When Ollama runs on this machine with an embedding model and a chat model, MADRE embeds the memory locally (recall by meaning without any key) and distils memories with the local model first, before Gemini and the others. Nothing leaves the machine for remembering. Off or absent, everything falls back to the providers. MODULES shows what Ollama has, lets you pull the recommended models, and switches each role.':
-    'Cuando Ollama corre en esta computadora con un modelo de embeddings y uno de chat, MADRE genera los embeddings localmente (recall por significado sin ninguna llave) y destila las memorias con el modelo local primero, antes que Gemini y los demás. Para recordar no sale nada de la máquina. Apagado o ausente, todo vuelve a los proveedores. MÓDULOS enseña qué tiene Ollama, te deja bajar los modelos recomendados y prende o apaga cada papel.',
-  'Install Ollama (ollama.com), start it, then in MODULES press RECHECK and PULL the models it suggests. Set PULSE_OLLAMA_MODEL or PULSE_OLLAMA_EMBED_MODEL to prefer others; PULSE_EMBED_PROVIDER=gemini keeps embeddings on Gemini even with Ollama running.':
-    'Instala Ollama (ollama.com), enciéndelo, y en MÓDULOS dale REVISAR OTRA VEZ y PULL a los modelos que sugiere. Pon PULSE_OLLAMA_MODEL o PULSE_OLLAMA_EMBED_MODEL para preferir otros; PULSE_EMBED_PROVIDER=gemini deja los embeddings en Gemini aunque Ollama esté corriendo.',
+  'When Ollama runs on this machine with an embedding model and a chat model, MADRE embeds the memory locally (recall by meaning without any key) and distils memories with the local model first, before Gemini and the others. Nothing leaves the machine for remembering. Off or absent, everything falls back to the providers. The Ollama module, in Modules, shows what Ollama has, downloads the recommended models, and switches each role.':
+    'Cuando Ollama corre en esta computadora con un modelo de embeddings y uno de chat, MADRE genera los embeddings localmente (recall por significado sin ninguna llave) y destila las memorias con el modelo local primero, antes que Gemini y los demás. Para recordar no sale nada de la máquina. Apagado o ausente, todo vuelve a los proveedores. El módulo Ollama, en Módulos, enseña qué tiene Ollama, te deja bajar los modelos recomendados y prende o apaga cada papel.',
+  'Install Ollama (ollama.com), start it, then open Ollama in Modules, press Check again and download the models it suggests. Set PULSE_OLLAMA_MODEL or PULSE_OLLAMA_EMBED_MODEL to prefer others; PULSE_EMBED_PROVIDER=gemini keeps embeddings on Gemini even with Ollama running.':
+    'Instala Ollama (ollama.com), enciéndelo, luego abre Ollama en Módulos, pulsa Revisar otra vez y descarga los modelos que sugiere. Pon PULSE_OLLAMA_MODEL o PULSE_OLLAMA_EMBED_MODEL para preferir otros; PULSE_EMBED_PROVIDER=gemini deja los embeddings en Gemini aunque Ollama esté corriendo.',
 
   "@madre: the room's own memory, as an agent": '@madre: la memoria de la sala, como agente',
   'When Ollama runs with a chat model, a fifth agent joins the room: @madre. It answers from the whole archive (distilled notes and exact quotes, cited as [#n]) and from what the message carries, locally, for free. It never writes, draws, browses or delegates; when the room never discussed something it says so. Other agents may delegate a step to it to check what was decided. It leaves the room when Ollama stops, and MU/TH/UR says so.':
     'Cuando Ollama corre con un modelo de chat, se suma un quinto agente a la sala: @madre. Contesta desde el archivo entero (notas destiladas y citas exactas, citadas como [#n]) y desde lo que traiga el mensaje, en local y gratis. Nunca escribe, ni dibuja, ni navega, ni delega; cuando la sala nunca habló de algo, lo dice. Otros agentes pueden delegarle un paso para comprobar qué se decidió. Se va de la sala cuando Ollama se apaga, y MU/TH/UR lo avisa.',
-  'Start Ollama and PULL a chat model in MODULES → OLLAMA; the switch @MADRE IN THE ROOM turns the agent off if you do not want it. Ask it "what did we decide about …" or "did we ever discuss …".':
-    'Enciende Ollama y baja un modelo de chat con PULL en MÓDULOS → OLLAMA; el interruptor @MADRE EN LA SALA apaga al agente si no lo quieres. Pregúntale «¿qué decidimos sobre…?» o «¿alguna vez hablamos de…?».',
+  'Start Ollama and download a chat model from Ollama in Modules; its @madre in the room switch turns the agent off if you do not want it. Ask it "what did we decide about …" or "did we ever discuss …".':
+    'Enciende Ollama y descarga un modelo de chat desde Ollama, en Módulos; su interruptor @madre en la sala apaga al agente si no lo quieres. Pregúntale «¿qué decidimos sobre…?» o «¿alguna vez hablamos de…?».',
 
   'Installing a CLI: npm cannot write to the system folder': 'Instalar un CLI: npm no puede escribir en la carpeta del sistema',
   'A global npm install writes into a folder that belongs to the system. With Node installed from its own installer that folder needs an administrator, so npm stops with a permission error. MADRE does not ask for your password: when it sees that wall it installs the CLI into a folder of its own, ~/.pulse/tools, and looks there as well as along PATH. The agent works the same; only the file lives somewhere else.':
     'Una instalación global de npm escribe en una carpeta del sistema. Con Node instalado desde su propio instalador, esa carpeta necesita administrador, así que npm se detiene con un error de permisos. MADRE no te pide tu contraseña: cuando ve ese muro instala el CLI en una carpeta suya, ~/.pulse/tools, y lo busca ahí además de en el PATH. El agente funciona igual; solo que el archivo vive en otro lado.',
-  'Nothing to do: press INSTALL again and MADRE takes the second way by itself. If you would rather have the CLI everywhere in your terminal, install it yourself with your package manager, or give npm a folder of your own.':
-    'No hay nada que hacer: dale INSTALAR otra vez y MADRE toma el segundo camino sola. Si prefieres tener el CLI disponible en toda tu terminal, instálalo tú con tu gestor de paquetes, o dale a npm una carpeta tuya.',
+  'Nothing to do: press Install again and MADRE takes the second way by itself. If you would rather have the CLI everywhere in your terminal, install it yourself with your package manager, or give npm a folder of your own.':
+    'No hay nada que hacer: pulsa Instalar otra vez y MADRE toma el segundo camino sola. Si prefieres tener el CLI disponible en toda tu terminal, instálalo tú con tu gestor de paquetes, o dale a npm una carpeta tuya.',
 
   'Privacy: an agent brought its own configuration into the room':
     'Privacidad: un agente metió su propia configuración a la sala',
   'A CLI agent runs with its own system context: organisation instructions, the account it is signed in with, CLAUDE.md files elsewhere. It can mistake that private context for shared context and write a company, a brand or a domain into a reply. Once in the ledger the term reaches the archivist, every other agent and the dataset.':
     'Un agente CLI corre con su propio contexto de sistema: instrucciones de organización, la cuenta con la que tiene sesión, archivos CLAUDE.md de otros lados. Puede confundir ese contexto privado con contexto compartido y escribir una empresa, una marca o un dominio en una respuesta. Una vez en el ledger, ese término llega al archivista, a los demás agentes y al dataset.',
-  'Name the terms in ⚙ CONNECTIONS → PRIVACY. From then on MADRE replaces them with the marker before the ledger, the index, the notes and the dataset see them, and every reply that needed it shows a privacy line. PURGE ROOM rewrites what the room already holds; re-export the dataset afterwards. The terms never leave config.json.':
-    'Nombra los términos en ⚙ CONEXIONES → PRIVACY. De ahí en adelante MADRE los reemplaza con el marcador antes de que los vean el ledger, el índice, las notas y el dataset, y cada respuesta que lo necesitó muestra una línea de privacidad. PURGAR LA SALA reescribe lo que la sala ya tiene; vuelve a exportar el dataset después. Los términos nunca salen de config.json.',
+  'Name the terms in Settings → Privacy, under Private terms. From then on MADRE replaces them with the marker before the ledger, the index, the notes and the dataset see them, and every reply that needed it shows a privacy line. Purge the room rewrites what the room already holds; re-export the dataset afterwards. The terms never leave config.json.':
+    'Nombra los términos en Ajustes → Privacidad, en Términos privados. De ahí en adelante MADRE los reemplaza con el marcador antes de que los vean el ledger, el índice, las notas y el dataset, y cada respuesta que lo necesitó muestra una línea de privacidad. Purgar la sala reescribe lo que la sala ya tiene; vuelve a exportar el dataset después. Los términos nunca salen de config.json.',
 
   'CONTROL: what changed, what was reverted, UNDO': 'CONTROL: qué cambió, qué se revirtió, DESHACER',
-  'A #3 CONTROL turn takes a git checkpoint before the agent runs, then lists every file it added, modified or deleted. Writes into .git, .pulse or any .env file are reverted on the spot and named. UNDO restores the checkpoint in one click; STOPALL revokes CONTROL. One holder at a time, never delegated, needs MAX MODE 3 and a git repository.':
-    'Un turno en #3 CONTROL toma un checkpoint de git antes de que el agente corra, y luego lista cada archivo que agregó, modificó o borró. Lo que se escriba en .git, .pulse o cualquier archivo .env se revierte en el acto y se nombra. DESHACER restaura el checkpoint con un clic; STOPALL revoca CONTROL. Un solo portador a la vez, nunca se delega, necesita MODO MÁXIMO 3 y un repositorio git.',
-  'Read the list under the reply before moving on. If the change is wrong press UNDO; if the agent should not have had it, lower its MAX MODE in ⚙ CONNECTIONS.':
-    'Lee la lista que queda debajo de la respuesta antes de seguir. Si el cambio está mal dale DESHACER; si ese agente no debía tenerlo, bájale el MODO MÁXIMO en ⚙ CONEXIONES.',
+  'A #3 CONTROL turn takes a git checkpoint before the agent runs, then lists every file it added, modified or deleted. Writes into .git, .pulse or any .env file are reverted on the spot and named. UNDO restores the checkpoint in one click; STOPALL revokes CONTROL. One holder at a time, never delegated, needs Max mode #3 and a git repository.':
+    'Un turno en #3 CONTROL toma un checkpoint de git antes de que el agente corra, y luego lista cada archivo que agregó, modificó o borró. Lo que se escriba en .git, .pulse o cualquier archivo .env se revierte en el acto y se nombra. DESHACER restaura el checkpoint con un clic; STOPALL revoca CONTROL. Un solo portador a la vez, nunca se delega, necesita Modo máximo #3 y un repositorio git.',
+  'Read the list under the reply before moving on. If the change is wrong press UNDO; if the agent should not have had it, lower its Max mode in Settings → Permissions.':
+    'Lee la lista que queda debajo de la respuesta antes de seguir. Si el cambio está mal dale DESHACER; si ese agente no debía tenerlo, bájale el Modo máximo en Ajustes → Permisos.',
 
   'Conversations: many per project, one memory, one at a time':
     'Conversaciones: muchas por proyecto, una sola memoria, de a una',
@@ -1953,14 +1916,14 @@ export const ES = {
   'Aberrations: what the room established is false': 'Aberraciones: lo que la sala estableció que es falso',
   'An aberration is a claim the room established is false, kept on purpose rather than deleted: it is what the local model learns not to repeat. It never travels into a turn, and the note it refutes is taken out of circulation with it — a refuted memory is never recalled again, by words or by meaning. EYECAT watches for two agents saying opposite things about the same subject and raises the pair for a third agent to judge, one that took no part in either side. Confirming files the aberration and quarantines what it refutes; dismissing says the room was right and the pair is never raised again. Forgetting an aberration gives its note back.':
     'Una aberración es una afirmación que la sala estableció como falsa, guardada a propósito en vez de borrada: es lo que el modelo local aprende a no repetir. Nunca viaja dentro de un turno, y la nota que refuta sale de circulación con ella — una memoria refutada no se vuelve a recordar, ni por palabras ni por significado. EYECAT vigila que dos agentes no digan cosas opuestas sobre el mismo tema y levanta el par para que lo juzgue un tercero, uno que no estuvo en ninguno de los dos lados. Confirmar archiva la aberración y pone en cuarentena lo que refuta; descartar dice que la sala tenía razón y ese par no se vuelve a levantar. Olvidar una aberración devuelve su nota.',
-  'NOSTROMO shows them as collapsed bodies: open one to read what it took down, or clear it if the room was wrong about being wrong. The three tests report open contradictions under CONSISTENCY.':
-    'NOSTROMO las enseña como cuerpos colapsados: abre una para leer qué dio de baja, o quítala si la sala se equivocó al equivocarse. Las tres pruebas reportan las contradicciones abiertas bajo CONSISTENCIA.',
+  'NOSTROMO shows them as collapsed bodies: open one to read what it took down, or clear it if the room was wrong about being wrong. The second of the three tests, in Settings → Memory, reports open contradictions.':
+    'NOSTROMO las enseña como cuerpos colapsados: abre una para leer qué dio de baja, o quítala si la sala se equivocó al equivocarse. La segunda de las tres pruebas, en Ajustes → Memoria, reporta las contradicciones abiertas.',
 
   'Memory used · N by association': 'Memoria usada · N por asociación',
   'Under a reply, MADRE says what the archive handed that turn. Most of it was matched to what you asked, by words and by meaning. A note marked "by association" came along for a different reason: this room keeps carrying it in the same turn as one of the others, so the archive brings it too, however differently it reads. The strength is a ratio over the turns where each was found on its own merits — a memory the room reaches for constantly does not end up attached to everything, and a pair that stops meeting fades on its own. Association adds and never displaces: recall keeps two slots for it and hands back the ones it does not use.':
     'Debajo de una respuesta, MADRE dice qué le entregó el archivo a ese turno. Casi todo se emparejó con lo que preguntaste, por palabras y por significado. Una nota marcada «por asociación» llegó por otra razón: esta sala la sigue cargando en el mismo turno que otra, así que el archivo la trae también, por distinto que se lea. La fuerza es una razón sobre los turnos en que cada una apareció por mérito propio — una memoria que la sala busca todo el tiempo no termina pegada a todo, y un par que deja de encontrarse se va apagando solo. La asociación suma y nunca desplaza: el recall le guarda dos lugares y devuelve los que no usa.',
-  'Click a note to see it in NOSTROMO, where the wires it travels on are drawn. It is the one part of recall that owes nothing to how a memory reads, so it can be switched off in MEMORY.':
-    'Haz clic en una nota para verla en NOSTROMO, donde se dibujan los cables por los que viaja. Es la única parte del recall que no le debe nada a cómo se lee una memoria, así que se puede apagar en MEMORIA.',
+  'Click a note to see it in NOSTROMO, where the wires it travels on are drawn. It is the one part of recall that owes nothing to how a memory reads, so it can be switched off in Settings → Memory, with Carry the company it keeps.':
+    'Haz clic en una nota para verla en NOSTROMO, donde se dibujan los cables por los que viaja. Es la única parte del recall que no le debe nada a cómo se lee una memoria, así que se puede apagar en Ajustes → Memoria, con Llevar a sus acompañantes.',
 
   'Cold memories: what the archive has had its chances with': 'Memorias frías: con las que el archivo ya tuvo sus oportunidades',
   'A memory is cold when three things are true at once: no turn has ever carried it, it shares a subject with nothing so nothing can reach it sideways either, and the archive has been opened at least a dozen times since it was written. The third is what makes the label worth acting on — never-recalled is what every memory is on the day it is written. Chances are counted in turns that actually reached into the archive, and only from the day the room started keeping that trail, so what was never written down is not held against the note.':
@@ -1971,20 +1934,20 @@ export const ES = {
   'The three tests: whether the archive works': 'Las tres pruebas: si el archivo funciona',
   'The six readings count what the archive is made of; they cannot say whether it works, because nothing about a pile of notes says whether the right one comes back when it is needed. COVERAGE takes real questions from this room, runs recall at the exact point each was asked, and scores what came back against the reply that was actually given. CONSISTENCY reads the contradictions EYECAT still holds and whether aberrations are being filed more often lately. MATCH puts real questions a frontier CLI answered back to the local model with this archive behind it. All three measure against a control, because everything in one room is about the same handful of subjects and any two pieces of it read as close to an embedder: to count, what the archive handed over has to beat what it would have handed over for a different question.':
     'Las seis lecturas cuentan de qué está hecho el archivo; no pueden decir si funciona, porque nada en un montón de notas dice si la correcta regresa cuando hace falta. COBERTURA toma preguntas reales de esta sala, corre el recall en el punto exacto en que se hizo cada una, y califica lo que volvió contra la respuesta que de verdad se dio. CONSISTENCIA lee las contradicciones que EYECAT todavía sostiene y si últimamente se archivan aberraciones más seguido. COINCIDENCIA le hace al modelo local preguntas reales que contestó un CLI de frontera, con este archivo detrás. Las tres miden contra un control, porque todo en una sala habla del mismo puñado de temas y a un embebedor dos pedazos cualesquiera le parecen cercanos: para contar, lo que el archivo entregó tiene que ganarle a lo que habría entregado para otra pregunta.',
-  'Read the one sentence and the one instruction at the top of MEMORY; the readings and the tests are a fold below it. The free test is read as the panel opens, the cheap one keeps itself fresh once a day while the embeddings are local, and the slow one is yours to start and to stop. None of them spends a provider turn.':
-    'Lee la frase y la única instrucción que están hasta arriba de MEMORIA; las lecturas y las pruebas están un pliegue más abajo. La prueba gratis se lee al abrir el panel, la barata se mantiene fresca una vez al día mientras los embeddings sean locales, y la lenta la arrancas y la detienes tú. Ninguna gasta un turno de proveedor.',
+  'Read the one sentence and the one instruction at the top of Settings → Memory; the readings and the tests are in Analysis and tests, below it. The free test is read as the panel opens, the cheap one keeps itself fresh once a day while the embeddings are local, and the slow one is yours to start and to stop. None of them spends a provider turn.':
+    'Lee la frase y la única instrucción que están hasta arriba de Ajustes → Memoria; las lecturas y las pruebas están más abajo, en Análisis y pruebas. La prueba gratis se lee al abrir el panel, la barata se mantiene fresca una vez al día mientras los embeddings sean locales, y la lenta la arrancas y la detienes tú. Ninguna gasta un turno de proveedor.',
 
   'Updating what a module drives': 'Actualizar lo que un módulo maneja',
-  'When something newer exists and the module knows how to fetch it, the button is beside the version on its card. It asks twice on purpose: the first press answers with the command, the second runs exactly that, and the output lands in the room line by line. Nothing installs by itself — putting software on your computer unannounced would break the one thing MADRE promises, that a command is seen before it runs. The usual failure is npm refusing a global install with EACCES, which means the global prefix belongs to root; sudo works and leaves you with root-owned files, so a user-owned prefix or a version manager is the better answer.':
-    'Cuando existe algo más nuevo y el módulo sabe cómo traerlo, el botón está junto a la versión en su ficha. Pregunta dos veces a propósito: el primer toque contesta con el comando, el segundo corre exactamente eso, y la salida cae en la sala línea por línea. Nada se instala solo — poner software en tu computadora sin avisar rompería lo único que MADRE promete: que un comando se ve antes de correrlo. La falla típica es npm negando una instalación global con EACCES, que significa que el prefijo global es de root; sudo funciona y te deja archivos de root, así que un prefijo tuyo o un gestor de versiones es la mejor respuesta.',
+  'When something newer exists and the module knows how to fetch it, the button is beside the version on its page in Modules. It asks twice on purpose: the first press answers with the command, the second runs exactly that, and the output lands in the room line by line. Nothing installs by itself — putting software on your computer unannounced would break the one thing MADRE promises, that a command is seen before it runs. The usual failure is npm refusing a global install with EACCES, which means the global prefix belongs to root; sudo works and leaves you with root-owned files, so a user-owned prefix or a version manager is the better answer.':
+    'Cuando existe algo más nuevo y el módulo sabe cómo traerlo, el botón está junto a la versión en su ficha, en Módulos. Pregunta dos veces a propósito: el primer toque contesta con el comando, el segundo corre exactamente eso, y la salida cae en la sala línea por línea. Nada se instala solo — poner software en tu computadora sin avisar rompería lo único que MADRE promete: que un comando se ve antes de correrlo. La falla típica es npm negando una instalación global con EACCES, que significa que el prefijo global es de root; sudo funciona y te deja archivos de root, así que un prefijo tuyo o un gestor de versiones es la mejor respuesta.',
   'Press the button beside the version, read the command, run it. If npm refuses with EACCES, point npm at a prefix you own or use a version manager, then press it again.':
     'Dale al botón junto a la versión, lee el comando, córrelo. Si npm se niega con EACCES, apunta npm a un prefijo tuyo o usa un gestor de versiones, y vuelve a darle.',
 
   'Installing a module somebody else wrote': 'Instalar un módulo que escribió alguien más',
-  'MODULES has + ADD A MODULE for a .mjs somebody wrote. It comes through the same door as everything else: written to a scratch copy, imported there, checked against the house rules, and installed only if it passes. Three things get a file refused, each with the reason: an id that belongs to a module MADRE ships with, a route outside its own corner of the API (/api/x/<id>/), and a file that will not load at all. Said plainly, because it is what it is: a module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and stays in its corral; what the code intends is the one thing nobody can check for you.':
-    'MÓDULOS tiene + AGREGAR UN MÓDULO para un .mjs que escribió alguien. Entra por la misma puerta que todo lo demás: se escribe en una copia aparte, se importa ahí, se revisa contra las reglas de la casa, y se instala solo si pasa. Tres cosas hacen que un archivo se rechace, cada una con su razón: un id que le pertenece a un módulo que viene con MADRE, una ruta fuera de su propio rincón de la API (/api/x/<id>/), y un archivo que de plano no carga. Dicho claro, porque es lo que es: un módulo corre dentro de MADRE, con tus permisos, en esta computadora. MADRE comprueba que cargue y que se quede en su corral; lo que el código pretende hacer es lo único que nadie puede comprobar por ti.',
-  'Install it only if you trust where it came from. A module you wrote can also be updated from where you publish it: declare updates: { url } in the file, or install it from a file and MADRE remembers which, and its card carries GET A NEWER FILE.':
-    'Instálalo solo si confías en de dónde viene. Un módulo tuyo también se puede actualizar desde donde lo publiques: declara updates: { url } en el archivo, o instálalo desde un archivo y MADRE recuerda cuál, y su ficha lleva TRAER UN ARCHIVO MÁS NUEVO.',
+  'Modules has + Add a module for a .mjs somebody wrote. It comes through the same door as everything else: written to a scratch copy, imported there, checked against the house rules, and installed only if it passes. Three things get a file refused, each with the reason: an id that belongs to a module MADRE ships with, a route outside its own corner of the API (/api/x/<id>/), and a file that will not load at all. Said plainly, because it is what it is: a module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and stays in its corral; what the code intends is the one thing nobody can check for you.':
+    'Módulos tiene + Agregar un módulo para un .mjs que escribió alguien. Entra por la misma puerta que todo lo demás: se escribe en una copia aparte, se importa ahí, se revisa contra las reglas de la casa, y se instala solo si pasa. Tres cosas hacen que un archivo se rechace, cada una con su razón: un id que le pertenece a un módulo que viene con MADRE, una ruta fuera de su propio rincón de la API (/api/x/<id>/), y un archivo que de plano no carga. Dicho claro, porque es lo que es: un módulo corre dentro de MADRE, con tus permisos, en esta computadora. MADRE comprueba que cargue y que se quede en su corral; lo que el código pretende hacer es lo único que nadie puede comprobar por ti.',
+  'Install it only if you trust where it came from. A module you wrote can also be updated from where you publish it: declare updates: { url } in the file, or install it from a file and MADRE remembers which, and its page in Modules carries Get a newer file.':
+    'Instálalo solo si confías en de dónde viene. Un módulo tuyo también se puede actualizar desde donde lo publiques: declara updates: { url } en el archivo, o instálalo desde un archivo y MADRE recuerda cuál, y su ficha en Módulos lleva Traer un archivo más nuevo.',
 
   'Is the local model ready to be worked in?': '¿El modelo local ya sirve para trabajar?',
   'Running is not the same as being of use. @madre being in the room means Ollama has a chat model; whether that model is worth your work on THIS project is a different question, and the room measures it: twelve real exchanges from this room are put back to the local model, and each answer is scored against what the crew actually answered that day — against a control, so that talking about the same project does not count. It takes minutes and spends nothing, because all of it runs on your machine.':
@@ -2022,12 +1985,6 @@ export const ES = {
   '{n} budget tokens in the local window': '{n} tokens de presupuesto en la ventana local',
 
   // El arranque y las condiciones de MU/TH/UR.
-  'INTERFACE 2037 READY FOR INQUIRY': 'INTERFAZ 2037 LISTA PARA CONSULTA',
-  'CREW: {n} AGENTS · {ready} READY · ROOM /{project}': 'TRIPULACIÓN: {n} AGENTES · {ready} LISTOS · SALA /{project}',
-  '{n} CONDITIONS RECORDED IN THIS ROOM. PROBABLE CAUSES CLASSIFIED BELOW.':
-    '{n} CONDICIONES REGISTRADAS EN ESTA SALA. CAUSAS PROBABLES CLASIFICADAS ABAJO.',
-  'NO OPEN CONDITIONS. ALL SYSTEMS NOMINAL.': 'SIN CONDICIONES ABIERTAS. TODOS LOS SISTEMAS NOMINALES.',
-  'RECORDED CONDITIONS · THIS ROOM · {n}': 'CONDICIONES REGISTRADAS · ESTA SALA · {n}',
   '▾ COLLAPSE': '▾ CERRAR',
   '▸ EXPAND': '▸ ABRIR',
 
@@ -2073,52 +2030,27 @@ export const ES = {
 
   // El canal de releases.
   'RELEASE CHANNEL': 'CANAL DE RELEASES',
-  ' · UP TO DATE': ' · AL DÍA',
-  ' · NPM NOT REACHED YET': ' · TODAVÍA NO SE HA ALCANZADO NPM',
-  ' · CHECK OFF': ' · REVISIÓN APAGADA',
   'MADRE {latest} is on npm · you run {current}': 'MADRE {latest} está en npm · tú corres la {current}',
-  'A NEWER MADRE IS ON NPM. THIS COPY RUNS {where}. {how}': 'HAY UNA MADRE MÁS NUEVA EN NPM. ESTA COPIA CORRE {where}. {how}',
-  'FROM THE NPX CACHE': 'DESDE LA CACHÉ DE NPX',
-  "FROM THIS PROJECT'S NODE_MODULES": 'DESDE EL NODE_MODULES DE ESTE PROYECTO',
-  'AS A GLOBAL INSTALL': 'COMO INSTALACIÓN GLOBAL',
-  'FROM SOURCE': 'DESDE EL CÓDIGO FUENTE',
-  'RESTART WITH IT HERE: THE ROOM CLOSES, INSTALLS, AND COMES BACK ON THIS SAME ADDRESS IN A FEW SECONDS. NOTHING IN THE LEDGER IS LOST. OR RUN THE COMMAND YOURSELF.':
-    'REINICIA CON ELLA DESDE AQUÍ: LA SALA SE CIERRA, INSTALA Y REGRESA EN ESTA MISMA DIRECCIÓN EN UNOS SEGUNDOS. NO SE PIERDE NADA DEL LEDGER. O CORRE TÚ EL COMANDO.',
-  'PULL THE REPOSITORY AND START IT AGAIN.': 'HAZ PULL DEL REPOSITORIO Y ARRÁNCALA OTRA VEZ.',
-  'RESTART WITH {version}': 'REINICIAR CON {version}',
   'MU/TH/UR › closing to install {version}. Back in a moment.': 'MU/TH/UR › cerrando para instalar la {version}. Regreso en un momento.',
   'The update did not start: {error}': 'La actualización no arrancó: {error}',
-  'WHAT {version} SHIPS ↗': 'QUÉ TRAE LA {version} ↗',
-  'MADRE ASKS NPM FOR THE LATEST VERSION ONCE A DAY: THE PACKAGE NAME TRAVELS, NOTHING ELSE, THE SAME REQUEST NPX MAKES.':
-    'MADRE LE PREGUNTA A NPM POR LA ÚLTIMA VERSIÓN UNA VEZ AL DÍA: VIAJA EL NOMBRE DEL PAQUETE Y NADA MÁS, LA MISMA PETICIÓN QUE HACE NPX.',
-  ' LAST CHECK {when}.': ' ÚLTIMA REVISIÓN {when}.',
   'MU/TH/UR › release channel on: one check a day.': 'MU/TH/UR › canal de releases encendido: una revisión al día.',
   'MU/TH/UR › release channel off: no request leaves for npm.': 'MU/TH/UR › canal de releases apagado: no sale ninguna petición a npm.',
   'The setting was not saved: {error}': 'El ajuste no se guardó: {error}',
-  'CHECK NPM FOR NEW VERSIONS ONCE A DAY': 'REVISAR NPM UNA VEZ AL DÍA POR VERSIONES NUEVAS',
-  ' · SET BY PULSE_UPDATE_CHECK': ' · LO FIJA PULSE_UPDATE_CHECK',
 
   // El centinela.
   'SENTINEL': 'CENTINELA',
-  '{n} REPORTS · {unsent} NOT SENT': '{n} REPORTES · {unsent} SIN MANDAR',
-  'NOTHING TO REPORT': 'NADA QUE REPORTAR',
   "MU/TH/UR › auto-report on: new unknown conditions go to the author's collector, redacted.":
     'MU/TH/UR › auto-reporte encendido: las condiciones desconocidas nuevas van al recolector del autor, redactadas.',
   'MU/TH/UR › auto-report off: reports stay here until you send one.':
     'MU/TH/UR › auto-reporte apagado: los reportes se quedan aquí hasta que tú mandes uno.',
   'AUTO-REPORT UNKNOWN CONDITIONS': 'AUTO-REPORTAR CONDICIONES DESCONOCIDAS',
-  ' · NO COLLECTOR CONFIGURED (PULSE_REPORT_URL)': ' · NO HAY RECOLECTOR CONFIGURADO (PULSE_REPORT_URL)',
-  'CRASH': 'CRASH',
   'room': 'sala',
   'SENT': 'MANDADO',
-  'REPORT ON GITHUB ↗': 'REPORTAR EN GITHUB ↗',
   'MU/TH/UR › no repository to file this in.': 'MU/TH/UR › no hay repositorio donde levantar esto.',
-  'SEND REPORT': 'MANDAR REPORTE',
   "MU/TH/UR › report sent to the author's collector.": 'MU/TH/UR › reporte mandado al recolector del autor.',
   'MU/TH/UR › could not send: {error}': 'MU/TH/UR › no se pudo mandar: {error}',
   'unknown error': 'error desconocido',
   'MU/TH/UR › no repository configured for feedback.': 'MU/TH/UR › no hay repositorio configurado para comentarios.',
-  'CHECKING CONNECTIONS…': 'REVISANDO LAS CONEXIONES…',
 
   // Las cuentas de cada agente, y las etapas del archivo.
   "Free and local through Ollama: no account, no tokens. It answers from the room's memory.":
@@ -2236,20 +2168,9 @@ export const ES = {
   'OVERRIDE ×2': 'ANULACIÓN ×2',
   'OVERRIDE': 'ANULACIÓN',
   'DEFAULT': 'POR DEFECTO',
-  "Above @{id}'s MAX MODE (#{cap}). Raise it in CONNECTIONS.": 'Por encima del MODO MÁXIMO de @{id} (#{cap}). Súbelo en CONEXIONES.',
-  'PRIORITY ONE. CONTROL GIVES @{id} THE PROJECT ITSELF: READ, CREATE, MODIFY, NO APPROVAL PER ACTION.':
-    'PRIORIDAD UNO. CONTROL LE DA A @{id} EL PROYECTO ENTERO: LEER, CREAR, MODIFICAR, SIN APROBAR ACCIÓN POR ACCIÓN.',
-  ' THIS ALSO RAISES @{id} MAX MODE TO #{n} IN CONNECTIONS.': ' ESTO TAMBIÉN SUBE EL MODO MÁXIMO DE @{id} A #{n} EN CONEXIONES.',
-  ' TYPE THE PROJECT DESIGNATION TO ARM.': ' ESCRIBE LA DESIGNACIÓN DEL PROYECTO PARA ARMAR.',
-  'PRIORITY ONE. AIRLOCK OPENS THE SHIP FOR @{id}: EVERYTHING CONTROL ALLOWS, PLUS COMMANDS, GIT PUSH AND DEPLOYS WITH THE SESSIONS ON THIS MACHINE. FILES COME BACK WITH UNDO; WHAT LEAVES THE SHIP DOES NOT.':
-    'PRIORIDAD UNO. AIRLOCK LE ABRE LA NAVE A @{id}: TODO LO QUE PERMITE CONTROL, MÁS COMANDOS, GIT PUSH Y DESPLIEGUES CON LAS SESIONES DE ESTA COMPUTADORA. LOS ARCHIVOS REGRESAN CON DESHACER; LO QUE SALE DE LA NAVE NO.',
-  ' TYPE THE PROJECT DESIGNATION, THEN THE WORD AIRLOCK.': ' ESCRIBE LA DESIGNACIÓN DEL PROYECTO, Y LUEGO LA PALABRA AIRLOCK.',
-  'AIRLOCK OVERRIDE 100375 · SECOND KEY REQUIRED': 'ANULACIÓN AIRLOCK 100375 · SE REQUIERE SEGUNDA LLAVE',
-  'SECOND KEY REJECTED. TYPE AIRLOCK, OR CANCEL.': 'SEGUNDA LLAVE RECHAZADA. ESCRIBE AIRLOCK, O CANCELA.',
-  'SPECIAL ORDER 937 ACKNOWLEDGED. AIRLOCK OPEN FOR @{agent}. WHAT LEAVES DOES NOT COME BACK.':
-    'ORDEN ESPECIAL 937 RECIBIDA. AIRLOCK ABIERTA PARA @{agent}. LO QUE SALE NO REGRESA.',
-  'SPECIAL ORDER 937 ACKNOWLEDGED. CONTROL ARMED FOR @{agent}. CREW IN COMMAND.':
-    'ORDEN ESPECIAL 937 RECIBIDA. CONTROL ARMADO PARA @{agent}. LA TRIPULACIÓN AL MANDO.',
+  "Above @{id}'s max mode (#{cap}). Raise it in Settings › Permissions.": 'Por encima del modo máximo de @{id} (#{cap}). Súbelo en Ajustes › Permisos.',
+  '@{id} is capped at #{cap}. This raises its max mode to #{n} in Settings › Permissions and opens the override.':
+    '@{id} tiene el tope en #{cap}. Esto sube su modo máximo a #{n} en Ajustes › Permisos y abre la anulación.',
   'MU/TH/UR › MAX MODE was not raised for @{agent}: {error}. {mode} stays off.':
     'MU/TH/UR › no se subió el MODO MÁXIMO de @{agent}: {error}. {mode} se queda apagado.',
   'MU/TH/UR › @{agent} is signed in.': 'MU/TH/UR › @{agent} ya tiene sesión.',
@@ -2387,9 +2308,6 @@ export const ES = {
   'Install the server once, globally, then its browser — the browser is downloaded by the server itself, not by the playwright CLI — and RECHECK in MODULES.':
     'Instala el servidor una vez, global, y después su navegador —lo baja el servidor mismo, no el CLI de playwright— y dale RE-REVISAR en MÓDULOS.',
   // El registro de errores: un código que se dicta por teléfono, y una salida por fila.
-  'SHOW THE {n} DISMISSED': 'VER LOS {n} DESCARTADOS',
-  'DISMISS ALL {n}': 'DESCARTAR LOS {n}',
-  'DOWNLOAD THE LOG': 'DESCARGAR EL REGISTRO',
   // Lo que un agente puede hacer, dicho dentro de una frase: infinitivo, no el imperativo de
   // la etiqueta suelta de su ficha. «puede crea» era el botón metido en una oración.
   'read the project': 'leer el proyecto',
@@ -2407,10 +2325,6 @@ export const ES = {
   '{agent} wrote this file in this room': '{agent} escribió este archivo en esta sala',
   'MU/TH/UR › {name} declares {fields}, which this MADRE does not know. A typo, or a field from a newer version.':
     'MU/TH/UR › {name} declara {fields}, que esta MADRE no conoce. O es un dedazo, o es un campo de una versión más nueva.',
-  'OR ON MADRE.RUN ↗': 'O EN MADRE.RUN ↗',
-  '✎ REPORT ON MADRE.RUN ↗': '✎ REPORTAR EN MADRE.RUN ↗',
-  'OPEN ⚙ CONNECTIONS · @{agent}': 'ABRIR ⚙ CONEXIONES · @{agent}',
-  'OPEN ⚙ CONNECTIONS': 'ABRIR ⚙ CONEXIONES',
   // ── LA PROSA DENTRO DE LOS REMEDIOS ──────────────────────────────────────
   // Un comando no se traduce nunca. Un comentario sí: es prosa que alguien lee, y la
   // mitad nombra botones que en esta sala se llaman de otra manera.
@@ -2458,8 +2372,8 @@ export const ES = {
     '# o directo:',
   '# pick the agent you want; see per-agent commands below':
     '# elige el agente que quieras; abajo están los comandos de cada uno',
-  '# live, no restart: ⚙ CONNECTIONS → DEFAULT TIMEOUT · SECONDS → SAVE':
-    '# en vivo, sin reiniciar: ⚙ CONEXIONES → TIEMPO LÍMITE POR DEFECTO · SEGUNDOS → GUARDAR',
+  '# live, no restart: Settings → Room and turns → Default time limit':
+    '# en vivo, sin reiniciar: Ajustes → Sala y turnos → Tiempo límite por defecto',
   '# at launch only (env wins over config.json):':
     '# solo al arrancar (el entorno gana sobre config.json):',
   '# or ~/.pulse/config.json → {"timeouts":{"default":300000,"claude":600000}}':
@@ -2468,8 +2382,8 @@ export const ES = {
     '# reenvía la pregunta',
   '# click the sphere → 5h / 7d windows and reset times':
     '# clic en la esfera → ventanas de 5 h / 7 d y a qué hora se reinician',
-  '# live: ⚙ CONNECTIONS → LOCAL TOKEN BUDGET PER AGENT → SAVE':
-    '# en vivo: ⚙ CONEXIONES → PRESUPUESTO LOCAL DE TOKENS POR AGENTE → GUARDAR',
+  '# live: Settings → Room and turns → Tokens per agent':
+    '# en vivo: Ajustes → Sala y turnos → Tokens por agente',
   '# at launch: PULSE_SOFT_TOKEN_BUDGET=1000000 madre start':
     '# al arrancar: PULSE_SOFT_TOKEN_BUDGET=1000000 madre start',
   '# or ~/.pulse/config.json → {"room":{"softTokenBudget":1000000}}':
@@ -2482,30 +2396,30 @@ export const ES = {
     '# en el compositor de la sala:',
   '# or from a terminal:':
     '# o desde una terminal:',
-  '# MODULES → Image Studio → ENABLE':
-    '# MÓDULOS → Image Studio → ENCENDER',
-  '# ⚙ CONNECTIONS → Gemini → GENERATE IMAGES → SAVE':
-    '# ⚙ CONEXIONES → Gemini → GENERA IMÁGENES → GUARDAR',
+  '# Modules → Image Studio → Active':
+    '# Módulos → Image Studio → Activo',
+  '# Settings → Agents → Gemini → Generate images':
+    '# Ajustes → Agentes → Gemini → Generar imágenes',
   '# then: CREATE + "generate … as name.png"':
     '# después: CREATE + "genera … como nombre.png"',
-  '# ⚙ CONNECTIONS → Claude → GENERATE IMAGES → SAVE':
-    '# ⚙ CONEXIONES → Claude → GENERA IMÁGENES → GUARDAR',
-  '# ⚙ CONNECTIONS → OpenCode → GENERATE IMAGES → SAVE':
-    '# ⚙ CONEXIONES → OpenCode → GENERA IMÁGENES → GUARDAR',
-  '# ⚙ CONNECTIONS → agent card → WEB ACCESS → SAVE':
-    '# ⚙ CONEXIONES → ficha del agente → ACCESO WEB → GUARDAR',
+  '# Settings → Agents → Claude → Generate images':
+    '# Ajustes → Agentes → Claude → Generar imágenes',
+  '# Settings → Agents → OpenCode → Generate images':
+    '# Ajustes → Agentes → OpenCode → Generar imágenes',
+  '# Settings → Agents → the agent → Web access':
+    '# Ajustes → Agentes → el agente → Acceso a la web',
   '# type / or @ in the field box':
     '# escribe / o @ en el campo',
   '# chip: TO @codex  #1 EXCHANGE ▾  → choose':
     '# el chip: PARA @codex  #1 EXCHANGE ▾  → elige',
-  '# ⚙ CONNECTIONS → agent card → MAX MODE':
-    '# ⚙ CONEXIONES → ficha del agente → MODO MÁXIMO',
+  '# Settings → Permissions → Who may do what':
+    '# Ajustes → Permisos → Quién puede qué',
   '# once: composer → CREATE (lock) → send, or /create <request>':
     '# una vez: compositor → CREATE (candado) → enviar, o /create <petición>',
-  '# always: ⚙ CONNECTIONS → agent card → DEFAULT MODE → #2':
-    '# siempre: ⚙ CONEXIONES → ficha del agente → MODO POR DEFECTO → #2',
-  '# ⚙ CONNECTIONS → agent card → CREATE FILES → SAVE':
-    '# ⚙ CONEXIONES → ficha del agente → CREAR ARCHIVOS → GUARDAR',
+  '# always: Settings → Agents → the agent → Starting mode → #2':
+    '# siempre: Ajustes → Agentes → el agente → Modo inicial → #2',
+  '# Settings → Permissions → Who may do what → #2':
+    '# Ajustes → Permisos → Quién puede qué → #2',
   '# composer → CREATE (lock) → send':
     '# compositor → CREATE (candado) → enviar',
   '# or: nvm install --lts':
@@ -2522,44 +2436,44 @@ export const ES = {
     '# para que quede: echo \'export PULSE_DISTILL_AGENT="claude"\' >> ~/.zshrc',
   '# persist: echo \'export PULSE_DISTILL_EVERY="6"\' >> ~/.zshrc':
     '# para que quede: echo \'export PULSE_DISTILL_EVERY="6"\' >> ~/.zshrc',
-  '# then: MU/TH/UR → ◉ NOSTROMO':
-    '# después: MU/TH/UR → ◉ NOSTROMO',
-  '# MU/TH/UR → ◉ NOSTROMO → designation = project folder name':
-    '# MU/TH/UR → ◉ NOSTROMO → la designación es el nombre de la carpeta del proyecto',
-  '# MODULES → RIPLEY → ENABLE RIPLEY':
-    '# MÓDULOS → RIPLEY → ENCENDER RIPLEY',
+  '# then: MU/TH/UR → NOSTROMO':
+    '# después: MU/TH/UR → NOSTROMO',
+  '# MU/TH/UR → NOSTROMO → designation = project folder name':
+    '# MU/TH/UR → NOSTROMO → la designación es el nombre de la carpeta del proyecto',
+  '# Modules → RIPLEY → Active':
+    '# Módulos → RIPLEY → Activo',
   '# viewer → PREVIEW / SOURCE':
     '# el visor → PREVIEW / SOURCE',
   '# MADRE does this for you; these are the alternatives:':
     '# MADRE hace esto por ti; estas son las alternativas:',
-  '# ⚙ CONNECTIONS → PRIVACY → one term per line → PURGE ROOM':
-    '# ⚙ CONEXIONES → PRIVACIDAD → un término por línea → PURGAR LA SALA',
+  '# Settings → Privacy → Private terms, one per line → Purge the room':
+    '# Ajustes → Privacidad → Términos privados, uno por línea → Purgar la sala',
   '# room → UNDO under the CONTROL notice':
     '# la sala → DESHACER debajo del aviso de CONTROL',
-  '# room → the handle under the bar, on the left → NEW CONVERSATION':
-    '# la sala → la manija bajo la barra, a la izquierda → NUEVA CONVERSACIÓN',
+  '# room → Conversations → NEW CONVERSATION':
+    '# la sala → Conversaciones → NUEVA CONVERSACIÓN',
   '# the address of the open room is in the refusal itself':
     '# la dirección de la sala abierta viene en el propio rechazo',
-  '# room → ◉ NOSTROMO → the dark bodies are aberrations':
-    '# la sala → ◉ NOSTROMO → los cuerpos oscuros son aberraciones',
-  '# ⚙ CONNECTIONS → MEMORY → THE THREE TESTS → CONSISTENCY':
-    '# ⚙ CONEXIONES → MEMORIA → LAS TRES PRUEBAS → CONSISTENCIA',
-  '# ⚙ CONNECTIONS → MEMORY → CARRY WHAT A MEMORY KEEPS ARRIVING WITH':
-    '# ⚙ CONEXIONES → MEMORIA → LLEVAR AQUELLO CON LO QUE UNA MEMORIA SIEMPRE LLEGA',
-  '# room → ◉ NOSTROMO → COLD':
-    '# la sala → ◉ NOSTROMO → FRÍAS',
-  '# room → ◉ NOSTROMO → ASK → PUT IN THE COMPOSER':
-    '# la sala → ◉ NOSTROMO → PREGUNTAR → PONER EN EL COMPOSITOR',
-  '# ⚙ CONNECTIONS → MEMORY → THE THREE TESTS':
-    '# ⚙ CONEXIONES → MEMORIA → LAS TRES PRUEBAS',
+  '# MU/TH/UR → NOSTROMO → the dark bodies are aberrations':
+    '# MU/TH/UR → NOSTROMO → los cuerpos oscuros son aberraciones',
+  '# Settings → Memory → Analysis and tests → the second test':
+    '# Ajustes → Memoria → Análisis y pruebas → la segunda prueba',
+  '# Settings → Memory → Carry the company it keeps':
+    '# Ajustes → Memoria → Llevar a sus acompañantes',
+  '# MU/TH/UR → NOSTROMO → COLD':
+    '# MU/TH/UR → NOSTROMO → FRÍAS',
+  '# MU/TH/UR → NOSTROMO → ASK → PUT IN THE COMPOSER':
+    '# MU/TH/UR → NOSTROMO → PREGUNTAR → PONER EN EL COMPOSITOR',
+  '# Settings → Memory → Analysis and tests → The three tests':
+    '# Ajustes → Memoria → Análisis y pruebas → Las tres pruebas',
   '# MATCH needs Ollama running with a chat model, and embeddings on':
     '# COINCIDENCIA necesita Ollama corriendo con un modelo de chat, y los embeddings encendidos',
   '# or: brew install node   # a Homebrew node owns its own prefix':
     '# o: brew install node   # un node de Homebrew es dueño de su propio prefijo',
   '# or use nvm, which owns the prefix it installs into':
     '# o usa nvm, que es dueño del prefijo donde instala',
-  '# MODULES → + ADD A MODULE':
-    '# MÓDULOS → + AGREGAR UN MÓDULO',
+  '# Modules → + Add a module':
+    '# Módulos → + Agregar un módulo',
   '# docs/SDK.md is the whole contract, and docs/sdk/hello-module.mjs is one that works':
     '# docs/SDK.md es el contrato entero, y docs/sdk/hello-module.mjs es uno que funciona',
   '# the line in the room: local · @madre → CHECK IT AGAINST THIS ROOM':
@@ -2578,8 +2492,8 @@ export const ES = {
     '# la ORDEN ESPECIAL 937 también se contesta',
   '# NOSTROMO → click the core → WHAT LEFT THIS MACHINE':
     '# NOSTROMO → clic en el núcleo → LO QUE SALIÓ DE ESTA MÁQUINA',
-  '# embeddings, to keep memories on this computer: MU/TH/UR → MEMORY → EMBEDDINGS → OLLAMA':
-    '# embeddings, para que las memorias se queden en esta computadora: MU/TH/UR → MEMORIA → EMBEDDINGS → OLLAMA',
+  '# embeddings, to keep memories on this computer: Settings → Memory → Embeddings → Ollama':
+    '# embeddings, para que las memorias se queden en esta computadora: Ajustes → Memoria → Embeddings → Ollama',
   'Dismiss this record · it stays in the ledger': 'Descartar este registro · se queda en el ledger',
   'Codex says it is reading additional input from stdin':
     'Codex dice que está leyendo entrada adicional de stdin',
@@ -2628,15 +2542,14 @@ export const ES = {
   '{what}: enabled for @{id}': '{what}: encendido para @{id}',
   "{what}: @{id}'s CLI cannot do this": '{what}: el CLI de @{id} no puede hacer esto',
   '{what}: not wired yet': '{what}: todavía no está cableado',
-  '{what}: switched off for @{id} in CONNECTIONS': '{what}: apagado para @{id} en CONEXIONES',
+  '{what}: switched off for @{id} in Settings › Agents': '{what}: apagado para @{id} en Ajustes › Agentes',
+  '@{id} starts in #2 (its starting mode in Settings › Agents): every turn may add files to the project. Arming CREATE is not needed.':
+    '@{id} arranca en #2 (su modo inicial en Ajustes › Agentes): cada turno puede agregar archivos al proyecto. No hace falta armar CREATE.',
   'The command failed: {error}': 'El comando falló: {error}',
   'Could not reach MADRE: {error}': 'No se pudo alcanzar a MADRE: {error}',
   'It could not be applied: {error}': 'No se pudo aplicar: {error}',
 
   // MU/TH/UR: el catálogo y EYECAT.
-  'KNOWN CONDITIONS · {n} OF {total} · {os} / {shell}': 'CONDICIONES CONOCIDAS · {n} DE {total} · {os} / {shell}',
-  '{n} CONDITIONS MATCH INQUIRY.': '{n} CONDICIONES COINCIDEN CON LA CONSULTA.',
-  ' PROBABLE CAUSE HIGHLIGHTED.': ' CAUSA PROBABLE RESALTADA.',
   '{name} not installed · {why}': '{name} no está instalado · {why}',
   '{pct}% · judged by @{judge}': '{pct}% · juzgado por @{judge}',
   'judged by @{judge}': 'juzgado por @{judge}',
@@ -2677,7 +2590,6 @@ export const ES = {
     'Carga y respeta las reglas de la casa. Lo que pretende hacer, solo tú lo puedes juzgar.',
   'MU/TH/UR › {name} is now {version}.': 'MU/TH/UR › {name} ya está en {version}.',
   'the newest file': 'el archivo más nuevo',
-  'THIS RUNS ON THIS COMPUTER, OUTSIDE THE PROJECT:': 'ESTO CORRE EN ESTA COMPUTADORA, FUERA DEL PROYECTO:',
 
   // La economía de la sala y la ficha de Ollama.
   'read back from the CLI cache, plus what was never sent': 'leídos de la caché del CLI, más lo que nunca se mandó',
@@ -2721,7 +2633,6 @@ export const ES = {
   'NO SWITCH': 'SIN INTERRUPTOR',
   '{name} could not be switched.': '{name} no se pudo cambiar.',
   'IDE adapters for the agents detected here: {agents}.': 'Adaptadores de IDE para los agentes detectados aquí: {agents}.',
-  'AVAILABLE · {n} · PROJECT /{project}': 'DISPONIBLES · {n} · PROYECTO /{project}',
   'The reload failed: {error}': 'La recarga falló: {error}',
   "Remove {name}? Its file {file} is deleted. MADRE's own modules cannot be removed.":
     '¿Quitar {name}? Se borra su archivo {file}. Los módulos propios de MADRE no se pueden quitar.',
@@ -2740,11 +2651,6 @@ export const ES = {
   'MU/TH/UR › {label} could not be installed. The log is above.':
     'MU/TH/UR › {label} no se pudo instalar. El registro está arriba.',
   'The sign-in could not start.': 'El inicio de sesión no pudo arrancar.',
-  'WRITE THE TERMS FIRST.': 'ESCRIBE PRIMERO LOS TÉRMINOS.',
-  'STILL IN THE ROOM: {events} EVENTS · {entries} INDEXED EXCHANGES · {memories} MEMORIES · PURGE REPLACES THEM.':
-    'TODAVÍA EN LA SALA: {events} EVENTOS · {entries} INTERCAMBIOS INDEXADOS · {memories} MEMORIAS · LA PURGA LOS REEMPLAZA.',
-  'THE ROOM IS CLEAN: NO PRIVATE TERM IN THE LEDGER, THE INDEX OR THE MEMORIES.':
-    'LA SALA ESTÁ LIMPIA: NINGÚN TÉRMINO PRIVADO EN EL LEDGER, EL ÍNDICE NI LAS MEMORIAS.',
   'The privacy setting was not saved: {error}': 'El ajuste de privacidad no se guardó: {error}',
   'private terms appear as {marker}.': 'los términos privados aparecen como {marker}.',
   'MU/TH/UR › purged: {events} events · {entries} exchanges · {memories} memories. Reloading.':
@@ -2777,10 +2683,6 @@ export const ES = {
   'MU/TH/UR › memory forgotten: “{text}”. No future turn will read it.':
     'MU/TH/UR › memoria olvidada: «{text}». Ningún turno futuro la va a leer.',
   'MU/TH/UR › it could not be forgotten: {error}': 'MU/TH/UR › no se pudo olvidar: {error}',
-  'MU/TH/UR › MADRE {version} is on npm. Open MU/TH/UR to restart with it.':
-    'MU/TH/UR › MADRE {version} está en npm. Abre MU/TH/UR para reiniciar con ella.',
-  'MADRE {latest} is on npm · you run {current} · open MU/TH/UR for the command':
-    'MADRE {latest} está en npm · tú corres la {current} · abre MU/TH/UR para el comando',
   'It could not be saved: {error}': 'No se pudo guardar: {error}',
   '@codex summarize this project': '@codex resume este proyecto',
   // Los cuatro lugares de la sala. Los nombres de la nave —MU/TH/UR, NOSTROMO, ASH, RIPLEY—
@@ -2818,8 +2720,7 @@ export const ES = {
   'Upload failed ({status}).': 'Falló la subida ({status}).',
   'CREATE: let the agent add new files to the project for this request; existing files stay untouched':
     'CREATE: deja que el agente agregue archivos nuevos al proyecto para esta petición; los que ya existen no se tocan',
-  'MU/TH/UR › @{agent} {why}. CREATE will be refused; pick another agent or change CONNECTIONS.':
-    'MU/TH/UR › @{agent} {why}. CREATE se va a rechazar; elige otro agente o cambia CONEXIONES.',
+  'MU/TH/UR › @{agent} {why}. CREATE will be refused; pick another agent or change it in Settings › Agents.': 'MU/TH/UR › @{agent} {why}. CREATE se rechazará; elige otro agente o cámbialo en Ajustes › Agentes.',
   'has file creation switched off': 'tiene apagada la creación de archivos',
   'cannot create files from its CLI': 'no puede crear archivos desde su CLI',
   'Request failed ({status}).': 'Falló la petición ({status}).',
@@ -2843,14 +2744,6 @@ export const ES = {
   'a card of your own · its own panel inside MODULES': 'una ficha propia · su propio panel dentro de MÓDULOS',
 
   // La tarjeta de desarrollo en MÓDULOS.
-  'A module is one file: no build, no dependencies, nothing to register. A switch, settings, a slash command, a tool for the agents, a card of your own — or a connector to something you already use. Drop it in a folder, press RELOAD, and it is there with its own card.':
-    'Un módulo es un archivo: sin build, sin dependencias, sin registrarse en ningún lado. Un interruptor, ajustes, un comando, una herramienta para los agentes, una ficha propia — o un conector con algo que ya usas. Lo dejas en una carpeta, pulsas RECARGAR y ahí está con su tarjeta.',
-  'Or ask for one. In the composer: ': 'O pídelo. En la caja de texto: ',
-  ' — the agent reads the SDK and writes the file; you review it and decide whether it is installed.':
-    ' — el agente lee el SDK y escribe el archivo; tú lo revisas y decides si se instala.',
-  'Connecting to a service from outside is almost always possible: the limit is not MADRE, it is whether that service lets you get your own key in minutes and revoke it on its own. Your module declares the key it needs and MADRE draws the field; declares where it reaches and the outbound log answers for it; declares which of its tools SEND, and the room withholds those below #4 AIRLOCK.':
-    'Conectar con un servicio de fuera casi siempre se puede: el límite no es MADRE, es si ese servicio te deja conseguir tu propia llave en minutos y revocarla sola. Tu módulo declara la llave que necesita y MADRE dibuja el campo; declara a dónde llega y el registro de salidas responde por él; declara cuáles de sus herramientas MANDAN, y la sala se las retira por debajo de #4 AIRLOCK.',
-  'ASK FOR ONE': 'PÍDELE UNO',
   'Puts /module in the composer, in the room': 'Pone /module en la caja de texto, en la sala',
   'KEYS': 'LLAVES',
   'paste it here': 'pégala aquí',
@@ -2899,10 +2792,10 @@ export const ES = {
     'Nadie lo ha medido contra este proyecto todavía: MU/TH/UR → las tres pruebas, o la línea en la sala de cuando entró.',
   'MU/TH/UR › AIRLOCK open for @{agent} for this message.{raised} Files are checkpointed; what leaves the machine is not undone.':
     'MU/TH/UR › AIRLOCK abierta para @{agent} en este mensaje.{raised} Se guarda un punto de control de los archivos; lo que sale de la computadora no se deshace.',
-  ' MAX MODE is now #4 in CONNECTIONS.': ' MODO MÁXIMO ahora es #4 en CONEXIONES.',
+  ' Its max mode is now #4 in Permissions.': ' Su modo máximo ahora es #4 en Permisos.',
   'MU/TH/UR › CONTROL armed for @{agent} for this message.{raised} A checkpoint is taken before it runs; every change is listed and UNDO is one click.':
     'MU/TH/UR › CONTROL armado para @{agent} en este mensaje.{raised} Se toma un punto de control antes de que corra; cada cambio se lista y DESHACER está a un clic.',
-  ' MAX MODE is now #3 in CONNECTIONS.': ' MODO MÁXIMO ahora es #3 en CONEXIONES.',
+  ' Its max mode is now #3 in Permissions.': ' Su modo máximo ahora es #3 en Permisos.',
   "Conversation · {n} messages. The project's memory is shared by all of them.":
     'Conversación · {n} mensajes. La memoria del proyecto es la misma para todos ellos.',
 
@@ -2910,6 +2803,7 @@ export const ES = {
   'effort': 'esfuerzo',
   'effort {level}': 'esfuerzo {level}',
   'Effort for this agent · {level}': 'Esfuerzo de este agente · {level}',
+  'Effort for this message only · {level}': 'Esfuerzo solo para este mensaje · {level}',
   'Effort for this agent · the CLI default ({level})': 'Esfuerzo de este agente · el del CLI ({level})',
   "Effort for this agent · the CLI's own default": 'Esfuerzo de este agente · el que traiga el CLI',
   'Default': 'Por defecto',
@@ -2994,14 +2888,16 @@ export const ES = {
     '@{agent} intentó abrir un plan desde dentro de un plan. Se ignoró; la secuencia sigue a cargo de @{who}.',
   ' STOPALL if the room drifts.':
     ' STOPALL si la sala se desvía.',
+  '@{agent} is capped at #{n} {label}; raise its max mode to #{wanted} in Settings › Permissions to arm {mode}.':
+    '@{agent} tiene el tope en #{n} {label}; sube su modo máximo a #{wanted} en Ajustes › Permisos para armar {mode}.',
+  // La misma frase como la escribía un MADRE anterior, cuando el tope vivía en otro panel; un registro viejo se lee con el lugar de hoy.
   '@{agent} is capped at #{n} {label}; raise its MAX MODE to #{wanted} in CONNECTIONS to arm {mode}.':
-    '@{agent} tiene el tope en #{n} {label}; sube su MODO MÁXIMO a #{wanted} en CONEXIONES para armar {mode}.',
+    '@{agent} tiene el tope en #{n} {label}; sube su modo máximo a #{wanted} en Ajustes › Permisos para armar {mode}.',
   '@{agent} already holds {mode} of this project; one holder at a time. STOPALL revokes it.':
     '@{agent} ya tiene {mode} de este proyecto; un solo portador a la vez. STOPALL lo revoca.',
   'its CLI cannot create files':
     'su CLI no puede crear archivos',
-  'file creation is switched off for it (enable it in CONNECTIONS)':
-    'tiene apagada la creación de archivos (enciéndela en CONEXIONES)',
+  'file creation is switched off for it (turn it on in Settings › Agents)': 'tiene la creación de archivos apagada (enciéndela en Ajustes › Agentes)',
   ' For creation ask {who}.':
     ' Para crear, pídeselo a {who}.',
   '@{agent} will answer read-only: {why}.':
@@ -3024,14 +2920,8 @@ export const ES = {
     'MU/TH/UR › @{agent} terminó en «{chat}».',
   'MU/TH/UR › @{agent} could not finish in «{chat}».':
     'MU/TH/UR › @{agent} no pudo terminar en «{chat}».',
-  'ON · {chats} CONVERSATIONS · {turns} TURNS EACH':
-    'ENCENDIDO · {chats} CONVERSACIONES · {turns} TURNOS CADA UNA',
-  'OFF · ONE CONVERSATION AT A TIME':
-    'APAGADO · UNA CONVERSACIÓN A LA VEZ',
   'COULD NOT READ':
     'NO SE PUDO LEER',
-  'HOW MUCH THE ROOM DOES AT ONCE. A CONVERSATION THAT TAKES ITS TIME KEEPS WORKING WHILE YOU WRITE IN IT OR OPEN ANOTHER.':
-    'CUÁNTO HACE LA SALA A LA VEZ. UNA CONVERSACIÓN QUE SE TARDA SIGUE TRABAJANDO MIENTRAS LE ESCRIBES O ABRES OTRA.',
   'Several conversations may work at once.':
     'Varias conversaciones pueden trabajar a la vez.',
   'One conversation at a time; switching away from one at work is refused.':
@@ -3040,26 +2930,13 @@ export const ES = {
     'menos',
   'more':
     'más',
-  'CONVERSATIONS AT ONCE':
-    'CONVERSACIONES A LA VEZ',
   'How many conversations may be working at the same time.':
     'Cuántas conversaciones pueden estar trabajando al mismo tiempo.',
-  'TURNS PER CONVERSATION':
-    'TURNOS POR CONVERSACIÓN',
   'How many answers may be under way inside one conversation.':
     'Cuántas respuestas pueden ir en curso dentro de una misma conversación.',
-  'ALWAYS · ONE CONVERSATION AT A TIME MAY HOLD CONTROL OR AIRLOCK OF THE PROJECT.':
-    'SIEMPRE · SOLO UNA CONVERSACIÓN A LA VEZ PUEDE TENER CONTROL O AIRLOCK DEL PROYECTO.',
-  'SWITCHED ON': 'ENCENDIDO',
   'SWITCHED OFF': 'APAGADO',
   'BLOCKED':
     'BLOQUEADAS',
-  'NOT HERE':
-    'NO DISPONIBLE',
-  'TURN ON':
-    'ACTIVAR',
-  'NOTIFICATIONS':
-    'NOTIFICACIONES',
   'This browser blocked them for this page; allow them in its site settings.':
     'Este navegador las bloqueó para esta página; permítelas en la configuración del sitio.',
   'This browser does not offer notifications.':
@@ -3071,10 +2948,7 @@ export const ES = {
   'Dismiss': 'Descartar',
   '@{agent} answered': '@{agent} respondió',
   'OPEN →': 'ABRIR →',
-  'ON · {n}': 'ENCENDIDOS · {n}',
   'Close': 'Cerrar',
-  'MULTITASKING':
-    'MULTITAREA',
   'This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.':
     'Esta conversación ya tiene {n} turnos corriendo, y TURNOS permite {max} a la vez. Espera a que termine uno, abre otra conversación o súbelo en MU/TH/UR → TURNOS.',
   '{n} other conversations are already working, and TURNS allows {max} at a time. Wait for one to finish, or raise it in MU/TH/UR → TURNS.':
@@ -3189,11 +3063,9 @@ export const ES = {
   'LOCAL MODEL': 'MODELO LOCAL',
   'NO CHAT MODEL': 'SIN MODELO DE CHAT',
   'YOU': 'TÚ',
-  '{n} OF {total} SIGNED IN': '{n} DE {total} CON SESIÓN',
   // The crew, from the one button that stands for the spheres.
   'CREW': 'TRIPULACIÓN',
   '{ready} of {total} ready': '{ready} de {total} listos',
-  '⚙ CONNECTIONS IN MU/TH/UR': '⚙ CONEXIONES EN MU/TH/UR',
   'Back to the crew': 'Volver a la tripulación',
   // The core's board: you, and your local model.
   'YOUR CORE': 'TU NÚCLEO',
@@ -3237,4 +3109,605 @@ export const ES = {
   'AN ENVIRONMENT VARIABLE IS SETTING SOME OF THIS, AND IT WINS OVER WHAT YOU CHOOSE HERE.': 'UNA VARIABLE DE ENTORNO FIJA PARTE DE ESTO, Y GANA SOBRE LO QUE ELIJAS AQUÍ.',
 
   // El interruptor de idioma.
+
+  // AJUSTES, en bloques.
+  'Give @{agent} a standing lease in SETTINGS → AGENTS: every turn may create files.': 'Dale a @{agent} un permiso fijo en AJUSTES → AGENTES: cada turno puede crear archivos.',
+  'Preview': 'Vista previa',
+  'Your choices, in the bubbles the conversation draws.': 'Lo que eliges, en las burbujas que dibuja la conversación.',
+  'Automatic follows your system.': 'Automático sigue a tu sistema.',
+  'Wallpaper': 'Fondo',
+  'Accent': 'Acento',
+  'Bubbles': 'Burbujas',
+  'Text': 'Texto',
+  'Reload in {language}': 'Recargar en {language}',
+  'Back to default': 'Volver a lo de siempre',
+  'Copied': 'Copiado',
+  '⚙ AGENTS IN SETTINGS': '⚙ AGENTES EN AJUSTES',
+  'The archive could not be read.': 'No se pudo leer el archivo.',
+  'Read at {time}': 'Leído a las {time}',
+  'Nothing to read yet: the room has no archive.': 'Aún no hay nada que leer: la sala no tiene archivo.',
+  '{n} this week': '{n} esta semana',
+  'Exchanges': 'Intercambios',
+  'Memories': 'Memorias',
+  'Turns that recalled': 'Turnos que recordaron',
+  'Waiting': 'En espera',
+  'Exchanges nobody has distilled yet.': 'Intercambios que nadie ha destilado aún.',
+  'The archivist is up to date.': 'El archivista va al día.',
+  'Maturity': 'Madurez',
+  'Activity · last {n} days': 'Actividad · últimos {n} días',
+  'What the archive is made of': 'De qué está hecho el archivo',
+  'By kind': 'Por tipo',
+  'By archivist': 'Por archivista',
+  'By zone': 'Por zona',
+  'Recall and embeddings': 'Recuerdo y embeddings',
+  'Search': 'Búsqueda',
+  'Company': 'Compañía',
+  'Nothing yet.': 'Nada todavía.',
+  'Memories with a vector': 'Memorias con vector',
+  'Exchanges with a vector': 'Intercambios con vector',
+  'Embeddings are off: recall matches words only.': 'Los embeddings están apagados: el recuerdo solo compara palabras.',
+  'The three tests': 'Las tres pruebas',
+  'Signing in…': 'Iniciando sesión…',
+  'Signed in': 'Con sesión',
+  'Signed out': 'Sin sesión',
+  'Unknown': 'Desconocido',
+  'Session {detail}': 'Sesión {detail}',
+  'Free way in': 'Entrada gratuita',
+  'Generate images': 'Generar imágenes',
+  'On for CREATE.': 'Encendido para CREATE.',
+  'Web access': 'Acceso a la web',
+  'On in every turn.': 'Encendido en cada turno.',
+  'This CLI has no way to do it.': 'Este CLI no tiene cómo hacerlo.',
+  'Not wired yet.': 'Aún sin conectar.',
+  'Off.': 'Apagado.',
+  'Ask MU/TH/UR how': 'Preguntarle a MU/TH/UR cómo',
+  'Max mode': 'Modo máximo',
+  'Starting mode': 'Modo inicial',
+  'Every turn may create files, plan steps too.': 'Cada turno puede crear archivos, también los pasos de un plan.',
+  'Read-only until you arm CREATE.': 'Solo lectura hasta que armes CREATE.',
+  'Time limit': 'Tiempo límite',
+  'How long the room waits for its answer.': 'Cuánto espera la sala su respuesta.',
+  'Check again': 'Revisar otra vez',
+  'Install': 'Instalar',
+  'Sign in again': 'Iniciar sesión otra vez',
+  'Sign in': 'Iniciar sesión',
+  'It signs in from its own prompt:': 'Inicia sesión desde su propio prompt:',
+  'This room has no memory index.': 'Esta sala no tiene índice de memoria.',
+  'The archive': 'El archivo',
+  'Analysis and tests': 'Análisis y pruebas',
+  'Refresh': 'Actualizar',
+  'The archivist': 'El archivista',
+  'It reads what nobody has distilled and keeps the few notes worth remembering. The cheapest allowed agent goes first; a local model costs nothing and keeps everything on this machine.': 'Lee lo que nadie ha destilado y guarda las pocas notas que vale la pena recordar. Va primero el agente permitido más barato; un modelo local no cuesta nada y deja todo en esta computadora.',
+  'Who distils first': 'Quién destila primero',
+  'Automatic · the cheapest allowed': 'Automático · el permitido más barato',
+  'local, free': 'local, gratis',
+  'Who may distil': 'Quién puede destilar',
+  'The lit ones may keep the archive.': 'Los encendidos pueden llevar el archivo.',
+  'Every': 'Cada',
+  'Exchanges between one distillation and the next.': 'Intercambios entre una destilación y la siguiente.',
+  'exchanges': 'intercambios',
+  'Or after': 'O después de',
+  'Quiet minutes that also start a distillation.': 'Minutos de silencio que también arrancan una destilación.',
+  'min': 'min',
+  'Recall': 'Recuerdo',
+  'What each turn carries from the archive, and how it finds it.': 'Lo que cada turno lleva del archivo, y cómo lo encuentra.',
+  'Share of the context': 'Parte del contexto',
+  'The most each turn may spend on memories.': 'Lo más que cada turno puede gastar en memorias.',
+  'Carry the company it keeps': 'Llevar a sus acompañantes',
+  'Two memories that keep arriving in the same turn travel together, however differently they read.': 'Dos memorias que siguen llegando en el mismo turno viajan juntas, aunque se lean distinto.',
+  'Embeddings': 'Embeddings',
+  'Find by meaning, not only by words. Now: {what}.': 'Encuentra por significado, no solo por palabras. Ahora: {what}.',
+  'Automatic · Ollama if running, else Gemini': 'Automático · Ollama si está encendido, si no Gemini',
+  'no model yet': 'sin modelo aún',
+  'Gemini · needs your key': 'Gemini · necesita tu llave',
+  'Off · words only': 'Apagado · solo palabras',
+  'Environment variables are set for memory; they win over these values on the next launch.': 'Hay variables de entorno para la memoria; ganan sobre estos valores en el siguiente arranque.',
+  'Dataset and training': 'Dataset y entrenamiento',
+  'Export what the room kept, train MADRE AI with it on this Mac, and @madre picks the result up.': 'Exporta lo que guardó la sala, entrena MADRE AI con eso en esta Mac y @madre toma el resultado.',
+  'Export': 'Exportar',
+  'Dataset': 'Dataset',
+  'Train MADRE AI · local, with MLX on Apple silicon': 'Entrenar MADRE AI · local, con MLX en Apple silicon',
+  'Export the dataset first. Each step is one command for your terminal: copy it, run it, come back. When the model exists in Ollama, @madre switches to it at the next recheck.': 'Primero exporta el dataset. Cada paso es un comando para tu terminal: cópialo, córrelo y regresa. Cuando el modelo exista en Ollama, @madre lo usa desde la siguiente revisión.',
+  'Last export {when} · {train} to train · {valid} to check': 'Última exportación {when} · {train} para entrenar · {valid} para validar',
+  'Not exported yet.': 'Aún sin exportar.',
+  'Trained model {model} in use.': 'Modelo entrenado {model} en uso.',
+  'No trained model yet.': 'Aún no hay modelo entrenado.',
+  'The training recipe is unavailable.': 'La receta de entrenamiento no está disponible.',
+  'Once: a Python environment with mlx-lm': 'Una vez: un entorno de Python con mlx-lm',
+  'Train the LoRA · base {model} for {gb} GB': 'Entrenar el LoRA · base {model} para {gb} GB',
+  'Fuse the adapter into the base': 'Fundir el adaptador con la base',
+  'Register it in Ollama as {model}': 'Registrarlo en Ollama como {model}',
+  'Qwen needs a GGUF before Ollama reads it: {readme}, section 3, has the two lines. Then ask @madre ten things the room decided and five it never discussed before trusting it.': 'Qwen necesita un GGUF antes de que Ollama lo lea: {readme}, sección 3, tiene las dos líneas. Luego pregúntale a @madre diez cosas que la sala decidió y cinco que nunca discutió antes de confiar en él.',
+  'One agent is enough to open the room. MADRE uses the session each CLI already has: install one here or sign it in, and the room opens by itself. The credentials stay in each CLI; MADRE only asks whether it is signed in.': 'Con un agente basta para abrir la sala. MADRE usa la sesión que cada CLI ya tiene: instala uno aquí o inicia su sesión, y la sala se abre sola. Las credenciales se quedan en cada CLI; MADRE solo pregunta si tiene sesión.',
+  'Plans': 'Planes',
+  'When a turn may open a plan, and how long a plan may be.': 'Cuándo un turno puede abrir un plan, y qué tan largo puede ser.',
+  'Agents may delegate': 'Los agentes pueden delegar',
+  'An agent may open a plan and hand its steps to the others.': 'Un agente puede abrir un plan y repartir sus pasos entre los demás.',
+  'Steps per plan': 'Pasos por plan',
+  'The most steps one plan may have.': 'Cuántos pasos puede tener un plan como máximo.',
+  'Budget and waiting': 'Presupuesto y espera',
+  'What each agent may spend, and how long the room waits for it.': 'Lo que cada agente puede gastar, y cuánto lo espera la sala.',
+  'Tokens per agent': 'Tokens por agente',
+  'Counted here, in each 5-hour window.': 'Se cuentan aquí, en cada ventana de 5 horas.',
+  'Default time limit': 'Tiempo límite por defecto',
+  'How long an agent may take before the room stops waiting. Each agent can have its own in Agents.': 'Cuánto puede tardar un agente antes de que la sala deje de esperar. Cada agente puede tener el suyo en Agentes.',
+  'Gemini can go quiet before it answers anything; this is how long the room gives it.': 'Gemini puede quedarse callado antes de responder algo; esto es lo que la sala le da.',
+  'Silence limit': 'Límite de silencio',
+  'Seconds without any output before the attempt is dropped.': 'Segundos sin ninguna salida antes de abandonar el intento.',
+  'Retries': 'Reintentos',
+  'How many times a silent attempt is tried again.': 'Cuántas veces se vuelve a intentar un intento callado.',
+  'The provider and model OpenCode answers with in this room.': 'El proveedor y el modelo con que responde OpenCode en esta sala.',
+  'Model': 'Modelo',
+  'List models': 'Listar modelos',
+  '{n} models listed': '{n} modelos listados',
+  'Type provider/model, or list what OpenCode offers and pick one.': 'Escribe proveedor/modelo, o lista lo que ofrece OpenCode y elige uno.',
+  'Every change is saved to ~/.pulse/config.json as you make it. Environment variables set before start still win on the next launch.': 'Cada cambio se guarda en ~/.pulse/config.json en cuanto lo haces. Las variables de entorno definidas antes de arrancar siguen ganando en el siguiente arranque.',
+  'Private terms': 'Términos privados',
+  'Replaced with': 'Se reemplazan con',
+  'Checking the room…': 'Revisando la sala…',
+  'Purge the room': 'Purgar la sala',
+  'Write the terms first.': 'Primero escribe los términos.',
+  'Still in the room: {events} events · {entries} indexed exchanges · {memories} memories.': 'Todavía en la sala: {events} eventos · {entries} intercambios indexados · {memories} memorias.',
+  'The room is clean: no private term in the ledger, the index or the memories.': 'La sala está limpia: ningún término privado en el ledger, el índice ni las memorias.',
+  'One per line': 'Uno por línea',
+  'What the room shows in their place.': 'Lo que la sala muestra en su lugar.',
+  'The terms stay in config.json; the room only records how many. PULSE_PRIVATE_TERMS is set, so its terms are added on every launch.': 'Los términos se quedan en config.json; la sala solo registra cuántos. PULSE_PRIVATE_TERMS está definida, así que sus términos se suman en cada arranque.',
+  'The terms stay in config.json; the room only records how many.': 'Los términos se quedan en config.json; la sala solo registra cuántos.',
+  'Caught by their shape': 'Atrapados por su forma',
+  'Two guards that need no list.': 'Dos guardas que no necesitan lista.',
+  'Keys, tokens and e-mail addresses': 'Llaves, tokens y correos',
+  'API keys, GitHub and npm tokens, JWTs and e-mail addresses are struck out wherever they appear.': 'Las API keys, los tokens de GitHub y npm, los JWT y los correos se tachan dondequiera que aparezcan.',
+  'Your home path': 'Tu ruta home',
+  '/Users/yourname becomes ~: a quoted path still reads, it just stops naming you.': '/Users/tunombre se vuelve ~: una ruta citada se sigue leyendo, solo deja de nombrarte.',
+  'Already in the room': 'Ya en la sala',
+  'What was recorded before a term was named stays as it was until you purge it.': 'Lo que se registró antes de nombrar un término se queda como estaba hasta que lo purgues.',
+  'Exposure': 'Exposición',
+  'The exposure check is unavailable.': 'La revisión de exposición no está disponible.',
+  'MADRE {latest} is on npm · you run {current} · open SETTINGS for the command': 'MADRE {latest} está en npm · tú corres {current} · abre AJUSTES para el comando',
+  'The version could not be read.': 'No se pudo leer la versión.',
+  'It runs from the npx cache.': 'Corre desde la caché de npx.',
+  'It runs from this project\'s node_modules.': 'Corre desde el node_modules de este proyecto.',
+  'It is installed globally.': 'Está instalada de forma global.',
+  'It runs from source.': 'Corre desde el código fuente.',
+  'Up to date': 'Al día',
+  'Open': 'Abrir',
+  'Look for new versions': 'Buscar versiones nuevas',
+  'Once a day MADRE asks npm for the latest version: only the package name travels, the same request npx makes.': 'Una vez al día MADRE le pregunta a npm por la última versión: solo viaja el nombre del paquete, la misma petición que hace npx.',
+  'Set by PULSE_UPDATE_CHECK.': 'Lo fija PULSE_UPDATE_CHECK.',
+  'Last check': 'Última revisión',
+  'Not yet.': 'Aún no.',
+  'Check now': 'Revisar ahora',
+  'MADRE {version} is ready': 'MADRE {version} está lista',
+  'Restart with it here: the room closes, installs and comes back on this same address in a few seconds. Nothing in the ledger is lost. Or run the command yourself.': 'Reinicia con ella aquí: la sala se cierra, instala y vuelve en esta misma dirección en unos segundos. No se pierde nada del ledger. O corre tú el comando.',
+  'Pull the repository and start it again.': 'Haz pull del repositorio y vuelve a arrancarla.',
+  'Restarting…': 'Reiniciando…',
+  'Restart with {version}': 'Reiniciar con {version}',
+  'Restart here': 'Reiniciar aquí',
+  'Or in your terminal': 'O en tu terminal',
+  'What {version} ships ↗': 'Qué trae {version} ↗',
+  'At the same time': 'Al mismo tiempo',
+  'How much the room does at once. A conversation that takes its time keeps working while you write in it or open another.': 'Cuánto hace la sala a la vez. Una conversación que se tarda sigue trabajando mientras le escribes o abres otra.',
+  'It could not be read.': 'No se pudo leer.',
+  'Conversations at once': 'Conversaciones a la vez',
+  'Turns per conversation': 'Turnos por conversación',
+  'On': 'Encendidas',
+  'Blocked': 'Bloqueadas',
+  'Not available': 'No disponibles',
+  'Turn on': 'Encender',
+  'Notifications': 'Notificaciones',
+  'Always: only one conversation at a time may hold CONTROL or AIRLOCK of the project.': 'Siempre: solo una conversación a la vez puede tener CONTROL o AIRLOCK del proyecto.',
+  'It keeps the failures MU/TH/UR cannot explain, and crashes, with paths, names and keys removed. Nothing leaves this machine unless you send it.': 'Guarda las fallas que MU/TH/UR no sabe explicar, y los crashes, sin rutas, nombres ni llaves. Nada sale de esta computadora a menos que tú lo mandes.',
+  '{n} reports · {unsent} not sent': '{n} reportes · {unsent} sin enviar',
+  'Nothing to report': 'Nada que reportar',
+  'Report automatically': 'Reportar automáticamente',
+  'New unknown conditions go to the author\'s collector, redacted.': 'Las condiciones desconocidas nuevas van al recolector del autor, tachadas.',
+  'No collector is configured (PULSE_REPORT_URL).': 'No hay recolector configurado (PULSE_REPORT_URL).',
+  'On madre.run ↗': 'En madre.run ↗',
+  'On GitHub ↗': 'En GitHub ↗',
+  'Tell the author': 'Contarle al autor',
+  'What failed, or what you wish MADRE did.': 'Lo que falló, o lo que quisieras que MADRE hiciera.',
+  'Reports': 'Reportes',
+  'Each one is redacted before it is kept. Read it in the issue before you send it.': 'Cada uno se tacha antes de guardarse. Léelo en el issue antes de mandarlo.',
+  'Crash': 'Crash',
+  'Sent': 'Enviado',
+  'A company, a brand, a domain: what an agent\'s own setup can leak into a reply. MADRE replaces them before the ledger, the archivist, the other agents or the dataset see them.': 'Una empresa, una marca, un dominio: lo que la configuración de un agente puede colar en su respuesta. MADRE los reemplaza antes de que los vean el ledger, el archivista, los demás agentes o el dataset.',
+  'The key is written where the Gemini CLI looks for it, readable only by you. MADRE keeps no copy.': 'La llave se escribe donde la busca el CLI de Gemini, legible solo por ti. MADRE no guarda copia.',
+  'OpenCode brings no model of its own: pick the provider whose key you are pasting. The key is written where OpenCode looks for it, readable only by you. MADRE keeps no copy.': 'OpenCode no trae modelo propio: elige el proveedor cuya llave vas a pegar. La llave se escribe donde la busca OpenCode, legible solo por ti. MADRE no guarda copia.',
+  'Gemini API key': 'API key de Gemini',
+  'Provider key': 'Llave del proveedor',
+  'Back to settings': 'Volver a Ajustes',
+  'Colour': 'Color',
+  'Each colour in dark (top) and in light (bottom). The permission modes keep their own.': 'Cada color en oscuro (arriba) y en claro (abajo). Los modos de permiso conservan los suyos.',
+  'Interface': 'Interfaz',
+  'The page reloads in it when you choose to.': 'La página se recarga en ese idioma cuando tú lo decidas.',
+  'Opens your browser to sign in with ChatGPT.': 'Abre tu navegador para iniciar sesión con ChatGPT.',
+  'Opens your browser to sign in with your Claude account.': 'Abre tu navegador para iniciar sesión con tu cuenta de Claude.',
+  'Gemini signs in from its own prompt: run `gemini`, type /auth, pick "Use Gemini API key" (get one at aistudio.google.com/app/apikey) or Google login.': 'Gemini inicia sesión desde su propio prompt: corre `gemini`, escribe /auth y elige "Use Gemini API key" (consigue una en aistudio.google.com/app/apikey) o el inicio de sesión de Google.',
+  'Pick a provider and paste its key or complete its OAuth flow.': 'Elige un proveedor y pega su llave o completa su flujo OAuth.',
+  'Files and servers': 'Archivos y servidores',
+  'Finder as a window': 'Finder en ventana',
+  'Finder beside': 'Finder al lado',
+  'preview on': 'vista previa encendida',
+  'preview off': 'vista previa apagada',
+  'Where they open': 'Dónde se abren',
+  'Each one remembers how you left it. This is the same choice, without opening them.': 'Cada uno recuerda cómo lo dejaste. Aquí es la misma elección, sin abrirlos.',
+  "The project's files, beside the conversation or as a window of their own.": 'Los archivos del proyecto, al lado de la conversación o en su propia ventana.',
+  'Beside': 'Al lado',
+  'Window': 'Ventana',
+  'Servers': 'Servidores',
+  'The browser on the servers answering on this computer: docked beside the conversation, or floating.': 'El navegador de los servidores que responden en esta computadora: acoplado junto a la conversación, o flotando.',
+  'Docked': 'Acoplado',
+  'It always opens beside the conversation: opening a file never splits the room on its own. From there it can float as a window.': 'Siempre se abre al lado de la conversación: abrir un archivo nunca divide la sala por sí solo. Desde ahí puede flotar como ventana.',
+  'What they can show': 'Lo que pueden mostrar',
+  'Two modules decide it; their switches are the same ones as in MODULES.': 'Lo deciden dos módulos; sus interruptores son los mismos que en MÓDULOS.',
+  'Sealed preview': 'Vista previa sellada',
+  'HTML, SVG and Markdown from the project render in the file viewer, inside a frame that reaches nothing. Off, files show as source.': 'El HTML, el SVG y el Markdown del proyecto se dibujan en el visor, dentro de un marco que no alcanza nada. Apagada, los archivos se ven como código.',
+  "The agents' browser": 'El navegador de los agentes',
+  'A browser without a window that reaches only this room and the servers you start, on the turns that ask to look at a page.': 'Un navegador sin ventana que solo alcanza esta sala y los servidores que tú arrancas, en los turnos que piden ver una página.',
+  'Settings for files and servers': 'Ajustes de archivos y servidores',
+  'Always': 'Siempre',
+  'Turned on': 'Encendido',
+  'Turned off': 'Apagado',
+  'Installed': 'Instalado',
+  'Yours': 'Tuyos',
+  'Back to modules': 'Volver a Módulos',
+  'Open as a window': 'Abrir en ventana',
+  '{n} of your modules did not load · see why': '{n} de tus módulos no cargaron · ver por qué',
+  'Create your module': 'Crea tu módulo',
+  'One file. Your agent can write it for you.': 'Un archivo. Tu agente puede escribirlo por ti.',
+  'A module is one file: no build, no dependencies, nothing to register. It can be a switch, a few settings, a slash command, a tool for the agents, a card of its own, or a connector to a service you already use.': 'Un módulo es un archivo: sin compilar, sin dependencias, sin registrarlo en ningún lado. Puede ser un interruptor, unos ajustes, un comando con /, una herramienta para los agentes, una tarjeta propia o un conector a un servicio que ya usas.',
+  'Ask for one in the room': 'Pedirlo en la sala',
+  'Ask for it': 'Pídelo',
+  'Type /module and say what it should do. The agent reads the SDK and writes the file; you review it and decide whether it is installed.': 'Escribe /module y di qué debe hacer. El agente lee el SDK y escribe el archivo; tú lo revisas y decides si se instala.',
+  'every project': 'todos los proyectos',
+  'Read the SDK ↗': 'Leer el SDK ↗',
+  'Or write it yourself': 'O escríbelo tú',
+  'Put the file in one of these folders. A file somebody else wrote goes in with + Add a module, and MADRE checks it before it runs.': 'Pon el archivo en una de estas carpetas. Un archivo que escribió alguien más entra con + Agregar un módulo, y MADRE lo revisa antes de que corra.',
+  'Reload modules': 'Recargar módulos',
+  'Load it': 'Cárgalo',
+  'Press reload and it appears on the board with its own card, no restart.': 'Presiona recargar y aparece en el tablero con su propia tarjeta, sin reiniciar.',
+  'If it talks to a service': 'Si habla con un servicio',
+  'Connecting to a service from outside is almost always possible, if that service lets you get your own key in minutes and revoke it. Your module declares the key it needs, where it reaches and which of its tools send; MADRE draws the field, answers for the traffic and holds sending until #4 AIRLOCK.': 'Conectar con un servicio de fuera casi siempre es posible, si ese servicio te deja sacar tu propia llave en minutos y revocarla. Tu módulo declara la llave que necesita, a dónde llega y cuáles de sus herramientas envían; MADRE dibuja el campo, responde por el tráfico y detiene los envíos hasta #4 AIRLOCK.',
+  'Did not load': 'No cargaron',
+  'Compact replies from every agent': 'Respuestas compactas de cada agente',
+  'How hard each agent should think': 'Cuánto debe pensar cada agente',
+  'Memory by meaning, on this machine': 'Memoria por significado, en esta computadora',
+  'Images for the agents, with your key': 'Imágenes para los agentes, con tu llave',
+  'A browser the agents can look through': 'Un navegador por el que miran los agentes',
+  'Sealed preview of HTML, SVG and Markdown': 'Vista previa sellada de HTML, SVG y Markdown',
+  'The repository, posted to the room': 'El repositorio, publicado en la sala',
+  'Commands an agent asks you to run': 'Comandos que un agente te pide correr',
+  'Decisions as buttons, not paragraphs': 'Decisiones como botones, no como párrafos',
+  'Project state and handoffs in .ahp/': 'Estado del proyecto y relevos en .ahp/',
+  'Send one email from your account': 'Manda un correo desde tu cuenta',
+  'Search a module, or what it does': 'Busca un módulo, o lo que hace',
+  'CREATE YOUR MODULE': 'CREA TU MÓDULO',
+  '+ Add a module': '+ Agregar un módulo',
+  'Your module': 'Tuyo',
+  'Opens as a window': 'Se abre en ventana',
+  'Add a module': 'Agregar un módulo',
+  'State': 'Estado',
+  'nothing weighed yet': 'nada medido aún',
+  'Tokens not charged': 'Tokens sin cobro',
+  'Turns weighed': 'Turnos medidos',
+  'Read from cache': 'Leído de caché',
+  'Server': 'Servidor',
+  'Running': 'Corriendo',
+  'Stopped': 'Detenido',
+  'Models': 'Modelos',
+  'none': 'ninguno',
+  'Turns observed': 'Turnos observados',
+  'your own turns, read for no tokens': 'tus propios turnos, leídos sin gastar tokens',
+  'it learns as you work': 'aprende mientras trabajas',
+  'It was enough': 'Le alcanzó',
+  '{held} of {n} turns': '{held} de {n} turnos',
+  'Tokens you would have saved': 'Tokens que habrías ahorrado',
+  'an estimate, at the lowest level that was enough': 'una estimación, al nivel más bajo que alcanzó',
+  'What it touches': 'Lo que toca',
+  'Commands': 'Comandos',
+  'Writes': 'Escribe',
+  'Needs': 'Necesita',
+  'Everything this module writes or needs, said before it runs.': 'Todo lo que este módulo escribe o necesita, dicho antes de que corra.',
+  'What it adds to the composer. Type it in the room.': 'Lo que agrega a la caja de texto. Escríbelo en la sala.',
+  'read back from a cache, or never sent': 'leídos de caché, o nunca enviados',
+  'What it does': 'Qué hace',
+  'Always on': 'Siempre activo',
+  'Active': 'Activo',
+  'Look for a newer one': 'Buscar una nueva',
+  'It could not be checked: {error}': 'No se pudo revisar: {error}',
+  'Update to {version}': 'Actualizar a {version}',
+  'Install {version}': 'Instalar {version}',
+  'What this module lets you set. Each change is saved as you make it.': 'Lo que este módulo te deja ajustar. Cada cambio se guarda al hacerlo.',
+  'Keys': 'Llaves',
+  'Economy': 'Economía',
+  'What your use taught': 'Lo que enseñó tu uso',
+  'Per agent and per kind of request: the lowest effort that was enough in your own turns, learned for no tokens. Below, a test that learns faster, for a price.':
+    'Por agente y por tipo de pedido: el esfuerzo más bajo que alcanzó en tus propios turnos, aprendido sin gastar tokens. Abajo, una prueba que aprende más rápido, con costo.',
+  'When a lower level might be enough, Intenciones offers to try it on a single message and watches how it goes; if it falls short, the next one goes back up.':
+    'Cuando un nivel más bajo podría bastar, Intenciones te propone probarlo en un solo mensaje y se fija cómo le va; si no alcanza, el siguiente vuelve a subir.',
+  'What this room was charged, what it was not, and what Ash does to an answer. Measured here, never promised.': 'Lo que se le cobró a esta sala, lo que no, y lo que Ash le hace a una respuesta. Medido aquí, nunca prometido.',
+  'Get a newer file': 'Traer un archivo más nuevo',
+  'Newer file': 'Archivo más nuevo',
+  'It stops loading. The file stays where it is.': 'Deja de cargarse. El archivo se queda donde está.',
+  'Local brain': 'Cerebro local',
+  'Ollama on this computer: no provider tokens, nothing leaves.': 'Ollama en esta computadora: sin tokens de proveedor, no sale nada.',
+  'Running · {host}': 'Corriendo · {host}',
+  'Not running': 'Detenido',
+  'Start Ollama': 'Encender Ollama',
+  'Install Ollama': 'Instalar Ollama',
+  'Get Ollama': 'Conseguir Ollama',
+  'Download ↗': 'Descargar ↗',
+  'Without Ollama running, the room keeps using its providers.': 'Sin Ollama encendido, la sala sigue usando sus proveedores.',
+  'Roles': 'Papeles',
+  'What the local brain does in this room.': 'Lo que hace el cerebro local en esta sala.',
+  'Archivist': 'Archivista',
+  'Download {model}': 'Descargar {model}',
+  'No model for it yet.': 'Aún no hay modelo para esto.',
+  'Kept in MADRE\'s vault under this module\'s name. The value goes nowhere but the module.': 'Se guarda en la bóveda de MADRE con el nombre de este módulo. El valor no va a ningún lado más que al módulo.',
+  'MU/TH/UR › MADRE {version} is on npm. Open SETTINGS › Version to restart with it.': 'MU/TH/UR › MADRE {version} está en npm. Abre AJUSTES › Versión para reiniciar con ella.',
+  'What to do': 'Qué hacer',
+  'Apply': 'Aplicar',
+  'Applied': 'Aplicado',
+  'Applies now, without restarting.': 'Se aplica ahora, sin reiniciar.',
+  'Open @{agent} in Settings': 'Abrir @{agent} en Ajustes',
+  'Open Agents in Settings': 'Abrir Agentes en Ajustes',
+  'Sign it in, install it or change what it may do, from there.': 'Desde ahí inicias su sesión, lo instalas o cambias lo que puede hacer.',
+  'In your terminal': 'En tu terminal',
+  'Why it happens': 'Por qué pasa',
+  'Not fixed?': '¿No se arregló?',
+  'Tell the author this remedy did not work. The report says which condition it was.': 'Cuéntale al autor que este remedio no funcionó. El reporte dice qué condición era.',
+  'Report ↗': 'Reportar ↗',
+  'What happened to @{agent}': 'Lo que le pasó a @{agent}',
+  'What happened in the room': 'Lo que pasó en la sala',
+  'Not classified yet': 'Aún sin clasificar',
+  'MU/TH/UR does not know this condition. Telling the author is how it learns it.': 'MU/TH/UR no conoce esta condición. Contárselo al autor es como la aprende.',
+  'Matches': 'Coincidencias',
+  'All': 'Todas',
+  'This room': 'Esta sala',
+  'Blocking': 'Bloqueantes',
+  'Nothing happened in this room. Every system nominal.': 'No pasó nada en esta sala. Todos los sistemas en orden.',
+  'Nothing here.': 'Nada aquí.',
+  'Download the log': 'Descargar el registro',
+  'Dismiss all {n}': 'Descartar las {n}',
+  'Show the {n} dismissed': 'Mostrar las {n} descartadas',
+  'The remedy that matches best. {n} more could be it, in the list.': 'El remedio que mejor coincide. Otras {n} podrían ser, en la lista.',
+  'The remedy that matches.': 'El remedio que coincide.',
+  '{n} agents · {ready} ready': '{n} agentes · {ready} listos',
+  '{n} conditions in this room': '{n} condiciones en esta sala',
+  'nothing open': 'nada abierto',
+  'Write a symptom, an agent or a word': 'Escribe un síntoma, un agente o una palabra',
+  'Feedback': 'Comentarios',
+  'Conditions': 'Condiciones',
+  'Nothing matches that. Try a symptom, an agent, or a word like timeout, login, port or budget.': 'Nada coincide con eso. Prueba un síntoma, un agente o una palabra como tiempo, sesión, puerto o presupuesto.',
+  '1 condition in this room': '1 condición en esta sala',
+  '{label} does not ask for its key again for @{agent} until this runs out. Click to close it now.': '{label} no vuelve a pedir su llave para @{agent} hasta que esto se acabe. Haz clic para cerrarlo ya.',
+  'open': 'abierto',
+  'MU/TH/UR › {label} closed for @{agent}: the next one asks for its key.': 'MU/TH/UR › {label} cerrado para @{agent}: el siguiente pide su llave.',
+  'The project': 'El proyecto',
+  'Your phrase': 'Tu frase',
+  'Just confirm': 'Solo confirmar',
+  'Project + AIRLOCK': 'Proyecto + AIRLOCK',
+  'Phrase + AIRLOCK': 'Frase + AIRLOCK',
+  '{n} min': '{n} min.',
+  'MU/TH/UR › {label} is still open for @{agent} · {left} left.': 'MU/TH/UR › {label} sigue abierto para @{agent} · quedan {left}.',
+  '#{n} holds {minutes} min': '#{n} vale {minutes} min',
+  'asked every message': 'se pide en cada mensaje',
+  'Change in Permissions': 'Cambiar en Permisos',
+  'One click on ARM. CONTROL still takes a checkpoint first, and UNDO is one click.': 'Un clic en ARMAR. CONTROL igual toma un punto de control antes, y DESHACER está a un clic.',
+  'Your phrase, typed when you arm it.': 'Tu frase, escrita al armarlo.',
+  'Your phrase, then the word AIRLOCK.': 'Tu frase y luego la palabra AIRLOCK.',
+  'The folder name of the project ({name}), then the word AIRLOCK.': 'El nombre de la carpeta del proyecto ({name}) y luego la palabra AIRLOCK.',
+  'The folder name of the project ({name}), with no second key.': 'El nombre de la carpeta del proyecto ({name}), sin segunda llave.',
+  'The folder name of the project ({name}).': 'El nombre de la carpeta del proyecto ({name}).',
+  'The key of each mode': 'La llave de cada modo',
+  'What you type to arm #3 CONTROL and #4 AIRLOCK. It is asked for each message, unless a grace below still holds.': 'Lo que escribes para armar #3 CONTROL y #4 AIRLOCK. Se pide en cada mensaje, salvo que siga vigente una gracia de abajo.',
+  'Save a phrase below first.': 'Primero guarda una frase abajo.',
+  '#{n} {label} now asks for: {key}.': '#{n} {label} ahora pide: {key}.',
+  '#4 always asks for something: it runs commands, and what leaves the machine does not come back.': '#4 siempre pide algo: ejecuta comandos, y lo que sale de la máquina no regresa.',
+  'Only its fingerprint is kept (a salted SHA-256, made in this browser). MADRE cannot read it back, and it is never sent anywhere.': 'Solo se guarda su huella (un SHA-256 con sal, hecho en este navegador). MADRE no puede leerla de vuelta y nunca se envía a ningún lado.',
+  'Type a new phrase to replace it': 'Escribe una frase nueva para reemplazarla',
+  'At least 8 characters': 'Al menos 8 caracteres',
+  'Replace': 'Reemplazar',
+  'Save': 'Guardar',
+  'The phrase needs at least 8 characters.': 'La frase necesita al menos 8 caracteres.',
+  'Your phrase was saved. Choose it above for #3 or #4.': 'Tu frase quedó guardada. Elígela arriba para #3 o #4.',
+  'A phrase is saved': 'Hay una frase guardada',
+  'No phrase yet': 'Aún sin frase',
+  'This browser cannot make the fingerprint here.': 'Este navegador no puede calcular la huella aquí.',
+  'Forget the phrase': 'Olvidar la frase',
+  'The modes that used it go back to the project name.': 'Los modos que la usaban vuelven al nombre del proyecto.',
+  'Forget': 'Olvidar',
+  'The phrase was forgotten.': 'La frase se olvidó.',
+  'Grace after a key': 'Gracia después de una llave',
+  'Once a key is accepted, the same mode for the same agent is not asked again for a while. Only in this page: reloading, STOPALL or the × on its chip closes it.': 'Después de aceptar una llave, el mismo modo para el mismo agente no se vuelve a pedir por un rato. Solo en esta página: recargar, PARAR TODO o la × de su chip lo cierran.',
+  'Never longer than 5 minutes.': 'Nunca más de 5 minutos.',
+  'Raising an agent\'s max mode always asks, grace or not.': 'Subir el modo máximo de un agente siempre pide la llave, haya gracia o no.',
+  'Off': 'Apagada',
+  '#{n} {label} holds {minutes} min after its key.': '#{n} {label} vale {minutes} min después de su llave.',
+  '#{n} {label} asks for its key every message.': '#{n} {label} pide su llave en cada mensaje.',
+  'Grace for #{n}': 'Gracia para #{n}',
+  'Who may do what': 'Quién puede qué',
+  'The highest mode each agent may reach. Each mode wears its colour; #3 and #4 still ask for their key.': 'El modo más alto al que puede llegar cada agente. Cada modo lleva su color; #3 y #4 siguen pidiendo su llave.',
+  'Max mode for @{agent}': 'Modo máximo de @{agent}',
+  'Permissions': 'Permisos',
+  'Permissions, privacy and the version': 'Permisos, privacidad y la versión',
+  'MU/TH/UR\'s settings: what the sentinel keeps and whether it reports': 'Ajustes de MU/TH/UR: lo que guarda el centinela y si reporta',
+  'MU/TH/UR settings': 'Ajustes de MU/TH/UR',
+  'Project': 'Proyecto',
+  'Second key': 'Segunda llave',
+  'Phrase': 'Frase',
+  'Open #4 AIRLOCK for @{agent}': 'Abrir #4 AIRLOCK para @{agent}',
+  'Arm #3 CONTROL for @{agent}': 'Armar #3 CONTROL para @{agent}',
+  'Arm': 'Armar',
+  'That is not it. Try again, or cancel.': 'No es esa. Intenta de nuevo o cancela.',
+  'Accepted. Second key: type AIRLOCK to open it.': 'Aceptada. Segunda llave: escribe AIRLOCK para abrirlo.',
+  'Second key rejected. Type AIRLOCK, or cancel.': 'Segunda llave rechazada. Escribe AIRLOCK o cancela.',
+  'Open for @{agent}.': 'Abierto para @{agent}.',
+  'Armed for @{agent}.': 'Armado para @{agent}.',
+  'Arm #3 CONTROL': 'Armar #3 CONTROL',
+  'Cancel': 'Cancelar',
+  '@{id} edits the project itself, with no approval per action.': '@{id} edita el proyecto mismo, sin aprobar cada acción.',
+  'A checkpoint is taken first; UNDO is one click.': 'Antes se toma un punto de control; DESHACER está a un clic.',
+  '@{id} can also run commands, git push and deploy with the sessions on this computer.': '@{id} además puede ejecutar comandos, hacer git push y desplegar con las sesiones de esta computadora.',
+  'Files come back with UNDO; what leaves the computer does not.': 'Los archivos regresan con DESHACER; lo que sale de la computadora, no.',
+  'Now type AIRLOCK': 'Ahora escribe AIRLOCK',
+  'Type your phrase': 'Escribe tu frase',
+  'Type the project name': 'Escribe el nombre del proyecto',
+  'This also raises its max mode to #{n}.': 'También sube su modo máximo a #{n}.',
+  'Accepted. Boarding NOSTROMO.': 'Aceptado. Abordando NOSTROMO.',
+  'Board NOSTROMO': 'Abordar NOSTROMO',
+  'The archive of this room: every memory the crew distilled, linked by what they share.': 'El archivo de esta sala: cada memoria que destiló la tripulación, enlazada por lo que comparten.',
+  'Reading is free; forgetting is forever.': 'Leer es libre; olvidar es para siempre.',
+  'Board': 'Abordar',
+  'NOSTROMO · memory research': 'NOSTROMO · investigación de memoria',
+  'Open Ollama': 'Abrir Ollama',
+  'Start it, download its models and choose what it does in this room.': 'Enciéndelo, descarga sus modelos y elige qué hace en esta sala.',
+  '@{agent} left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.': '@{agent} salió de la sala: Ollama no está corriendo. Enciende Ollama o ábrelo en Módulos.',
+  'Hide': 'Ocultar',
+  'Updating {name}': 'Actualizando {name}',
+  'Installing {name}': 'Instalando {name}',
+  '{n} s': '{n} seg',
+  '{m} min {s} s': '{m} min {s} seg',
+  'Done': 'Listo',
+  'It did not finish': 'No terminó',
+  'Working': 'En curso',
+  'Update {name} to {version}': 'Actualizar {name} a {version}',
+  'Update {name}': 'Actualizar {name}',
+  'This runs on this computer, outside the project.': 'Esto corre en esta computadora, fuera del proyecto.',
+  'Not now': 'Ahora no',
+  'Update': 'Actualizar',
+  'Its path from the project root. Missing folders are made; an existing file is never touched.': 'Su ruta desde la raíz del proyecto. Las carpetas que falten se crean; un archivo que ya existe nunca se toca.',
+  'Path': 'Ruta',
+  'Create': 'Crear',
+  'A file the room guards': 'Un archivo que la sala resguarda',
+  'It could not be created.': 'No se pudo crear.',
+  '{path} was created.': 'Se creó {path}.',
+  'Not a file name this room can create.': 'No es un nombre de archivo que la sala pueda crear.',
+  'A file with that name is already there.': 'Ya hay un archivo con ese nombre.',
+
+  // GITHUB: el lado de GitHub del proyecto, en la sala. Su ficha, /gh y lo que dice cuando algo falla.
+  'Pull requests, issues and CI, in the room': 'Pull requests, issues y CI, en la sala',
+  'Reads this project’s pull requests, issues and CI with your gh session or a token, and posts to GitHub only when you confirm it in the room or an agent works in #4 AIRLOCK.':
+    'Lee los pull requests, los issues y el CI de este proyecto con tu sesión de gh o con un token, y solo publica en GitHub cuando tú lo confirmas en la sala o cuando un agente trabaja en #4 AIRLOCK.',
+  'your token in MADRE’s vault, 0600, only if you paste one': 'tu token en la bodega de MADRE, 0600, solo si pegas uno',
+  'a pull request, an issue or a comment on GitHub, only when you confirm it or an agent in #4 AIRLOCK posts it':
+    'un pull request, un issue o un comentario en GitHub, solo cuando tú lo confirmas o lo publica un agente en #4 AIRLOCK',
+  'a remote on github.com': 'un remoto en github.com',
+  'the gh CLI signed in (gh auth login), or a fine-grained token pasted here': 'el CLI gh con sesión iniciada (gh auth login), o un token de acceso detallado pegado aquí',
+  'Fine-grained token': 'Token de acceso detallado',
+  'Only needed without a gh session. Give it access to this repository with Contents read, Pull requests read and write, Issues read and write, and Checks and Actions read. You can revoke it on GitHub at any time.':
+    'Solo hace falta si no hay sesión de gh. Dale acceso a este repositorio con Contents en lectura, Pull requests e Issues en lectura y escritura, y Checks y Actions en lectura. Puedes revocarlo en GitHub cuando quieras.',
+  'GitHub for this project as a card: open pull requests, the CI of your branch and open issues. Opening a pull request, an issue or a comment first shows what would be posted, and posts it only with confirm.':
+    'GitHub de este proyecto en una tarjeta: pull requests abiertos, el CI de tu rama e issues abiertos. Para abrir un pull request, un issue o un comentario, primero enseña lo que se publicaría y solo lo publica con confirm.',
+  'This project is not a git repository, so there is no GitHub repository to read.': 'Este proyecto no es un repositorio git, así que no hay repositorio de GitHub que leer.',
+  'No remote of this repository points at github.com. Add one with git remote add, or open the project that has it.':
+    'Ningún remoto de este repositorio apunta a github.com. Agrega uno con git remote add, o abre el proyecto que lo tiene.',
+  'There is no GitHub session on this computer and no token in MADRE. Sign in with gh auth login, or paste a fine-grained token in Modules › GitHub.':
+    'No hay sesión de GitHub en esta computadora ni token en MADRE. Inicia sesión con gh auth login, o pega un token de acceso detallado en Módulos › GitHub.',
+  'GitHub said: {detail}': 'GitHub dijo: {detail}',
+  'Something went wrong talking to GitHub: {message}': 'Algo falló al hablar con GitHub: {message}',
+  'passing': 'pasa',
+  'failing': 'falla',
+  'running': 'corriendo',
+  'no checks yet': 'todavía sin verificaciones',
+  'closed': 'cerrado',
+  'merged': 'fusionado',
+  'draft': 'borrador',
+  'approved by {who}': 'aprobado por {who}',
+  'changes requested by {who}': 'con cambios pedidos por {who}',
+  'no review yet': 'todavía sin revisión',
+  'Open pull requests: {n}': 'Pull requests abiertos: {n}',
+  'Open issues: {n}': 'Issues abiertos: {n}',
+  'CI: the project is not on a branch.': 'CI: el proyecto no está en ninguna rama.',
+  'CI on {branch}: {why}': 'CI en {branch}: {why}',
+  'CI on {branch}: {state} ({n} checks)': 'CI en {branch}: {state} ({n} verificaciones)',
+  'CI on {branch}: {state}': 'CI en {branch}: {state}',
+  'This branch has pull request #{n}: {title}': 'Esta rama tiene el pull request #{n}: {title}',
+  'No open pull requests.': 'No hay pull requests abiertos.',
+  'Open pull requests · {repo}': 'Pull requests abiertos · {repo}',
+  'it can merge': 'se puede fusionar',
+  'it has conflicts': 'tiene conflictos',
+  'GitHub is still working out whether it can merge': 'GitHub todavía está calculando si se puede fusionar',
+  '+{add} −{del} · {files} files · {commits} commits': '+{add} −{del} · {files} archivos · {commits} commits',
+  'Review: {state}': 'Revisión: {state}',
+  'The project is not on a branch, so there is no CI to ask about.': 'El proyecto no está en ninguna rama, así que no hay CI que consultar.',
+  'Latest workflow runs': 'Últimas ejecuciones de workflows',
+  'No open issues.': 'No hay issues abiertos.',
+  'Open issues · {repo}': 'Issues abiertos · {repo}',
+  'This posts under your name and cannot be undone from MADRE. Post it with: {command}': 'Esto se publica con tu nombre y MADRE no lo puede deshacer. Publícalo con: {command}',
+  'Give it a title in quotes: /gh pr create "what it changes" ["more detail"]': 'Ponle un título entre comillas: /gh pr create "qué cambia" ["más detalle"]',
+  'The project is not on a branch, so there is nothing to open a pull request from.': 'El proyecto no está en ninguna rama, así que no hay desde dónde abrir un pull request.',
+  '{branch} is not on GitHub yet. Push it first, then try again.': '{branch} todavía no está en GitHub. Súbela primero y vuelve a intentarlo.',
+  'You are on {branch}, the default branch. A pull request goes from another branch into it.': 'Estás en {branch}, la rama principal. Un pull request va de otra rama hacia ella.',
+  'Opening a pull request on {repo}': 'Abriendo un pull request en {repo}',
+  'Would open a pull request on {repo}': 'Se abriría un pull request en {repo}',
+  'Title: {title}': 'Título: {title}',
+  'From {head} into {base}': 'De {head} hacia {base}',
+  'As: {who}': 'Como: {who}',
+  'Description:': 'Descripción:',
+  'No description.': 'Sin descripción.',
+  'Opened pull request #{n} on {repo}': 'Se abrió el pull request #{n} en {repo}',
+  'Say where and what: /gh comment 12 "the comment"': 'Di dónde y qué: /gh comment 12 "el comentario"',
+  'Commenting on pull request #{n} · {title}': 'Comentando en el pull request #{n} · {title}',
+  'Would comment on pull request #{n} · {title}': 'Se comentaría en el pull request #{n} · {title}',
+  'Commenting on issue #{n} · {title}': 'Comentando en el issue #{n} · {title}',
+  'Would comment on issue #{n} · {title}': 'Se comentaría en el issue #{n} · {title}',
+  'On: {repo}': 'En: {repo}',
+  'Comment:': 'Comentario:',
+  'Commented on #{n} · {repo}': 'Se comentó en #{n} · {repo}',
+  'Give it a title in quotes: /gh issue "what is wrong" ["more detail"]': 'Ponle un título entre comillas: /gh issue "qué está mal" ["más detalle"]',
+  'Opening an issue on {repo}': 'Abriendo un issue en {repo}',
+  'Would open an issue on {repo}': 'Se abriría un issue en {repo}',
+  'Opened issue #{n} on {repo}': 'Se abrió el issue #{n} en {repo}',
+  'Unknown subcommand "{what}". Use /gh, /gh pr [n], /gh ci, /gh issues, /gh pr create "title", /gh comment <n> "text" or /gh issue "title".':
+    'No conozco el subcomando «{what}». Usa /gh, /gh pr [n], /gh ci, /gh issues, /gh pr create "título", /gh comment <n> "texto" o /gh issue "título".',
+  'GitHub did not accept the gh session on this computer. Sign in again with gh auth login.': 'GitHub no aceptó la sesión de gh de esta computadora. Vuelve a iniciar sesión con gh auth login.',
+  'GitHub did not accept the token. It may have expired or been revoked: make a new one and paste it in Modules › GitHub.':
+    'GitHub no aceptó el token. Puede que haya vencido o que lo hayan revocado: crea uno nuevo y pégalo en Módulos › GitHub.',
+  'GitHub says it is not there: the repository or that number is not visible with this credential.': 'GitHub dice que no existe: el repositorio o ese número no se ven con esta credencial.',
+  'This credential has used up its GitHub rate limit. Try again in a while.': 'Esta credencial agotó su límite de peticiones en GitHub. Vuelve a intentarlo en un rato.',
+  'This credential is not allowed to do that here. A fine-grained token needs that permission on this repository.': 'Esta credencial no tiene permiso para hacer eso aquí. Un token de acceso detallado necesita ese permiso en este repositorio.',
+  'GitHub refused the request as it was written.': 'GitHub rechazó la petición tal como estaba escrita.',
+  'GitHub could not be reached from this computer.': 'No se pudo llegar a GitHub desde esta computadora.',
+  'gh is on this computer but not signed in. Sign in with gh auth login, or paste a token in Modules › GitHub.': 'gh está en esta computadora pero sin sesión. Inicia sesión con gh auth login, o pega un token en Módulos › GitHub.',
+  'GitHub answered with an error.': 'GitHub contestó con un error.',
+  'That is not a pull request or issue number.': 'Ese no es un número de pull request ni de issue.',
+  'There is no branch to ask about: the project is not on one.': 'No hay rama que consultar: el proyecto no está en ninguna.',
+  'It needs a title.': 'Le falta un título.',
+  'There is nothing to post.': 'No hay nada que publicar.',
+  'There is no base branch to open it against.': 'No hay una rama base contra la cual abrirlo.',
+  'GitHub: no gh session and no token': 'GitHub: sin sesión de gh y sin token',
+  'The GitHub module uses the gh CLI when it is signed in, and a token kept in MADRE when it is not. Neither is there, so it has nothing to sign in with.':
+    'El módulo GitHub usa el CLI gh cuando tiene sesión, y un token guardado en MADRE cuando no. No hay ninguno de los dos, así que no tiene con qué entrar.',
+  'Sign in to gh once in your terminal, or paste a fine-grained token in Modules › GitHub, and open the card again.':
+    'Inicia sesión en gh una vez desde tu terminal, o pega un token de acceso detallado en Módulos › GitHub, y vuelve a abrir la ficha.',
+  'GitHub: the session or the token was refused': 'GitHub: rechazó la sesión o el token',
+  'GitHub answered 401: the gh session or the token MADRE holds is no longer valid. Tokens expire on the date chosen when they were made, and either can be revoked from GitHub.':
+    'GitHub contestó 401: la sesión de gh o el token que guarda MADRE ya no son válidos. Los tokens vencen en la fecha que se eligió al crearlos, y los dos se pueden revocar desde GitHub.',
+  'Sign in to gh again, or make a new fine-grained token and paste it in Modules › GitHub in place of the old one.':
+    'Vuelve a iniciar sesión en gh, o crea un token de acceso detallado nuevo y pégalo en Módulos › GitHub en lugar del anterior.',
+  'GitHub: this project has no remote on github.com': 'GitHub: este proyecto no tiene remoto en github.com',
+  'The GitHub module reads the repository from the project’s git remotes, and none of them is on github.com. Other hosts, GitHub Enterprise included, are not reached, so a credential for github.com never goes to them.':
+    'El módulo GitHub toma el repositorio de los remotos git del proyecto, y ninguno está en github.com. A otros servidores, GitHub Enterprise incluido, no llega, para que una credencial de github.com nunca vaya a parar a ellos.',
+  'Add the GitHub repository as a remote in your terminal, or open the project that already has it, and look at Modules › GitHub again.':
+    'Agrega el repositorio de GitHub como remoto desde tu terminal, o abre el proyecto que ya lo tiene, y vuelve a mirar Módulos › GitHub.',
+  '{level} usually suits it': 'suele irle bien {level}',
+  '{n} of {of} tests failed and taught nothing': '{n} de {of} pruebas fallaron y no enseñaron nada',
+  'last reason: {why}': 'último motivo: {why}',
+  'the reason was not kept by this version; the next failure will say it': 'esta versión no guardaba el motivo; la próxima falla lo dirá',
+  'about {n} tokens': 'unos {n} tokens',
+  'its cost is not known yet: nothing was measured here': 'su costo aún no se conoce: aquí no se ha medido nada',
+  'Quick test for @{agent}': 'Prueba rápida para @{agent}',
+  'Full test for @{agent}': 'Prueba completa para @{agent}',
+  '{n} turns of @{agent}, read-only, on real questions from this project.': '{n} turnos de @{agent}, solo lectura, con preguntas reales de este proyecto.',
+  'It will spend {price} from your plan.': 'Gastará {price} de tu plan.',
+  'Measure': 'Medir',
+  // La barra, a tu gusto: clic derecho en una tecla y se abre para acomodarla.
+  'Add to the bar': 'Agregar a la barra',
+  'Remove {name} from the bar': 'Quitar {name} de la barra',
+  'Add {name}': 'Agregar {name}',
+  'Everything is already on the bar.': 'Ya está todo en la barra.',
+  'Drag a key to move it. Right-click the bar to come back here.': 'Arrastra una tecla para moverla. Clic derecho en la barra para volver aquí.',
+  'More': 'Más',
+  'This answer: {tokens} tokens. The room so far: {total}.': 'Esta respuesta: {tokens} tokens. La sala hasta ahora: {total}.',
 };

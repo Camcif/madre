@@ -17,28 +17,28 @@ export const CAPABILITIES = {
     imageIn: { how: '-i <file>', note: 'Images attach to the prompt directly.' },
     write: { how: '-C <outdir> --sandbox workspace-write', note: 'Reads the whole project, writes only inside the lease directory.' },
     imageGen: { how: 'features.image_generation (stable, enabled)', note: 'Generated with the ChatGPT account; saved into the lease directory.' },
-    web: { how: '--search (live web_search tool)', note: 'Off until enabled in CONNECTIONS.' },
+    web: { how: '--search (live web_search tool)', note: 'Off until turned on in Settings › Agents › Web access.' },
   },
   claude: {
     read: true,
     imageIn: { how: 'Read tool on the attachment path', note: 'The attachments folder is added with --add-dir.' },
     write: { how: '--tools Write,Edit + permission rules', note: 'Write/Edit allowed only under the lease directory.' },
     imageGen: false,
-    web: { how: '--tools WebFetch,WebSearch', note: 'Off until enabled in CONNECTIONS.' },
+    web: { how: '--tools WebFetch,WebSearch', note: 'Off until turned on in Settings › Agents › Web access.' },
   },
   gemini: {
     read: true,
     imageIn: { how: 'read_file on the attachment path', note: 'The attachments folder is added with --include-directories.' },
     write: { how: 'policy: allow write_file/edit with argsPattern', note: 'Paths outside the lease directory stay denied.' },
     imageGen: false,
-    web: { how: 'policy: allow google_web_search, web_fetch', note: 'Off until enabled in CONNECTIONS.' },
+    web: { how: 'policy: allow google_web_search, web_fetch', note: 'Off until turned on in Settings › Agents › Web access.' },
   },
   opencode: {
     read: true,
     imageIn: { how: '-f <file>', note: 'Files attach to the message.' },
     write: { how: 'permission.edit patterns', note: 'Edit allowed only under the lease directory.' },
     imageGen: false,
-    web: { how: 'permission.webfetch / websearch = allow', note: 'Off until enabled in CONNECTIONS.' },
+    web: { how: 'permission.webfetch / websearch = allow', note: 'Off until turned on in Settings › Agents › Web access.' },
   },
 };
 
@@ -77,7 +77,7 @@ export function agentsWith(capability, agentIds) {
 }
 
 // Permission modes, chosen per message in the composer and capped per agent
-// in CONNECTIONS. The human's mode is the ceiling of any plan it starts.
+// in Settings › Permissions. The human's mode is the ceiling of any plan it starts.
 //   #0 GHOST     off the record: nothing enters the log or anyone's context
 //   #1 EXCHANGE  read the project, coordinate with the others (default)
 //   #2 CREATE    create files and images inside the turn's .pulse/out/ lease

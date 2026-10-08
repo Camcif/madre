@@ -15,6 +15,10 @@
 //               immediate, and unmeasured: it is what the request looks like, not what it needed.
 //   measured  — the calibration put real questions from this project to the same agent at two
 //               efforts and a blind judge could not tell them apart. Measured beats rule.
+//   observed  — the room's own turns, read after the fact (intents-observe.mjs): at this rung, for
+//               this kind of request, the human moved on instead of asking again. It costs no
+//               token, and it is weaker than a measurement: nobody saw the other rung's answer.
+//               Measured beats observed, and observed beats rule.
 
 import { EFFORTS } from '../models.mjs';
 import { archiveQuestion } from '../../public/routing.js';
@@ -262,6 +266,39 @@ export function nextRung(cell, ladder, reference) {
   return null;
 }
 
+/* ---------- observed ---------- */
+
+// A rung is enough in real use when, out of at least eight turns of one kind at it, the human moved
+// on often enough that even the pessimistic end of the interval is three in four. And it is not
+// enough, whatever its own rate, when the rung above it was clearly better in the same use: a rung
+// that holds 80% next to one that holds 99% is costing the human the other 19%.
+export const OBSERVED_MIN_TURNS = 8;
+export const OBSERVED_HELD_BAR = 0.75;
+
+// The lowest rung of the ladder that real use showed to be enough, or null. `cell` is one entry of
+// foldObserved(): { rungs: { [effort]: { n, held, short, tokens } } }. A rung outside the ladder
+// (`default`, a turn sent with no effort to a CLI that never says its own) is never an answer.
+export function lowestObservedSufficient(cell, ladder) {
+  if (!cell?.rungs || !ladder) return null;
+  for (let i = 0; i < ladder.length; i += 1) {
+    const rung = cell.rungs[ladder[i]];
+    if (!rung || rung.n < OBSERVED_MIN_TURNS || wilsonLower(rung.held, rung.n) < OBSERVED_HELD_BAR) continue;
+    const above = ladder.slice(i + 1).map((effort) => cell.rungs[effort]).find((one) => one?.n > 0);
+    if (above && above.n >= OBSERVED_MIN_TURNS && wilsonLower(above.held, above.n) > wilsonUpper(rung.held, rung.n)) continue;
+    return { effort: ladder[i], n: rung.n, held: rung.held, heldRate: rung.held / rung.n };
+  }
+  return null;
+}
+
+// Whether a rung real use has seen enough of was not enough: the walk above passed over it with
+// eight turns or more in hand. A raise from it is something the room saw, not something it guessed.
+const observedShort = (cell, ladder, effort) => {
+  const rung = cell?.rungs?.[effort];
+  if (!rung || rung.n < OBSERVED_MIN_TURNS) return false;
+  const lowest = lowestObservedSufficient(cell, ladder);
+  return !lowest || ladder.indexOf(lowest.effort) > ladder.indexOf(effort);
+};
+
 const median = (list = []) => {
   if (!list.length) return null;
   const sorted = [...list].sort((a, b) => a - b);
@@ -276,21 +313,37 @@ const median = (list = []) => {
 // would already run at.
 //
 // `effort` is what the composer has chosen (null = the CLI's own default); `defaultEffort` is that
-// default when MADRE knows it (Codex's config.toml). `evidence` is foldEvidence()'s result.
-export function suggestEffort({ text = '', agent, model = null, effort = null, defaultEffort = null, previous = null, references = 0, attachments = 0, quota = null, evidence = null } = {}) {
+// default when MADRE knows it (Codex's config.toml). `evidence` is foldEvidence()'s result and
+// `observed` is foldObserved()'s (intents-observe.mjs): what the room's own turns showed.
+export function suggestEffort({ text = '', agent, model = null, effort = null, defaultEffort = null, previous = null, references = 0, attachments = 0, quota = null, evidence = null, observed = null } = {}) {
   const ladder = effortLadder(agent);
   if (!ladder) return null;
   const read = classifyIntent(text, { previous });
   if (!read || read.intent === 'archive') return null;
+  const from = effort ?? defaultEffort ?? null;
 
   const cell = evidence?.get?.(evidenceKey(agent, model, read.intent)) ?? null;
   const measured = lowestSufficient(cell, ladder);
+  // Real use speaks only where the calibration has not, and only about what it saw: a cheaper rung
+  // that held, or a raise from a rung it watched fall short. A rung nobody used is not a rung that
+  // failed, so the lowest rung with enough turns says nothing about the ones below it.
+  const seenCell = measured ? null : observed?.get?.(evidenceKey(agent, model, read.intent)) ?? null;
+  let seen = lowestObservedSufficient(seenCell, ladder);
+  if (seen && from !== null && ladder.includes(from) && ladder.indexOf(seen.effort) > ladder.indexOf(from) && !observedShort(seenCell, ladder, from)) seen = null;
+  // With no rung known to start from, turns sent with no effort are the CLI's default at work. If
+  // they held at least as well, and cost no more, there is nothing to say about a named rung.
+  if (seen && from === null) {
+    const usual = seenCell.rungs.default;
+    if (usual?.n >= OBSERVED_MIN_TURNS && wilsonLower(usual.held, usual.n) >= OBSERVED_HELD_BAR
+      && !(Number.isFinite(usual.tokens) && Number.isFinite(seenCell.rungs[seen.effort].tokens) && seenCell.rungs[seen.effort].tokens < usual.tokens)) seen = null;
+  }
   const ruled = TIER_EFFORT[INTENT_TIER[read.intent]];
-  let index = ladder.indexOf(measured?.effort ?? ruled);
-  // A rule stays inside low…high. A measurement may go further in either direction, because it
-  // was seen to be enough (or needed) rather than assumed.
-  const floor = Math.min(ladder.indexOf(TIER_EFFORT.light), measured ? ladder.indexOf(measured.effort) : Infinity);
-  const ceiling = Math.max(ladder.indexOf(TIER_EFFORT.deep), cell ? ladder.indexOf(cell.reference) : -1);
+  const anchor = measured?.effort ?? seen?.effort ?? null;
+  let index = ladder.indexOf(anchor ?? ruled);
+  // A rule stays inside low…high. A measurement or an observation may go further in either
+  // direction, because it was seen to be enough (or needed) rather than assumed.
+  const floor = Math.min(ladder.indexOf(TIER_EFFORT.light), anchor ? ladder.indexOf(anchor) : Infinity);
+  const ceiling = Math.max(ladder.indexOf(TIER_EFFORT.deep), cell ? ladder.indexOf(cell.reference) : -1, seen ? ladder.indexOf(seen.effort) : -1);
 
   const signals = contextSignals(text, { previous, references, attachments, quota });
   const moved = [];
@@ -300,20 +353,32 @@ export function suggestEffort({ text = '', agent, model = null, effort = null, d
     if (next !== index) moved.push(signal.id);
     index = next;
   }
-  // The cap gives way to a measurement: a rung the calibration saw fail is not offered to save quota.
+  // The cap gives way to a measurement: a rung the calibration, or real use, saw fall short is not
+  // offered to save quota.
   const cap = signals.find((signal) => signal.cap);
   const capped = cap ? ladder.indexOf(TIER_EFFORT[cap.cap]) : -1;
-  if (cap && index > capped && rungStatus(cell?.rungs?.[ladder[capped]]) !== 'insufficient') { index = capped; moved.push(cap.id); }
+  if (cap && index > capped && rungStatus(cell?.rungs?.[ladder[capped]]) !== 'insufficient' && !observedShort(seenCell, ladder, ladder[capped])) { index = capped; moved.push(cap.id); }
 
   const suggested = ladder[index];
-  const from = effort ?? defaultEffort ?? null;
   if (suggested === from) return null;
   const direction = from && ladder.includes(from) ? (ladder.indexOf(suggested) < ladder.indexOf(from) ? 'lower' : 'raise') : null;
+  // An observation vouches for the rung it saw and nothing else: once the turn's own context has
+  // moved the suggestion off it, what is left is a rule's word, and it is said as one.
+  const basis = measured ? 'measured' : seen && suggested === seen.effort ? 'observed' : 'rule';
 
-  // What the cheaper rung actually cost against the one it replaces, when both were measured.
-  const spentHere = median(cell?.tokens?.[suggested]);
-  const spentThere = median(cell?.tokens?.[from]);
-  const saving = direction === 'lower' && spentHere !== null && spentThere ? Number((1 - spentHere / spentThere).toFixed(2)) : null;
+  // What the cheaper rung actually cost against the one it replaces, when both were measured — or,
+  // from real use, the middle turn at each rung. With no rung to start from, the turns sent with no
+  // effort are what the human pays today.
+  let saving = null;
+  if (basis === 'observed') {
+    const here = seenCell.rungs[suggested]?.tokens;
+    const there = seenCell.rungs[from ?? 'default']?.tokens;
+    if (direction !== 'raise' && Number.isFinite(here) && Number.isFinite(there) && there > 0) saving = Number((1 - here / there).toFixed(2));
+  } else {
+    const spentHere = median(cell?.tokens?.[suggested]);
+    const spentThere = median(cell?.tokens?.[from]);
+    saving = direction === 'lower' && spentHere !== null && spentThere ? Number((1 - spentHere / spentThere).toFixed(2)) : null;
+  }
 
   return {
     agent,
@@ -323,9 +388,10 @@ export function suggestEffort({ text = '', agent, model = null, effort = null, d
     effort: suggested,
     from,
     direction,
-    basis: measured ? 'measured' : 'rule',
+    basis,
     signals: moved,
     measured: measured ? { n: measured.n, reference: cell.reference, needsReference: measured.needsReference } : null,
+    observed: basis === 'observed' ? { n: seen.n, held: seen.held, heldRate: Number(seen.heldRate.toFixed(2)), rung: seen.effort } : null,
     saving,
   };
 }
@@ -334,10 +400,17 @@ export function suggestEffort({ text = '', agent, model = null, effort = null, d
 // saw it. A rule only speaks up to raise the effort, because a request that looks like a hunt run
 // cheaply wastes the whole turn, while a rule that says "this looks cheap" has measured nothing and
 // would be asking the human to trust a guess with their answer.
-export const offerable = (suggestion) => Boolean(suggestion) && (suggestion.basis === 'measured' || suggestion.direction === 'raise');
+//
+// When the CLI never says what effort it runs at by default (Claude does not), there is no rung to
+// raise from. A rule then still speaks for the deep kinds — «this one wants HIGH» names a level,
+// not a comparison — and the light ones become an invitation to measure, below.
+const deepEnough = (suggestion) => (effortLadder(suggestion.agent) ?? []).indexOf(suggestion.effort) >= (effortLadder(suggestion.agent) ?? []).indexOf(TIER_EFFORT.deep);
+// An observed one is offered like a measured one: the room saw it in this project's own turns.
+export const offerable = (suggestion) => Boolean(suggestion) && (['measured', 'observed'].includes(suggestion.basis) || suggestion.direction === 'raise' || (suggestion.direction === null && suggestion.from === null && deepEnough(suggestion)));
 
 // The other half: a rule that says a cheaper rung would do. It is never offered as advice, because
 // nothing backs it; it is offered as a question worth measuring — and only for the kinds of request
 // a read-only test can measure.
 export const MEASURABLE = ['lookup', 'explain', 'review', 'diagnose', 'design'];
-export const invitable = (suggestion) => Boolean(suggestion) && suggestion.basis === 'rule' && suggestion.direction === 'lower' && MEASURABLE.includes(suggestion.intent);
+export const invitable = (suggestion) => Boolean(suggestion) && suggestion.basis === 'rule' && MEASURABLE.includes(suggestion.intent)
+  && (suggestion.direction === 'lower' || (suggestion.direction === null && suggestion.from === null && !deepEnough(suggestion)));

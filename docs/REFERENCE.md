@@ -15,9 +15,9 @@ Necesitas Node 22.5 o superior y al menos una de estas CLIs con sesión iniciada
 
 1. Entra a la carpeta del proyecto y corre `npx @jossuealcala/madre start`. La sala abre siempre, tengas agentes o no. Si no hay ninguno, lo primero que ves es el puente: cada agente con su botón para instalarlo y firmarlo, ahí mismo. MADRE muestra el comando exacto antes de correrlo y transmite cada línea. En cuanto uno queda listo, la sala se desbloquea sola.
 2. La sala abre en `http://127.0.0.1:4317`. Elige un agente en el selector o escribe `@claude …`. El chip junto a `to @agente` dice en qué modo sale el mensaje; `#1 EXCHANGE`, solo lectura, es el predeterminado.
-3. Para sumar o reconectar una IA más tarde: `⚙ CONNECTIONS` en MU/TH/UR, donde la tripulación vive junto al resto de los ajustes. Codex y Claude Code se firman con un clic; Gemini y OpenCode aceptan su llave ahí mismo. MADRE no guarda credenciales: cada llave va al archivo de su propio CLI.
-4. Con Ollama, `MODULES → OLLAMA` ya está encendido: la memoria se embebe localmente y `@madre` aparece en la fila.
-5. `⚙ CONNECTIONS → MEMORY` ajusta quién destila la memoria y cada cuánto. `◉ NOSTROMO` muestra lo que la sala recuerda.
+3. Para sumar o reconectar una IA más tarde: Ajustes → Agentes (el botón de ajustes de la barra, o ⌘, / Ctrl+,), donde la tripulación vive junto al resto de los ajustes. Codex y Claude Code se firman con un clic; Gemini y OpenCode aceptan su llave ahí mismo. MADRE no guarda credenciales: cada llave va al archivo de su propio CLI.
+4. Con Ollama, el módulo Ollama (Módulos, en la barra) ya está encendido: la memoria se embebe localmente y `@madre` aparece en la fila.
+5. Ajustes → Memoria decide quién destila la memoria y cada cuánto. NOSTROMO, desde la cabecera de MU/TH/UR, muestra lo que la sala recuerda.
 
 ```bash
 npx @jossuealcala/madre doctor      # qué agentes hay, quién tiene sesión, si hay versión nueva
@@ -81,7 +81,7 @@ Cada mensaje sale con un modo. Tu modo es el techo de cualquier plan que ese men
 
 **Modo por paso.** Un orquestador puede pedir el modo de cada paso: `@codex #2: crea la página`, `@claude #3: arregla el router`. MADRE lo acota al modo de tu mensaje y al `MAX MODE` de ese agente. Con tu mensaje en `#3`, la palabra del orquestador basta; con tu mensaje en `#1`, un paso `#2` pasa por la escalación.
 
-**Dos controles por agente.** En `⚙ CONNECTIONS` cada agente tiene `MAX MODE`, hasta dónde puede llegar un mensaje dirigido a él, y `DEFAULT MODE`, dónde empieza: `#1` solo lectura hasta que armes CREATE, o `#2` para que cada turno pueda añadir archivos sin pedirlo. Aparte, dos habilidades: generar imágenes y web.
+**Dos controles por agente.** El Modo máximo, en Ajustes → Permisos, dice hasta dónde puede llegar un mensaje dirigido a cada agente; el Modo inicial, en Ajustes → Agentes, dónde empieza: `#1` solo lectura hasta que armes CREATE, o `#2` para que cada turno pueda añadir archivos sin pedirlo. Aparte, dos habilidades: generar imágenes y web.
 
 **Comandos que pide un agente.** Con el módulo **Runs** encendido, un agente en `#1`, `#2` o `#3` que necesita un comando que no puede correr (las pruebas, un build, un linter) termina su respuesta con un bloque `pulse-run`: el motivo en la primera línea y un comando por línea, cada uno con `$`. MADRE muestra cada línea como un botón y no corre nada hasta que lo presionas. Cada línea corre sola, desde la raíz del proyecto y **sin shell**: lo que lees en el botón es exactamente lo que se ejecuta, así que las líneas con `|`, `&&`, `;`, redirecciones, `$VARIABLES`, comodines, `~` o `cd` se muestran con el motivo y no se pueden correr. Antes de correr, MADRE toma un checkpoint; la salida vuelve a la sala como tarjeta, la leen todos los agentes en su siguiente turno, y si el comando cambió archivos, `UNDO` los regresa. Lo que el comando haya mandado fuera de la máquina no regresa. Un comando a la vez, diez minutos como máximo, y `DETENER` en su tarjeta o `STOP ALL` lo detienen. Un comando que abre un puerto es un servidor: no tiene límite de tiempo, su tarjeta dice dónde escucha y lo abre en SERVIDORES, y mientras sirve puedes correr otro comando. Los agentes saben que un servidor para la sala escucha solo en `127.0.0.1`. En `#4` el agente corre sus propios comandos y no se le enseña el bloque.
 
@@ -99,7 +99,7 @@ Cada mensaje sale con un modo. Tu modo es el techo de cualquier plan que ese men
 
 **Image Studio** es un módulo de MADRE: un servidor MCP propio que expone `generate_image` sobre los modelos de imagen de la API de Gemini, con tu propia key y tus créditos. Hoy **solo Gemini**, y por una razón: es la única cuenta de la tripulación cuya llave MADRE ya encuentra sin pedirte una nueva, y tiene capa gratis. Anthropic no genera imágenes —Claude las lee, no las hace—, la cuenta de ChatGPT con la que se firma Codex no da acceso a la API de imágenes, y OpenCode depende del proveedor al que lo apuntes. Se conecta a Claude, Gemini y OpenCode solo dentro de un permiso CREATE con el alcance de imágenes encendido, en sus homes aislados, y la imagen cae en la carpeta del turno como cualquier artefacto. `/image <petición>` arma el permiso y enruta al agente que puede generar. Con los cuatro agentes puedes pedir una imagen; Codex la hace con lo suyo, los demás con Image Studio.
 
-El acceso web es un permiso permanente por agente, apagado por defecto, que se enciende en `⚙ CONNECTIONS`.
+El acceso web es un permiso permanente por agente, apagado por defecto, que se enciende en Ajustes → Agentes, con Acceso a la web.
 
 ---
 
@@ -137,9 +137,9 @@ Todo lo dicho fuera de GHOST queda indexado junto al ledger, en `~/.pulse/rooms/
 
 **@madre.** Con Ollama y un modelo de chat, la memoria habla: `@madre` responde desde todo el archivo con citas `[#n]`, dice cuando la sala nunca discutió algo, no escribe ni ejecuta, y convoca al crew si se lo pides. Sus tokens son locales y no cuentan. Cuando existe un modelo entrenado con la sala, lo usa.
 
-**Ajustes.** `⚙ CONNECTIONS → MEMORY`: quién destila, quiénes pueden, cada cuánto, dónde se embebe, cuánto contexto puede ocupar el recall. Todo en `~/.pulse/config.json`, sin reiniciar.
+**Ajustes.** Ajustes → Memoria: quién destila, quiénes pueden, cada cuánto, dónde se embebe, cuánto contexto puede ocupar el recall. Todo en `~/.pulse/config.json`, sin reiniciar.
 
-**Privacidad.** Una CLI corre con su propio contexto privado y puede escribirlo en una respuesta. En `⚙ CONNECTIONS → PRIVACY` nombras los términos que no deben viajar por la sala: MADRE los sustituye por `[ENTIDAD-ORG]` antes de que lleguen al ledger, al archivista, a los demás agentes o al dataset, y `PURGE ROOM` limpia lo que la sala ya tenía. Los términos viven en `config.json`; la sala solo registra cuántos.
+**Privacidad.** Una CLI corre con su propio contexto privado y puede escribirlo en una respuesta. En Ajustes → Privacidad nombras los términos que no deben viajar por la sala: MADRE los sustituye por `[ENTIDAD-ORG]` antes de que lleguen al ledger, al archivista, a los demás agentes o al dataset, y Purgar la sala limpia lo que la sala ya tenía. Los términos viven en `config.json`; la sala solo registra cuántos.
 
 ---
 
@@ -149,13 +149,13 @@ La sala acumula material de entrenamiento mientras trabajas. `MEMORY` muestra en
 
 `EXPORT DATASET` escribe `train.jsonl` y `valid.jsonl` junto al ledger, redactados. La tarjeta `TRAIN` trae los comandos ya rellenados con tu carpeta de sala y el modelo base que cabe en tu máquina. El entrenamiento corre fuera de MADRE, con mlx en Apple Silicon; la receta vive en [`docs/training/`](training/README.md). En cuanto Ollama tiene un modelo `madre-<proyecto>`, `@madre` responde con él y las demás CLIs reciben la indicación de preguntarle primero: la memoria del proyecto deja de costar tokens.
 
-**Ollama.** Si corre en la máquina, MADRE lo usa sin configurar nada: embeddings locales, archivista local, `@madre`. `MODULES → OLLAMA` muestra servidor, modelos y roles, descarga los recomendados con `PULL` y deja apagar cada rol. `qwen2.5:7b` en 16 GB, `qwen2.5:3b` en 8 GB; MADRE prefiere modelos de chat general sobre los `-coder`.
+**Ollama.** Si corre en la máquina, MADRE lo usa sin configurar nada: embeddings locales, archivista local, `@madre`. El módulo Ollama, en Módulos, muestra servidor, modelos y roles, descarga los recomendados y deja apagar cada rol. `qwen2.5:7b` en 16 GB, `qwen2.5:3b` en 8 GB; MADRE prefiere modelos de chat general sobre los `-coder`.
 
 ---
 
 ## EL CORE
 
-Entra a **◉ NOSTROMO** y haz clic en el núcleo, la estrella del centro. Cada turno, la sala escribe un documento en tu nombre y se lo entrega a un proceso; hasta ahora ese documento existía solo el instante en que el proceso lo leía. Ahí está entero: bloque por bloque, con lo que pesa cada uno y las palabras exactas que el agente recibe.
+Entra a **NOSTROMO** desde la cabecera de MU/TH/UR y haz clic en el núcleo, la estrella del centro. Cada turno, la sala escribe un documento en tu nombre y se lo entrega a un proceso; hasta ahora ese documento existía solo el instante en que el proceso lo leía. Ahí está entero: bloque por bloque, con lo que pesa cada uno y las palabras exactas que el agente recibe.
 
 Cambia a quién va y las palabras cambian; sube el modo y aparece el permiso que se le daría, escrito —sin crear carpeta ni tomar checkpoint para enseñarlo—. Preguntar qué diría la sala no es la sala diciéndolo: nada se cuenta, nada se guarda, nada sale. Y se lee, nunca se escribe: lo que MADRE promete sobre la tripulación es cierto porque esas palabras son fijas.
 
@@ -167,16 +167,14 @@ Cambia a quién va y las palabras cambian; sube el modo y aparece el permiso que
 
 ## MU/TH/UR
 
-El botón de la barra abre la pantalla de diagnóstico. Escribe un síntoma, un agente o una palabra y MU/TH/UR clasifica las condiciones registradas en esta sala contra su catálogo, con el remedio para tu sistema operativo. El mismo catálogo en terminal: `madre doctor --catalog [texto]`.
+El botón de la barra abre la pantalla de diagnóstico. Escribe un síntoma, un agente o una palabra y MU/TH/UR clasifica las condiciones registradas en esta sala contra su catálogo, con el remedio para tu sistema operativo; cuando la sala puede aplicarlo, el remedio trae Aplicar. El mismo catálogo en terminal: `madre doctor --catalog [texto]`. La sesión de cada CLI, los modos, las habilidades, los tiempos, la memoria y la privacidad están en Ajustes.
 
-| Sección | Qué hace |
+| En el encabezado | Qué hace |
 |---|---|
-| `⚙ CONNECTIONS` | Sesión, versión y ruta de cada CLI; `SIGN IN` y `RECHECK`; `MAX MODE`, `DEFAULT MODE` y habilidades; timeouts, presupuesto, delegación, modelo de OpenCode; MEMORY y PRIVACY |
-| `◉ NOSTROMO` | El mapa de la memoria |
-| `SENTINEL` | Fallos que ninguna condición explica y caídas del proceso, con rutas, usuarios, correos y claves eliminados. Cada reporte tiene `REPORT ON GITHUB ↗` para leerlo antes de publicarlo; `AUTO-REPORT`, apagado por defecto, envía los nuevos al colector del proyecto |
-| `RELEASE CHANNEL` | Una consulta a npm al día. Si hay versión nueva, una alerta en la barra y aquí `RESTART WITH x.y.z`: la sala cierra, instala y vuelve en la misma dirección; o el comando para hacerlo tú. Nunca mientras los agentes trabajan |
-| `✎ FEEDBACK` | Un issue en blanco con tu entorno ya escrito |
-| `?` | El recorrido de cuatro pasos, el mismo que se abre la primera vez |
+| NOSTROMO (cerebro) | El mapa de la memoria. También está en la barra de arriba |
+| Ajustes (engrane) | Abre Ajustes › Versión y reportes, donde vive el centinela: los fallos que ninguna condición explica y las caídas del proceso, con rutas, usuarios, correos y claves eliminados. Cada reporte se lee antes de enviarse; el autorreporte viene apagado |
+| ¿No se arregló? | Al pie de cada remedio: reporta que no funcionó, con el código de la condición |
+| `?` | El recorrido de cinco paradas, el mismo que se abre la primera vez. Si dejaste a medias la lista de primeros pasos y la ocultaste, también la regresa |
 
 ---
 
@@ -191,9 +189,10 @@ El botón de la barra abre la pantalla de diagnóstico. Escribe un síntoma, un 
 | **RIPLEY** | El visor renderiza HTML, SVG y Markdown en un marco sellado, con recarga automática |
 | **OLLAMA** | Embeddings, archivista y `@madre` en local, gratis y sin cuenta. Se instala, se despierta y descarga su modelo desde el puente |
 | **PLAYWRIGHT** | Un navegador headless en los turnos que piden ver, probar o capturar una página. Solo alcanza esta MADRE y los servidores que arrancaste desde RUNS: abrir la vista previa de RIPLEY o la app servida, hacer clic, leer consola, capturas al borrador del turno. Al encenderlo, MADRE comprueba que el servidor arranque con su navegador. Requiere `@playwright/mcp` |
+| **GitHub** | `/gh`: pull requests abiertos, el CI de tu rama e issues abiertos como tarjeta. `/gh pr [n]`, `/gh ci`, `/gh issues`. `/gh pr create "título"`, `/gh comment <n> "texto"` y `/gh issue "título"` enseñan primero lo que se publicaría y solo publican con `confirm`. Los agentes leen en cualquier modo y escriben solo en `#4` AIRLOCK. Entra con tu sesión de `gh`; sin ella, con un token de acceso detallado guardado en la bodega de MADRE |
 | **Runs** | Un agente te pide correr un comando que su modo no le deja correr; cada línea es un botón, corre sin shell desde la raíz del proyecto, con checkpoint antes y la salida de vuelta en la sala. Un comando que abre un puerto es un servidor: sigue corriendo hasta que lo detienes desde su tarjeta, y mientras sirve puedes correr otro. Cuesta unos 300 tokens de instrucción por turno debajo de AIRLOCK mientras está encendido |
-| **Ash** | La economía de tokens de la sala. El interruptor pide a los agentes respuestas en prosa compacta; lo demás está siempre encendido y no se nota: el briefing lleva solo los bloques que el turno puede usar, lo que nunca cambia se lee primero para que el caché lo reconozca, y la transcripción se queda quieta en vez de deslizarse. Nada de lo que tú escribes se altera. En `⚙ CONNECTIONS` se ve a dónde se van los tokens |
-| **Intenciones** | Bajo la caja, cuánto debe pensar Claude Code o Codex para el mensaje que escribes: subir cuando la petición parece pedir más, bajar solo cuando se midió que basta. Las pruebas rápida y completa de su tarjeta miden, con preguntas reales del proyecto y un juicio a ciegas, qué nivel basta para cada tipo de pregunta. Las mediciones viven en `~/.pulse/rooms/<sala>/intents.jsonl`. Nada cambia solo |
+| **Ash** | La economía de tokens de la sala. El interruptor pide a los agentes respuestas en prosa compacta; lo demás está siempre encendido y no se nota: el briefing lleva solo los bloques que el turno puede usar, lo que nunca cambia se lee primero para que el caché lo reconozca, y la transcripción se queda quieta en vez de deslizarse. Nada de lo que tú escribes se altera. En su ventana, en Módulos, se ve a dónde se van los tokens |
+| **Intenciones** | Bajo la caja, cuánto debe pensar Claude Code o Codex para el mensaje que escribes: subir cuando la petición parece pedir más, bajar solo cuando se vio o se midió que basta. Aprende primero de tu uso real, sin gastar tokens: lee en el registro de la sala qué nivel usaste para cada tipo de pedido y si te alcanzó (seguiste con otra cosa) o se quedó corto (fallo, mala calificación o lo volviste a pedir en 15 minutos); esa lectura vive solo en memoria. Las pruebas rápida y completa de su tarjeta miden más rápido, con preguntas reales del proyecto y un juicio a ciegas, qué nivel basta para cada tipo de pregunta. Las mediciones viven en `~/.pulse/rooms/<sala>/intents.jsonl`. Nada cambia solo |
 | **AHP+** | Integración externa opcional: estado verificado del proyecto, checkpoints y handoffs en `.ahp/`; `/ahp status`, `/ahp check`, `/ahp context` |
 
 Cada módulo es un archivo. Los tuyos van en `~/.pulse/modules/` (todas las salas) o en `<proyecto>/.madre/modules/` (ese proyecto): un `.mjs` con `export default { … }`, sin build ni registro, con interruptor, ajustes, comandos `/nombre`, herramientas MCP para los agentes y rutas propias. `RELOAD MODULES` lo recarga sin reiniciar. Guía y ejemplo listo para copiar en [`docs/SDK.md`](SDK.md). Cómo escribir uno, en [CONTRIBUTING.md](../CONTRIBUTING.md#writing-a-module).
@@ -241,6 +240,7 @@ Cada módulo es un archivo. Los tuyos van en `~/.pulse/modules/` (todas las sala
 | `PULSE_MEMORY_TOOLS` | `1` | Servidor MCP `pulse-memory` en cada turno |
 | `PULSE_PRIVATE_TERMS` · `PULSE_PRIVATE_MARKER` | — · `[ENTIDAD-ORG]` | Términos privados extra y su marcador |
 | `PULSE_UPDATE_CHECK` | `1` | `0` apaga la consulta diaria a npm |
+| `PULSE_GH` | `1` | `0` hace que el módulo GitHub ignore la sesión de `gh` y entre solo con el token que pegaste |
 | `PULSE_REPORT_URL` · `PULSE_AUTO_REPORT` | colector del proyecto · `0` | Sentinel |
 | `PULSE_AGENT_TIMEOUT_MS` · `PULSE_<AGENTE>_TIMEOUT_MS` | `180000` · — | Timeouts |
 | `PULSE_ALLOW_CUSTOM_AGENT_ENDPOINTS` | — | Lista separada por comas (`codex`, `claude`) de gateways que el humano verificó y permite; sin ella, una dirección base no oficial se bloquea |

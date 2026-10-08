@@ -141,7 +141,7 @@ export const INQUIRIES = [
         t('{n} TERMS ARE REPLACED WITH {marker} BEFORE ANYTHING LEAVES THIS ROOM.', { n: privacy.terms, marker: String(privacy.marker ?? '[ENTIDAD-ORG]') }),
         t('I WILL NOT PRINT THEM. THE WORDS LIVE IN YOUR CONFIG AND THE LEDGER KEEPS THE COUNT, NEVER THE WORD.'),
       ]
-      : [t('NO TERM IS BEING PROTECTED IN THIS ROOM. ⚙ CONNECTIONS → PRIVACY IS WHERE THEY GO.')]),
+      : [t('No term is being protected in this room. They go in Settings › Privacy.')]),
   },
   {
     id: 'status',

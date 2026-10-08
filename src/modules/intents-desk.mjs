@@ -9,12 +9,20 @@
 // archivist uses: the agent's own CLI, read-only, with no lease and no tools beyond its own. The
 // quick test waits for the human's word on each pair; the full one asks an impartial agent and
 // tests that agent before believing it (intents-calibration.mjs).
+//
+// Most of what it knows it learns for free: every turn the human already sent, read after the fact
+// (intents-observe.mjs). That reading lives in memory only; it is the ledger, looked at again.
 
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { t } from '../i18n.mjs';
 import { classifyUsagePercent } from '../usage-sentinel.mjs';
-import { effortLadder, foldEvidence, invitable, offerable, suggestEffort, threadContext, TIER_EFFORT } from './intents-policy.mjs';
+import {
+  classifyIntent, effortLadder, evidenceKey, foldEvidence, INTENT_TIER, invitable, lowestSufficient, offerable,
+  rungStatus, suggestEffort, threadContext, OBSERVED_MIN_TURNS, TIER_EFFORT,
+} from './intents-policy.mjs';
+import { foldObserved, observable, observedSummary, observeTurns } from './intents-observe.mjs';
+import { defaultHeld, knownDefault, triedOutcome, tryCooldown, tryRung, TRY_EVERY, TRY_INTENTS, TRY_MODES } from './intents-try.mjs';
 import {
   calibrationCases, calibrationSummary, estimateTurns, judgeForAgent, judgePrompt, mayCalibrate,
   parseJudgement, planRound, runCalibration, usualEffort, QUICK_CASES, READ_ONLY_INTENTS,
@@ -39,6 +47,9 @@ export class IntentsDesk {
   #events;
   #projectEvents;
   #project = null;
+  #ledgers;
+  #defaults;
+  #observed = null;
   #bench;
   #projectRoot;
   #records = null;
@@ -51,16 +62,28 @@ export class IntentsDesk {
   #running = null;
   // Where the run stands, for the pair the human is shown: which question of how many, and its kind.
   #pendingAt = { step: 0, total: 0, intent: null };
+  // Trying a cheaper rung on one message (intents-try.mjs), kept in memory per agent, model and kind:
+  // how many messages that qualified for a try have gone out, and the last try the human took.
+  #tryPace = new Map();
+  #tried = new Map();
+  #clock;
 
   // `events()` is the open conversation's ledger: the thread a suggestion reads and the quota the
   // provider reported. `projectEvents()` is what was said in every conversation of the project,
   // where the questions to calibrate with come from. `bench()` is room.bench(): the agents, their
   // invokers and who is busy. Everything else is files under the project's room.
-  constructor({ file, offersFile, events, projectEvents = null, bench, projectRoot }) {
+  // `ledgers()` is every conversation's turns, cut down by observable(), for learning from real use;
+  // without it the open conversation is all there is. `defaults()` is the effort each CLI runs at
+  // when it is told none, where MADRE knows it ({ codex: 'medium' }).
+  // `clock()` is now, in ms; a test hands in its own.
+  constructor({ file, offersFile, events, projectEvents = null, ledgers = null, defaults = null, bench, projectRoot, clock = () => Date.now() }) {
+    this.#clock = clock;
     this.#file = file;
     this.#offersFile = offersFile;
     this.#events = events;
     this.#projectEvents = projectEvents ?? events;
+    this.#ledgers = ledgers ?? (async () => (await events()).map((event) => observable(event)).filter(Boolean));
+    this.#defaults = defaults ?? (async () => ({}));
     this.#bench = bench;
     this.#projectRoot = projectRoot;
   }
@@ -74,6 +97,25 @@ export class IntentsDesk {
     const events = await this.#projectEvents();
     this.#project = { at: now, events };
     return events;
+  }
+
+  // Every turn of the project, as real use judged it. Read at most every few seconds, like the
+  // questions, and worked out again only when the ledger grew or a turn that was too recent to say
+  // has become old enough to.
+  async observations() {
+    const now = this.#clock();
+    const kept = this.#observed;
+    if (kept && now - kept.at < IntentsDesk.PROJECT_TTL_MS && now < kept.until) return kept.list;
+    const [events, defaults] = await Promise.all([this.#ledgers(), this.#defaults().catch(() => ({}))]);
+    const signature = `${events.length}|${events.at(-1)?.chat ?? ''}|${events.at(-1)?.sequence ?? ''}|${JSON.stringify(defaults ?? {})}`;
+    if (kept && kept.signature === signature && now < kept.until) {
+      kept.at = now;
+      return kept.list;
+    }
+    const list = observeTurns(events, { defaults: defaults ?? {}, now });
+    const until = list.reduce((soonest, one) => (one.settles ? Math.min(soonest, one.settles) : soonest), Infinity);
+    this.#observed = { at: now, signature, until, list };
+    return list;
   }
 
   async records() {
@@ -93,37 +135,143 @@ export class IntentsDesk {
 
   async offers() {
     if (this.#offers) return this.#offers;
-    try { this.#offers = { shown: 0, accepted: 0, ...JSON.parse(await readFile(this.#offersFile, 'utf8')) }; } catch { this.#offers = { shown: 0, accepted: 0 }; }
+    let kept = {};
+    try { kept = JSON.parse(await readFile(this.#offersFile, 'utf8')) ?? {}; } catch { kept = {}; }
+    this.#offers = { shown: 0, accepted: 0, ...kept, tries: { shown: 0, accepted: 0, ...(kept.tries ?? {}) } };
     return this.#offers;
   }
 
-  // A suggestion went out with a message: counted once per message, never per keystroke. How often
-  // the human takes it is the only number that says whether this is worth anything.
-  async offered({ accepted = false } = {}) {
+  // A message went out. Counted once per message, never per keystroke: an offer shown with it, and
+  // whether the human took it — how often they do is the only number that says whether this is
+  // worth anything. A try is an offer too, and is also counted on its own; taken, it is the try the
+  // next messages of its kind are read against. `explore` names the kind when the message qualified
+  // for a try, shown or not: that is what paces them. `basis: 'tried'` is the word that a try fell
+  // short, said once.
+  async offered({ accepted = false, shown = true, kind = null, basis = null, agent = null, model = null, intent = null, effort = null, from = null, explore = null } = {}) {
     const offers = await this.offers();
+    const ladder = effortLadder(agent);
+    if (ladder && intent) {
+      const key = evidenceKey(agent, model, intent);
+      if (kind === 'try' && accepted && ladder.includes(effort)) this.#tried.set(key, { agent, model, intent, effort, from: ladder.includes(from) ? from : null, at: this.#clock() });
+      else if (basis === 'tried') this.#tried.delete(key);
+    }
+    if (explore && effortLadder(explore.agent) && TRY_INTENTS.includes(explore.intent)) {
+      const key = evidenceKey(explore.agent, explore.model ?? null, explore.intent);
+      this.#tryPace.set(key, (this.#tryPace.get(key) ?? 0) + 1);
+    }
+    if (!shown) return offers;
     offers.shown += 1;
     if (accepted) offers.accepted += 1;
+    if (kind === 'try') {
+      offers.tries.shown += 1;
+      if (accepted) offers.tries.accepted += 1;
+    }
     await mkdir(dirname(this.#offersFile), { recursive: true });
     await writeFile(this.#offersFile, JSON.stringify(offers));
     return offers;
   }
 
-  // What to say about the message being written, or null. An offer is what offerable() lets
-  // through: a measurement, or a rule that asks for more. An invitation is a rule that says less
-  // would do, on an agent nobody has measured here yet: not advice, a question worth six answers.
-  async suggest({ text = '', agent, model = null, effort = null, defaultEffort = null, references = 0, attachments = 0 } = {}) {
-    if (!effortLadder(agent)) return null;
+  // What to say about the message being written, or null.
+  async suggest(asked = {}) {
+    return (await this.consider(asked)).suggestion;
+  }
+
+  // What to say about the message being written, and whether it qualifies for a try. In order:
+  //   a measured offer — the strongest word there is;
+  //   going back up, once, after a try fell short;
+  //   any other offer offerable() lets through — something real use saw, or a rule that asks for more;
+  //   a try — a rule that says one rung less would do, run on this one message so real use can see;
+  //   an invitation — a rule that says less would do, on an agent nobody has measured here yet: not
+  //   advice, a question worth six answers.
+  // `mode` is the permission mode the message would go out in. `explore` is set whenever the message
+  // qualifies for a try, offered or held back by the pace, so the message that leaves can be counted.
+  async consider({ text = '', agent, model = null, effort = null, defaultEffort = null, references = 0, attachments = 0, mode = null } = {}) {
+    const none = { suggestion: null, explore: null };
+    if (!effortLadder(agent)) return none;
     const events = await this.#events();
     const usage = usageOf(events, agent);
     const { agents = [] } = this.#bench() ?? {};
     const records = await this.records();
-    const suggestion = suggestEffort({
-      text, agent, model, effort, defaultEffort, references, attachments,
-      previous: threadContext(events, { agent }),
-      quota: usage ? { level: classifyUsagePercent(usage.usedPercent) } : null,
-      evidence: foldEvidence(records, { versions: versionsOf(agents) }),
-    });
-    if (offerable(suggestion)) return { ...suggestion, kind: 'offer' };
+    const observations = await this.observations();
+    const evidence = foldEvidence(records, { versions: versionsOf(agents) });
+    const observed = foldObserved(observations);
+    const quota = usage ? { level: classifyUsagePercent(usage.usedPercent) } : null;
+    const previous = threadContext(events, { agent });
+    const asked = { text, agent, model, effort, defaultEffort, references, attachments, previous, quota };
+    const suggestion = suggestEffort({ ...asked, evidence, observed });
+    if (offerable(suggestion) && suggestion.basis === 'measured') return { suggestion: { ...suggestion, kind: 'offer' }, explore: null };
+    const read = classifyIntent(text, { previous });
+    const back = this.#goBack({ read, agent, model, from: effort ?? defaultEffort ?? null, observations });
+    if (back) return { suggestion: back, explore: null };
+    if (offerable(suggestion)) return { suggestion: { ...suggestion, kind: 'offer' }, explore: null };
+    const trial = this.#trial({ read, asked, mode, evidence, observed, observations });
+    if (trial.suggestion) return trial;
+    const invite = await this.#invite(suggestion, { agent, model, agents, records });
+    return { suggestion: invite, explore: trial.explore };
+  }
+
+  // After a try the human took fell short — asked again, a thumbs-down, a failure, sent again
+  // higher — the next message of that kind to that agent offers to go back to where it was. Once:
+  // it is put away when that message leaves, and a try that held is simply forgotten.
+  #goBack({ read, agent, model, from, observations }) {
+    const intent = read?.intent;
+    if (!TRY_INTENTS.includes(intent)) return null;
+    const key = evidenceKey(agent, model, intent);
+    const tried = this.#tried.get(key);
+    if (!tried) return null;
+    const one = triedOutcome(observations, tried);
+    if (!one || one.outcome === 'unknown') return null;
+    const ladder = effortLadder(agent);
+    const to = tried.from ?? from;
+    if (one.outcome === 'held' || (from !== null && to !== null && ladder.indexOf(from) > ladder.indexOf(to))) {
+      this.#tried.delete(key);
+      return null;
+    }
+    return {
+      kind: 'offer', agent, model, intent, cues: read.cues, effort: to, from,
+      direction: 'raise', basis: 'tried', signals: [], measured: null, observed: null, saving: null,
+      tried: { effort: tried.effort, why: one.why },
+    };
+  }
+
+  // Whether this message qualifies for a try, and the try when the pace lets one through. Every rule
+  // is in intents-try.mjs; what is checked here is the order they are read in.
+  #trial({ read, asked, mode, evidence, observed, observations }) {
+    const none = { suggestion: null, explore: null };
+    const { agent, model, effort, defaultEffort, quota } = asked;
+    const intent = read?.intent;
+    if (!TRY_INTENTS.includes(intent) || !TRY_MODES.includes(mode)) return none;
+    if (['critical', 'exhausted'].includes(quota?.level)) return none;
+    const ladder = effortLadder(agent);
+    const key = evidenceKey(agent, model, intent);
+    // A measurement for this kind wins over a try, as it does over everything else.
+    const cell = evidence.get(key) ?? null;
+    if (lowestSufficient(cell, ladder)) return none;
+    // What the rule alone says, with nothing measured or seen: a try is the rule's word, put to work.
+    const rule = suggestEffort({ ...asked, evidence: null, observed: null });
+    if (!rule || rule.basis !== 'rule') return none;
+    const from = effort ?? defaultEffort ?? null;
+    const seen = observed.get(key) ?? null;
+    const lower = tryRung({ agent, intent, from, rule: rule.effort, defaultHeld: from === null && defaultHeld(seen) });
+    if (!lower || rungStatus(cell?.rungs?.[lower]) === 'insufficient') return none;
+    // Once real use has seen enough turns at the cheaper rung, it speaks for itself.
+    const n = seen?.rungs?.[lower]?.n ?? 0;
+    if (n >= OBSERVED_MIN_TURNS) return none;
+    const until = tryCooldown(observations, { agent, model, intent, effort: lower });
+    if (until !== null && this.#clock() < until) return none;
+    const explore = { agent, model, intent, effort: lower };
+    if ((this.#tryPace.get(key) ?? 0) % TRY_EVERY !== 0) return { suggestion: null, explore };
+    return {
+      suggestion: {
+        kind: 'try', agent, model, intent, cues: rule.cues, effort: lower, from,
+        direction: from === null ? null : 'lower', basis: 'try', signals: rule.signals,
+        observedAtLower: n, needs: OBSERVED_MIN_TURNS,
+      },
+      explore,
+    };
+  }
+
+  async #invite(suggestion, { agent, model, agents, records }) {
     if (!invitable(suggestion) || this.#run) return null;
     const subject = agents.find((one) => one.id === agent);
     if (!subject?.ready) return null;
@@ -142,14 +290,41 @@ export class IntentsDesk {
     return usualEffort(events, agent) ?? TIER_EFFORT.deep;
   }
 
+  // Where trying a cheaper rung stands for one agent and model, per kind a try may touch: the rung
+  // a try would run at for a message of that kind with nothing else in it, how many decided turns
+  // real use has at it, and whether tries are paused there. `from` is the rung messages go out at.
+  #triesFor({ agent, model, from, evidence, observed, observations }) {
+    const ladder = effortLadder(agent);
+    const now = this.#clock();
+    const out = [];
+    for (const intent of TRY_INTENTS) {
+      const key = evidenceKey(agent, model, intent);
+      if (lowestSufficient(evidence.get(key), ladder)) continue;
+      const seen = observed.get(key) ?? null;
+      const effort = tryRung({ agent, intent, from, rule: TIER_EFFORT[INTENT_TIER[intent]], defaultHeld: from === null && defaultHeld(seen) });
+      if (!effort) continue;
+      const n = seen?.rungs?.[effort]?.n ?? 0;
+      const until = tryCooldown(observations, { agent, model, intent, effort });
+      const paused = until !== null && now < until;
+      const status = paused ? 'paused' : n >= OBSERVED_MIN_TURNS ? 'settled' : n > 0 || this.#tried.has(key) ? 'trying' : 'ready';
+      out.push({ intent, effort, n, needs: OBSERVED_MIN_TURNS, status, cooldownUntil: paused ? new Date(until).toISOString() : null });
+    }
+    return out;
+  }
+
   // Everything the card shows. `models` is what the composer has chosen per agent: evidence is
-  // per model, so the card reads the one the human would actually be sending to.
-  async view({ models = {} } = {}) {
+  // per model, so the card reads the one the human would actually be sending to. `efforts` is the
+  // rung each agent's messages go out at, when the composer knows it.
+  async view({ models = {}, efforts = {} } = {}) {
     const events = await this.#said();
     const records = await this.records();
     const { agents = [] } = this.#bench() ?? {};
     const cases = calibrationCases(events);
     const crew = agents.filter((agent) => agent.detected && effortLadder(agent.id));
+    const observations = await this.observations();
+    const evidence = foldEvidence(records, { versions: versionsOf(agents) });
+    const observed = foldObserved(observations);
+    const defaults = await this.#defaults().catch(() => ({}));
     return {
       agents: crew.map((agent) => {
         const model = models[agent.id] ?? null;
@@ -157,8 +332,14 @@ export class IntentsDesk {
         const spec = { agent: agent.id, model, reference, version: agent.version ?? null };
         const full = planRound({ kind: 'full', cases, records, ...spec });
         const quick = planRound({ kind: 'quick', cases, records, ...spec });
-        const spent = records.filter((record) => record.agent === agent.id && (record.model ?? null) === model)
-          .reduce((sum, record) => sum + (record.tokens?.effort ?? 0) + (record.tokens?.reference ?? 0), 0);
+        const mine = records.filter((record) => record.agent === agent.id && (record.model ?? null) === model);
+        const spent = mine.reduce((sum, record) => sum + (record.tokens?.effort ?? 0) + (record.tokens?.reference ?? 0), 0);
+        // What one answer has cost here, so a test says its price before it runs; and the tests that
+        // failed, with the last reason, so a failure is something to fix, not a blank.
+        const perAnswer = mine.flatMap((record) => [record.tokens?.effort, record.tokens?.reference]).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
+        const typical = perAnswer.length ? perAnswer[Math.floor(perAnswer.length / 2)] : null;
+        const failed = mine.filter((record) => record.skipped === 'failed');
+        const lastFailed = failed.at(-1) ?? null;
         return {
           id: agent.id,
           label: agent.label ?? agent.id,
@@ -169,8 +350,16 @@ export class IntentsDesk {
           ready: Boolean(agent.ready),
           summary: calibrationSummary(records, spec),
           cases: Object.fromEntries(READ_ONLY_INTENTS.map((intent) => [intent, cases.filter((one) => one.intent === intent).length])),
-          estimate: { quick: estimateTurns(quick), full: estimateTurns(full) },
+          estimate: { quick: estimateTurns(quick), full: estimateTurns(full), perAnswer: typical },
           spent,
+          failures: failed.length ? { n: failed.length, of: mine.length, why: lastFailed?.why ?? null, at: lastFailed?.at ?? null } : null,
+          // What the turns the human already sent taught, at no cost: the lead of the card.
+          observed: observedSummary(observations, { agent: agent.id, model }),
+          // Trying a cheaper rung on one message, per kind: how far real use got at it, or the pause.
+          tries: this.#triesFor({
+            agent: agent.id, model, evidence, observed, observations,
+            from: effortLadder(agent.id).includes(efforts[agent.id]) ? efforts[agent.id] : knownDefault(defaults ?? {}, agent.id, model),
+          }),
         };
       }),
       running: this.#run ? { ...this.#run } : null,

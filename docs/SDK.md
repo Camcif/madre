@@ -1,6 +1,6 @@
 # MADRE SDK · escribe tus propios módulos
 
-Un módulo de MADRE es **un archivo**. Sin build, sin dependencias, sin registrarse en ningún lado. Lo copias a una carpeta, pulsas RELOAD en MODULES y aparece con su interruptor. Puedes escribirlo a mano o pedírselo a una IA con este documento como contexto.
+Un módulo de MADRE es **un archivo**. Sin build, sin dependencias, sin registrarse en ningún lado. Lo copias a una carpeta, recargas los módulos desde «Crea tu módulo» en MÓDULOS y aparece en el tablero con su interruptor. Puedes escribirlo a mano o pedírselo a una IA con este documento como contexto.
 
 ## Dónde vive
 
@@ -235,18 +235,22 @@ Y en la cabecera de MODULES hay **+ ADD A MODULE** para instalar el `.mjs` de al
 
 ## La ficha
 
-Todas las fichas de MODULES tienen los mismos pisos, en el mismo orden. No dibujas una tarjeta: declaras, y MADRE la arma. Es lo que hace que nueve módulos —y el tuyo— se lean igual.
+No dibujas nada: declaras, y MADRE arma tu módulo igual que los suyos. En MÓDULOS cada módulo es una tarjeta del tablero y, al tocarla, una ficha con los mismos bloques que AJUSTES. Por eso el tuyo se lee igual que los que trae MADRE.
 
-| Piso | Qué muestra | De dónde sale |
+**La tarjeta del tablero** lleva un ícono, tu `name`, una línea con tu `summary` y su interruptor si es un módulo que se enciende. Un módulo tuyo lleva la etiqueta «Tuyo».
+
+**La ficha**, en este orden:
+
+| Bloque | Qué muestra | De dónde sale |
 |---|---|---|
-| 1 · Quién es | el nombre, `ON`/`OFF`, quién lo hizo, la versión, el botón `↻` y lo que encontró la última mirada | `name`, `vendor`, `version` o `tracks`, `status(ctx).status.detail` |
-| 2 · Qué hace | una frase, no tres | `summary` |
-| 3 · Qué toca | lo que escribe y lo que necesita, plegado, con su número al lado | `creates`, `requires` (y `commands`, en su propio pliegue) |
-| 4 · Ajustes | lo tuyo: selectores, interruptores, campos | `controls`, y lo que tu módulo lea de sí mismo |
-| 5 · Llaves | un campo por secreto, lo que hay guardado (nombre y largo, nunca el valor) y `OLVIDARLA` | `secrets` |
-| 6 · El interruptor | install, enable o disable. Solo, y siempre abajo | `toggle` / `installCommand` |
+| Qué hace | tu frase, el interruptor «Activo» con lo que dice tu módulo de sí mismo, y la versión con «Buscar una nueva» | `summary`, `status(ctx).status.detail`, `vendor`, `version` o `tracks` |
+| Ajustes | una fila por control: su nombre a la izquierda, el selector, interruptor o campo a la derecha; se guarda al cambiarlo | `controls` |
+| Llaves | un campo por secreto, lo que hay guardado (nombre y largo, nunca el valor) y la opción de olvidarla | `secrets` |
+| Lo que toca | cada cosa que escribe o necesita, con su etiqueta | `creates`, `requires` |
+| Comandos | lo que agrega a la caja de texto | `commands` o `slash` |
+| Tuyo | traer un archivo más nuevo y quitarlo | el archivo que instalaste, `updates` |
 
-El estado es una palabra y un punto —`ON` u `OFF`—, nunca un botón: las acciones se presionan abajo. La principal queda al final; un módulo `DEV` también ofrece `DESINSTALAR`, mientras que uno integrado solo puede apagarse. Un módulo apagado se atenúa entero menos esa fila.
+Un módulo que se instala en el proyecto en vez de encenderse conserva su tarjeta de instalación, con el comando a la vista antes de correr nada, dentro del bloque «Qué hace». Las cifras al inicio de la ficha y la ventana propia son de los módulos de MADRE que guardan una lectura (Ash, Intenciones, Ollama); no hace falta declarar nada para ellas.
 
 ## El `ctx`
 
@@ -276,11 +280,11 @@ ctx = {
 
 Escribe `/module <lo que debe hacer>` en el compositor. Es la entrada explícita al flujo guiado: si `#2 CREATE` no está activo, MADRE te pide elegirlo y conserva intacta tu petición. Con `#2` activo, mantiene el agente que elegiste y le entrega el contrato del SDK y el ejemplo. El agente debe escribir **un solo archivo** llamado `<id>.module.mjs` en su carpeta de borrador; no puede instalarlo por su cuenta.
 
-MADRE reconoce ese nombre y pone una tarjeta en la sala: `INSTALL FOR EVERY ROOM` o `INSTALL FOR THIS PROJECT`. Léelo, decide, un clic. MADRE lo valida en una copia, lo guarda como `<id>.mjs` en la carpeta que elegiste y aparece en MODULES con la etiqueta `DEV`. También puedes pedir lo mismo en lenguaje natural mientras estés en `#2` o más; `/module` hace explícito el formato y no concede permisos por sí solo.
+MADRE reconoce ese nombre y pone una tarjeta en la sala: `INSTALL FOR EVERY ROOM` o `INSTALL FOR THIS PROJECT`. Léelo, decide, un clic. MADRE lo valida en una copia, lo guarda como `<id>.mjs` en la carpeta que elegiste y aparece en MÓDULOS con la etiqueta «Tuyo». También puedes pedir lo mismo en lenguaje natural mientras estés en `#2` o más; `/module` hace explícito el formato y no concede permisos por sí solo.
 
 Los agentes nunca escriben en `~/.pulse/modules` ni en `.madre/modules`: proponen, tú instalas.
 
-Un módulo tuyo lleva `DEV` y se quita desde su propia tarjeta con `DESINSTALAR` —también aparece en la tarjeta `</>`—. MADRE confirma el archivo exacto, borra ese archivo y su registro de origen para actualizaciones, y lo retira de la sala sin reiniciarla. No borra archivos que el módulo haya creado ni sus ajustes guardados. Los módulos que vienen con MADRE no muestran ese botón: no se quitan, se apagan.
+Un módulo tuyo lleva la etiqueta «Tuyo» y se quita desde su ficha con «Quitar» —también desde «Crea tu módulo», en la lista de los tuyos—. MADRE confirma el archivo exacto, borra ese archivo y su registro de origen para actualizaciones, y lo retira de la sala sin reiniciarla. No borra archivos que el módulo haya creado ni sus ajustes guardados. Los módulos que vienen con MADRE no muestran ese botón: no se quitan, se apagan.
 
 ## Lo que un módulo no puede tocar
 
@@ -290,13 +294,13 @@ Un módulo corre dentro del proceso de MADRE con tus permisos: instala solo lo q
 - No puede usar el `id` de un módulo integrado ni de otro ya cargado.
 - `record()` rechaza los tipos de evento reservados (`message.*`, `agent.*`); no puede fabricar turnos ni mensajes.
 - No recibe credenciales de nadie; usa, como MADRE, las sesiones que ya viven en la máquina.
-- Un error en `toolsForTurn` entrega nada; en un comando, la tarjeta dice el error; al cargar, la tarjeta `</>` dice qué archivo y por qué. Nada de eso detiene la sala.
+- Un error en `toolsForTurn` entrega nada; en un comando, la tarjeta dice el error; al cargar, el tablero avisa cuántos no cargaron y «Crea tu módulo» dice qué archivo y por qué. Nada de eso detiene la sala.
 
 ## Probarlo
 
 1. Copia el archivo a `~/.pulse/modules/`.
-2. En la sala, MODULES → `RELOAD MODULES`. Si el archivo tiene un error, la tarjeta de desarrollo lo dice con la línea exacta.
+2. En la sala, MÓDULOS → «Crea tu módulo» → «Recargar módulos». Si el archivo tiene un error, ahí mismo lo dice con la línea exacta.
 3. Enciéndelo con su interruptor. Escribe `/tu-comando` en el compositor.
-4. Cambia el archivo y vuelve a RELOAD: no hace falta reiniciar la sala.
+4. Cambia el archivo y vuelve a recargar: no hace falta reiniciar la sala.
 
 Con una IA: pásale este documento y `hello-module.mjs`, describe lo que quieres y pídele un solo archivo `.mjs` con `export default { … }`. Lo demás lo hace MADRE.

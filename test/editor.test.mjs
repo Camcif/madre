@@ -125,3 +125,31 @@ test('composer: what the room may do is said once, on one line, and no ? is left
   assert.ok(!/safetyHelp|safety-help/.test(app + css), 'the ? is back');
   assert.match(css, /\.picker \{ flex-wrap: wrap; row-gap: 10px; \}/);
 });
+
+test('a new file from the Finder: empty, inside the project, folders made, nothing overwritten, no way out', async () => {
+  const { createEmptyFile } = await import('../src/files.mjs');
+  const { mkdtemp, rm, readFile: read } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join: joinPath } = await import('node:path');
+  const root = await mkdtemp(joinPath(tmpdir(), 'pulse-new-'));
+  try {
+    assert.deepEqual(await createEmptyFile(root, 'notes/today.md'), { status: 201, path: 'notes/today.md' });
+    assert.equal(await read(joinPath(root, 'notes', 'today.md'), 'utf8'), '');
+    assert.equal((await createEmptyFile(root, 'notes/today.md')).status, 409, 'an existing file was touched');
+    for (const bad of ['../outside.md', 'a/../../outside.md', 'C:outside.md', '.git/config', 'folder/', '']) {
+      assert.equal((await createEmptyFile(root, bad)).status, 400, `${bad} was accepted`);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('the Finder carries a key for a new file, and «review it with» stands in the top layer', async () => {
+  const { readFile: read } = await import('node:fs/promises');
+  const { join: joinPath } = await import('node:path');
+  const [app, page, server] = await Promise.all(['public/app.js', 'public/index.html', 'src/server.mjs'].map((file) => read(joinPath(import.meta.dirname, '..', file), 'utf8')));
+  assert.match(page, /<button id="tree-new" class="surface-gear tree-new"/);
+  assert.match(app, /document\.querySelector\('#tree-new'\)\?\.addEventListener\('click'/);
+  assert.match(server, /if \(request\.method === 'POST' && url\.pathname === '\/api\/files'\) \{[\s\S]{0,400}needsDesignation\(relative\)/);
+  assert.match(app, /if \(!menuNode\.hasAttribute\('popover'\)\) \{ menuNode\.setAttribute\('popover', 'manual'\); document\.body\.append\(menuNode\); \}/);
+});
