@@ -92,7 +92,8 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-021** | `enlace.received` no dice qué agente ni qué turno pidió la lectura (`turn: null`): el servidor MCP `pulse-enlaces` no recibe el id del mensaje (solo `pulse-memory` lo recibe, y se lo pone el núcleo en `memoryServerForTurn`), y el `env` que fija el contrato de 3c no lleva `turn.agent`. D-S04 pedía ver «quién lo pidió y para qué turno»; hoy lo más cercano es `turn.cost.servers` de la sala, que dice qué servidores viajaron en cada turno. Falta decidir si el módulo añade `PULSE_ENLACES_AGENT` y un campo `agent` al cuerpo de `/api/enlace/ask`, o si el núcleo expone el id del turno a los módulos | `src/modules/enlaces.mjs`, `src/server.mjs` (`/api/enlace/ask`) | 3c | ABIERTO |
 | **S-022** | `--help` después de un comando se ignoraba: `madre start --help` abría la sala, y `madre salas --help` la habría abierto también. Ahora `parseArgs` toma `--help` o `-h` en cualquier posición como la ayuda; un valor nunca empieza por `-`, así que ninguna opción pierde el suyo | `src/cli-args.mjs` | 3d | ARREGLADO |
 | **S-023** | Abrir la sala de Salas deja `.pulse/mother.env` dentro del cuaderno, como en cualquier proyecto: es el sello del canal de MU/TH/UR, que el núcleo escribe en `<proyecto>/.pulse/`. El CLI crea el cuaderno vacío y no escribe nada; lo que sí escribe es la sala, igual que en toda sala, y el checkpoint ya excluye `.pulse/` (`FORBIDDEN`). Las pruebas fijan que eso es lo único que aparece dentro | `src/server.mjs` (`MotherChannel`), `src/checkpoint.mjs:21` | 3d | ANOTADO · SIN CAMBIO |
-| **S-024** | La fase 4a necesita pasar a cada turno el censo y los contratos en un bloque `bishop`, también cuando BISHOP usa `@madre`. El SDK solo ofrece `toolsForTurn`; la sala lo omite para `madre-local` y `promptParts` recibe opciones fijas sin un bloque aportado por módulos. La excepción §6.2 del encargo permite añadir `bishop` en `src/room/prompt.mjs`, pero no permite el conducto necesario desde el módulo por `src/server.mjs` y `src/room.mjs`. Se propone un callback acotado, calculado por turno solo en la sala de Salas y para el agente elegido; entrega texto (≤ 1500 caracteres) al bloque `bishop` sin exponer notas ni llaves. Requiere ampliar expresamente §6 antes de implementarlo | `src/modules/sdk.mjs:72-77`, `src/server.mjs:398-406`, `src/room.mjs:1326-1328,1424-1450,1543-1548`, `src/room/prompt.mjs:20-75` | 4a | PARADA · DECISIÓN DEL HUMANO |
+| **S-024** | La fase 4a necesita pasar a cada turno el censo y los contratos en un bloque `bishop`, también cuando BISHOP usa `@madre`. El SDK solo ofrece `toolsForTurn`; la sala lo omite para `madre-local` y `promptParts` recibe opciones fijas sin un bloque aportado por módulos. El humano autorizó el callback acotado por turno en `src/server.mjs` y `src/room.mjs`, solo en Salas y para el agente elegido (≤ 1500 caracteres). La implementación sigue detenida por S-026 | `src/modules/sdk.mjs`, `src/server.mjs`, `src/room.mjs`, `src/room/prompt.mjs` | 4a | AUTORIZADO · BLOQUEADO POR S-026 |
+| **S-026** | El adaptador `@madre` no recibe el bloque `bishop` aunque `Room` lo ponga en el prompt: `briefingFor()` extrae solo `<context>` y el archivo local, y `SYSTEM` ordena usar solo esas dos fuentes con citas `[#n]`. Verificado con una llamada directa que omite un bloque `<bishop>`. 4a exige que `@madre` lea hasta 12 notas enlazadas y cite la sala; la corrección requiere una excepción acotada en `src/adapters/madre.mjs`, que §6 declara de solo lectura. No se autoriza por inferencia | `src/adapters/madre.mjs` (`SYSTEM`, `briefingFor`, `madreInvoker`) | 4a | PARADA · DECISIÓN DEL HUMANO |
 | **S-025** | La exposición de privacidad no contaba `correction` y la purga solo reescribía una nota si `text` tenía el término privado. Además, calculaba `norm` sin la clave propia de las aberraciones, con riesgo de colisión tras redactar. La exposición y la purga ahora incluyen la corrección y recalculan `norm` mediante `memoryKey` | `src/memory.mjs` (`exposure`, `purge`), `test/memory.test.mjs` | — | ARREGLADO |
 
 ---
@@ -221,7 +222,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | HECHA |
 | 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | HECHA |
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | HECHA |
-| 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | PARADA · S-024 |
+| 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | PARADA · S-026 |
 | 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | ENCARGADA |
 | 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje | ENCARGADA |
 | 3e | Recall automático de notas enlazadas | Se pregunta antes de empezar |
@@ -389,3 +390,14 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   de reabrir. Al mismo tiempo se corrigió S-025: la exposición y purga incluyen `correction`,
   y la clave de deduplicación de aberraciones se reconstruye con `memoryKey`. Suite 634/634 y
   `pack:check` en verde. Sigue 4a; no se hizo handoff ni publicación.
+- `2026-10-08` · Preflight de 4a tras autorizar S-024: se trazó el módulo, el censo, los
+  contratos y el callback al prompt. La inspección del adaptador local encontró S-026:
+  `briefingFor()` descarta el bloque `bishop` y `SYSTEM` limita las fuentes al archivo de la
+  sala y al contexto. Una llamada directa confirmó la omisión. §6 mantiene
+  `src/adapters/madre.mjs` en solo lectura; no se abre esa excepción por inferencia. El
+  prototipo no se integró: sus cambios se retiraron del árbol y quedaron como borrador en
+  `/private/tmp/madre-bishop-4a-s024-wip.patch`,
+  `/private/tmp/madre-bishop-4a-bishop.mjs` y
+  `/private/tmp/madre-bishop-4a-bishop.test.mjs`. 4a espera decisión sobre S-026;
+  4b, 4c y 3e no empezaron. Suite 634/634 y `pack:check` en verde tras retirar el
+  prototipo. Sin handoff ni publicación.
