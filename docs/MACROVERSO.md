@@ -361,3 +361,10 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   órdenes solo con ella en un extremo (hacia pulse), rechaza una designación ajena y acepta la
   correcta sin distinguir mayúsculas («órdenes hasta #1»), y la revocación deja la línea en las dos
   salas. Fases 3a–3d completas; quedan 4a–4c (BISHOP) y 3e (se pregunta).
+- `2026-10-08` · Traspaso escrito en `docs/MACROVERSO-TRASPASO.md` para continuar en otra sesión
+  (Codex): mapa de lo construido en 1–3d con sus commits, lo que falta (4a → 4b → 4c, 3e se
+  pregunta) con sus compuertas, D-S11 como regla de 4b/4c, las once decisiones que esperan al
+  humano (S-019, S-021, `perHour` único, D-S10, D-S08, `madre doctor` en `$HOME`, rotación de
+  `enlaces.jsonl`, ícono de ENLACES, aviso a dormidas, 3e, número de versión), los problemas
+  encontrados y cómo se resolvieron, y el entorno de la Mac (salas abiertas, contratos de prueba
+  sellados). Suite 633 en verde y `pack:check` al escribirlo. Nada publicado.
