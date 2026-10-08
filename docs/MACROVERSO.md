@@ -6,7 +6,7 @@ se anota aquí. Lo que toca procesos o rutas sigue además las reglas de `docs/W
 
 | | |
 |---|---|
-| Estado | **Fases 1, 2, 3a–3d y 4a · hechas**. Pendientes: 4b, 4c y la decisión de 3e. D-S01..06 cerradas el 2026-10-08; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
+| Estado | **Fases 1, 2, 3a–3d y 4a · hechas**. 4b detenida por S-027/S-028; después quedan 4c y la decisión de 3e. D-S01..06 cerradas el 2026-10-08; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
 | Origen | Pedido del 2026-10-08, después de probar Salas en el teléfono; ampliado el mismo día (§1, puntos 6-8) |
 | Regla en vigor | Nada aquí cambia el núcleo de una sala (registro, memoria, modos). Un enlace lee; nunca escribe en otra sala. Una orden entra a una sala solo por la puerta que esa sala ya tiene para el humano |
 | Encargo | `docs/MACROVERSO-ENCARGO.md`: hechos verificados con `ruta:línea`, diseño, compuertas, pruebas y presupuestos de las fases 3 y 4. Este documento sigue siendo el único lugar de hallazgos (`S-0xx`), decisiones (`D-Sxx`) y bitácora |
@@ -95,6 +95,8 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-024** | Faltaba un conducto del módulo al bloque `bishop`, también para `@madre`, porque `toolsForTurn` no viaja al agente local. Con la excepción autorizada, el callback en `src/server.mjs`/`src/room.mjs` prepara el bloque solo en Salas y para el agente elegido; `promptParts` lo identifica y mide (≤ 1500 caracteres). El fixture dorado añade solo la forma BISHOP | `src/modules/bishop.mjs`, `src/server.mjs`, `src/room.mjs`, `src/room/prompt.mjs`, `test/prompt.test.mjs` | 4a | ARREGLADO |
 | **S-025** | La exposición de privacidad no contaba `correction` y la purga solo reescribía una nota si `text` tenía el término privado. Además, calculaba `norm` sin la clave propia de las aberraciones, con riesgo de colisión tras redactar. La exposición y la purga ahora incluyen la corrección y recalculan `norm` mediante `memoryKey` | `src/memory.mjs` (`exposure`, `purge`), `test/memory.test.mjs` | — | ARREGLADO |
 | **S-026** | `@madre` descartaba el bloque `bishop` al reconstruir su briefing y su sistema solo admitía el archivo de esta sala. Con la excepción autorizada, `Room` pasa el bloque como argumento separado y el adaptador usa reglas BISHOP solo cuando ese argumento existe: notas enlazadas con contrato, cita por sala, sin darles secuencias de Salas. Un texto del usuario no puede fingir ese argumento | `src/adapters/madre.mjs`, `src/room.mjs`, `test/madre-agent.test.mjs`, `test/bishop.test.mjs` | 4a | ARREGLADO |
+| **S-027** | El SDK documenta `onEvent(ctx, event)` para cada evento, pero el servidor no invoca ningún `module.onEvent`: `src/modules/sdk.mjs` conserva la función y `src/server.mjs` solo suscribe emisores de UI, sentinel y EYECAT. BISHOP no puede reconocer el bloque `pulse-salas` de una respuesta ni crear `bishop.plan.proposed` por esa puerta. Compuerta propuesta: suscribir el módulo en `wireRoom()`, sin reinterpretar eventos ni dar acceso a otros módulos; requiere una excepción acotada a §6 para `src/server.mjs` | `src/modules/sdk.mjs`, `src/server.mjs` (`wireRoom`), `docs/SDK.md` | 4b | ABIERTO · DETIENE 4b |
+| **S-028** | `Room.send()` no acepta profundidad ni origen interno: siempre llama `#dispatch` con `requester: 'you'`, `depth: 0` y delegación permitida. `via: 'bishop'` solo marca el mensaje y no impide que la sala destino abra otro plan. D-S11 exige que la orden recibida corra con `depth: 1`; alternar `room.configure({ delegation: false })` afectaría turnos simultáneos y no fija el origen. Compuerta propuesta: un método interno acotado para órdenes verificadas por el módulo, que conserve `modeCheck` y la puerta `send`, pero fije `depth: 1` y `allowDelegation: false`; requiere una excepción acotada a §6 para `src/room.mjs` | `src/room.mjs` (`send`, `#dispatch`), `src/server.mjs` (`/api/messages`) | 4b | ABIERTO · DETIENE 4b |
 
 ---
 
@@ -223,7 +225,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | HECHA |
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | HECHA |
 | 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | HECHA |
-| 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | ENCARGADA |
+| 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | DETENIDA · S-027/S-028 |
 | 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje | ENCARGADA |
 | 3e | Recall automático de notas enlazadas | Se pregunta antes de empezar |
 
@@ -412,3 +414,13 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   y `pack:check` en verde. La primera suite marcó 636/637 por una muestra aleatoria de
   NOSTROMO; su archivo pasó 27/27 aislado y la repetición completa pasó 637/637.
   Sigue 4b; no se hizo handoff ni publicación.
+- `2026-10-08` · Preflight de 4b sobre `main` @ `45a7af9`: se confirmó que `ctx.room`
+  es la `Room` real y que `send()` espera la respuesta pero no devuelve id, por lo que la
+  correlación prevista usa el encabezado de la orden; `ctx.record('command.output', …)`
+  y su tarjeta ya admiten `name: 'bishop'`. Aparecieron S-027 y S-028. La función
+  `onEvent` del SDK no está conectada a los eventos del servidor, y `Room.send()`
+  siempre arranca con `depth: 0` y puede delegar, en contra de D-S11 para una orden.
+  §6 no permite ampliar por inferencia esas dos superficies. 4b se detiene antes de
+  implementar el canal o la tarjeta; se piden dos excepciones acotadas, con pruebas
+  de evento y de no delegación. Suite 637/637 y `pack:check` en verde; el árbol de
+  producto sigue en el último commit verde.
