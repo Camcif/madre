@@ -392,7 +392,7 @@ test('rails: one tab that travels, the remedy in three weights, the trace that b
   assert.match(page, /<path class="ic-beat" pathLength="1"/);
   assert.match(css, /\.mother-button:hover \.ic-beat, \.mother-button:focus-visible \.ic-beat \{ opacity: 1; animation: mother-beat/);
   // On a wallpaper the answer is glass, whiter than the room's lines, floating on a soft shadow.
-  assert.match(css, /:root\[data-scheme="light"\]\[data-wallpaper\]:not\(\[data-wallpaper="default"\]\) #messages \.row:is\(\.assistant, \.thinking\) \.bubble \{\n  background-color: rgba\(255, 255, 255, \.82\) !important;/);
+  assert.match(css, /:root\[data-scheme="light"\]\[data-wallpaper\]:not\(\[data-wallpaper="default"\]\) #messages \.row:is\(\.assistant, \.thinking\) \.bubble \{\n  background-color: rgba\(255, 255, 255, \.92\) !important;/);
   // Who a message went to is inked against its material.
   assert.match(css, /\.user:not\(\.expendable\) \.stamp \.to \{ font-weight: 600; color: color-mix\(in srgb, var\(--agent, var\(--text\)\) 58%, var\(--text\)\) !important; \}/);
   // A card's quick rows keep air around a rail, and a label on two lines keeps its line height.

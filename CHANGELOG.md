@@ -16,7 +16,12 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 ### Arreglos
 
 - **El scroll del editor ya no mueve la sala de atrás.** Sobre los números de línea, las barras o la línea de estado, la rueda pasaba a la conversación; también lo hacía cuando el texto llegaba a su principio o a su final. Ahora la rueda mueve siempre el texto del editor, y lo mismo pasa en el visor de archivos.
-- **Las burbujas ya no se deforman al subir por la conversación.** Las que estaban fuera de pantalla tenían otro fondo y otra sombra, y al entrar cambiaban de golpe mientras armaban su vidrio. Ahora se ven igual dentro y fuera de pantalla, y el vidrio se prepara una pantalla antes de que la burbuja aparezca.
+- **Las burbujas ya no salen en blanco al subir por la conversación.** Cada burbuja y cada línea de la sala desenfocaba el fondo por su cuenta, y con una conversación entera el navegador se quedaba sin memoria para pintarlas: salían como rectángulos blancos, sin esquinas y sin texto. Dentro de la conversación ya nada desenfoca el fondo; la barra y la caja conservan su vidrio.
+
+### La conversación, por capas
+
+- **Cada tipo de mensaje vive a su altura.** Arriba, lo que se dijo: las respuestas de los agentes y tus mensajes, con el tono más luminoso, una línea de luz en el borde superior y una sombra larga. En medio, lo que hizo la sala (plan, relevo, memoria, módulos), con un tono más bajo y una sombra corta. Pegadas a la foto, las etiquetas de quién contestó, la hora y los tokens. En oscuro, lo más alto es más claro; en claro, la sombra marca la altura. Los tonos son densos para que se lean sobre cualquier fondo.
+- **El paso de un plan ya no lleva una barra de color a la izquierda**: es una respuesta más, con un leve tinte del color del agente que la escribió.
 
 ### La barra se arma a tu gusto
 

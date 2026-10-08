@@ -39,12 +39,25 @@ test('first steps: offered once to a first visit, ticked by doing, never by a «
   assert.match(page, /<button id="steps-pill" class="stop-all steps-pill" type="button" hidden/);
 });
 
-test('scrolling: the editor keeps its wheel, and a reply looks the same on screen and off it', async () => {
+test('scrolling: the editor keeps its wheel, and the conversation scrolls without layers of glass', async () => {
   const [editor, css, app] = await Promise.all([read('public/editor.js'), read('public/styles.css'), read('public/app.js')]);
   assert.match(editor, /node\.addEventListener\('wheel', \(event\) => \{\n {4}if \(event\.ctrlKey \|\| event\.target === input\) return;/);
   assert.match(css, /scrollbar-width: thin; overscroll-behavior: contain;\n\}/);
   assert.match(css, /\.viewer-body \{ height: calc\(100% - 46px\); overflow: auto; overscroll-behavior: contain;/);
-  // Only the blur waits for a row to come near; its tint and shadow never change on the way in.
-  assert.match(css, /:root\[data-scheme="light"\]\[data-wallpaper\] #messages \.row:is\(\.assistant, \.thinking\) \.bubble \{ background-color: rgba\(255, 255, 255, \.9\); \}/);
-  assert.match(app, /rootMargin: '100% 0px'/);
+  // Nothing in the conversation blurs what is behind it: a layer per row is what drew empty,
+  // square bubbles while scrolling. The glass stays on the bar and the box, which do not scroll.
+  assert.match(css, /:root\[data-wallpaper\] #messages, :root\[data-wallpaper\] #messages \* \{ -webkit-backdrop-filter: none !important; backdrop-filter: none !important; \}/);
+  assert.ok(!app.includes("classList.toggle('in-view'"), 'rows are still lit one by one as they scroll in');
+  assert.ok(!/\.in-view/.test(css), 'a rule still waits for a row to come into view');
+});
+
+test('depth: what was said sits highest, what the room did below it, labels flat on the picture', async () => {
+  const css = await readFile(join(import.meta.dirname, '..', 'public/styles.css'), 'utf8');
+  const block = css.slice(css.indexOf('DEPTH OF THE CONVERSATION'));
+  for (const token of ['--d3-fill', '--d3-light', '--d3-shadow', '--d2-fill', '--d2-shadow', '--d1-fill']) assert.ok(block.includes(`${token}:`), `${token} is not defined`);
+  assert.match(block, /\.row:is\(\.assistant, \.thinking\) \.bubble \{\n  background-color: var\(--d3-fill\) !important;\n  box-shadow: var\(--d3-light\), var\(--d3-shadow\) !important;/);
+  assert.match(block, /\.row\.user \.bubble \{\n  box-shadow: inset 0 1px 0 rgba\(255, 255, 255, \.22\), var\(--d3-shadow\) !important;/);
+  assert.match(block, /\.thread-inner > \.system:not\(\.mother-alert\) \{ box-shadow: var\(--d2-shadow\) !important; \}/);
+  // A step of a plan is told by its tone, not by a bar on its left edge.
+  assert.ok(!/delegated \.bubble::before/.test(css), 'a step of a plan still wears a bar on its left');
 });

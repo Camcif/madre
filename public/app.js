@@ -8660,21 +8660,6 @@ function atBottom() {
   return els.thread.scrollHeight - els.thread.scrollTop - els.thread.clientHeight < 4;
 }
 
-// Liquid glass samples what lies behind it, and every piece that does is a layer the browser has to
-// repaint while scrolling: hundreds of them is what drew the empty grey blocks. Only the rows on
-// screen, or a screen away from it, wear the glass, so a fast wheel never meets a row still
-// building its blur; the rest keep the same tint and shadow, which is all they show anyway.
-(() => {
-  const column = els.column;
-  if (typeof IntersectionObserver !== 'function' || typeof MutationObserver !== 'function' || !column) return;
-  const seen = new IntersectionObserver((entries) => {
-    for (const entry of entries) entry.target.classList.toggle('in-view', entry.isIntersecting);
-  }, { root: els.thread, rootMargin: '100% 0px' });
-  const watch = (node) => { if (node?.nodeType === 1) seen.observe(node); };
-  for (const child of column.children) watch(child);
-  new MutationObserver((records) => { for (const record of records) record.addedNodes.forEach(watch); }).observe(column, { childList: true });
-})();
-
 // The conversation is not cut where the composer begins: it runs on beneath it. The thread is told
 // how tall the strip under it is, so its last line can still come up above the box; a reader at
 // the end stays at the end when that strip grows or shrinks.

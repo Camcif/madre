@@ -5347,25 +5347,21 @@ dialog.custom-window::backdrop { display: none; }
 /* The lines of the room that carry a chip: the box's radius follows the chip it holds. */
 :is(:root[data-wallpaper] #messages, .look-preview[data-wallpaper]:not([data-wallpaper="default"])) .system:not(.mother-alert) { border-radius: 18px; padding: 8px 16px 9px; }
 
-/* Real liquid glass on the bubbles and the small print, on screen: the wallpaper behind them is
-   blurred, saturated and brightened a touch, under a thinner tint than before, with the lit edges
-   and the lens's split already drawn on them. */
-:is(:root[data-wallpaper] #messages) .in-view:is(.assistant, .thinking) .bubble,
-:is(:root[data-wallpaper] #messages) .in-view:is(.system:not(.mother-alert)),
-:is(:root[data-wallpaper] #messages) .in-view :is(.who, .col > .stamp, .col > .memory-hint .lead),
-:is(:root[data-wallpaper] #messages) .in-view:is(.settled) :is(.settled-lead, .settled-note) {
-  -webkit-backdrop-filter: blur(18px) saturate(1.8) brightness(1.04) !important; backdrop-filter: blur(18px) saturate(1.8) brightness(1.04) !important;
-}
-/* The tint is the same on screen and off it: only the blur waits for the row to come near, so a
-   row that scrolls in changes nothing a reader can see. */
+/* Nothing inside the conversation samples what lies behind it. Every piece that blurs the
+   wallpaper is a layer of its own that the browser has to keep painted while the thread scrolls,
+   and with a conversation's worth of them it runs out and draws them as empty blocks, square and
+   without their words. Lighting only the rows on screen made it rarer, not gone. So the bubbles
+   and the small print are a dense tint over the picture instead, which at these strengths is all
+   the blur ever showed; the glass stays on the bar and the box, which do not scroll. */
+:root[data-wallpaper] #messages, :root[data-wallpaper] #messages * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 :root[data-wallpaper] #messages .row:is(.assistant, .thinking) .bubble { background-color: color-mix(in srgb, var(--bubble) 90%, transparent); }
 :root[data-scheme="light"][data-wallpaper] #messages .row:is(.assistant, .thinking) .bubble { background-color: rgba(255, 255, 255, .9); }
 :root[data-wallpaper] #messages .thread-inner > :is(.system:not(.mother-alert)),
 :root[data-wallpaper] #messages .thread-inner > * :is(.who, .col > .stamp, .col > .memory-hint .lead),
-:root[data-wallpaper] #messages .thread-inner > :is(.settled) :is(.settled-lead, .settled-note) { background-color: color-mix(in srgb, var(--bg) 62%, transparent); }
+:root[data-wallpaper] #messages .thread-inner > :is(.settled) :is(.settled-lead, .settled-note) { background-color: color-mix(in srgb, var(--bg) 76%, transparent); }
 :root[data-scheme="light"][data-wallpaper] #messages .thread-inner > :is(.system:not(.mother-alert)),
 :root[data-scheme="light"][data-wallpaper] #messages .thread-inner > * :is(.who, .col > .stamp, .col > .memory-hint .lead),
-:root[data-scheme="light"][data-wallpaper] #messages .thread-inner > :is(.settled) :is(.settled-lead, .settled-note) { background-color: rgba(255, 255, 255, .66); }
+:root[data-scheme="light"][data-wallpaper] #messages .thread-inner > :is(.settled) :is(.settled-lead, .settled-note) { background-color: rgba(255, 255, 255, .78); }
 
 
 /* ==========================================================================================
@@ -5694,11 +5690,11 @@ dialog.mother { --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospa
 /* ==========================================================================================
    CHIPS IN FLAT TONE
    ========================================================================================== */
-/* (`:not(#chip-weight)` only lifts these above the in-view plate rules, without !important.)
+/* (`:not(#chip-weight)` only lifts these above the plate rules of the conversation, without !important.)
    Every chip in the room is a tag, not a pebble: a faint fill of its own colour (the mode's, the
    agent's, the kind of memory's; grey for what has none), a small 7px corner instead of a capsule,
    and no edge or shadow at all. The fill sits on a ground of the room's own colour, so a tag still
-   reads on a photograph. Hierarchy is colour alone. The room's plates (PLAN, MEMORIA) stay glass. */
+   reads on a photograph. Hierarchy is colour alone. The room's plates (PLAN, MEMORIA) stay plates. */
 :root { --chip-ground: color-mix(in srgb, var(--bg) 80%, transparent); --chip-r: 7px; }
 :root[data-scheme="light"] { --chip-ground: rgba(255, 255, 255, .8); }
 :is(:root[data-scheme="light"][data-wallpaper], :root[data-scheme]) #messages:not(#chip-weight) :is(.who .badge, .claim-head > .who, .col > .stamp, .settled-lead, .settled-note, .memory-hint .pill),
@@ -6968,19 +6964,15 @@ dialog.mother-window { width: 1080px; height: 740px; container: motherwin / inli
 .perm-phrase .sx-input { flex: 1; }
 .perm-who .sx-row .sx-words b { color: color-mix(in srgb, var(--agent, var(--text)) 70%, var(--text)); }
 
-/* The answer is liquid glass on a wallpaper: the picture blurs and brightens behind it, under a
-   tint whiter than the room's small print, so a reply never reads as one of the room's lines.
-   It floats on a soft, low shadow — no rim of light around it, no coloured edges. */
-:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .row.in-view:is(.assistant, .thinking) .bubble {
-  -webkit-backdrop-filter: blur(22px) saturate(1.6) brightness(1.08) !important; backdrop-filter: blur(22px) saturate(1.6) brightness(1.08) !important;
-}
-/* Tint and shadow do not wait for the row to be on screen; the blur does. */
+/* The answer on a wallpaper: a tint whiter than the room's small print, so a reply never reads as
+   one of the room's lines, with a lit top edge. It floats on a soft, low shadow — no rim of light
+   around it, no coloured edges. (No blur behind it: see the conversation's rule above.) */
 :root[data-wallpaper]:not([data-wallpaper="default"]) #messages .row:is(.assistant, .thinking) .bubble {
-  background-color: color-mix(in srgb, var(--bubble) 80%, rgba(255, 255, 255, .14)) !important;
+  background-color: color-mix(in srgb, var(--bubble) 92%, rgba(255, 255, 255, .14)) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px rgba(0, 0, 0, .18), 0 12px 30px -16px rgba(0, 0, 0, .5) !important;
 }
 :root[data-scheme="light"][data-wallpaper]:not([data-wallpaper="default"]) #messages .row:is(.assistant, .thinking) .bubble {
-  background-color: rgba(255, 255, 255, .82) !important;
+  background-color: rgba(255, 255, 255, .92) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 1px 2px rgba(20, 30, 25, .07), 0 12px 30px -16px rgba(20, 30, 25, .3) !important;
 }
 
@@ -7461,3 +7453,55 @@ dialog.room-ask:not(.console) .room-ask-code { width: 100%; margin: 2px 0 0; pad
 .steps-hide { flex: none; border: 0; padding: 4px 0; background: transparent; color: var(--text-2); font: inherit; font-weight: 600; cursor: pointer; }
 .steps-hide:hover { color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .steps-arc, .steps-tick, .bar > .steps-pill { transition: none; } }
+
+/* ==========================================================================================
+   DEPTH OF THE CONVERSATION — three levels, read like sheets at different heights over the
+   wallpaper. Nothing here blurs what is behind it (see the conversation's rule above): height is
+   said with tone and with light and shadow only, which costs the browser nothing while scrolling.
+     3 · what was said: an agent's answer and yours. The brightest tone, lit along its top edge,
+        on a deep two-step shadow (a contact shadow and a long soft one).
+     2 · what the room did: plan, handoff, memory, modules. A quieter tone, a short shadow.
+     1 · labels: who answered, when and what it cost. Flat, no shadow; they lie on the picture.
+   On dark a sheet that is higher is lighter, the way a surface nearer the light is; on light the
+   shadow does the work. The tones are dense enough to read on any photograph; the picture shows
+   between the sheets, not through them. A step of a plan is an answer too, in the same sheet, tinted a touch with
+   the colour of the agent that wrote it. No rim of light around anything, no coloured edges.
+   ========================================================================================== */
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages {
+  --d3-fill: color-mix(in srgb, var(--bubble) 92%, #ffffff 8%);
+  --d3-light: inset 0 1px 0 rgba(255, 255, 255, .08);
+  --d3-shadow: 0 1px 1px rgba(0, 0, 0, .28), 0 6px 14px -6px rgba(0, 0, 0, .45), 0 24px 44px -22px rgba(0, 0, 0, .65);
+  --d2-fill: rgba(16, 18, 17, .9);
+  --d2-shadow: 0 1px 1px rgba(0, 0, 0, .2), 0 8px 18px -12px rgba(0, 0, 0, .5);
+  --d1-fill: rgba(12, 13, 12, .82);
+}
+:root[data-scheme="light"][data-wallpaper]:not([data-wallpaper="default"]) #messages {
+  --d3-fill: rgba(255, 255, 255, .985);
+  --d3-light: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --d3-shadow: 0 1px 1px rgba(20, 30, 25, .08), 0 6px 14px -6px rgba(20, 30, 25, .18), 0 24px 44px -22px rgba(20, 30, 25, .38);
+  --d2-fill: rgba(250, 250, 247, .9);
+  --d2-shadow: 0 1px 1px rgba(20, 30, 25, .05), 0 8px 18px -12px rgba(20, 30, 25, .22);
+  --d1-fill: rgba(255, 255, 255, .84);
+}
+
+/* 3 · An answer, and a step of a plan in the tone of its agent. */
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .row:is(.assistant, .thinking) .bubble {
+  background-color: var(--d3-fill) !important;
+  box-shadow: var(--d3-light), var(--d3-shadow) !important;
+}
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .row.delegated .bubble {
+  background-color: color-mix(in srgb, var(--d3-fill) 93%, var(--agent, transparent)) !important;
+}
+/* 3 · Yours: the accent, on the same height. */
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .row.user .bubble {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), var(--d3-shadow) !important;
+}
+
+/* 2 · What the room did. A line with a colour of its own (a failure, an alert) keeps its tone. */
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .thread-inner > .system:not(.mother-alert) { box-shadow: var(--d2-shadow) !important; }
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .thread-inner > .system:not(.mother-alert):not(.alert):not(.fail) { background-color: var(--d2-fill) !important; }
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .thread-inner > .system.plan { background-color: color-mix(in srgb, var(--d2-fill) 92%, var(--acc, var(--phosphor))) !important; }
+
+/* 1 · Labels lie flat on the picture. */
+:root[data-wallpaper]:not([data-wallpaper="default"]) #messages .thread-inner > * :is(.who, .col > .stamp) { background-color: var(--d1-fill) !important; box-shadow: none !important; }
+
