@@ -89,7 +89,9 @@ test('registry: the Ash switch needs no confirming, because nothing it does is l
   const on = await ash.toggle(ctx, {});
   assert.equal(on.body.enabled, true);
   assert.equal(on.body.beta, undefined);
-  assert.deepEqual(writes[0], { modules: { imageStudio: { enabled: false }, ash: { enabled: true } } });
+  // Only its own key: the others stay as they are on disk, where another room may have changed
+  // them since this one read its copy (docs/MACROVERSO.md, S-001).
+  assert.deepEqual(writes[0], { modules: { ash: { enabled: true } } });
   assert.equal(events[0].payload.beta, undefined);
 });
 

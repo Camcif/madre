@@ -199,6 +199,21 @@ Cada módulo es un archivo. Los tuyos van en `~/.pulse/modules/` (todas las sala
 
 ---
 
+## SALAS · TODAS TUS SALAS
+
+Cada proyecto es una sala, y **Salas** las junta: la tecla de los tres círculos al inicio de la barra. Muestra las salas abiertas en esta Mac (quién te espera, quién trabaja, su última conversación y cuántas memorias guarda, por tipo) y las **dormidas**: salas cerradas cuyo proyecto sigue en disco. El plan completo vive en `docs/MACROVERSO.md`.
+
+| En Salas | Pasa |
+|---|---|
+| **Abrir** | Lleva a esa sala en su puerto; con ⌘ se abre al lado |
+| **Cerrar** | Detiene lo que corre en esa sala y la cierra, como `Ctrl+C` en su terminal. Pregunta antes |
+| **Despertar** | Abre una sala dormida como lo haría `madre start --project <carpeta>`; lo que dice al arrancar queda en `start.log`, junto a su registro |
+| **Detener todo** | Frena a todos los agentes de todas las salas |
+
+Cada sala recuerda dónde está su proyecto (`project.json`, junto a su registro); una sala abierta por última vez con una MADRE anterior aparece cuando se vuelve a abrir. Salas es de la Mac: el teléfono tiene la suya.
+
+---
+
 ## EL TELÉFONO · AVANCE
 
 Tus salas siguen en tu Mac; el teléfono es otra ventana a ellas, por tu Wi-Fi. El plan completo vive en `docs/MOBILE.md`.
@@ -211,7 +226,9 @@ Tus salas siguen en tu Mac; el teléfono es otra ventana a ellas, por tu Wi-Fi. 
 | Leer, buscar, abrir archivos en el visor | Sí |
 | Escribir en `#0`, `#1` y `#2` · responder elecciones · correr lo que un agente propuso | Sí |
 | `STOPALL` en una sala, o **Detener todo** en todas desde Salas | Sí, siempre |
-| `#3 CONTROL`, `#4 AIRLOCK`, llaves, módulos, ajustes, emparejar otro teléfono | En la Mac |
+| Ajustes (salvo permisos) · encender o apagar los módulos de MADRE | Sí |
+| Archivos y servidores | Para ver; se trabajan mejor en la Mac |
+| `#3 CONTROL`, `#4 AIRLOCK`, permisos, llaves, instalar módulos de terceros, olvidar memorias, emparejar otro teléfono | En la Mac |
 
 - **Continuidad.** Lo que dejas en la caja, la conversación y el mensaje donde ibas viajan de un lado al otro. En la Mac aparece *Continuar · proyecto* en la barra; en el teléfono, arriba de Salas.
 - **Quién lo dijo.** Lo que se escribe desde el teléfono queda en el registro con su origen («desde tu iPhone»).

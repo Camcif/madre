@@ -18411,7 +18411,7 @@ settingsUI.button?.addEventListener('click', () => openSettingsOn('release', { p
    bar, and in which order, is this browser's own: a convenience, kept in localStorage. */
 const BAR_KEY = 'pulse.barItems';
 const BAR_FIXED = 'settings';
-const BAR_DEFAULT = ['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
+const BAR_DEFAULT = ['salas', 'crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
 // The keys that are in the markup. The crew is two elements — five spheres when there is room, one
 // button when there is not — and one key: taking it off takes both.
 const BAR_BUILT = {
@@ -18449,7 +18449,9 @@ const barKit = {
 
 // Keys that joined the bar after a person arranged theirs. Each is put at the end once, so it can
 // be found; taken off after that, it stays off.
-const BAR_JOINED = ['phone'];
+const BAR_JOINED = ['phone', 'salas'];
+// SALAS: three rooms of one Mac, and what joins them.
+const SALAS_ICON = '<circle cx="5.6" cy="6.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14.4" cy="6.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="14.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.2 6.4h3.6M7 8.7l1.7 3.2M13 8.7l-1.7 3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".55"/>';
 function barStored() {
   if (barKit.saved) return [...barKit.saved];
   try {
@@ -18478,6 +18480,9 @@ function barCatalogue() {
     if (nodes.length) out.set(id, { id, name: spec.name(), nodes });
   }
   out.set('memory', { id: 'memory', name: t('Memory'), icon: SETTINGS_CATS.memory.icon, open: () => openSettingsOn('memory') });
+  // SALAS, every room on this Mac (docs/MACROVERSO.md). On a phone the way back to them is already
+  // at the start of the bar.
+  if (!state.device) out.set('salas', { id: 'salas', name: t('Rooms'), icon: SALAS_ICON, open: () => { globalThis.location.href = '/salas'; } });
   // Every module that opens as a window: MADRE's own that have something to read, and yours. One
   // that is off is offered too; its window says how to switch it on.
   const items = modules.items ?? [];

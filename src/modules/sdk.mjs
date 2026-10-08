@@ -197,7 +197,7 @@ export function defineModule(spec) {
         next = String(value ?? '').slice(0, 500);
       }
       const settings = { ...settingsFrom(ctx.config), [key]: next };
-      await ctx.updateConfig({ modules: { ...(ctx.config.modules ?? {}), [configKey]: { ...(ctx.config.modules?.[configKey] ?? {}), [key]: next } } });
+      await ctx.updateConfig({ modules: { [configKey]: { ...(ctx.config.modules?.[configKey] ?? {}), [key]: next } } });
       if (spec.onSettings) await spec.onSettings(mine(ctx, settings), settings);
       return { status: 200, body: { settings: Object.fromEntries(base.controls.map((known) => [known.key, settings[known.key] ?? null])) } };
     } : null,
@@ -209,7 +209,7 @@ export function defineModule(spec) {
       if (spec.toggle) return spec.toggle(mine(ctx, settings), payload);
       const enabled = !settings.enabled;
       if (enabled && spec.confirm && payload.confirm !== true) return { status: 400, body: { error: spec.confirm } };
-      await ctx.updateConfig({ modules: { ...(ctx.config.modules ?? {}), [configKey]: { ...(ctx.config.modules?.[configKey] ?? {}), enabled } } });
+      await ctx.updateConfig({ modules: { [configKey]: { ...(ctx.config.modules?.[configKey] ?? {}), enabled } } });
       const after = spec.onToggle ? await spec.onToggle(mine(ctx, { ...settings, enabled }), enabled) : null;
       await ctx.record('extension.toggled', { id: spec.id, name: base.name, enabled, ...(spec.toggledEvent ?? {}) });
       return { status: 200, body: { enabled, ...(after ?? {}), ...(spec.toggledBody?.(enabled) ?? {}) } };

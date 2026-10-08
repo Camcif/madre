@@ -37,7 +37,7 @@ export default defineModule({
     const key = await ctx.services.imageKey();
     if (enabled && !key) return { status: 412, body: { error: 'No Gemini API key found. Sign in with the Gemini CLI (/auth → API key) or set GEMINI_API_KEY, then enable Image Studio.' } };
     const model = typeof payload?.model === 'string' && payload.model ? payload.model : (ctx.settings.model ?? MODELS[0]);
-    await ctx.updateConfig({ modules: { ...(ctx.config.modules ?? {}), imageStudio: { enabled, model } } });
+    await ctx.updateConfig({ modules: { imageStudio: { enabled, model } } });
     ctx.services.setImageModule({ enabled, model });
     await ctx.record('extension.toggled', { id: 'image-studio', name: 'Image Studio', enabled, model });
     return { status: 200, body: { enabled, model, capabilities: ctx.room.capabilities() } };

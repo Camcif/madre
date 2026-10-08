@@ -6,14 +6,14 @@ import { probePort, framable } from './ports.mjs';
 import { ControlDesk } from './room/control.mjs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 import { detectAgents, toolsPrefix } from './runtime-detection.mjs';
 import { EventStore } from './event-store.mjs';
-import { RoomMemory } from './memory.mjs';
+import { RoomMemory, travels as memoryTravels } from './memory.mjs';
 import { createEmbedder } from './embeddings.mjs';
 import { memoryServerFor } from './memory-tools.mjs';
 import { MotherChannel, CODE000_STRIKES } from './mother.mjs';
@@ -90,6 +90,7 @@ import { currentNetwork, lanAddresses } from './bridge/network.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
+import { askRoom, knownRooms, markProject, roomComesUp, startRoom } from './salas.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(sourceDirectory, '..', 'public');
@@ -211,7 +212,8 @@ export async function createPulseServer({
   }
   // The mark also says which project and which MADRE, for the bridge's list of rooms on the phone.
   let openPort = null;
-  const markOpen = async (port) => { openPort = port; await mkdir(roomDir, { recursive: true }).catch(() => {}); await writeFile(openMark, JSON.stringify({ pid: process.pid, port, at: new Date().toISOString(), project: basename(canonicalProjectRoot), version: PACKAGE.version ?? null })).catch(() => {}); };
+  // Where the project is, too (src/salas.mjs): a room that is closed can be opened again from Salas.
+  const markOpen = async (port) => { openPort = port; await mkdir(roomDir, { recursive: true }).catch(() => {}); await writeFile(openMark, JSON.stringify({ pid: process.pid, port, at: new Date().toISOString(), project: basename(canonicalProjectRoot), version: PACKAGE.version ?? null })).catch(() => {}); await markProject(roomDir, canonicalProjectRoot).catch(() => {}); };
   // The phone (docs/MOBILE.md): this room offers to host the bridge once it is open; see bridge/host.mjs.
   const phone = hostBridge({ root, publicDirectory });
   async function phoneView() {
@@ -227,6 +229,17 @@ export async function createPulseServer({
     };
   }
   const releaseOpen = () => { try { rmSync(openMark, { force: true }); } catch { /* it was already gone */ } };
+  // How many memories of each kind, and how many travel into turns. Counted, never read out.
+  function memoryCensus() {
+    const all = memory ? memory.memories({ limit: 20000 }) : [];
+    const kinds = {};
+    let travelling = 0;
+    for (const note of all) {
+      kinds[note.kind] = (kinds[note.kind] ?? 0) + 1;
+      if (memoryTravels(note)) travelling += 1;
+    }
+    return { memories: all.length, kinds, travelling };
+  }
   // The human's own modules, from ~/.pulse/modules and <project>/.madre/modules.
   await loadExternalModules({ stateRoot: root, projectRoot: canonicalProjectRoot }).catch((error) => console.error(`MADRE modules: ${error.message}`));
   // A project has one memory and many conversations; one of them is open at a time, and the
@@ -1399,7 +1412,73 @@ export async function createPulseServer({
           working: [...working],
           waiting: waiting.slice(0, 5).map(({ kind, agent, mode, text, chat, chatTitle }) => ({ kind, agent, mode: mode ?? undefined, text: typeof text === 'string' ? text.slice(0, 140) : null, chat, chatTitle })),
           waitingCount: waiting.length,
+          // What the archive holds, counted, when Salas asks (?census=1): never the words, only how
+          // many of each kind and how many travel into turns.
+          ...(url.searchParams.get('census') === '1' ? { census: memoryCensus() } : {}),
         });
+      }
+      // ---- Salas on the Mac (src/salas.mjs, docs/MACROVERSO.md). The page speaks only to this
+      // room; this room speaks to the others from here, the way the phone's bridge does. Opening,
+      // closing and stopping rooms is the Mac's: a phone never reaches these.
+      if ((url.pathname === '/salas' || url.pathname.startsWith('/api/salas') || url.pathname === '/api/room/close') && viaPhone) {
+        return sendJson(response, 403, { error: t('This is done on the Mac.') });
+      }
+      if (request.method === 'GET' && url.pathname === '/salas') {
+        const html = await readFile(join(publicDirectory, 'salas-mac.html'));
+        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
+        return response.end(html);
+      }
+      if (request.method === 'GET' && (url.pathname === '/salas-mac.js' || url.pathname === '/salas-mac.css')) {
+        const file = await readFile(join(publicDirectory, url.pathname.slice(1)));
+        response.writeHead(200, { 'content-type': url.pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8', 'cache-control': 'no-cache' });
+        return response.end(file);
+      }
+      if (request.method === 'GET' && url.pathname === '/api/salas') {
+        const rooms = await knownRooms(root);
+        const here = basename(roomDir);
+        const seen = await Promise.all(rooms.map(async (one) => ({
+          ...one,
+          here: one.id === here,
+          glance: one.open ? await askRoom(one.open.port, '/api/glance?census=1') : null,
+        })));
+        return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null });
+      }
+      if (request.method === 'POST' && url.pathname === '/api/salas/start') {
+        const payload = await body(request).catch(() => ({}));
+        const room = (await knownRooms(root)).find((one) => one.id === payload.room);
+        if (!room) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        if (room.open) return sendJson(response, 200, { room: room.id, port: room.open.port, already: true });
+        if (!room.root) return sendJson(response, 404, { error: t('The folder of that project is no longer on this Mac.') });
+        startRoom({ projectRoot: room.root, roomDir: join(root, 'rooms', room.id) });
+        const up = await roomComesUp(root, room.id);
+        if (!up) return sendJson(response, 504, { error: t('The room did not open. What it said on the way up is in start.log, beside its record.') });
+        return sendJson(response, 200, { room: up.id, port: up.open.port });
+      }
+      if (request.method === 'POST' && url.pathname === '/api/salas/close') {
+        const payload = await body(request).catch(() => ({}));
+        const room = (await knownRooms(root)).find((one) => one.id === payload.room);
+        if (!room?.open) return sendJson(response, 200, { room: payload.room ?? null, closed: true });
+        if (room.id === basename(roomDir)) {
+          sendJson(response, 202, { room: room.id, closing: true, here: true });
+          setTimeout(() => server.emit('madre:close'), 150);
+          return undefined;
+        }
+        const answer = await askRoom(room.open.port, '/api/room/close', { method: 'POST', body: {} });
+        if (answer.outdated) return sendJson(response, 409, { error: t('That room runs an older MADRE. Update it, or close it from its terminal.'), outdated: true });
+        if (answer.unreachable) return sendJson(response, 502, { error: t('That room did not answer.') });
+        return sendJson(response, 202, { room: room.id, closing: true });
+      }
+      if (request.method === 'POST' && url.pathname === '/api/salas/stop-all') {
+        const rooms = (await knownRooms(root)).filter((one) => one.open);
+        const stopped = await Promise.all(rooms.map((one) => askRoom(one.open.port, '/api/stop-all', { method: 'POST', body: {}, timeoutMs: 3000 }).then((answer) => !answer.unreachable && !answer.outdated)));
+        return sendJson(response, 200, { rooms: rooms.length, stopped: stopped.filter(Boolean).length });
+      }
+      // This room, asked to close by Salas: what is running stops and the room closes the way a
+      // signal closes it (startPulse listens). Nothing here ends the process itself.
+      if (request.method === 'POST' && url.pathname === '/api/room/close') {
+        sendJson(response, 202, { closing: true });
+        setTimeout(() => server.emit('madre:close'), 150);
+        return undefined;
       }
       // Where the person was, to pick it up on the other side (bridge/handoff.mjs).
       if (url.pathname === '/api/handoff') {
@@ -2517,5 +2596,7 @@ export async function startPulse({ port, projectRoot, openBrowser }) {
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.once(signal, () => server.close(() => process.exit(0)));
   }
+  // Salas asked this room to close: the same as a signal.
+  server.once('madre:close', () => server.close(() => process.exit(0)));
   return { server, url };
 }

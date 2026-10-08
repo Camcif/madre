@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -18,21 +19,53 @@ export async function loadConfig(root) {
   }
 }
 
+// Every room on this Mac writes this one file. A write is whole — a draft renamed over the file,
+// so nobody ever reads half of one — and a change is read, applied and written under a lock, so
+// two rooms saving at once keep both changes instead of the last one writing over the other
+// (docs/MACROVERSO.md, S-001).
 export async function saveConfig(root, config) {
   const file = configPath(root);
   await mkdir(dirname(file), { recursive: true });
-  await writeFile(file, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
+  const draft = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  await writeFile(draft, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
+  await rename(draft, file);
   return file;
 }
 
-export async function updateConfig(root, patch) {
-  const current = await loadConfig(root);
-  const next = { ...current, ...patch };
-  for (const [key, value] of Object.entries(patch)) {
-    if (value && typeof value === 'object' && !Array.isArray(value)) next[key] = { ...(current[key] ?? {}), ...value };
+async function locked(root, work) {
+  const lock = join(dirname(configPath(root)), 'config.lock');
+  await mkdir(dirname(lock), { recursive: true });
+  let held = false;
+  for (let attempt = 0; attempt < 250 && !held; attempt += 1) {
+    try {
+      await (await open(lock, 'wx')).close();
+      held = true;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      // A lock left by a process that died mid-write is stale after a few seconds.
+      const since = await stat(lock).catch(() => null);
+      if (since && Date.now() - since.mtimeMs > 5000) { await rm(lock, { force: true }); continue; }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
   }
-  await saveConfig(root, next);
-  return next;
+  if (!held) throw new Error('The settings are being saved by another room; try again.');
+  try {
+    return await work();
+  } finally {
+    await rm(lock, { force: true });
+  }
+}
+
+export async function updateConfig(root, patch) {
+  return locked(root, async () => {
+    const current = await loadConfig(root);
+    const next = { ...current, ...patch };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) next[key] = { ...(current[key] ?? {}), ...value };
+    }
+    await saveConfig(root, next);
+    return next;
+  });
 }
 
 // Applies file-backed preferences to the process environment without

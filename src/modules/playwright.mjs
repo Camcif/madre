@@ -189,7 +189,7 @@ export default defineModule({
       forgetPlaywrightHealth(check);
       if (!check.ok) return { status: 412, body: { error: t('PLAYWRIGHT did not start, so it stays off: {problem}. Install the server and its browser (npm install -g @playwright/mcp, then npx @playwright/mcp install-browser chrome-for-testing) and turn it on again.', { problem: String(check.problem).replace(/[.\s]+$/, '') }), code: 'MU-054' } };
     }
-    await ctx.updateConfig({ modules: { ...(ctx.config.modules ?? {}), playwright: { ...(ctx.config.modules?.playwright ?? {}), enabled } } });
+    await ctx.updateConfig({ modules: { playwright: { ...(ctx.config.modules?.playwright ?? {}), enabled } } });
     await ctx.record('extension.toggled', { id: 'playwright', name: 'PLAYWRIGHT', enabled });
     return { status: 200, body: { enabled } };
   },

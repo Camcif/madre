@@ -392,7 +392,7 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   const kit = globalThis.__pulse.bar;
   const bar = registry.get('bar');
   const store = globalThis.localStorage.store;
-  const shipped = ['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
+  const shipped = ['salas', 'crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
   const onBar = () => bar.children.filter((node) => node instanceof FakeElement && node.dataset.barItem && !node.classList.contains('bar-off')).map((node) => node.dataset.barItem);
   assert.deepEqual(kit.order, shipped, 'the bar does not ship as it was');
   assert.equal(onBar().at(-1), 'settings', 'AJUSTES is not the last key');

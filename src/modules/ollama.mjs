@@ -83,7 +83,7 @@ export default defineModule({
   },
   async toggle(ctx) {
     const enabled = !(ctx.settings.enabled ?? true);
-    await ctx.updateConfig({ modules: { ...(ctx.config.modules ?? {}), ollama: { ...(ctx.config.modules?.ollama ?? {}), enabled } } });
+    await ctx.updateConfig({ modules: { ollama: { ...(ctx.config.modules?.ollama ?? {}), enabled } } });
     const status = await ctx.services.ollama.wire();
     await ctx.record('extension.toggled', { id: 'ollama', name: 'OLLAMA', enabled });
     return { status: 200, body: { enabled, ollama: status } };
@@ -94,7 +94,7 @@ export default defineModule({
     { method: 'POST', path: '/api/ollama/settings', handler: async (ctx, { payload }) => {
       const next = { ...(ctx.config.modules?.ollama ?? {}) };
       for (const key of ['embeddings', 'archivist', 'agent', 'enabled']) if (typeof payload[key] === 'boolean') next[key] = payload[key];
-      await ctx.updateConfig({ modules: { ...(ctx.config.modules ?? {}), ollama: next } });
+      await ctx.updateConfig({ modules: { ollama: next } });
       return { status: 200, body: { ollama: await ctx.services.ollama.wire({ probe: false }) } };
     } },
     { method: 'POST', path: '/api/ollama/install', handler: async (ctx) => {
