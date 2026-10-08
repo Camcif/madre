@@ -89,6 +89,7 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-018** | `docs/INTERNALS.md:83` dice que varios turnos `#2` corren a la vez; el código deja un solo escritor por proyecto | `src/room/control.mjs:12-16` | — | ANOTADO |
 | **S-019** | `RoomMemory.purge()` reinserta cada nota redactada **sin** `zone`, `refuted_by`, `contradicts`, `correction`, `detector`, `confidence` ni `recalled`: justo después de purgar, toda nota que llevaba un término privado queda en `hold` y `travels()` la deja viajar (a un turno y por un enlace), aunque estuviera en enfermería o en la esclusa. Al reabrir la sala, `#restandAll()` devuelve las aberraciones a `medbay`, pero una nota refutada perdió `refuted_by` para siempre y sigue viajando. Reproducido con un sondeo sobre `main` (tres notas: aberración, aberración y hecho refutado → tras la purga las tres en `hold`; tras reabrir, el hecho refutado sigue en `hold`). `src/memory.mjs` es solo lectura en este encargo: no se arregló | `src/memory.mjs:339,363` | — | ABIERTO |
 | **S-020** | La llave del canal (`~/.pulse/credentials/enlaces.json`) prueba «un proceso de MADRE en esta Mac», no qué sala pide: el `asking` de la petición es la palabra de quien llama. Es el límite [I] que el encargo pedía anotar (§4B); una sala que mienta sobre su id solo obtiene lo que un contrato ya deja leer a esa otra sala | `src/enlaces.mjs`, `src/server.mjs` (sección ENLACES) | 3b | ANOTADO |
+| **S-021** | `enlace.received` no dice qué agente ni qué turno pidió la lectura (`turn: null`): el servidor MCP `pulse-enlaces` no recibe el id del mensaje (solo `pulse-memory` lo recibe, y se lo pone el núcleo en `memoryServerForTurn`), y el `env` que fija el contrato de 3c no lleva `turn.agent`. D-S04 pedía ver «quién lo pidió y para qué turno»; hoy lo más cercano es `turn.cost.servers` de la sala, que dice qué servidores viajaron en cada turno. Falta decidir si el módulo añade `PULSE_ENLACES_AGENT` y un campo `agent` al cuerpo de `/api/enlace/ask`, o si el núcleo expone el id del turno a los módulos | `src/modules/enlaces.mjs`, `src/server.mjs` (`/api/enlace/ask`) | 3c | ABIERTO |
 
 ---
 
@@ -281,3 +282,32 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   mediana, lo que cuesta en su sala. S-014, S-015 y S-016 arreglados. Verificado en pantalla:
   flota, elección, memoria leída, Esc en dos pasos, rueda, arrastre, Recentrar, acento de noche
   en tema claro. No verificado: movimiento reducido y pestaña oculta (solo por prueba de código).
+- `2026-10-08` · Fase 3c, parte de servidor, hecha (rama `enlaces/3c` desde `b93928b`, sin push; la
+  interfaz de Salas, el Macroverso y la página de la sala se construyen aparte). Compuerta de entrada:
+  las citas confirmadas con `grep` sobre `b93928b`, ninguna rota. `projectRoomId` pasa a
+  `src/salas.mjs` (el servidor lo reexporta) con `salasProjectRoot` y `salasRoomId`: el id de la sala
+  de Salas antes de que exista (3d), calculado sobre la ruta real del estado como lo haría
+  `createPulseServer`, así vale igual bajo `/tmp`. Reglas nuevas del contrato con `{ salas }`: la sala
+  de Salas nunca entrega; `orders.allowed` solo con ella en un extremo, y entonces la otra sala recibe
+  las órdenes; al firmar con órdenes, la designación es el nombre de esa sala (`code: 'DESIGNATION'`
+  → 403). Un contrato guardado que rompa esas reglas no existe para `activeContracts`. Módulo
+  integrado `src/modules/enlaces.mjs` (ENLACES, encendido por defecto), ficha al importarse y
+  servidor MCP `pulse-enlaces` al ejecutarse (rutas resueltas con `realpath`, WIN-004): viaja solo
+  en `#1`+ y solo cuando un contrato vigente deja leer a esa sala; `enlace_rooms` y `enlace_search`,
+  sin `sends`. Rutas en cada sala: `POST /api/enlace/ask` (la sala pide por sí misma: teléfono 403,
+  `Origin` 403, llave obligatoria, 404 sin contrato, 409 origen dormida, 422 tipos fuera del
+  contrato, `enlace.received` con la consulta como hash y línea `received`), `POST
+  /api/enlace/notice` (`enlace.signed` y `enlace.revoked`, 202; otro tipo 422), `POST
+  /api/salas/enlaces` y `/revoke` (firma y revocación desde la propia página; avisan a las dos
+  salas si están abiertas, la propia directo al ledger y la otra por el canal; la segunda
+  revocación no vuelve a avisar), `kinds` opcional en `GET /api/enlace/memories` (interseca, nunca
+  amplía) y `GET /api/salas` con `salas` y `enlaces[].traffic` (`reads24h`, `reads1h`, `lastAt`
+  desde `enlaces.jsonl` de la sala que entrega). Decisiones del ejecutor: el aviso de firma solo
+  llega a salas abiertas (una dormida lee el contrato al despertar); una sala que no es parte del
+  contrato y firma desde su página avisa a las dos por el canal y no anota nada en la suya; `turn`
+  de `enlace.received` queda en `null` (S-021). Pruebas: `test/enlaces-module.test.mjs` (dos salas
+  reales, punta a punta: firmar desde la página, leer una decisión de A desde B por la ruta y por
+  `callTool`, contadores en los dos ledgers, dormida 409, revocar 404 y avisos; y el archivo como
+  servidor MCP real por stdio) y reglas de contrato en `test/enlaces.test.mjs`; suite 628 en verde y
+  `pack:check`. Sin interfaz (Salas, Macroverso, línea de MU/TH/UR), sin sala de Salas (3d), sin
+  órdenes (4b).
