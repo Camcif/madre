@@ -203,6 +203,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | **D-S08** | Dónde vive el proyecto de la sala de Salas (planes y contratos como archivos) | `~/.pulse/salas/`, creada al primer `madre salas`, mostrada en Ajustes para cambiarla. Se puede asumir | 3d | **ABIERTA** |
 | **D-S09** | Disparador de D-S02 | `madre salas`, y `madre` sin `--project` solo cuando el directorio actual es `$HOME`. Ninguna heurística de «¿esto es un proyecto?». Se puede asumir | 3d | **ABIERTA** |
 | **D-S10** | Cómo queda en el registro una orden de BISHOP | `via: 'bishop'` en el mensaje y, si queda como `role: 'you'`, excluido del dataset. Técnica, del orquestador, dentro de las excepciones del encargo §6 | 4b | **ABIERTA** |
+| **D-S11** | Gobernanza contra los bucles: el humano hace lo macro hacia todos sus proyectos y lo micro dentro de cada sala; nada se retroalimenta | «La gobernanza los rige para que no haya bucles.» Lectura operativa para 4b/4c: **solo BISHOP ordena**, y solo dentro de un plan que arrancó un mensaje del humano; una sala que recibe una orden no puede ordenar ni delegar hacia fuera (su turno corre con `depth: 1`); el resultado vuelve a la sala de Salas como tarjeta y **no arranca ningún turno**; un plan tiene a lo sumo 4 órdenes y un cierre, y el cierre no abre otro plan; una orden a una sala que ya corre una orden espera o falla, nunca se encola sin tope; el modo automático cuenta contra `perHour` y se detiene con STOP ALL. Lo que no esté aquí no se asume | 4b, 4c | **CERRADA 2026-10-08** |
 
 ---
 
@@ -214,7 +215,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 2 | Macroverso para ver | HECHA |
 | 3a | El Macroverso como flota de NOSTROMOs: pintores compartidos, escena viva, espacio infinito; S-014..S-017 | HECHA |
 | 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | HECHA |
-| 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | ENCARGADA |
+| 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | HECHA |
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | ENCARGADA |
 | 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | ENCARGADA |
 | 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | ENCARGADA |
@@ -282,6 +283,19 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   mediana, lo que cuesta en su sala. S-014, S-015 y S-016 arreglados. Verificado en pantalla:
   flota, elección, memoria leída, Esc en dos pasos, rueda, arrastre, Recentrar, acento de noche
   en tema claro. No verificado: movimiento reducido y pestaña oculta (solo por prueba de código).
+- `2026-10-08` · Fase 3c hecha (servidor en la rama `enlaces/3c`, fusionada; interfaz en `main`).
+  Salas: sección Enlaces (quién lee de quién, qué cruza, hasta cuándo, lecturas en 24 h y la
+  última; Revocar en dos toques) y la hoja de firma (las dos salas, el sentido o los dos, los
+  tipos, la caducidad; órdenes solo cuando una es la sala de Salas, con la designación de la otra).
+  Macroverso: una vena por contrato con la corriente del que entrega al que lee y un pulso por cada
+  cruce; arrastrar un universo sobre otro abre la hoja; la ficha dice los enlaces. La sala: una
+  línea de MU/TH/UR al firmar y al revocar; lo que cruza después se cuenta y no se pinta. Probado
+  de punta a punta con dos salas reales (pulse y sala-prueba): firma desde la hoja → fila y líneas
+  en las dos salas → lectura por `POST /api/enlace/ask` con la llave (3 hechos; sin llave 403) →
+  `enlace.received` y la línea en `enlaces.jsonl` → tráfico 1 y luego 2 en Salas, vena y pulso
+  en el Macroverso → revocación desde Salas → 404 en el canal y la línea de revocado en las dos
+  salas; el contrato queda sellado en `config.json`, no borrado. Hallazgo S-021 del ejecutor
+  (`enlace.received` no sabe qué agente pidió). D-S11 cerrada: la regla contra los bucles.
 - `2026-10-08` · Fase 3c, parte de servidor, hecha (rama `enlaces/3c` desde `b93928b`, sin push; la
   interfaz de Salas, el Macroverso y la página de la sala se construyen aparte). Compuerta de entrada:
   las citas confirmadas con `grep` sobre `b93928b`, ninguna rota. `projectRoomId` pasa a

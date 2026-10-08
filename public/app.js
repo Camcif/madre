@@ -4338,7 +4338,7 @@ function renderEnlace(event) {
     node.append(role === 'reads' ? t(' · with {room} · this room reads its {kinds}, read-only', { room: other, kinds: what })
       : role === 'serves' ? t(" · with {room} · it reads this room's {kinds}, read-only", { room: other, kinds: what })
       : t(" · with {room} · both read each other's {kinds}, read-only", { room: other, kinds: what }));
-    if (expires) node.append(t(' · until {date}', { date: new Date(expires).toLocaleDateString() }));
+    if (expires) node.append(t(' · until {date}', { date: new Date(expires).toLocaleDateString(language(), { day: 'numeric', month: 'short' }) }));
   }
   node.title = contract ?? '';
   return node;

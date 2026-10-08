@@ -225,6 +225,8 @@ Los contratos viven en `~/.pulse/config.json` bajo `enlaces` y los cruces en `en
 
 Cada sala recuerda dónde está su proyecto (`project.json`, junto a su registro); una sala abierta por última vez con una MADRE anterior aparece cuando se vuelve a abrir. Salas es de la Mac: el teléfono tiene la suya.
 
+**La sala de Salas.** `madre salas` abre una sala cuyo proyecto es una carpeta de MADRE (`~/.pulse/salas`, creada la primera vez): la puerta de entrada cuando no estás en ningún proyecto, y también lo que abre `madre` a secas desde tu carpeta personal. Es una sala como las demás —su conversación, su memoria, sus modos— y en Salas va primero, con su marca. Su barra lleva la tecla **Macroverso**. Nunca entrega notas por un enlace, y es la única que puede recibir permiso para dar órdenes a otra (la hoja de firma lo pide con la designación de esa sala). Es donde vivirá el super agente.
+
 ---
 
 ## EL TELÉFONO · AVANCE

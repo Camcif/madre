@@ -861,7 +861,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   redraw();
   canvas.focus({ preventScroll: true });
   // A window on the macroverse for whoever is measuring it, the way the room leaves `__pulse`.
-  globalThis.__macroverso = { peek: () => ({ live, universes, camera, textures: { ...textures, whole: texturesReady() }, raf }) };
+  globalThis.__macroverso = { peek: () => ({ live, universes, veins, camera, textures: { ...textures, whole: texturesReady() }, raf }) };
 
   return {
     update(next, nextEnlaces = enlaces) { rooms = next; enlaces = nextEnlaces; layout(next); redraw(); },
