@@ -9,15 +9,40 @@
 // kills a process (WIN-007).
 
 import { spawn } from 'node:child_process';
-import { closeSync, openSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { closeSync, openSync, realpathSync } from 'node:fs';
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const MADRE_BIN = fileURLToPath(new URL('../bin/madre.mjs', import.meta.url));
 
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
 const readJson = (file) => readFile(file, 'utf8').then((raw) => JSON.parse(raw)).catch(() => null);
+
+// The id of a room: the project's folder name and a hash of its path. Written once, here, so
+// the server, a link and the room of Salas all name a folder the same way (the server re-exports
+// it). It cannot be turned back into the path, which is why `project.json` keeps it (S-002).
+export function projectRoomId(projectRoot) {
+  const path = resolve(projectRoot);
+  const digest = createHash('sha256').update(path).digest('hex').slice(0, 16);
+  return `${basename(path) || 'root'}-${digest}`;
+}
+
+// The room of Salas (docs/MACROVERSO.md, D-S08): BISHOP's notebook is a folder of MADRE's own,
+// `~/.pulse/salas`, and its room has the id any project in that folder would have. The room is
+// made in phase 3d; its id is needed before that, because a link already has rules about it (a
+// link never serves from it, and orders only reach the room at its other end).
+//
+// The id is the one `createPulseServer` would give the folder: it names a room by the real path
+// of its project, so the state root is resolved the same way here (a `PULSE_HOME` under /tmp is
+// really under /private/tmp on a Mac) and the id is the same before and after the folder exists.
+export const salasProjectRoot = (stateRoot) => join(stateRoot, 'salas');
+export function salasRoomId(stateRoot) {
+  let real = resolve(stateRoot);
+  try { real = realpathSync(real); } catch { /* not there yet: the path as given */ }
+  return projectRoomId(join(real, 'salas'));
+}
 
 // Where the project is, kept beside its record (S-002): the room's id is a hash of the path and
 // cannot be turned back into it, and a room that is closed has to be found to be opened again.

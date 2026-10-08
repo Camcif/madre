@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { EventStore } from '../src/event-store.mjs';
@@ -8,14 +8,14 @@ import { RoomMemory, RECALLED_ZONES } from '../src/memory.mjs';
 import { Privacy, PRIVACY_MARKER } from '../src/privacy.mjs';
 import { Room } from '../src/room.mjs';
 import { loadConfig, updateConfig } from '../src/config.mjs';
-import { markProject } from '../src/salas.mjs';
+import { markProject, projectRoomId as projectRoomIdOfSalas, salasProjectRoot, salasRoomId } from '../src/salas.mjs';
 import { createPulseServer, projectRoomId } from '../src/server.mjs';
 import { callTool, openMemory } from '../src/mcp/memory-server.mjs';
 import { phonePolicy } from '../src/bridge/policy.mjs';
 import { summary as vaultSummary } from '../src/vault.mjs';
 import {
   CHANNEL_HEADER, NO_SUCH_LINK, activeContracts, askEnlace, channelKey, channelKeyFile, channelKeySummary, contractId, countRecent,
-  mayServe, normalizeContract, noteCrossing, revokeContract, sameKey, signContract,
+  linkTraffic, mayServe, normalizeContract, noteCrossing, readsFrom, receivesOrders, revokeContract, sameKey, servingRooms, signContract,
 } from '../src/enlaces.mjs';
 
 // ENLACES (docs/MACROVERSO.md, phase 3b): the contract two rooms sign, the key of the channel,
@@ -93,6 +93,91 @@ test('enlaces · revoked or expired is the same as never signed, and the arrow s
   const soon = normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['decision'], expires: '2026-10-08T12:30:00Z' }, { now });
   assert.deepEqual(mayServe({ contract: soon, serving: a, asking: b, now: new Date('2026-10-08T12:29:00Z') }), { ok: true });
   assert.equal(mayServe({ contract: soon, serving: a, asking: b, now: new Date('2026-10-08T12:30:00Z') }).why, 'expired');
+});
+
+test('enlaces · the room of Salas never serves, orders need it at one end, and signing with orders asks for the designation of the room that will take them (fase 3c)', async () => {
+  const state = await scratch('madre-enlaces-salas-');
+  // The id of the room of Salas is the id any project in ~/.pulse/salas would have, computed once
+  // (src/salas.mjs) whether or not that room exists yet; the server re-exports the same function.
+  assert.equal(salasProjectRoot(state), join(state, 'salas'));
+  assert.equal(salasRoomId(state), projectRoomId(join(await realpath(state), 'salas')), 'the id is not the one the server would give that folder');
+  assert.equal(projectRoomIdOfSalas, projectRoomId, 'the server and Salas name a folder with two different functions');
+  const salas = salasRoomId(state);
+  // The same id before and after the notebook exists, and through a link in the path (tmpdir on a Mac).
+  await mkdir(salasProjectRoot(state), { recursive: true });
+  assert.equal(salasRoomId(state), salas);
+  assert.equal(salasRoomId(state), projectRoomId(await realpath(salasProjectRoot(state))));
+  assert.equal(salasRoomId(join(state, 'no-such-home')), projectRoomId(join(state, 'no-such-home', 'salas')), 'a home that is not there yet still has an id');
+  const [a, b] = ['phobos-0123456789abcdef', 'gumball-0123456789abcdef'];
+  const now = new Date('2026-10-08T12:00:00Z');
+  // Without the id of that room the rules cannot apply, and the contract is as it was in 3b.
+  assert.equal(normalizeContract({ rooms: { a: salas, b }, direction: 'a→b', kinds: ['fact'], orders: { allowed: true } }, { now }).orders.allowed, true);
+  // With it: that room serves nobody, whichever end it sits at, whichever way the arrow points.
+  for (const [rooms, direction] of [[{ a: salas, b }, 'a→b'], [{ a: salas, b }, 'both'], [{ a, b: salas }, 'b→a'], [{ a, b: salas }, 'both']]) {
+    assert.throws(() => normalizeContract({ rooms, direction, kinds: ['fact'] }, { now, salas }), /never serves/, `${direction} from ${rooms.a === salas ? 'a' : 'b'}`);
+  }
+  // It may read from anyone.
+  const reads = normalizeContract({ rooms: { a, b: salas }, direction: 'a→b', kinds: ['decision', 'fact'] }, { now, salas });
+  assert.deepEqual(servingRooms(reads), [a]);
+  assert.equal(receivesOrders(reads, salas), null, 'orders not allowed, yet a room would take them');
+  // Orders only on a link with that room at one end, and then the other end is the one that takes them.
+  assert.throws(() => normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), /need the room of Salas/);
+  const ordered = normalizeContract({ rooms: { a: salas, b }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true, maxMode: 2 } }, { now, salas });
+  assert.equal(receivesOrders(ordered, salas), b);
+  assert.equal(receivesOrders(normalizeContract({ rooms: { a, b: salas }, direction: 'a→b', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), salas), a);
+  assert.deepEqual(servingRooms(normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['fact'] })), [a, b]);
+  assert.deepEqual(servingRooms(normalizeContract({ rooms: { a, b }, direction: 'b→a', kinds: ['fact'] })), [b]);
+  // A contract already in config.json that breaks either rule is a link that does not exist.
+  const plain = normalizeContract({ rooms: { a, b }, direction: 'a→b', kinds: ['decision'] }, { now });
+  const config = { enlaces: { [reads.id]: reads, [ordered.id]: ordered, [plain.id]: plain, [contractId({ a: salas, b })]: { ...normalizeContract({ rooms: { a: salas, b }, direction: 'both', kinds: ['fact'] }, { now }) }, [contractId({ a, b })]: { ...normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['fact'], orders: { allowed: true } }, { now }) } } };
+  for (const [id, entry] of Object.entries(config.enlaces)) entry.id = id;
+  assert.equal(activeContracts(config, { now }).length, 5, 'without the id of Salas every well-formed contract stands');
+  assert.deepEqual(activeContracts(config, { now, salas }).map((one) => one.id).sort(), [reads.id, ordered.id, plain.id].sort());
+  // What lets a room read, with the room it reads from: what the module, the tool and the asking side all ask.
+  assert.deepEqual(readsFrom(activeContracts(config, { now, salas }), salas, { now }).map((one) => [one.contract.id, one.from]).sort(), [[reads.id, a], [ordered.id, b]].sort());
+  assert.deepEqual(readsFrom(activeContracts(config, { now, salas }), b, { now }).map((one) => [one.contract.id, one.from]), [[plain.id, a]]);
+  assert.deepEqual(readsFrom(activeContracts(config, { now, salas }), a, { now }), []);
+
+  // Signing: the designation is the NAME of the room that will take orders, whichever letters.
+  // Known means its folder is on disk (S-004): the notebook of Salas is made by `madre salas` (3d).
+  const project = await scratch('madre-enlaces-salas-proj-');
+  for (const folder of [join(project, 'Phobos'), join(project, 'gumball')]) await mkdir(folder, { recursive: true });
+  await markProject(join(state, 'rooms', a), join(project, 'Phobos'));
+  await markProject(join(state, 'rooms', b), join(project, 'gumball'));
+  await markProject(join(state, 'rooms', salas), salasProjectRoot(state));
+  const raw = { rooms: { a: salas, b }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true } };
+  await assert.rejects(signContract(state, raw, { salas }), { code: 'DESIGNATION' });
+  await assert.rejects(signContract(state, raw, { salas, designation: 'phobos' }), { code: 'DESIGNATION' });
+  await assert.rejects(signContract(state, raw, { salas, designation: b }), { code: 'DESIGNATION' }, 'the id passed for the name');
+  const signed = await signContract(state, raw, { salas, designation: '  GUMBALL ' });
+  assert.equal(signed.orders.allowed, true);
+  // Without orders no designation is asked; a room this Mac does not know says so with its code.
+  assert.equal((await signContract(state, { rooms: { a, b: salas }, direction: 'a→b', kinds: ['fact'] }, { salas })).orders.allowed, false);
+  await assert.rejects(signContract(state, { rooms: { a, b: 'nowhere-0123456789abcdef' }, direction: 'a→b', kinds: ['fact'] }, { salas }), { code: 'UNKNOWN_ROOM' });
+  await assert.rejects(signContract(state, { rooms: { a: salas, b }, direction: 'both', kinds: ['fact'] }, { salas }), /never serves/);
+  // The rooms may be handed in as `knownRooms` lists them, names included, or as bare ids (3b).
+  const rooms = [{ id: a, name: 'Phobos' }, { id: salas, name: 'salas' }];
+  await assert.rejects(signContract(state, { rooms: { a: salas, b: a }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true } }, { salas, rooms, designation: 'gumball' }), { code: 'DESIGNATION' });
+  assert.equal((await signContract(state, { rooms: { a: salas, b: a }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true } }, { salas, rooms, designation: 'PHOBOS' })).rooms.b, a);
+  assert.equal((await signContract(state, { rooms: { a, b }, direction: 'both', kinds: ['fact'] }, { salas, rooms: [a, b] })).direction, 'both');
+  assert.equal(Object.keys((await loadConfig(state)).enlaces).length, 4);
+});
+
+test('enlaces · the traffic of a link is read from the lines beside the serving room\'s record: a day, an hour, and the latest', async () => {
+  const dirA = await scratch('madre-enlaces-traffic-a-');
+  const dirB = await scratch('madre-enlaces-traffic-b-');
+  const now = new Date('2026-10-08T12:00:00Z');
+  const id = 'aaaaaaaaaaaa-000001';
+  await noteCrossing(dirA, { kind: 'read', contract: id, other: 'b', count: 2, now: new Date('2026-10-07T13:00:00Z') });   // 23 h ago
+  await noteCrossing(dirA, { kind: 'read', contract: id, other: 'b', count: 1, now: new Date('2026-10-08T11:30:00Z') });   // 30 min ago
+  await noteCrossing(dirA, { kind: 'read', contract: id, other: 'b', count: 1, now: new Date('2026-10-06T12:00:00Z') });   // two days ago
+  await noteCrossing(dirA, { kind: 'received', contract: id, other: 'b', count: 1, now });                                  // not a reading
+  await noteCrossing(dirA, { kind: 'read', contract: 'bbbbbbbbbbbb-000001', other: 'c', count: 1, now });                   // another link
+  await noteCrossing(dirB, { kind: 'read', contract: id, other: 'a', count: 3, now: new Date('2026-10-08T11:45:00Z') });   // the other end of a link both ways
+  assert.deepEqual(await linkTraffic([dirA], id, { now }), { reads24h: 2, reads1h: 1, lastAt: '2026-10-08T11:30:00.000Z' });
+  assert.deepEqual(await linkTraffic([dirA, dirB], { id }, { now }), { reads24h: 3, reads1h: 2, lastAt: '2026-10-08T11:45:00.000Z' });
+  assert.deepEqual(await linkTraffic([join(dirA, 'nowhere')], id, { now }), { reads24h: 0, reads1h: 0, lastAt: null });
+  assert.deepEqual(await linkTraffic([], id, { now }), { reads24h: 0, reads1h: 0, lastAt: null });
 });
 
 test('enlaces · signing writes one key of config.json: two rooms signing at once keep both; revoking stamps and never deletes (S-001, S-007)', async () => {

@@ -3814,6 +3814,25 @@ export const ES = {
   'A page cannot read across a link; only a room can.': 'Una página no puede leer por un enlace; solo una sala.',
   'That is not the key of this Mac.': 'Esa no es la llave de esta Mac.',
   'This link was read {n} times in the last hour, its limit. Try again later.': 'Este enlace se leyó {n} veces en la última hora, su tope. Inténtalo más tarde.',
+  // Fase 3c: la sala que pide (/api/enlace/ask), los avisos entre salas y la firma desde Salas.
+  'This link lets this room read only: {kinds}.': 'Este enlace deja a esta sala leer solo: {kinds}.',
+  'That room is asleep. Wake it from Salas to read from it.': 'Esa sala está dormida. Despiértala desde Salas para leer de ella.',
+  'That is not a notice a link sends.': 'Eso no es un aviso que mande un enlace.',
+  // Lo que un contrato rechaza al firmarlo (src/enlaces.mjs), tal como lo verá la hoja de Salas.
+  'A room cannot be linked to itself.': 'Una sala no se puede enlazar consigo misma.',
+  'The direction is a→b, b→a or both.': 'El sentido es a→b, b→a o ambos.',
+  'A link names the kinds that may cross.': 'Un enlace nombra los tipos que pueden cruzar.',
+  'An aberration never crosses a link.': 'Una aberración nunca cruza un enlace.',
+  'orders.perHour is a whole number above zero.': 'orders.perHour es un número entero mayor que cero.',
+  'That link would already have expired.': 'Ese enlace ya habría caducado.',
+  'The room of Salas never serves a link: BISHOP gathers every room and is nobody\'s source.': 'La sala de Salas nunca entrega por un enlace: BISHOP reúne todas las salas y no es fuente de ninguna.',
+  'Orders need the room of Salas at one end of the link.': 'Las órdenes necesitan a la sala de Salas en un extremo del enlace.',
+  // El módulo ENLACES (src/modules/enlaces.mjs): su ficha. Lo que entrega a los agentes queda en inglés.
+  'What other rooms know, when a signed link lets this room read it. Read-only; nothing leaves this Mac.': 'Lo que otras salas saben, cuando un enlace firmado deja leerlo. Solo lectura; nada sale de la Mac.',
+  'a link signed in Salas that lets this room read from another': 'un enlace firmado en Salas que deje a esta sala leer de otra',
+  'on · no signed link lets this room read yet': 'encendido · ningún enlace firmado deja leer a esta sala todavía',
+  'on · one link lets this room read · {n} readings in 24 h': 'encendido · un enlace deja leer a esta sala · {n} lecturas en 24 h',
+  'on · {links} links let this room read · {n} readings in 24 h': 'encendido · {links} enlaces dejan leer a esta sala · {n} lecturas en 24 h',
   // THE MACROVERSE (macroverso.js).
   'Macroverse': 'Macroverso',
   'Back to Rooms': 'Volver a Salas',

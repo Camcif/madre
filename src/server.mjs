@@ -90,8 +90,8 @@ import { currentNetwork, lanAddresses } from './bridge/network.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
-import { askRoom, knownRooms, markProject, roomComesUp, startRoom, universeOf } from './salas.mjs';
-import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, activeContracts, channelKey, countRecent, mayServe, noteCrossing, sameKey } from './enlaces.mjs';
+import { askRoom, knownRooms, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, universeOf } from './salas.mjs';
+import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(sourceDirectory, '..', 'public');
@@ -129,11 +129,9 @@ export function agentTimeoutsFromEnv(env = process.env, agentIds = ['codex', 'cl
   return timeouts;
 }
 
-export function projectRoomId(projectRoot) {
-  const path = resolve(projectRoot);
-  const digest = createHash('sha256').update(path).digest('hex').slice(0, 16);
-  return `${basename(path) || 'root'}-${digest}`;
-}
+// The id of a room lives beside the rest of what Salas knows of rooms (src/salas.mjs); it is still
+// read from here by everything that always did.
+export { projectRoomId };
 
 export async function createPulseServer({
   projectRoot,
@@ -1442,7 +1440,12 @@ export async function createPulseServer({
           here: one.id === here,
           glance: one.open ? await askRoom(one.open.port, '/api/glance?census=1') : null,
         })));
-        return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null });
+        // The links in force (docs/MACROVERSO.md, fase 3c), each with what crossed: counted from the
+        // lines the serving room keeps beside its record, never from a ledger. `salas` is the id of
+        // the room of Salas, whether or not that room exists yet (phase 3d).
+        const salas = salasRoomId(root);
+        const enlaces = await Promise.all(activeContracts(await readConfig(root), { salas }).map(async (contract) => ({ ...contract, traffic: await linkTraffic(servingRooms(contract).map((id) => join(root, 'rooms', id)), contract) })));
+        return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null, salas, enlaces });
       }
       // One room as the Macroverso draws it: its memories and the veins between them, read from
       // that room the way its own NOSTROMO reads them (`/api/memory`, with its designation). Without
@@ -1510,7 +1513,7 @@ export async function createPulseServer({
         if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
         const here = basename(roomDir);
         const asking = String(url.searchParams.get('asking') ?? '');
-        const contract = activeContracts(await readConfig(root)).find((one) => one.id === url.searchParams.get('contract')) ?? null;
+        const contract = activeContracts(await readConfig(root), { salas: salasRoomId(root) }).find((one) => one.id === url.searchParams.get('contract')) ?? null;
         if (!mayServe({ contract, serving: here, asking }).ok) return sendJson(response, 404, { error: NO_SUCH_LINK });
         const sealed = room.motherStatus()?.lockedForMs ?? 0;
         if (sealed > 0) return sendJson(response, 423, { error: `CODE000. THE ARCHIVE IS SEALED FOR ${Math.ceil(sealed / 60000)} MORE MINUTE${Math.ceil(sealed / 60000) === 1 ? '' : 'S'}.`, lockedForMs: sealed });
@@ -1519,6 +1522,9 @@ export async function createPulseServer({
         if (reads >= contract.orders.perHour) return sendJson(response, 429, { error: t('This link was read {n} times in the last hour, its limit. Try again later.', { n: reads }) });
         const q = String(url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
         const limit = Math.min(ENLACE_MAX_LIMIT, Math.max(1, Math.trunc(Number(url.searchParams.get('limit'))) || ENLACE_MAX_LIMIT));
+        // The kinds asked for, if any, inside the kinds signed: a reading narrows, never widens.
+        const asked = String(url.searchParams.get('kinds') ?? '').split(',').map((kind) => kind.trim()).filter(Boolean);
+        const kinds = asked.length ? contract.kinds.filter((kind) => asked.includes(kind)) : contract.kinds;
         await refreshPrivacy();
         // The same search of notes memory_search makes (src/mcp/memory-server.mjs), untracked: a
         // reading from another room is not this room leaning on a note. Without words, the latest.
@@ -1526,12 +1532,103 @@ export async function createPulseServer({
           ? memory.recallMemories(q, { limit: ENLACE_MAX_LIMIT * 3, maxChars: ENLACE_MAX_LIMIT * 3 * 300, queryVector: await memory.embedQuery(q).catch(() => null), track: false })
           : memory.memories({ limit: ENLACE_MAX_LIMIT * 3 });
         const notes = rows
-          .filter((row) => memoryTravels(row) && contract.kinds.includes(row.kind))
+          .filter((row) => memoryTravels(row) && kinds.includes(row.kind))
           .slice(0, limit)
           .map((row) => ({ id: row.id, kind: row.kind, zone: row.zone, text: privacy.redact(row.text).text, fromSequence: row.fromSequence, throughSequence: row.throughSequence, created: row.created }));
-        await room.record('enlace.read', { contract: contract.id, to: asking, count: notes.length, kinds: contract.kinds, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null });
+        await room.record('enlace.read', { contract: contract.id, to: asking, count: notes.length, kinds, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null });
         await noteCrossing(roomDir, { kind: 'read', contract: contract.id, other: asking, count: notes.length });
         return sendJson(response, 200, { contract: contract.id, from: here, notes });
+      }
+      // The side that asks (fase 3c): a tool of this room's own turn asks this room, and this room
+      // asks the room that serves, by the channel. The same three doors as above — never a phone,
+      // never a page, only the key — because the tool is a process of this Mac and nothing else is.
+      // `room` is the id or the name of the room to read from; the contract is the one in force
+      // that lets THIS room read from THAT one. What came back is counted here (`enlace.received`,
+      // with the query as a hash) and the notes are handed on; nothing of them is kept.
+      if (request.method === 'POST' && url.pathname === '/api/enlace/ask') {
+        if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
+        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a link; only a room can.') });
+        const key = await channelKey(root).catch(() => null);
+        if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
+        const payload = await body(request).catch(() => ({}));
+        const here = basename(roomDir);
+        const wanted = String(payload.room ?? '').trim();
+        const rooms = await knownRooms(root);
+        const named = rooms.filter((one) => one.id === wanted);
+        if (!named.length) named.push(...rooms.filter((one) => one.name.toLowerCase() === wanted.toLowerCase()));
+        if (!wanted || !named.length) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        const readable = readsFrom(activeContracts(await readConfig(root), { salas: salasRoomId(root) }), here);
+        const link = named.map((source) => ({ source, contract: readable.find((one) => one.from === source.id)?.contract ?? null })).find((one) => one.contract) ?? null;
+        if (!link) return sendJson(response, 404, { error: NO_SUCH_LINK });
+        const { source, contract } = link;
+        const asked = Array.isArray(payload.kinds) ? payload.kinds.map(String) : [];
+        const kinds = asked.length ? contract.kinds.filter((kind) => asked.includes(kind)) : contract.kinds;
+        if (!kinds.length) return sendJson(response, 422, { error: t('This link lets this room read only: {kinds}.', { kinds: contract.kinds.join(', ') }) });
+        if (!source.open) return sendJson(response, 409, { error: t('That room is asleep. Wake it from Salas to read from it.') });
+        const q = String(payload.query ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+        const answer = await askEnlace({
+          port: source.open.port, contract, asking: here, q, kinds: asked.length ? kinds : null, limit: payload.limit, key,
+          record: (type, event) => room.record(type, { ...event, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null }),
+          roomDir,
+        });
+        if (answer.notes) return sendJson(response, 200, { from: source.name, contract: contract.id, notes: answer.notes });
+        if (answer.outdated) return sendJson(response, 409, { error: t('That room runs an older MADRE. Update it, or close it from its terminal.') });
+        if (answer.unreachable) return sendJson(response, 502, { error: t('That room did not answer.') });
+        return sendJson(response, answer.status ?? 502, { error: answer.refused ?? t('That room did not answer.') });
+      }
+      // What another room tells this one by the channel: a link of this room's was signed or
+      // revoked. One line in the ledger, never a message; any other type is refused.
+      if (request.method === 'POST' && url.pathname === '/api/enlace/notice') {
+        if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
+        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a link; only a room can.') });
+        const key = await channelKey(root).catch(() => null);
+        if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
+        const payload = await body(request).catch(() => ({}));
+        if (!ENLACE_NOTICES.includes(payload.type) || !payload.payload || typeof payload.payload !== 'object' || Array.isArray(payload.payload)) return sendJson(response, 422, { error: t('That is not a notice a link sends.') });
+        await room.record(payload.type, payload.payload);
+        return sendJson(response, 202, { accepted: true });
+      }
+      // Signing and revoking, from Salas (fase 3c). A change of state, so it comes only from this
+      // room's own page or a process of this Mac (src/request-guard.mjs) and never from a phone
+      // (above). Both rooms are told, if they are open: this one straight into its ledger, the
+      // other by the channel; a room that is asleep reads the contract when it wakes.
+      const tellRooms = async (type, contract, rooms) => {
+        if (typeof contract?.rooms?.a !== 'string' || typeof contract?.rooms?.b !== 'string') return;
+        const key = await channelKey(root).catch(() => null);
+        const here = basename(roomDir);
+        const [a, b] = [contract.rooms.a, contract.rooms.b].map((id) => rooms.find((one) => one.id === id) ?? { id, name: id, open: null });
+        for (const [me, other] of [[a, b], [b, a]]) {
+          const role = contract.direction === 'both' ? 'both' : servingRooms(contract).includes(me.id) ? 'serves' : 'reads';
+          const payload = type === 'enlace.signed'
+            ? { contract, other: other.name, otherId: other.id, role, kinds: contract.kinds, expires: contract.expires, orders: contract.orders }
+            : { contract, other: other.name, otherId: other.id };
+          if (me.id === here) await room.record(type, payload);
+          else if (me.open && key) await noticeEnlace({ port: me.open.port, type, payload, key }).catch(() => null);
+        }
+      };
+      if (request.method === 'POST' && url.pathname === '/api/salas/enlaces') {
+        const payload = await body(request).catch(() => ({}));
+        const rooms = await knownRooms(root);
+        for (const id of [payload.a, payload.b]) if (!rooms.some((one) => one.id === id)) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        let contract;
+        try {
+          contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 } }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
+        } catch (error) {
+          if (error.code === 'DESIGNATION') return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
+          return sendJson(response, error.code === 'UNKNOWN_ROOM' ? 404 : 422, { error: t(error.message) });
+        }
+        await tellRooms('enlace.signed', contract, rooms);
+        return sendJson(response, 200, { contract });
+      }
+      if (request.method === 'POST' && url.pathname === '/api/salas/enlaces/revoke') {
+        const payload = await body(request).catch(() => ({}));
+        const id = String(payload.id ?? '');
+        // Told once: a link revoked twice keeps its first stamp and says nothing new.
+        const already = Boolean((await readConfig(root)).enlaces?.[id]?.revoked);
+        const contract = await revokeContract(root, id);
+        if (!contract) return sendJson(response, 404, { error: NO_SUCH_LINK });
+        if (!already) await tellRooms('enlace.revoked', contract, await knownRooms(root)).catch(() => null);
+        return sendJson(response, 200, { contract });
       }
       // ---------- fin ENLACES ----------
       // Where the person was, to pick it up on the other side (bridge/handoff.mjs).

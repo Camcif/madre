@@ -36,6 +36,10 @@ export const HOUR_MS = 60 * 60 * 1000;
 export const CHANNEL_HEADER = 'x-madre-enlace';
 export const NO_SUCH_LINK = 'No such link.';
 export const CROSSINGS = ['read', 'received'];
+// What one room may tell another about a link, by the channel: that it was signed or revoked.
+// Each lands in the other room's ledger as a line, never as a message (phase 3c).
+export const NOTICES = ['enlace.signed', 'enlace.revoked'];
+export const DAY_MS = 24 * HOUR_MS;
 
 const OWNER_ONLY = 0o600;
 const OWNER_DIR = 0o700;
@@ -44,7 +48,7 @@ const ID = /^[0-9a-f]{12}-[0-9a-f]{6}$/;
 // A room id is a folder name under ~/.pulse/rooms: never a path.
 const ROOM = /^[^/\\\0]{1,200}$/;
 
-const fail = (why) => { throw new Error(why); };
+const fail = (why, code = null) => { throw Object.assign(new Error(why), code ? { code } : {}); };
 const pairHash = (a, b) => createHash('sha256').update([String(a), String(b)].sort().join('\n')).digest('hex').slice(0, 12);
 const asDate = (value) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? null : date; };
 
@@ -61,10 +65,25 @@ function isoOrNull(value, field) {
   return date.toISOString();
 }
 
+// The rooms that hand their notes over under a contract: the arrow's tail, or both ends.
+export const servingRooms = (contract) => (contract.direction === 'both' ? [contract.rooms.a, contract.rooms.b] : contract.direction === 'a→b' ? [contract.rooms.a] : [contract.rooms.b]);
+
+// The room BISHOP's orders may reach under a contract: the end that is not the room of Salas.
+// `null` when the contract allows no orders, or when neither end is that room.
+export function receivesOrders(contract, salas) {
+  if (!contract?.orders?.allowed || !salas) return null;
+  const { a, b } = contract.rooms;
+  return a === salas ? b : b === salas ? a : null;
+}
+
 // The contract, whole and checked, or the reason it is not one. The shape is §4B of the encargo:
 // two rooms, a direction, the kinds that may cross, the zones (fixed: what travels into a turn),
 // an expiry, a revocation, the ceiling for BISHOP's orders, and the human's signature.
-export function normalizeContract(raw, { now = new Date() } = {}) {
+//
+// With `salas` (the id of the room of Salas, src/salas.mjs) two more rules hold: that room never
+// serves — BISHOP gathers every room and is nobody's source (§4C.7) — and orders are allowed only
+// on a link with that room at one end, which is then the end that gives them.
+export function normalizeContract(raw, { now = new Date(), salas = null } = {}) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail('A link is an object.');
   const rooms = raw.rooms && typeof raw.rooms === 'object' ? raw.rooms : {};
   const a = typeof rooms.a === 'string' ? rooms.a.trim() : '';
@@ -103,6 +122,12 @@ export function normalizeContract(raw, { now = new Date() } = {}) {
   if (maxMode > MAX_ORDER_MODE) fail(`orders.maxMode never passes #${MAX_ORDER_MODE}: #3 and #4 are armed by the human, in that room.`);
   const perHour = orders.perHour === undefined ? DEFAULT_PER_HOUR : Number(orders.perHour);
   if (!Number.isInteger(perHour) || perHour < 1 || perHour > 1000) fail('orders.perHour is a whole number above zero.');
+  const allowed = Boolean(orders.allowed);
+  if (salas) {
+    const serves = direction === 'both' ? [a, b] : direction === 'a→b' ? [a] : [b];
+    if (serves.includes(salas)) fail('The room of Salas never serves a link: BISHOP gathers every room and is nobody\'s source.');
+    if (allowed && a !== salas && b !== salas) fail('Orders need the room of Salas at one end of the link.');
+  }
 
   const signed = raw.signed && typeof raw.signed === 'object' ? raw.signed : {};
   if (signed.by !== undefined && signed.by !== 'you') fail('Only you sign a link.');
@@ -116,7 +141,7 @@ export function normalizeContract(raw, { now = new Date() } = {}) {
     zones: [...LINK_ZONES],
     expires,
     revoked,
-    orders: { allowed: Boolean(orders.allowed), maxMode, perHour },
+    orders: { allowed, maxMode, perHour },
     signed: { at, by: 'you' },
   };
 }
@@ -126,14 +151,26 @@ export const inForce = (contract, now = new Date()) => Boolean(contract) && cont
 
 // Every contract in force, read from the config every room shares. A malformed entry is skipped,
 // never repaired: a link the room cannot read is a link that does not exist.
-export function activeContracts(config, { now = new Date() } = {}) {
+export function activeContracts(config, { now = new Date(), salas = null } = {}) {
   const raw = config?.enlaces;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
   const out = [];
   for (const [id, entry] of Object.entries(raw)) {
     let contract;
-    try { contract = normalizeContract({ ...entry, id: entry?.id ?? id }, { now }); } catch { continue; }
+    try { contract = normalizeContract({ ...entry, id: entry?.id ?? id }, { now, salas }); } catch { continue; }
     if (contract.id === id && inForce(contract, now)) out.push(contract);
+  }
+  return out;
+}
+
+// The contracts that let `asking` read, each with the room it reads from. What a module, a tool
+// and the asking side of the channel all need to know, said once.
+export function readsFrom(contracts, asking, { now = new Date() } = {}) {
+  const out = [];
+  for (const contract of contracts) {
+    for (const from of [contract.rooms.a, contract.rooms.b]) {
+      if (from !== asking && mayServe({ contract, serving: from, asking, now }).ok) out.push({ contract, from });
+    }
   }
   return out;
 }
@@ -154,13 +191,23 @@ export function mayServe({ contract, serving, asking, now = new Date() }) {
 
 // Signing writes one key under `enlaces`: `updateConfig` merges that level by key, so two rooms
 // signing at once keep both contracts, as two modules saving at once keep both (S-007). Both
-// rooms must be known on this Mac — asleep is fine; it is read when it wakes.
-export async function signContract(stateRoot, raw, { now = new Date(), rooms = null } = {}) {
-  const contract = normalizeContract(raw, { now });
+// rooms must be known on this Mac — asleep is fine; it is read when it wakes. `rooms` may be the
+// ids, or the rooms as `knownRooms` lists them (with their names).
+//
+// A link that lets orders through is signed the way #3 is armed: the human types the designation
+// of the room that will receive them — its name, whichever letters — or nothing is signed
+// (§4B). The error carries `code: 'DESIGNATION'` so the route can answer 403 and not 422.
+export async function signContract(stateRoot, raw, { now = new Date(), rooms = null, salas = null, designation = null } = {}) {
+  const contract = normalizeContract(raw, { now, salas });
   if (contract.revoked !== null) fail('A link is not signed already revoked.');
   if (contract.expires !== null && Date.parse(contract.expires) <= new Date(now).getTime()) fail('That link would already have expired.');
-  const known = rooms ?? (await knownRooms(stateRoot)).map((room) => room.id);
-  for (const id of [contract.rooms.a, contract.rooms.b]) if (!known.includes(id)) fail(`MADRE does not know the room ${id} on this Mac.`);
+  const known = new Map((rooms ?? await knownRooms(stateRoot)).map((room) => (typeof room === 'string' ? [room, { id: room, name: room }] : [room.id, room])));
+  for (const id of [contract.rooms.a, contract.rooms.b]) if (!known.has(id)) fail(`MADRE does not know the room ${id} on this Mac.`, 'UNKNOWN_ROOM');
+  const ordered = receivesOrders(contract, salas);
+  if (ordered) {
+    const name = String(known.get(ordered).name ?? ordered);
+    if (typeof designation !== 'string' || designation.trim().toLowerCase() !== name.toLowerCase()) fail('UNABLE TO COMPUTE. UNABLE TO CLARIFY.', 'DESIGNATION');
+  }
   await updateConfig(stateRoot, { enlaces: { [contract.id]: contract } });
   return contract;
 }
@@ -245,11 +292,13 @@ export async function channelKeySummary(stateRoot) {
 // key, sealed, over its hourly limit); or `unreachable`. A received batch is recorded through
 // `record` when the caller hands one in, and counted beside the room's record when it hands in
 // the room's folder.
-export async function askEnlace({ port, contract, asking, q = '', limit = MAX_LIMIT, key, fetchImpl = globalThis.fetch, timeoutMs = 4000, record = null, roomDir = null, turn = null, now = new Date() }) {
+export async function askEnlace({ port, contract, asking, q = '', kinds = null, limit = MAX_LIMIT, key, fetchImpl = globalThis.fetch, timeoutMs = 4000, record = null, roomDir = null, turn = null, now = new Date() }) {
   const id = typeof contract === 'string' ? contract : contract?.id;
   if (!id || !asking) return { refused: NO_SUCH_LINK, status: 404 };
   const params = new URLSearchParams({ contract: id, asking, limit: String(Math.min(MAX_LIMIT, Math.max(1, Math.trunc(Number(limit)) || MAX_LIMIT))) });
   if (q) params.set('q', String(q));
+  // Fewer kinds than the contract names, never more: the serving room intersects again.
+  if (Array.isArray(kinds) && kinds.length) params.set('kinds', kinds.map(String).join(','));
   let response;
   try {
     response = await fetchImpl(`http://127.0.0.1:${port}/api/enlace/memories?${params}`, {
@@ -270,6 +319,31 @@ export async function askEnlace({ port, contract, asking, q = '', limit = MAX_LI
   return { contract: id, from, notes };
 }
 
+// Tells another room, by the channel, that a link of its was signed or revoked. The same call as
+// `askEnlace` makes, the other way: no `Origin`, no device, the key in its header, a short wait.
+// What comes back is `{ ok }`, `{ outdated }` (that room runs a MADRE without the route),
+// `{ refused, status }` or `{ unreachable }`; the caller never lets any of them stop a signature.
+export async function noticeEnlace({ port, type, payload, key, fetchImpl = globalThis.fetch, timeoutMs = 3000 }) {
+  if (!NOTICES.includes(type)) fail(`A notice is one of ${NOTICES.join(', ')}.`);
+  let response;
+  try {
+    response = await fetchImpl(`http://127.0.0.1:${port}/api/enlace/notice`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', [CHANNEL_HEADER]: typeof key === 'string' ? key : '' },
+      body: JSON.stringify({ type, payload }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    return { unreachable: true };
+  }
+  if (response.status === 404) return { outdated: true };
+  if (!response.ok) {
+    const answer = await response.json().catch(() => ({}));
+    return { refused: typeof answer?.error === 'string' ? answer.error : `HTTP ${response.status}`, status: response.status };
+  }
+  return { ok: true };
+}
+
 /* ---------- the counters ---------- */
 
 // One line per crossing beside the room's record, so the traffic of a link is counted without
@@ -286,19 +360,40 @@ export async function noteCrossing(roomDir, { kind, contract, other = null, coun
   return line;
 }
 
-// How many crossings of that kind this contract had in the window: lines, not notes, because the
-// ceiling is on readings.
-export async function countRecent(roomDir, contract, kind, { sinceMs = HOUR_MS, now = new Date() } = {}) {
+// The lines of one contract and one kind beside a room's record, oldest first. A torn line is
+// skipped, never fatal; no file is no crossing.
+async function crossings(roomDir, contract, kind) {
   const id = typeof contract === 'string' ? contract : contract?.id;
-  const floor = new Date(now).getTime() - sinceMs;
   let raw = '';
-  try { raw = await readFile(crossingsFile(roomDir), 'utf8'); } catch (error) { if (error.code === 'ENOENT') return 0; throw error; }
-  let n = 0;
+  try { raw = await readFile(crossingsFile(roomDir), 'utf8'); } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+  const out = [];
   for (const text of raw.split('\n')) {
     if (!text) continue;
     let line;
     try { line = JSON.parse(text); } catch { continue; }
-    if (line?.contract === id && line.kind === kind && Date.parse(line.at) >= floor) n += 1;
+    if (line?.contract === id && line.kind === kind && Number.isFinite(Date.parse(line.at))) out.push(line);
   }
-  return n;
+  return out;
+}
+
+// How many crossings of that kind this contract had in the window: lines, not notes, because the
+// ceiling is on readings.
+export async function countRecent(roomDir, contract, kind, { sinceMs = HOUR_MS, now = new Date() } = {}) {
+  const floor = new Date(now).getTime() - sinceMs;
+  return (await crossings(roomDir, contract, kind)).filter((line) => Date.parse(line.at) >= floor).length;
+}
+
+// What Salas shows of a link's traffic: the readings the serving room (or rooms, on a link that
+// goes both ways) handed over in the last day and the last hour, and when the latest was. Summed
+// across the folders given, with `countRecent`; `lastAt` is the newest line or `null`.
+export async function linkTraffic(roomDirs, contract, { now = new Date() } = {}) {
+  const traffic = { reads24h: 0, reads1h: 0, lastAt: null };
+  for (const roomDir of roomDirs) {
+    traffic.reads24h += await countRecent(roomDir, contract, 'read', { sinceMs: DAY_MS, now });
+    traffic.reads1h += await countRecent(roomDir, contract, 'read', { sinceMs: HOUR_MS, now });
+    for (const line of await crossings(roomDir, contract, 'read')) {
+      if (traffic.lastAt === null || Date.parse(line.at) > Date.parse(traffic.lastAt)) traffic.lastAt = line.at;
+    }
+  }
+  return traffic;
 }
