@@ -392,9 +392,12 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   const kit = globalThis.__pulse.bar;
   const bar = registry.get('bar');
   const store = globalThis.localStorage.store;
+  // The MACROVERSO key ships in the default order but belongs to the room of SALAS alone: an
+  // ordinary room does not offer it, so it never reaches its bar.
   const shipped = ['salas', 'crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
   const onBar = () => bar.children.filter((node) => node instanceof FakeElement && node.dataset.barItem && !node.classList.contains('bar-off')).map((node) => node.dataset.barItem);
   assert.deepEqual(kit.order, shipped, 'the bar does not ship as it was');
+  assert.ok(!kit.catalogue().includes('macroverso'), 'an ordinary room offers the MACROVERSO key');
   assert.equal(onBar().at(-1), 'settings', 'AJUSTES is not the last key');
   assert.ok(kit.catalogue().includes('memory') && ['ash', 'intents', 'ollama'].every((id) => kit.catalogue().includes(id)), 'Memory and the modules with a window are not offered');
 

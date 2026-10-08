@@ -17,7 +17,7 @@
 // for less motion gets one still frame redrawn when something changes. No line joins two universes
 // until a link exists (phase 3c).
 
-import { MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, createNostromo, magmaMap, texturesReady } from './nostromo-engine.js';
+import { MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, alongCurve, createNostromo, currentAlong, hexAlpha, hexMix, magmaMap, texturesReady } from './nostromo-engine.js';
 
 const KINDS = Object.keys(MEMORY_COLORS);
 const TILT = 0.42;                 // how flat the orbits read: the plane seen a little from above
@@ -31,6 +31,9 @@ const RELAX_STEPS = 60;            // steps of physics before a sprite is painte
 const BODY_REACH = 520;            // world units from MOTHER to the edge of the brain, with room for its glow
 const LIVE_SIDE = 760;             // css px of the live scene's own canvas
 const LIVE_TURN = 0.0012;          // radians a frame a chosen universe turns on its own: a full turn in a minute and a half
+const VEIN_PULSES = 48;            // a ceiling on pulses in flight along the veins, as NOSTROMO's
+const VEIN_LIFE = 1.4;             // seconds a pulse takes from one universe to the other
+const LINK_DRAG = 12;              // px a universe must be carried before it is being linked, not clicked
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const hash = (text) => { let h = 2166136261; for (const c of String(text)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -137,7 +140,7 @@ function paintStars(seed, count, biggest, dpr) {
   return { canvas, side };
 }
 
-export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, actions }) {
+export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bff66', words, actions }) {
   const reduced = reducedMotion();
   const layer = document.createElement('section');
   layer.className = 'mv';
@@ -180,12 +183,14 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
   let follow = false;       // the camera keeps a chosen universe in the middle while it travels
   let aside = 0;            // how far right of a chosen universe the camera sits, for its card
   let live = null;          // the one universe drawn as the real thing: its scene, its canvas
+  let veins = [];           // one per contract between two universes here, with its pulses in flight
+  let linking = null;       // a universe being carried onto another, to link them
   let raf = 0;
   let last = performance.now();
   let clock = 0;
   let queued = false;
   let resizeTimer = 0;
-  const drag = { active: false, moved: false, turning: false, x: 0, y: 0 };
+  const drag = { active: false, moved: false, turning: false, link: null, x: 0, y: 0, x0: 0, y0: 0 };
 
   function layout(list) {
     const kept = new Map(universes.map((one) => [one.room.id, one]));
@@ -211,6 +216,21 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
           dirty: !same || Boolean(before?.dirty),
         };
       });
+    // The veins: one per contract whose two rooms are here, kept across refreshes so a pulse in
+    // flight is not lost; a crossing counted since the last look sends a new one.
+    const veinsKept = new Map(veins.map((vein) => [vein.enlace.id, vein]));
+    const byId = new Map(universes.map((one) => [one.room.id, one]));
+    veins = (enlaces ?? []).map((enlace) => {
+      const a = byId.get(enlace.rooms?.a), b = byId.get(enlace.rooms?.b);
+      if (!a || !b) return null;
+      const before = veinsKept.get(enlace.id);
+      const vein = { enlace, a, b, seed: (hash(enlace.id) % 628) / 100, pulses: before?.pulses ?? [], lastAt: before ? before.lastAt : enlace.traffic?.lastAt ?? null };
+      if (before && enlace.traffic?.lastAt && enlace.traffic.lastAt !== before.lastAt) {
+        vein.lastAt = enlace.traffic.lastAt;
+        if (vein.pulses.length < VEIN_PULSES) vein.pulses.push({ born: clock, back: enlace.direction === 'b→a' });
+      }
+      return vein;
+    }).filter(Boolean);
     sub.textContent = words.sub(list);
     if (focus) focus = universes.find((one) => one.room.id === focus.room.id) ?? null;
     if (live && (!focus || live.one.room.id !== focus.room.id)) leaveLive();
@@ -424,6 +444,8 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
     ctx.fillStyle = 'rgba(242, 241, 238, .5)';
     ctx.fillText(words.mac, centre.x, centre.y + 22 * camera.zoom);
 
+    drawVeins(ctx);
+
     // The universes, far ones first.
     const beat = reduced ? 0.4 : 0.5 + 0.5 * Math.sin(clock * 5.46);
     const order = universes.map((one) => ({ one, at: placed(one) })).sort((a, b) => a.at.depth - b.at.depth);
@@ -495,6 +517,64 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
       ctx.fillText(words.state(one.room), p.x, below + 19);
       ctx.globalAlpha = 1;
     }
+  }
+
+  // The veins between universes: one per contract, drawn as NOSTROMO draws the vein between two
+  // memories — a wide breath of colour and a thin bright thread — with the current running from
+  // the room that serves to the one that reads, and a pulse for every crossing counted since the
+  // last look. And, while a universe is being carried onto another, the vein it would make.
+  function drawVeins(ctx) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const vein of veins) {
+      const { enlace } = vein;
+      const wa = placed(vein.a), wb = placed(vein.b);
+      const pa = toScreen(wa.x, wa.y), pb = toScreen(wb.x, wb.y);
+      const dx = pb.x - pa.x, dy = pb.y - pa.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const bow = Math.sin((reduced ? 0 : clock * 0.5) + vein.seed) * Math.min(70, d * 0.16);
+      const cx = (pa.x + pb.x) / 2 - (dy / d) * bow;
+      const cy = (pa.y + pb.y) / 2 + (dx / d) * bow;
+      const traffic = enlace.traffic ?? {};
+      const recent = Math.min(1, (traffic.reads1h ?? 0) / 6);
+      const lately = Math.min(1, (traffic.reads24h ?? 0) / 12);
+      const back = enlace.direction === 'b→a';
+      const from = back ? pb : pa, to = back ? pa : pb;
+      // MOTHER's red leaves the room that serves and the accent arrives where it is read; both
+      // ways, red at both ends with the accent between them.
+      const red = '#e22816';
+      const arriving = enlace.direction === 'both' ? red : accent;
+      const head = reduced ? 0.5 : ((clock * (0.06 + 0.2 * recent) + vein.seed) % 1 + 1) % 1;
+      ctx.strokeStyle = currentAlong(ctx, from.x, from.y, to.x, to.y, hexAlpha(red, 0.5 + 0.3 * lately), { mid: hexAlpha(hexMix(red, accent, 0.5), 0.35 + 0.25 * lately), end: hexAlpha(arriving, 0.5 + 0.3 * lately) }, head, 0.2 + 0.7 * recent);
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.quadraticCurveTo(cx, cy, pb.x, pb.y);
+      ctx.globalAlpha = 0.32; ctx.lineWidth = 5 + 3 * lately; ctx.stroke();
+      ctx.globalAlpha = 1; ctx.lineWidth = 1 + 0.8 * lately; ctx.stroke();
+      // The pulses: one per crossing counted, travelling the way the notes did.
+      vein.pulses = vein.pulses.filter((pulse) => clock - pulse.born < VEIN_LIFE);
+      for (const pulse of vein.pulses) {
+        const u = Math.min(1, (clock - pulse.born) / VEIN_LIFE);
+        const at = alongCurve(pa.x, pa.y, cx, cy, pb.x, pb.y, pulse.back ? 1 - u : u);
+        const size = (2 + 1.6 * Math.sin(u * Math.PI)) * Math.max(0.6, camera.zoom);
+        const halo = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, size * 4);
+        halo.addColorStop(0, hexAlpha(accent, 0.8));
+        halo.addColorStop(1, hexAlpha(accent, 0));
+        ctx.fillStyle = halo;
+        ctx.beginPath(); ctx.arc(at.x, at.y, size * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255, 248, 243, .95)';
+        ctx.beginPath(); ctx.arc(at.x, at.y, size, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    if (linking?.from?.screen) {
+      const from = linking.from.screen;
+      const over = linking.over?.screen;
+      const to = over ? { x: over.x, y: over.y } : { x: linking.x, y: linking.y };
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = hexAlpha(accent, over ? 0.9 : 0.55);
+      ctx.lineWidth = over ? 2 : 1.4;
+      ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.quadraticCurveTo((from.x + to.x) / 2, (from.y + to.y) / 2 - 40, to.x, to.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
   }
 
   function at(event) {
@@ -570,6 +650,18 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
     const veins = one.data?.links?.length ?? one.full?.links?.length ?? null;
     counts.textContent = [words.counts(room), veins !== null && words.veins ? words.veins(veins) : null].filter(Boolean).join(' · ');
     card.append(counts);
+    // Its links, as seen from here: who reads whom, and what crosses.
+    const mine = (enlaces ?? []).filter((enlace) => enlace.rooms?.a === room.id || enlace.rooms?.b === room.id);
+    if (mine.length) {
+      const links = document.createElement('ul');
+      links.className = 'mv-links';
+      for (const enlace of mine) {
+        const row = document.createElement('li');
+        row.textContent = words.linkRow?.(enlace, room.id) ?? enlace.id;
+        links.append(row);
+      }
+      card.append(links);
+    }
     const memory = document.createElement('div');
     memory.className = 'mv-memory';
     memory.hidden = true;
@@ -589,6 +681,15 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
       wake.textContent = words.wake;
       wake.addEventListener('click', async () => { wake.disabled = true; wake.textContent = words.waking; await actions.wake(room); });
       row.append(wake);
+    }
+    if (actions.link && words.link) {
+      // From the card, this room as the one that would read: the sheet asks the rest.
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'sm-btn ghost';
+      link.textContent = words.link;
+      link.addEventListener('click', () => actions.link(null, room));
+      row.append(link);
     }
     const out = document.createElement('button');
     out.type = 'button';
@@ -627,8 +728,10 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
     drag.active = true;
     drag.moved = false;
     drag.turning = Boolean(liveAt(event)?.inside);
-    drag.x = event.clientX;
-    drag.y = event.clientY;
+    // A universe under the pointer may be carried onto another, to link them.
+    drag.link = drag.turning ? null : at(event);
+    drag.x = drag.x0 = event.clientX;
+    drag.y = drag.y0 = event.clientY;
     try { canvas.setPointerCapture(event.pointerId); } catch { /* the pointer already left */ }
   });
   canvas.addEventListener('pointermove', (event) => {
@@ -638,6 +741,16 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
       if (!drag.moved) return;
       drag.x = event.clientX;
       drag.y = event.clientY;
+      if (drag.link && !drag.turning) {
+        // A universe carried onto another: the vein it would make, until the pointer lets go.
+        if (!linking && Math.hypot(event.clientX - drag.x0, event.clientY - drag.y0) < LINK_DRAG) return;
+        const rect = canvas.getBoundingClientRect();
+        const over = at(event);
+        linking = { from: drag.link, x: event.clientX - rect.left, y: event.clientY - rect.top, over: over && over !== drag.link ? over : null };
+        canvas.style.cursor = linking.over ? 'copy' : 'grabbing';
+        redraw();
+        return;
+      }
       if (drag.turning && live) {
         if (live.scene.lock) live.scene.lock.aim = false;
         live.scene.yaw = (live.scene.yaw ?? 0) + dx * TURN_PER_PIXEL;
@@ -661,7 +774,16 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
     if (now !== hover) { hover = now; redraw(); }
     canvas.style.cursor = node || over?.at === 'core' ? 'pointer' : now && now !== focus ? 'pointer' : over?.inside ? 'grab' : 'default';
   });
-  const release = () => { drag.active = false; drag.turning = false; canvas.style.cursor = 'default'; };
+  const release = (event) => {
+    // Let go over another universe: the notes of the one carried would travel to it.
+    if (linking?.over && event?.type === 'pointerup') actions.link?.(linking.from.room, linking.over.room);
+    linking = null;
+    drag.active = false;
+    drag.turning = false;
+    drag.link = null;
+    canvas.style.cursor = 'default';
+    redraw();
+  };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
   canvas.addEventListener('pointerleave', () => { hover = null; if (live) live.scene.hover = null; redraw(); });
@@ -742,7 +864,7 @@ export function openMacroverso({ host, rooms, here, accent = '#9bff66', words, a
   globalThis.__macroverso = { peek: () => ({ live, universes, camera, textures: { ...textures, whole: texturesReady() }, raf }) };
 
   return {
-    update(next) { rooms = next; layout(next); redraw(); },
+    update(next, nextEnlaces = enlaces) { rooms = next; enlaces = nextEnlaces; layout(next); redraw(); },
     close,
   };
 }

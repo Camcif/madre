@@ -4325,6 +4325,25 @@ function renderCreateReverted(event) {
   return node;
 }
 
+// A link with another room, signed or revoked from SALAS (docs/MACROVERSO.md, phase 3c): one line,
+// said once. What crosses afterwards is counted in the ledger (`enlace.read`, `enlace.received`)
+// and never drawn here: a reading is not a bubble.
+function renderEnlace(event) {
+  const { other, role, kinds = [], expires, contract } = event.payload;
+  const node = el('div', `system memory enlace${event.type === 'enlace.revoked' ? ' warn' : ''}`);
+  const what = kinds.map((kind) => kindWord(kind).toLowerCase()).join(', ');
+  node.append(el('b', null, t('LINK')));
+  if (event.type === 'enlace.revoked') node.append(t(' · with {room} · revoked. Nothing crosses any more.', { room: other }));
+  else {
+    node.append(role === 'reads' ? t(' · with {room} · this room reads its {kinds}, read-only', { room: other, kinds: what })
+      : role === 'serves' ? t(" · with {room} · it reads this room's {kinds}, read-only", { room: other, kinds: what })
+      : t(" · with {room} · both read each other's {kinds}, read-only", { room: other, kinds: what }));
+    if (expires) node.append(t(' · until {date}', { date: new Date(expires).toLocaleDateString() }));
+  }
+  node.title = contract ?? '';
+  return node;
+}
+
 function renderControlStarted(event) {
   const { agent, commit, message } = event.payload;
   const node = el('div', 'system control');
@@ -5225,6 +5244,8 @@ void renderOpenQuestions(); return;
     case 'mode.requested': node = renderModeRequest(event); break;
     case 'control.started': node = renderControlStarted(event); break;
     case 'create.reverted': node = renderCreateReverted(event); break;
+    case 'enlace.signed':
+    case 'enlace.revoked': node = renderEnlace(event); break;
     case 'create.missing': node = renderCreateMissing(event); break;
     case 'control.changed': markTouched(event.payload.agent, event.payload.files); node = renderControlChanged(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } break;
     case 'control.reverted': node = renderControlReverted(event); if (!replaying) treeFollowWrites(); break;
@@ -8971,6 +8992,9 @@ adoptLanguage(initial.language);
 // Behind the bridge this page is on a phone (docs/MOBILE.md): it says so, offers the way back to
 // the list of rooms, and leaves the Mac's keys to the Mac.
 state.device = initial.device ?? null;
+// The room of SALAS (docs/MACROVERSO.md, phase 3d): the one whose project is MADRE's own folder,
+// where the super agent lives and the Macroverso is a key of the bar.
+state.salas = Boolean(initial.salas);
 state.roomId = initial.room ?? null;
 state.phones = initial.phones ?? 0;
 // The conversation the room has open (the Mac's), which a phone page may or may not be looking at.
@@ -16399,7 +16423,7 @@ settingsUI.button?.addEventListener('click', () => openSettingsOn('release', { p
    bar, and in which order, is this browser's own: a convenience, kept in localStorage. */
 const BAR_KEY = 'pulse.barItems';
 const BAR_FIXED = 'settings';
-const BAR_DEFAULT = ['salas', 'crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
+const BAR_DEFAULT = ['salas', 'macroverso', 'crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
 // The keys that are in the markup. The crew is two elements — five spheres when there is room, one
 // button when there is not — and one key: taking it off takes both.
 const BAR_BUILT = {
@@ -16437,7 +16461,9 @@ const barKit = {
 
 // Keys that joined the bar after a person arranged theirs. Each is put at the end once, so it can
 // be found; taken off after that, it stays off.
-const BAR_JOINED = ['phone', 'salas'];
+const BAR_JOINED = ['phone', 'salas', 'macroverso'];
+// The MACROVERSO: an orbit, a sun and two worlds. Only the room of SALAS carries the key.
+const MACROVERSO_ICON = '<ellipse cx="10" cy="10" rx="8.2" ry="3.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"/><circle cx="10" cy="10" r="2.2" fill="currentColor"/><circle cx="16.4" cy="8.6" r="1.5" fill="currentColor"/><circle cx="4.2" cy="11.6" r="1.1" fill="currentColor" opacity=".7"/>';
 // SALAS: three rooms of one Mac, and what joins them.
 const SALAS_ICON = '<circle cx="5.6" cy="6.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14.4" cy="6.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="14.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.2 6.4h3.6M7 8.7l1.7 3.2M13 8.7l-1.7 3.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".55"/>';
 function barStored() {
@@ -16471,6 +16497,8 @@ function barCatalogue() {
   // SALAS, every room on this Mac (docs/MACROVERSO.md). On a phone the way back to them is already
   // at the start of the bar.
   if (!state.device) out.set('salas', { id: 'salas', name: t('Rooms'), icon: SALAS_ICON, open: () => { globalThis.location.href = '/salas'; } });
+  // The MACROVERSO, from the room of SALAS only (phase 3d): SALAS opens straight into it.
+  if (!state.device && state.salas) out.set('macroverso', { id: 'macroverso', name: t('Macroverse'), icon: MACROVERSO_ICON, open: () => { globalThis.location.href = '/salas#macroverso'; } });
   // Every module that opens as a window: MADRE's own that have something to read, and yours. One
   // that is off is offered too; its window says how to switch it on.
   const items = modules.items ?? [];

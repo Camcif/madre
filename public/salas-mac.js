@@ -13,6 +13,7 @@ const ui = {
   title: $('sm-title'), sub: $('sm-sub'), back: $('sm-back'), stop: $('sm-stop'), macro: $('sm-macro'), empty: $('sm-empty'), foot: $('sm-foot'),
   open: $('sm-open'), openGroup: $('sm-open-group'), openTitle: $('sm-open-title'),
   asleep: $('sm-asleep'), asleepGroup: $('sm-asleep-group'), asleepTitle: $('sm-asleep-title'), asleepNote: $('sm-asleep-note'),
+  linksGroup: $('sm-links-group'), linksTitle: $('sm-links-title'), linksNote: $('sm-links-note'), links: $('sm-links'), link: $('sm-link'),
 };
 let language = 'es';
 let timer = 0;
@@ -23,6 +24,7 @@ let macro = null;              // the macroverse, while it is open
 const busy = new Map();       // room id → 'starting' | 'closing'
 const asking = new Set();      // room ids whose card asks before closing
 const failed = new Map();      // room id → what went wrong, said on its card
+const revoking = new Set();    // link ids whose row asks before revoking
 
 // The room's looks, from this browser: the same keys the room's own page keeps.
 (() => {
@@ -113,6 +115,8 @@ function card(room) {
 
   const head = el('header', 'sm-card-head');
   head.append(el('h3', null, room.name));
+  // The room of SALAS (phase 3d): MADRE's own, where the super agent lives. Named as such.
+  if (data?.salas && room.id === data.salas) { node.classList.add('is-salas'); head.append(el('span', 'sm-chip salas', t('The room of SALAS'))); }
   if (room.here) head.append(el('span', 'sm-chip here', t('You are here')));
   else if (room.open) head.append(el('span', 'sm-chip port', `:${room.open.port}`));
   node.append(head);
@@ -164,9 +168,11 @@ function card(room) {
 const ORDER = { waiting: 0, working: 1, calm: 2, quiet: 3, outdated: 4 };
 function draw() {
   if (!data) return;
+  // The room of SALAS leads either list: it is the door to all the others.
+  const salasFirst = (a, b) => Number(b.id === data.salas) - Number(a.id === data.salas);
   const open = data.rooms.filter((room) => room.open)
-    .sort((a, b) => (ORDER[stateOf(a).key] - ORDER[stateOf(b).key]) || (Date.parse(b.glance?.chat?.at ?? 0) - Date.parse(a.glance?.chat?.at ?? 0)));
-  const asleep = data.rooms.filter((room) => !room.open).sort((a, b) => Date.parse(b.lastOpened ?? 0) - Date.parse(a.lastOpened ?? 0));
+    .sort((a, b) => salasFirst(a, b) || (ORDER[stateOf(a).key] - ORDER[stateOf(b).key]) || (Date.parse(b.glance?.chat?.at ?? 0) - Date.parse(a.glance?.chat?.at ?? 0)));
+  const asleep = data.rooms.filter((room) => !room.open).sort((a, b) => salasFirst(a, b) || Date.parse(b.lastOpened ?? 0) - Date.parse(a.lastOpened ?? 0));
   ui.sub.textContent = [data.mac ? t('On {mac}', { mac: data.mac }) : null, t('{n} open', { n: open.length }), asleep.length ? t('{n} asleep', { n: asleep.length }) : null].filter(Boolean).join(' · ');
   ui.openGroup.hidden = !open.length;
   ui.asleepGroup.hidden = !asleep.length;
@@ -175,10 +181,172 @@ function draw() {
   ui.empty.hidden = Boolean(open.length || asleep.length);
   const working = open.some((room) => room.glance?.working?.length);
   ui.stop.hidden = !working;
+  drawLinks();
   // The macroverse wants a large screen: on a small one SALAS is the whole of it.
   ui.macro.hidden = !data.rooms.length || window.innerWidth < 900;
-  macro?.update(data.rooms);
+  macro?.update(data.rooms, data.enlaces ?? []);
 }
+
+// LINKS (docs/MACROVERSO.md, phase 3c): the contracts between rooms, read from /api/salas, each
+// one revocable here, and the sheet that signs a new one. A contract says which room reads which,
+// what kinds cross and until when; what crosses is counted, never shown.
+const roomName = (id) => data?.rooms.find((room) => room.id === id)?.name ?? id;
+const kindsWords = (kinds) => (kinds ?? []).map((kind) => (KIND_WORDS[kind] ?? kind).toLowerCase()).join(', ');
+// Who reads and who serves, from the contract's own words: `a→b` means the notes travel from a to b.
+function endsOf(enlace) {
+  const { a, b } = enlace.rooms;
+  return enlace.direction === 'b→a' ? { source: b, reader: a } : { source: a, reader: b };
+}
+function linkRow(enlace) {
+  const { source, reader } = endsOf(enlace);
+  const node = el('article', `sm-link${revoking.has(enlace.id) ? ' revoking' : ''}`);
+  node.dataset.link = enlace.id;
+  node.append(el('p', 'who', enlace.direction === 'both' ? t('{a} and {b} read each other', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) }) : t('{reader} reads from {source}', { reader: roomName(reader), source: roomName(source) })));
+  const what = [kindsWords(enlace.kinds), enlace.expires ? t('until {date}', { date: new Date(enlace.expires).toLocaleDateString(language, { day: 'numeric', month: 'short' }) }) : t('no expiry')];
+  if (enlace.orders?.allowed) what.push(t('orders up to #{n}', { n: enlace.orders.maxMode }));
+  node.append(el('p', 'what', what.join(' · ')));
+  const traffic = enlace.traffic ?? {};
+  node.append(el('p', 'traffic', [t('{n} reads in 24 h', { n: traffic.reads24h ?? 0 }), traffic.lastAt ? t('last {when}', { when: ago(traffic.lastAt) }) : t('none yet')].join(' · ')));
+  const actions = el('div', 'sm-actions');
+  if (revoking.has(enlace.id)) actions.append(el('span', 'sm-ask', t('Nothing crosses from then on.')), button('sm-btn danger', t('Revoke it'), () => revokeLink(enlace.id)), button('sm-btn ghost', t('Cancel'), () => { revoking.delete(enlace.id); draw(); }));
+  else actions.append(button('sm-btn ghost', t('Revoke'), () => { revoking.add(enlace.id); draw(); }));
+  node.append(actions);
+  return node;
+}
+function drawLinks() {
+  const enlaces = data.enlaces ?? [];
+  const enough = data.rooms.length >= 2;
+  ui.linksGroup.hidden = !enough && !enlaces.length;
+  ui.link.hidden = !enough;
+  ui.linksNote.textContent = t('A link lets one room read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes that travel into turns cross.');
+  ui.links.replaceChildren(...enlaces.map(linkRow));
+}
+async function revokeLink(id) {
+  revoking.delete(id);
+  await fetch('/api/salas/enlaces/revoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => null);
+  await refresh();
+}
+
+// The sheet that signs a link. Two rooms, who reads whom (or both), what crosses, until when;
+// and, only when one of the two is the room of SALAS (the super agent's), whether orders may enter
+// the other and up to which mode, which asks for that room's designation, as arming #3 does.
+let sheet = null;
+function openLinkSheet({ reader = null, source = null } = {}) {
+  if (!data || sheet) return;
+  const rooms = [...data.rooms].sort((x, y) => Number(Boolean(y.open)) - Number(Boolean(x.open)) || x.name.localeCompare(y.name));
+  sheet = el('dialog', 'sm-sheet');
+  const form = el('form');
+  form.method = 'dialog';
+  form.append(el('h3', null, t('Link two rooms')));
+  const choose = (labelWords, chosen) => {
+    const label = el('label', null, labelWords);
+    const select = el('select');
+    for (const room of rooms) { const option = el('option', null, room.name); option.value = room.id; if (room.id === chosen) option.selected = true; select.append(option); }
+    label.append(select);
+    return { label, select };
+  };
+  const readerPick = choose(t('The one that reads'), reader ?? rooms.find((room) => room.id !== source)?.id ?? null);
+  const sourcePick = choose(t('The one that serves'), source ?? rooms.find((room) => room.id !== readerPick.select.value)?.id ?? null);
+  const pair = el('div', 'pair');
+  pair.append(readerPick.label, el('span', 'arrow', '←'), sourcePick.label);
+  form.append(pair);
+  const both = el('label', 'row');
+  const bothBox = el('input'); bothBox.type = 'checkbox';
+  both.append(bothBox, document.createTextNode(t('Both ways')));
+  form.append(both);
+  const kinds = el('label', null, t('What crosses'));
+  const kindRow = el('div', 'row');
+  const kindBoxes = [];
+  for (const kind of KINDS) {
+    if (kind === 'aberration') continue;
+    const one = el('label', 'row');
+    const box = el('input'); box.type = 'checkbox'; box.value = kind; box.checked = kind === 'decision' || kind === 'fact';
+    one.append(box, document.createTextNode(KIND_WORDS[kind].toLowerCase()));
+    kindRow.append(one);
+    kindBoxes.push(box);
+  }
+  kinds.append(kindRow, el('p', 'hint', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the room that serves. Never the ledger, files, med bay or jettisoned.')));
+  form.append(kinds);
+  const expires = el('label', null, t('Expires'));
+  const expiresPick = el('select');
+  for (const [value, words] of [['1', t('In a day')], ['7', t('In a week')], ['30', t('In 30 days')], ['', t('Never')]]) { const option = el('option', null, words); option.value = value; if (value === '30') option.selected = true; expiresPick.append(option); }
+  expires.append(expiresPick);
+  form.append(expires);
+  // Orders: only with the room of SALAS on one side, and never automatic above #2.
+  const orders = el('div', 'orders');
+  const allow = el('label', 'row');
+  const allowBox = el('input'); allowBox.type = 'checkbox';
+  const allowWords = document.createTextNode('');
+  allow.append(allowBox, allowWords);
+  const ceiling = el('label', 'row');
+  const modePick = el('select');
+  for (const n of [1, 2]) { const option = el('option', null, `#${n} ${MODE_NAMES[n]}`); option.value = String(n); if (n === 1) option.selected = true; modePick.append(option); }
+  const perHourPick = el('select');
+  for (const n of [3, 6, 12]) { const option = el('option', null, String(n)); option.value = String(n); if (n === 6) option.selected = true; perHourPick.append(option); }
+  ceiling.append(document.createTextNode(t('up to')), modePick, document.createTextNode(`· ${t('per hour')}`), perHourPick);
+  const designation = el('label', null, '');
+  const designationInput = el('input'); designationInput.type = 'text'; designationInput.autocomplete = 'off'; designationInput.spellcheck = false;
+  designation.append(designationInput);
+  orders.append(el('p', 'hint', t('Orders from the super agent')), allow, ceiling, designation);
+  form.append(orders);
+  const error = el('p', 'error');
+  form.append(error);
+  const actions = el('div', 'actions');
+  const cancel = button('sm-btn ghost', t('Cancel'), () => sheet.close());
+  const sign = el('button', 'sm-btn primary', t('Sign'));
+  sign.type = 'submit';
+  actions.append(cancel, sign);
+  form.append(actions);
+  sheet.append(form);
+  document.body.append(sheet);
+
+  // The orders block follows the pair: it is there only when one side is the room of SALAS, and
+  // it names the other side, the one that would receive them.
+  const target = () => {
+    const ids = [readerPick.select.value, sourcePick.select.value];
+    if (!data.salas || !ids.includes(data.salas)) return null;
+    return ids.find((id) => id !== data.salas) ?? null;
+  };
+  const syncOrders = () => {
+    const other = target();
+    orders.hidden = !other;
+    if (!other) { allowBox.checked = false; return; }
+    allowWords.textContent = t('Allow orders into {room}', { room: roomName(other) });
+    ceiling.hidden = !allowBox.checked;
+    designation.hidden = !allowBox.checked;
+    designation.firstChild.textContent = t('Type the designation of {room} to allow orders into it', { room: roomName(other) });
+  };
+  for (const control of [readerPick.select, sourcePick.select, allowBox]) control.addEventListener('change', syncOrders);
+  syncOrders();
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    error.textContent = '';
+    const readerId = readerPick.select.value, sourceId = sourcePick.select.value;
+    if (readerId === sourceId) { error.textContent = t('Choose two different rooms.'); return; }
+    const chosenKinds = kindBoxes.filter((box) => box.checked).map((box) => box.value);
+    if (!chosenKinds.length) { error.textContent = t('Choose at least one kind.'); return; }
+    const days = Number(expiresPick.value);
+    const body = {
+      a: sourceId, b: readerId, direction: bothBox.checked ? 'both' : 'a→b', kinds: chosenKinds,
+      expires: days ? new Date(Date.now() + days * 86400000).toISOString() : null,
+      orders: allowBox.checked && !orders.hidden ? { allowed: true, maxMode: Number(modePick.value), perHour: Number(perHourPick.value) } : { allowed: false, maxMode: 0, perHour: Number(perHourPick.value) },
+      designation: allowBox.checked && !orders.hidden ? designationInput.value.trim() : undefined,
+    };
+    sign.disabled = true;
+    sign.textContent = t('Signing…');
+    const answer = await fetch('/api/salas/enlaces', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      .then(async (response) => ({ ok: response.ok, body: await response.json().catch(() => ({})) })).catch(() => ({ ok: false, body: {} }));
+    sign.disabled = false;
+    sign.textContent = t('Sign');
+    if (!answer.ok) { error.textContent = answer.body.error ?? t('The link could not be signed.'); return; }
+    sheet.close();
+    await refresh();
+  });
+  sheet.addEventListener('close', () => { sheet.remove(); sheet = null; });
+  sheet.showModal();
+}
+ui.link.addEventListener('click', () => openLinkSheet());
 
 async function refresh() {
   const answer = await fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
@@ -233,9 +401,18 @@ function macroWords() {
     title: t('Macroverse'),
     mac: (data?.mac ?? t('This Mac')).toUpperCase(),
     back: t('Back to Rooms'),
-    hint: t('Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · ← → from one to the next · Esc to come back'),
+    hint: t('Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · drag one onto another to link them · ← → from one to the next · Esc to come back'),
     recenter: t('RECENTER'),
     veins: (n) => t('{n} veins', { n }),
+    links: t('Links'),
+    link: t('Link…'),
+    // One link as seen from one of its rooms.
+    linkRow: (enlace, roomId) => {
+      const other = roomName(enlace.rooms.a === roomId ? enlace.rooms.b : enlace.rooms.a);
+      const kinds = kindsWords(enlace.kinds);
+      if (enlace.direction === 'both') return t('both ways with {room}: {kinds}', { room: other, kinds });
+      return endsOf(enlace).reader === roomId ? t('reads {kinds} from {room}', { kinds, room: other }) : t('{room} reads its {kinds}', { room: other, kinds });
+    },
     sub: (rooms) => {
       const open = rooms.filter((room) => room.open);
       const memories = open.reduce((sum, room) => sum + (room.glance?.census?.memories ?? 0), 0);
@@ -280,10 +457,13 @@ ui.macro.addEventListener('click', async () => {
     host: document.body,
     rooms: data.rooms,
     here: data.here,
+    enlaces: data.enlaces ?? [],
     accent: darkAccent(),
     words: macroWords(),
     actions: {
       wake: async (room) => { await startRoom(room); },
+      // Dragged from one universe onto another: the notes of the first would travel to the second.
+      link: (source, reader) => openLinkSheet({ source: source?.id ?? null, reader: reader?.id ?? null }),
       closed: () => { macro = null; document.body.classList.remove('sm-in-macro'); ui.macro.focus(); },
     },
   });
@@ -317,11 +497,15 @@ function translateStatic() {
   ui.openTitle.textContent = t('Open now');
   ui.asleepTitle.textContent = t('Asleep');
   ui.asleepNote.textContent = t('Closed rooms whose project is still on this Mac. Waking one opens it as madre start would.');
+  ui.linksTitle.textContent = t('Links');
+  ui.link.textContent = t('Link rooms');
   ui.empty.textContent = t('No rooms yet. Open MADRE in a project folder and it will be here.');
   for (const kind of KINDS) KIND_WORDS[kind] = t(kind.toUpperCase());
 }
 
 translateStatic();
 await refresh();
+// Sent here for the Macroverso (the key in the room of SALAS): straight into it, on a large screen.
+if (location.hash === '#macroverso' && data && !ui.macro.hidden) { history.replaceState(null, '', location.pathname); ui.macro.click(); }
 timer = setInterval(() => { if (!document.hidden && !busy.size) void refresh(); }, 4000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });

@@ -137,12 +137,24 @@ test('salas · the macroverse draws every room with NOSTROMO\'s own engine, one 
   // Frames stop in a hidden tab, and someone who asked for less motion gets still frames.
   assert.match(source, /document\.addEventListener\('visibilitychange', onVisible\);/);
   assert.match(source, /raf = reduced && !camera\.to \? 0 : requestAnimationFrame\(frame\);/);
-  // Nothing joins two universes until a link exists (phase 3c): it draws no line at all.
-  assert.doesNotMatch(source, /lineTo\(/);
+  // A vein joins two universes only where a contract does (phase 3c): every curve the macroverse
+  // draws between bodies lives in drawVeins, which walks the contracts it was given, and nothing
+  // else in the file draws a line.
+  const veinsAt = source.indexOf('function drawVeins(');
+  assert.notEqual(veinsAt, -1, 'the veins have no painter of their own');
+  const drawVeins = source.slice(veinsAt, source.indexOf('\n  }\n', veinsAt) + 4);
+  assert.match(drawVeins, /for \(const vein of veins\)/);
+  assert.doesNotMatch(source.replace(drawVeins, ''), /lineTo\(|quadraticCurveTo\(|bezierCurveTo\(/, 'a line is drawn outside drawVeins');
+  assert.match(source, /veins = \(enlaces \?\? \[\]\)/, 'the veins do not come from the contracts');
   // Entered from SALAS, and only on a large screen; its accent is the night's in either theme (S-014).
   assert.match(page, /ui\.macro\.hidden = !data\.rooms\.length \|\| window\.innerWidth < 900;/);
   assert.match(page, /function darkAccent\(/);
   assert.match(page, /accent: darkAccent\(\),/);
+  // A link is signed and revoked from SALAS, by the page's own routes; the sheet asks for the
+  // designation when orders may enter a room.
+  assert.match(page, /fetch\('\/api\/salas\/enlaces', \{ method: 'POST'/);
+  assert.match(page, /fetch\('\/api\/salas\/enlaces\/revoke', \{ method: 'POST'/);
+  assert.match(page, /Type the designation of \{room\} to allow orders into it/);
   // On a phone it is one line of the archive per room, read through the bridge.
   const bridge = await readFile(join(import.meta.dirname, '..', 'src', 'bridge', 'server.mjs'), 'utf8');
   assert.match(bridge, /\/api\/glance\?census=1/);

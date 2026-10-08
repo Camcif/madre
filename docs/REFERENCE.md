@@ -210,7 +210,18 @@ Cada proyecto es una sala, y **Salas** las junta: la tecla de los tres círculos
 | **Despertar** | Abre una sala dormida como lo haría `madre start --project <carpeta>`; lo que dice al arrancar queda en `start.log`, junto a su registro |
 | **Detener todo** | Frena a todos los agentes de todas las salas |
 
-**El Macroverso**, desde Salas en una pantalla de 900 px o más: tus salas en el espacio abierto, y cada una es un NOSTROMO dibujado por el mismo motor que el de su sala (`public/nostromo-engine.js`). Arrastra el espacio para moverlo, rueda para acercarte, **Recentrar** para volver a casa. Clic o ← → para volar a una: el universo elegido es el único vivo, con su magma y sus pulsos; arrástralo para girarlo, toca una memoria para leerla en la ficha, Esc para soltarla y otra vez Esc para volver. De lejos cada universo se lee de su sala sin las palabras de sus memorias (`GET /api/salas/universe?id=`); solo el elegido las pide (`&full=1`), y nunca desde el teléfono. Por ahora solo muestra; enlazar salas viene después.
+**El Macroverso**, desde Salas en una pantalla de 900 px o más: tus salas en el espacio abierto, y cada una es un NOSTROMO dibujado por el mismo motor que el de su sala (`public/nostromo-engine.js`). Arrastra el espacio para moverlo, rueda para acercarte, **Recentrar** para volver a casa. Clic o ← → para volar a una: el universo elegido es el único vivo, con su magma y sus pulsos; arrástralo para girarlo, toca una memoria para leerla en la ficha, Esc para soltarla y otra vez Esc para volver. De lejos cada universo se lee de su sala sin las palabras de sus memorias (`GET /api/salas/universe?id=`); solo el elegido las pide (`&full=1`), y nunca desde el teléfono.
+
+**Enlaces.** Un enlace es un contrato entre dos salas que firmas en Salas (**Enlazar salas**, o arrastrando un universo sobre otro en el Macroverso): quién lee de quién (o las dos), qué tipos cruzan y hasta cuándo. Cruzan solo notas destiladas que viajan a los turnos (bodega y puente), limpias por el guardia de privacidad de la sala que entrega; nunca el registro, archivos, llaves, enfermería ni esclusa; y solo de lectura. En la sala que puede leer, cada turno lleva el servidor MCP `pulse-enlaces` (`enlace_rooms`, `enlace_search`); sin contrato no existe. Firmar y revocar dejan una línea en las dos salas; cada lectura queda contada (`enlace.read` en la que entrega, `enlace.received` en la que lee) y se ve en Salas y como pulsos en la vena del Macroverso.
+
+| Ruta | Qué | Quién |
+|---|---|---|
+| `POST /api/salas/enlaces` · `POST /api/salas/enlaces/revoke` | Firmar y revocar | La página de Salas, nunca el teléfono |
+| `GET /api/enlace/memories` | Lo que esta sala entrega por un contrato: solo `travels()` y los tipos del contrato, redactado; 404 si el contrato no sirve a quien pide, 423 sellada, 429 sobre el tope | Otro proceso de MADRE con la llave del canal (`~/.pulse/credentials/enlaces.json`), sin `Origin` |
+| `POST /api/enlace/ask` | Lo que esta sala pide a otra; registra `enlace.received` | El servidor `pulse-enlaces` de un turno, con la llave |
+| `POST /api/enlace/notice` | La línea de MU/TH/UR al firmar o revocar | La sala que sirve Salas, con la llave |
+
+Los contratos viven en `~/.pulse/config.json` bajo `enlaces` y los cruces en `enlaces.jsonl` junto al registro de cada sala. Todo esto es de la Mac: el teléfono no enlaza ni lee enlaces.
 
 Cada sala recuerda dónde está su proyecto (`project.json`, junto a su registro); una sala abierta por última vez con una MADRE anterior aparece cuando se vuelve a abrir. Salas es de la Mac: el teléfono tiene la suya.
 

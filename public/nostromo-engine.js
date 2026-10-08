@@ -753,7 +753,7 @@ export const PULSE_CAP = 48;        // a ceiling, so a large archive stays light
 // end, and riding on it is a narrow band of white heat that travels from one end to the other
 // and comes round again. Moving the band is all it takes: one gradient a frame, not a hundred
 // little strokes, and the eye reads it as charge on its way somewhere.
-function currentAlong(ctx, x0, y0, x1, y1, from, to, head, bright) {
+export function currentAlong(ctx, x0, y0, x1, y1, from, to, head, bright) {
   const line = ctx.createLinearGradient(x0, y0, x1, y1);
   // The wire's own colour, and then the band riding on it. Where the two want the same place
   // along the wire the band wins: it is the thing in motion, and dropping it there would make
