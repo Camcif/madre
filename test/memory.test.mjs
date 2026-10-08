@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { EventStore } from '../src/event-store.mjs';
 import { Room } from '../src/room.mjs';
 import { RoomMemory, formatRecall, queryTerms, excerpt, zoneFor, HOLD, BRIDGE, MEDBAY, JETTISONED, RECALLED_ZONES, VERDICTS } from '../src/memory.mjs';
+import { Privacy, PRIVACY_MARKER } from '../src/privacy.mjs';
 
 const agents = [
   { id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/fake/codex', version: 'test' },
@@ -1015,6 +1016,59 @@ test('memory: an aberration is kept, is never recalled, and takes what it refute
     const again = await new RoomMemory(join(root, 'memory.sqlite')).initialize(store);
     assert.equal(again.memories({ limit: 10 }).every((note) => note.refutedBy === null), true);
     again.close();
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('memory: privacy purge preserves standing, refutations and recall history while redacting corrections', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pulse-purge-standing-'));
+  try {
+    const store = await new EventStore(join(root, 'events.jsonl')).initialize();
+    const privacy = new Privacy();
+    const file = join(root, 'memory.sqlite');
+    const memory = await new RoomMemory(file).attachPrivacy(privacy).initialize(store);
+    memory.addMemories([
+      { kind: 'fact', text: 'Globex ships invoices from port 7321.', sources: [1] },
+      { kind: 'decision', text: 'Globex receipts are archived daily.', sources: [1] },
+    ], { agent: 'codex', fromSequence: 1, throughSequence: 1 });
+    const wrong = memory.memories().find((note) => note.kind === 'fact');
+    const flagged = memory.flagAberration({
+      text: wrong.text, correction: 'Globex uses port 8443 instead.', contradicts: wrong.id,
+      detector: 'eyecat', confidence: 0.8,
+    });
+    memory.flagAberration({ text: 'The sample answer promised 500ms latency.', correction: 'Globex measured 2s instead.' });
+    memory.recallMemories('receipts archived daily', { fallback: false });
+    const before = memory.memories();
+    const decisionBefore = before.find((note) => note.kind === 'decision');
+    assert.ok(decisionBefore.recalled > 0);
+    privacy.set(['Globex']);
+    assert.equal(memory.exposure().memories, 4, 'corrections count as private content too');
+
+    assert.equal(memory.purge().memories, 4);
+    const after = memory.memories();
+    assert.equal(after.length, 4, 'the aberration must keep its separate dedup key');
+    assert.ok(!JSON.stringify(after).includes('Globex'));
+    const fact = after.find((note) => note.id === wrong.id);
+    const aberration = after.find((note) => note.id === flagged.id);
+    const decision = after.find((note) => note.id === decisionBefore.id);
+    assert.equal(fact.zone, JETTISONED);
+    assert.equal(fact.refutedBy, flagged.id);
+    assert.equal(aberration.zone, MEDBAY);
+    assert.equal(aberration.contradicts, wrong.id);
+    assert.equal(aberration.correction, `${PRIVACY_MARKER} uses port 8443 instead.`);
+    assert.equal(aberration.detector, 'eyecat');
+    assert.equal(aberration.confidence, 0.8);
+    assert.equal(decision.recalled, decisionBefore.recalled);
+    assert.equal(decision.lastRecalled, decisionBefore.lastRecalled);
+    assert.equal(memory.exposure().memories, 0);
+    assert.equal(memory.recallMemories('invoices port 7321', { fallback: false }).some((note) => note.id === wrong.id), false);
+    memory.close();
+
+    const reopened = await new RoomMemory(file).attachPrivacy(privacy).initialize(store);
+    assert.equal(reopened.memories().find((note) => note.id === wrong.id).zone, JETTISONED);
+    assert.equal(reopened.memories().find((note) => note.id === wrong.id).refutedBy, flagged.id);
+    reopened.close();
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }

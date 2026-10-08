@@ -323,7 +323,9 @@ export class RoomMemory {
     let entries = 0;
     for (const row of this.#db.prepare('SELECT text FROM entries').iterate()) if (this.#privacy.hits(row.text)) entries += 1;
     let memories = 0;
-    for (const row of this.#db.prepare('SELECT text FROM memories').iterate()) if (this.#privacy.hits(row.text)) memories += 1;
+    for (const row of this.#db.prepare('SELECT text, correction FROM memories').iterate()) {
+      if (this.#privacy.hits(row.text) || (row.correction && this.#privacy.hits(row.correction))) memories += 1;
+    }
     return { entries, memories };
   }
 
@@ -334,13 +336,17 @@ export class RoomMemory {
     if (!this.#privacy?.enabled) return { entries: 0, memories: 0 };
     const counts = { entries: 0, memories: 0 };
     const entryRows = this.#db.prepare('SELECT sequence, event_id, timestamp, type, role, sender, target, message_id, text, distilled FROM entries').all();
-    const memoryRows = this.#db.prepare('SELECT id, created, kind, text, norm, from_sequence, through_sequence, sources, agent, origin, message_id FROM memories').all();
+    // Preserve every column when replacing a row. In particular, a refuted note must keep its
+    // standing and its refutation; a recall must keep its history. The schema is the source of
+    // this list so a later additive column cannot silently be reset to its default here.
+    const memoryColumns = this.#db.prepare('PRAGMA table_info(memories)').all().map((column) => column.name);
+    const memoryRows = this.#db.prepare('SELECT * FROM memories').all();
     const deleteEntry = this.#db.prepare('DELETE FROM entries WHERE sequence = ?');
     const deleteEntryVector = this.#db.prepare('DELETE FROM entry_vectors WHERE sequence = ?');
     const insertEntry = this.#db.prepare('INSERT INTO entries (sequence, event_id, timestamp, type, role, sender, target, message_id, text, distilled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     const deleteMemory = this.#db.prepare('DELETE FROM memories WHERE id = ?');
     const deleteMemoryVector = this.#db.prepare('DELETE FROM memory_vectors WHERE id = ?');
-    const insertMemory = this.#db.prepare('INSERT INTO memories (id, created, kind, text, norm, from_sequence, through_sequence, sources, agent, origin, message_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const insertMemory = this.#db.prepare(`INSERT INTO memories (${memoryColumns.map((name) => `"${name.replaceAll('"', '""')}"`).join(', ')}) VALUES (${memoryColumns.map(() => '?').join(', ')})`);
     this.#db.exec('BEGIN');
     try {
       for (const row of entryRows) {
@@ -353,12 +359,14 @@ export class RoomMemory {
       }
       for (const row of memoryRows) {
         const { text, hits } = this.#privacy.redact(row.text);
-        if (!hits) continue;
+        const correction = row.correction ? this.#privacy.redact(row.correction) : { text: null, hits: 0 };
+        if (!hits && !correction.hits) continue;
         deleteMemoryVector.run(row.id);
         deleteMemory.run(row.id);
         // Two notes may collapse into the same redacted sentence: the later one is dropped.
-        const clash = this.#db.prepare('SELECT id FROM memories WHERE norm = ?').get(normalizeMemory(text));
-        if (!clash) insertMemory.run(row.id, row.created, row.kind, text, normalizeMemory(text), row.from_sequence, row.through_sequence, row.sources, row.agent, row.origin, row.message_id);
+        const norm = memoryKey(row.kind, text);
+        const clash = this.#db.prepare('SELECT id FROM memories WHERE norm = ?').get(norm);
+        if (!clash) insertMemory.run(...memoryColumns.map((name) => name === 'text' ? text : name === 'norm' ? norm : name === 'correction' ? correction.text : row[name]));
         counts.memories += 1;
       }
       this.#db.exec('COMMIT');
