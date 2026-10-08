@@ -92,6 +92,7 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-021** | `enlace.received` no dice qué agente ni qué turno pidió la lectura (`turn: null`): el servidor MCP `pulse-enlaces` no recibe el id del mensaje (solo `pulse-memory` lo recibe, y se lo pone el núcleo en `memoryServerForTurn`), y el `env` que fija el contrato de 3c no lleva `turn.agent`. D-S04 pedía ver «quién lo pidió y para qué turno»; hoy lo más cercano es `turn.cost.servers` de la sala, que dice qué servidores viajaron en cada turno. Falta decidir si el módulo añade `PULSE_ENLACES_AGENT` y un campo `agent` al cuerpo de `/api/enlace/ask`, o si el núcleo expone el id del turno a los módulos | `src/modules/enlaces.mjs`, `src/server.mjs` (`/api/enlace/ask`) | 3c | ABIERTO |
 | **S-022** | `--help` después de un comando se ignoraba: `madre start --help` abría la sala, y `madre salas --help` la habría abierto también. Ahora `parseArgs` toma `--help` o `-h` en cualquier posición como la ayuda; un valor nunca empieza por `-`, así que ninguna opción pierde el suyo | `src/cli-args.mjs` | 3d | ARREGLADO |
 | **S-023** | Abrir la sala de Salas deja `.pulse/mother.env` dentro del cuaderno, como en cualquier proyecto: es el sello del canal de MU/TH/UR, que el núcleo escribe en `<proyecto>/.pulse/`. El CLI crea el cuaderno vacío y no escribe nada; lo que sí escribe es la sala, igual que en toda sala, y el checkpoint ya excluye `.pulse/` (`FORBIDDEN`). Las pruebas fijan que eso es lo único que aparece dentro | `src/server.mjs` (`MotherChannel`), `src/checkpoint.mjs:21` | 3d | ANOTADO · SIN CAMBIO |
+| **S-024** | La fase 4a necesita pasar a cada turno el censo y los contratos en un bloque `bishop`, también cuando BISHOP usa `@madre`. El SDK solo ofrece `toolsForTurn`; la sala lo omite para `madre-local` y `promptParts` recibe opciones fijas sin un bloque aportado por módulos. La excepción §6.2 del encargo permite añadir `bishop` en `src/room/prompt.mjs`, pero no permite el conducto necesario desde el módulo por `src/server.mjs` y `src/room.mjs`. Se propone un callback acotado, calculado por turno solo en la sala de Salas y para el agente elegido; entrega texto (≤ 1500 caracteres) al bloque `bishop` sin exponer notas ni llaves. Requiere ampliar expresamente §6 antes de implementarlo | `src/modules/sdk.mjs:72-77`, `src/server.mjs:398-406`, `src/room.mjs:1326-1328,1424-1450,1543-1548`, `src/room/prompt.mjs:20-75` | 4a | PARADA · DECISIÓN DEL HUMANO |
 
 ---
 
@@ -219,7 +220,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | HECHA |
 | 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | HECHA |
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | HECHA |
-| 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | ENCARGADA |
+| 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | PARADA · S-024 |
 | 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | ENCARGADA |
 | 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje | ENCARGADA |
 | 3e | Recall automático de notas enlazadas | Se pregunta antes de empezar |
@@ -368,3 +369,15 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   `enlaces.jsonl`, ícono de ENLACES, aviso a dormidas, 3e, número de versión), los problemas
   encontrados y cómo se resolvieron, y el entorno de la Mac (salas abiertas, contratos de prueba
   sellados). Suite 633 en verde y `pack:check` al escribirlo. Nada publicado.
+- `2026-10-08` · Continuidad revisada sobre `main` @ `63ab64c` (63 commits locales delante de
+  `origin/main`, árbol limpio al iniciar). Las fases 3a–3d siguen cerradas; S-023 permanece
+  anotado sin cambio. Se abre S-024 y se detiene 4a antes de código: falta un conducto permitido
+  para que el módulo entregue el bloque `bishop` al turno de `@madre`; §6 solo permite editar
+  `prompt.mjs`. Preflight de 4b por lectura: `ctx.room` es la `Room` real, `send()` existe y espera
+  al turno pero no devuelve id de mensaje (`src/server.mjs:1045-1048`, `src/room.mjs:960-1087`);
+  `ctx.record('command.output', …)` acepta el tipo y `renderCommandCard` pinta un `name` distinto
+  de `run` (`src/room.mjs:238-244`, `public/app.js:10693-10714`). La correlación de 4b tendría
+  que usar el encabezado de orden previsto en §4C.4. Sin código nuevo ni prueba de BISHOP; la
+  fase espera la decisión sobre S-024 y su compuerta de aceptación sigue pendiente. Suite
+  633/633 en verde (la primera corrida quedó en 632/633 porque el sandbox negó `ps` a Runs;
+  la repetición con acceso a `ps` pasó) y `pack:check` pasó.
