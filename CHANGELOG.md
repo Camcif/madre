@@ -26,6 +26,7 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **NOSTROMO tiene motor propio.** La física y los pintores del mapa de la memoria viven ahora en un archivo aparte, que la sala y el Macroverso comparten: una sola paleta, un solo magma, una sola forma de cerebro. En la sala no cambia nada que se vea.
 - **En el teléfono**, cada sala de Salas lleva la misma franja de sus memorias por tipo y cuántas guarda.
 - **Dos salas ya no se pisan los ajustes.** `config.json` es uno para toda la Mac y se escribía sin candado: si dos salas guardaban a la vez, una podía borrar el cambio de la otra, y un módulo que se encendía en una sala podía apagar lo que otra acababa de cambiar. Ahora cada cambio se escribe completo y en turno, y cada módulo escribe solo lo suyo.
+- **Una nota que un agente guarda con `memory_note` pasa ahora por el guardia de privacidad**, como todo lo demás que entra a la memoria: si el nombre está en Ajustes › Privacidad, la nota se guarda con la marca, no con el nombre, y el agente la ve como quedó guardada.
 
 ### NOSTROMO más claro
 

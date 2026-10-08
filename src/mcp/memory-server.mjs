@@ -11,9 +11,12 @@
 //                         Gemini CLI. Without a key search is lexical only.
 
 import { readFile, readdir, stat, realpath } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { RoomMemory, formatRecall, formatMemories, MEMORY_KINDS } from '../memory.mjs';
 import { createEmbedder } from '../embeddings.mjs';
+import { loadConfig } from '../config.mjs';
+import { Privacy, privacySettings } from '../privacy.mjs';
 import { resolveGeminiKey } from './image-server.mjs';
 
 const SERVER_NAME = 'pulse-memory';
@@ -71,9 +74,13 @@ export const TOOLS = [
 
 function clamp(n, min, max, fallback) { const value = Number(n); return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.trunc(value))) : fallback; }
 
-export async function openMemory({ dbFile = process.env.PULSE_MEMORY_DB, env = process.env, keyResolver = resolveGeminiKey } = {}) {
+export async function openMemory({ dbFile = process.env.PULSE_MEMORY_DB, env = process.env, keyResolver = resolveGeminiKey, stateRoot = env.PULSE_HOME ?? join(homedir(), '.pulse'), privacy = null } = {}) {
   if (!dbFile) throw new Error('PULSE_MEMORY_DB is required.');
-  const memory = await new RoomMemory(dbFile).initialize();
+  // A private term never enters a note, whoever writes it (docs/MACROVERSO.md, S-008): the guard
+  // the room attaches to its own index, built from the same config.json every room on this Mac
+  // shares, so a note an agent saves through memory_note is kept the way the archivist's are.
+  const guard = privacy ?? new Privacy({ ...privacySettings(await loadConfig(stateRoot).catch(() => ({})), env), home: homedir() });
+  const memory = await new RoomMemory(dbFile).attachPrivacy(guard).initialize();
   let embedder = null;
   if (env.PULSE_EMBED !== '0') {
     const key = env.PULSE_EMBED_FAKE === '1' ? null : await keyResolver(env).catch(() => null);
@@ -115,7 +122,8 @@ export async function callTool(name, args = {}, { memory, projectRoot = process.
       const added = memory.addMemories([{ kind, text, sources }], { agent, fromSequence: sources.length ? Math.min(...sources) : last, throughSequence: sources.length ? Math.max(...sources) : last, origin: 'noted', messageId });
       if (!added) return `Already remembered: "${text}"`;
       const [saved] = memory.notesSince(before, { agent });
-      return `Saved memory #${saved?.id ?? '?'} (${kind}) for every future turn of this room: "${text}"`;
+      // Echoed as it was kept: with a private term already replaced by the marker.
+      return `Saved memory #${saved?.id ?? '?'} (${kind}) for every future turn of this room: "${saved?.text ?? text}"`;
     }
     case 'memory_search': {
       const query = String(args.query ?? '').trim();
