@@ -10,7 +10,7 @@ import { setLanguage, t } from './i18n.js';
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 const ui = {
-  title: $('sm-title'), sub: $('sm-sub'), back: $('sm-back'), stop: $('sm-stop'), empty: $('sm-empty'), foot: $('sm-foot'),
+  title: $('sm-title'), sub: $('sm-sub'), back: $('sm-back'), stop: $('sm-stop'), macro: $('sm-macro'), empty: $('sm-empty'), foot: $('sm-foot'),
   open: $('sm-open'), openGroup: $('sm-open-group'), openTitle: $('sm-open-title'),
   asleep: $('sm-asleep'), asleepGroup: $('sm-asleep-group'), asleepTitle: $('sm-asleep-title'), asleepNote: $('sm-asleep-note'),
 };
@@ -18,6 +18,7 @@ let language = 'es';
 let timer = 0;
 let arming = 0;
 let data = null;
+let macro = null;              // the macroverse, while it is open
 // What each card is in the middle of, kept across the refreshes that redraw it.
 const busy = new Map();       // room id → 'starting' | 'closing'
 const asking = new Set();      // room ids whose card asks before closing
@@ -174,6 +175,9 @@ function draw() {
   ui.empty.hidden = Boolean(open.length || asleep.length);
   const working = open.some((room) => room.glance?.working?.length);
   ui.stop.hidden = !working;
+  // The macroverse wants a large screen: on a small one SALAS is the whole of it.
+  ui.macro.hidden = !data.rooms.length || window.innerWidth < 900;
+  macro?.update(data.rooms);
 }
 
 async function refresh() {
@@ -223,6 +227,50 @@ async function closeRoom(room) {
   draw();
 }
 
+// THE MACROVERSE (macroverso.js): the same rooms as universes, entered from here.
+function macroWords() {
+  return {
+    title: t('Macroverse'),
+    mac: (data?.mac ?? t('This Mac')).toUpperCase(),
+    back: t('Back to Rooms'),
+    hint: t('Click a universe to look at it · ← → to go from one to the next · Esc to come back'),
+    sub: (rooms) => {
+      const open = rooms.filter((room) => room.open);
+      const memories = open.reduce((sum, room) => sum + (room.glance?.census?.memories ?? 0), 0);
+      const waiting = open.filter((room) => room.glance?.waitingCount).length;
+      return [t('{n} universes', { n: rooms.length }), waiting ? t('{n} waiting for you', { n: waiting }) : null, t('{n} memories', { n: memories })].filter(Boolean).join(' · ');
+    },
+    state: (room) => stateOf(room).words,
+    path: homeWord,
+    ask: askLine,
+    kind: (kind) => KIND_WORDS[kind] ?? kind,
+    counts: (room) => (room.open ? [t('{n} conversations', { n: room.glance?.chats ?? 0 }), t('{n} memories', { n: room.glance?.census?.memories ?? 0 })].join(' · ') : room.lastOpened ? t('Asleep · last open {when}', { when: ago(room.lastOpened) }) : t('Asleep')),
+    enter: t('Enter the room'),
+    backToRoom: t('Back to the room'),
+    wake: t('Wake'),
+    waking: t('Waking…'),
+    all: t('All the universes'),
+  };
+}
+ui.macro.addEventListener('click', async () => {
+  if (macro || !data) return;
+  const { openMacroverso } = await import('./macroverso.js');
+  const accent = getComputedStyle(document.body).getPropertyValue('--s-acc').trim();
+  document.body.classList.add('sm-in-macro');
+  macro = openMacroverso({
+    host: document.body,
+    rooms: data.rooms,
+    here: data.here,
+    accent: /^#[0-9a-f]{6}$/i.test(accent) ? accent : '#9bff66',
+    words: macroWords(),
+    actions: {
+      wake: async (room) => { await startRoom(room); },
+      closed: () => { macro = null; document.body.classList.remove('sm-in-macro'); ui.macro.focus(); },
+    },
+  });
+});
+window.addEventListener('resize', () => { if (data) ui.macro.hidden = !data.rooms.length || window.innerWidth < 900; });
+
 ui.stop.addEventListener('click', async () => {
   if (!arming) {
     ui.stop.classList.add('armed');
@@ -246,6 +294,7 @@ function translateStatic() {
   ui.back.title = t('Back to the room');
   ui.back.setAttribute('aria-label', t('Back to the room'));
   ui.stop.querySelector('span').textContent = t('Stop all');
+  ui.macro.querySelector('span').textContent = t('Macroverse');
   ui.openTitle.textContent = t('Open now');
   ui.asleepTitle.textContent = t('Asleep');
   ui.asleepNote.textContent = t('Closed rooms whose project is still on this Mac. Waking one opens it as madre start would.');

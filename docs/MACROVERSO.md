@@ -6,7 +6,7 @@ se anota aquí. Lo que toca procesos o rutas sigue además las reglas de `docs/W
 
 | | |
 |---|---|
-| Estado | **Fase 1 · hecha** (Salas en escritorio). Fase 2 en curso; 3 y 4 esperan decisiones |
+| Estado | **Fases 1 y 2 · hechas** (Salas en escritorio y el Macroverso para ver). 3 y 4 esperan decisiones |
 | Origen | Pedido del 2026-10-08, después de probar Salas en el teléfono |
 | Regla en vigor | Nada aquí cambia el núcleo de una sala (registro, memoria, modos). Un enlace lee; nunca escribe en otra sala |
 
@@ -170,7 +170,7 @@ Ninguna se toma sin el usuario. Fase 1 no espera por ellas; las fases 3 y 4 sí.
 | Fase | Qué | Estado |
 |---|---|---|
 | 1 | Salas en escritorio, S-001..005 y S-007 | HECHA |
-| 2 | Macroverso para ver | SIN EMPEZAR |
+| 2 | Macroverso para ver | HECHA |
 | 3 | Enlaces: contratos, validaciones, monitor | Espera D-S03, D-S04 |
 | 4 | Super agente y sus tres modos | Espera D-S05, D-S06 |
 
@@ -187,3 +187,9 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   `bin/madre.mjs` sin shell) y detener todo. Probado de punta a punta con una sala de prueba:
   cerrar la deja dormida en unos segundos y despertarla la abre en unos 12. Arreglados S-001..005
   y S-007, encontrado al hacer S-001.
+- `2026-10-08` · Fase 2 hecha: el Macroverso (`public/macroverso.js`), entrado desde Salas con
+  pantalla de 900 px o más. Cada sala es un sol con la galaxia de sus memorias en sus proporciones
+  reales, las abiertas en la órbita de adentro y las dormidas en la de afuera; quién trabaja
+  respira, quién te espera lleva un anillo en tu acento; clic o ← → vuela a un universo y abre su
+  ficha. Medido en Chrome a 1440×900 y densidad 2: dibujar un cuadro cuesta 0.4 ms de mediana y
+  1 ms en el percentil 95. En el teléfono, cada sala de Salas lleva la misma franja de memorias.

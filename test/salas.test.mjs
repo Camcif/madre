@@ -103,3 +103,24 @@ test('salas · the room lists every room, counts its archive without reading it 
     await close(server);
   }
 });
+
+// THE MACROVERSE (docs/MACROVERSO.md, phase 2): imposing, and light on the machine.
+test('salas · the macroverse draws what is true, painted once and only moved, and rests when nobody looks', async () => {
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'macroverso.js'), 'utf8');
+  const page = await readFile(join(import.meta.dirname, '..', 'public', 'salas-mac.js'), 'utf8');
+  // No shader, no WebGL: canvas 2D, never denser than two pixels per point.
+  assert.doesNotMatch(source, /webgl|getContext\('webgl/i);
+  assert.match(source, /view\.dpr = Math\.min\(2, window\.devicePixelRatio \|\| 1\);/);
+  // A universe is painted again only when what it shows has changed.
+  assert.match(source, /before && before\.face === face && before\.dpr === view\.dpr \? before\.sprite :/);
+  // Frames stop in a hidden tab, and someone who asked for less motion gets still frames.
+  assert.match(source, /document\.addEventListener\('visibilitychange', onVisible\);/);
+  assert.match(source, /raf = reduced && !camera\.to \? 0 : requestAnimationFrame\(frame\);/);
+  // Nothing joins two universes until a link exists (phase 3): it draws no line at all.
+  assert.doesNotMatch(source, /lineTo\(/);
+  // Entered from SALAS, and only on a large screen.
+  assert.match(page, /ui\.macro\.hidden = !data\.rooms\.length \|\| window\.innerWidth < 900;/);
+  // On a phone it is one line of the archive per room, read through the bridge.
+  const bridge = await readFile(join(import.meta.dirname, '..', 'src', 'bridge', 'server.mjs'), 'utf8');
+  assert.match(bridge, /\/api\/glance\?census=1/);
+});

@@ -121,7 +121,8 @@ function limiter({ perMinute }) {
 // What a room says about itself in one line, for the list of rooms on the phone.
 async function glance(room, device) {
   try {
-    const response = await fetch(`http://127.0.0.1:${room.port}/api/glance`, { headers: { 'x-madre-device': device.id, 'x-madre-device-kind': device.kind }, signal: AbortSignal.timeout(1500) });
+    // The archive counted too (docs/MACROVERSO.md): on a phone the macroverse is this one line per room.
+    const response = await fetch(`http://127.0.0.1:${room.port}/api/glance?census=1`, { headers: { 'x-madre-device': device.id, 'x-madre-device-kind': device.kind }, signal: AbortSignal.timeout(1500) });
     if (response.status === 404) return { outdated: true };
     if (!response.ok) return { unreachable: true };
     return await response.json();

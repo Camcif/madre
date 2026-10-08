@@ -210,6 +210,8 @@ Cada proyecto es una sala, y **Salas** las junta: la tecla de los tres círculos
 | **Despertar** | Abre una sala dormida como lo haría `madre start --project <carpeta>`; lo que dice al arrancar queda en `start.log`, junto a su registro |
 | **Detener todo** | Frena a todos los agentes de todas las salas |
 
+**El Macroverso**, desde Salas en una pantalla de 900 px o más: tus salas como universos alrededor de tu Mac, cada una con la galaxia de sus memorias. Clic o ← → para volar a una y ver su ficha; Esc para volver. Por ahora solo muestra; enlazar salas viene después.
+
 Cada sala recuerda dónde está su proyecto (`project.json`, junto a su registro); una sala abierta por última vez con una MADRE anterior aparece cuando se vuelve a abrir. Salas es de la Mac: el teléfono tiene la suya.
 
 ---

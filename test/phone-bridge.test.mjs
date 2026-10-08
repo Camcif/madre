@@ -139,7 +139,8 @@ test('phone · the bridge: pair with a code, see the rooms, pick one, and act in
     request.on('data', (chunk) => { raw += chunk; });
     request.on('end', () => {
       seen.push({ method: request.method, url: request.url, headers: request.headers, body: raw });
-      if (request.url === '/api/glance') return response.end(JSON.stringify({ project: 'demo', working: ['claude'], chats: 2 }));
+      // The list asks for the archive counted too: on a phone it is one line per room (docs/MACROVERSO.md).
+      if (request.url === '/api/glance?census=1') return response.end(JSON.stringify({ project: 'demo', working: ['claude'], chats: 2, census: { memories: 3, kinds: { fact: 3 }, travelling: 3 } }));
       response.setHeader('content-type', 'application/json');
       response.setHeader('set-cookie', 'room_owned=1');
       response.end(JSON.stringify({ ok: true }));
@@ -172,7 +173,7 @@ test('phone · the bridge: pair with a code, see the rooms, pick one, and act in
     assert.equal((await fetch(`${base}/bridge/pair?c=${invite.code}`, { redirect: 'manual' })).status, 410);
 
     const rooms = await fetch(`${base}/bridge/rooms`, { headers: { cookie: phoneCookie } }).then((answer) => answer.json());
-    assert.deepEqual(rooms.rooms.map((room) => [room.id, room.project, room.working[0]]), [['demo-0123456789abcdef', 'demo', 'claude']]);
+    assert.deepEqual(rooms.rooms.map((room) => [room.id, room.project, room.working[0], room.census.memories]), [['demo-0123456789abcdef', 'demo', 'claude', 3]]);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual', headers: { cookie: phoneCookie } })).headers.get('location'), '/salas', 'with no room chosen the phone was not sent to the list');
 
     assert.equal((await fetch(`${base}/bridge/open`, { method: 'POST', headers: { cookie: phoneCookie, 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' }, body: JSON.stringify({ room: 'demo-0123456789abcdef' }) })).status, 403, 'a page from elsewhere picked a room');

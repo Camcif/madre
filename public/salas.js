@@ -85,6 +85,19 @@ function drawRoom(room) {
       if (room.chat) row.append(el('span', 'salas-room-chat', chatName(room.chat.title)));
       if (room.chat?.preview) row.append(el('span', 'salas-room-preview', room.chat.preview));
     }
+    // The macroverse on a phone (docs/MACROVERSO.md): no map, the archive of each room as one line
+    // in NOSTROMO's colours, and how much it holds.
+    if (room.census?.memories) {
+      const strip = el('span', 'salas-room-strip');
+      for (const kind of ['decision', 'fact', 'preference', 'question', 'aberration']) {
+        const count = room.census.kinds?.[kind] ?? 0;
+        if (!count) continue;
+        const part = el('i', `k-${kind}`);
+        part.style.flexGrow = String(count);
+        strip.append(part);
+      }
+      row.append(strip, el('span', 'salas-room-count', t('{n} memories', { n: room.census.memories })));
+    }
     if (room.working?.length) {
       const busy = el('span', 'salas-room-busy');
       busy.append(el('i', null), document.createTextNode(t('{agents} working', { agents: room.working.map((id) => `@${id}`).join(', ') })));

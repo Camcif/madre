@@ -35,6 +35,16 @@ body.salas {
 .salas-room-chat { font-size: 13.5px; font-weight: 500; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .salas-room-preview { font-size: 13.5px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .salas-room-note { font-size: 13px; color: var(--text-2); }
+/* The archive, in NOSTROMO's colours: one line per room, as long as each kind is large. */
+.salas-room-strip { display: flex; gap: 2px; height: 5px; margin-top: 8px; border-radius: 3px; overflow: hidden; }
+.salas-room-strip i { min-width: 3px; }
+.salas-room-strip .k-decision { background: var(--mem-decision); }
+.salas-room-strip .k-fact { background: var(--mem-fact); }
+.salas-room-strip .k-preference { background: var(--mem-preference); }
+.salas-room-strip .k-question { background: var(--mem-question); }
+.salas-room-strip .k-aberration { background: var(--mem-aberration); }
+:root[data-scheme="light"] .salas-room-strip .k-fact { background: #b9c6d6; }
+.salas-room-count { margin-top: 3px; font-size: 12px; color: var(--text-3); }
 /* A room that waits for you wears the accent: a ring and the line that says what it waits for. */
 .salas-room.waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--raise, 0 1px 2px rgba(0, 0, 0, .12)); }
 .salas-room-wait { display: grid; gap: 2px; margin: 4px 0 2px; padding: 9px 12px; border-radius: 12px; background: color-mix(in srgb, var(--s-acc) 16%, transparent); }

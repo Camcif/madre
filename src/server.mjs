@@ -1428,7 +1428,7 @@ export async function createPulseServer({
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
         return response.end(html);
       }
-      if (request.method === 'GET' && (url.pathname === '/salas-mac.js' || url.pathname === '/salas-mac.css')) {
+      if (request.method === 'GET' && (url.pathname === '/salas-mac.js' || url.pathname === '/salas-mac.css' || url.pathname === '/macroverso.js')) {
         const file = await readFile(join(publicDirectory, url.pathname.slice(1)));
         response.writeHead(200, { 'content-type': url.pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8', 'cache-control': 'no-cache' });
         return response.end(file);
