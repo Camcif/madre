@@ -7,7 +7,7 @@ import { join } from 'node:path';
 // to its promise. The functions are lifted out of the shipped client and run as they are: no
 // copy of the formula lives here, and a change to app.js is a change to what these assert.
 async function nostromoRanking() {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   const take = (name) => {
     const start = source.indexOf(`function ${name}(`);
     assert.notEqual(start, -1, `${name} is gone from public/app.js`);
@@ -78,7 +78,7 @@ test('nostromo: activity is bounded, so no memory can burn out the view', async 
 // context that records instead of paints. It catches what a screenshot cannot: a reference that
 // does not resolve, a colour that comes out as `NaN`, geometry that leaves the body.
 async function nostromoRenderer(room, { conic = false, noCanvas = false } = {}) {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   const fn = (name) => {
     const start = source.indexOf(`function ${name}(`);
     assert.notEqual(start, -1, `${name} is gone from public/app.js`);
@@ -471,7 +471,7 @@ test('nostromo: a crowded archive does not cost a blur for every memory in it', 
 });
 
 test('nostromo: a memory reads as a moon beside the core, never as a rival to it', async () => {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   const value = (name) => {
     const match = source.match(new RegExp(`const ${name} = ([\\d.]+);`));
     assert.ok(match, `${name} is gone from public/app.js`);
@@ -497,7 +497,7 @@ test('nostromo: a memory reads as a moon beside the core, never as a rival to it
 });
 
 test('nostromo: memories burn as star classes, and the four are told apart at a glance', async () => {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   const line = source.match(/const MEMORY_COLORS = (\{[^}]*\});/);
   assert.ok(line, 'MEMORY_COLORS is gone from public/app.js');
   const palette = new Function(`return ${line[1]}`)();
@@ -535,7 +535,7 @@ test('nostromo: memories burn as star classes, and the four are told apart at a 
 });
 
 test('nostromo: current runs along a wire without ever handing the canvas a bad stop', async () => {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   const start = source.indexOf('function currentAlong(');
   assert.notEqual(start, -1, 'currentAlong is gone from public/app.js');
   let depth = 0;
@@ -613,7 +613,7 @@ test('nostromo: a dwarf burns by what it has become and by what it is being give
 });
 
 test('nostromo: charge is fed by the core and by neighbours, and drains when nobody feeds it', async () => {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   // Both kinds of pulse have to feed the memory they land on, not just light it for a moment.
   const landing = source.slice(source.indexOf('// It arrived:'), source.indexOf('// It arrived:') + 700);
   assert.match(landing, /kind === 'link'[\s\S]*charge/, 'a pulse between two memories feeds neither');
@@ -673,10 +673,11 @@ test('nostromo: a wire leaves MOTHER red and arrives wearing the star it feeds',
 });
 
 test('nostromo: the legend shows a real star for each class, not a swatch', async () => {
-  const [app, page, css] = await Promise.all([
+  const [app, page, css, engine] = await Promise.all([
     readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8'),
     readFile(join(import.meta.dirname, '..', 'public', 'index.html'), 'utf8'),
     readFile(join(import.meta.dirname, '..', 'public', 'styles.css'), 'utf8'),
+    readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8'),
   ]);
 
   // Every class is named, and each name is the star it burns as next to the kind of memory.
@@ -723,8 +724,8 @@ test('nostromo: the legend shows a real star for each class, not a swatch', asyn
   assert.ok(!/border(?!-radius)/.test(rule), 'the legend chips are still fenced in');
   assert.ok(!/border-radius: 999px/.test(rule), 'the legend chips are still pills');
 
-  // And the stylesheet's colours are the same stars the canvas paints.
-  const palette = new Function(`return ${app.match(/const MEMORY_COLORS = (\{[^}]*\});/)[1]}`)();
+  // And the stylesheet's colours are the same stars the canvas paints: the palette is the engine's.
+  const palette = new Function(`return ${engine.match(/const MEMORY_COLORS = (\{[^}]*\});/)[1]}`)();
   for (const [kind, hex] of Object.entries(palette)) {
     assert.ok(css.includes(`--mem-${kind}: ${hex}`), `the page and the canvas disagree about a ${kind}`);
   }
@@ -857,7 +858,7 @@ test('nostromo: an aberration is a void in a field of dust, and nothing about it
 });
 
 test('nostromo: the sky is weather behind the room, and never the subject of it', async () => {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
 
   // A cap, written down, that no amount of growing can raise. The nebula is the one thing here
   // that must never compete with the core, the dwarfs or the wires between them.
@@ -889,7 +890,7 @@ test('nostromo: the sky is weather behind the room, and never the subject of it'
 });
 
 test('nostromo: the storm happens where it can be seen, and is seen as the cloud lighting up', async () => {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   const take = (name) => {
     const start = source.indexOf(`function ${name}(`);
     let depth = 0;
@@ -953,7 +954,7 @@ test('nostromo: the storm happens where it can be seen, and is seen as the cloud
 });
 
 test('nostromo: a pulse is something passing, never something to look at', async () => {
-  const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const source = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
   const value = (name) => Number(source.match(new RegExp(`const ${name} = ([\\d.]+);`))?.[1]);
 
   const pulse = value('PULSE_SCALE');

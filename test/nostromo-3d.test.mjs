@@ -5,7 +5,12 @@ import { join } from 'node:path';
 
 // NOSTROMO is a body in space now. The physics runs in three dimensions and each frame is turned
 // and projected onto the screen. Both halves are lifted out of the shipped client and run here.
-const source = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+// The physics and the painters ship in the engine (nostromo-engine.js); the room's doors and the
+// chart it draws on a phone ship in the page. One string, the engine first, so each name is found
+// where it lives.
+const engine = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
+const page = await readFile(join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+const source = `${engine}\n${page}`;
 const fn = (name) => {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `${name} is gone from public/app.js`);

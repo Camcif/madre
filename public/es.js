@@ -3813,7 +3813,8 @@ export const ES = {
   // THE MACROVERSE (macroverso.js).
   'Macroverse': 'Macroverso',
   'Back to Rooms': 'Volver a Salas',
-  'Click a universe to look at it · ← → to go from one to the next · Esc to come back': 'Clic en un universo para verlo · ← → para pasar de uno a otro · Esc para volver',
+  'Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · ← → from one to the next · Esc to come back': 'Arrastra el espacio para moverlo · rueda para acercarte · clic en un universo para verlo · arrástralo para girarlo · ← → de uno a otro · Esc para volver',
+  '{n} veins': '{n} venas',
   '{n} universes': '{n} universos',
   '{n} waiting for you': '{n} te esperan',
   'Enter the room': 'Entrar a la sala',

@@ -90,7 +90,7 @@ import { currentNetwork, lanAddresses } from './bridge/network.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
-import { askRoom, knownRooms, markProject, roomComesUp, startRoom } from './salas.mjs';
+import { askRoom, knownRooms, markProject, roomComesUp, startRoom, universeOf } from './salas.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(sourceDirectory, '..', 'public');
@@ -1271,7 +1271,7 @@ export async function createPulseServer({
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
         return response.end(html);
       }
-      if (request.method === 'GET' && ['/app.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js'].includes(url.pathname)) {
+      if (request.method === 'GET' && ['/app.js', '/nostromo-engine.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js'].includes(url.pathname)) {
         const js = await readFile(join(publicDirectory, url.pathname.slice(1)));
         response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
         return response.end(js);
@@ -1442,6 +1442,20 @@ export async function createPulseServer({
           glance: one.open ? await askRoom(one.open.port, '/api/glance?census=1') : null,
         })));
         return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null });
+      }
+      // One room as the Macroverso draws it: its memories and the veins between them, read from
+      // that room the way its own NOSTROMO reads them (`/api/memory`, with its designation). Without
+      // `full` no words cross: a far universe is drawn from kinds, zones and sizes alone; the chosen
+      // one asks for them. A phone never reaches this (above).
+      if (request.method === 'GET' && url.pathname === '/api/salas/universe') {
+        const id = url.searchParams.get('id') ?? '';
+        const room = (await knownRooms(root)).find((one) => one.id === id);
+        if (!room) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        if (!room.open) return sendJson(response, 200, { id, asleep: true });
+        const answer = await askRoom(room.open.port, `/api/memory?designation=${encodeURIComponent(room.name)}`, { timeoutMs: 4000 });
+        if (answer.outdated) return sendJson(response, 200, { id, outdated: true });
+        if (answer.unreachable) return sendJson(response, 200, { id, sealed: answer.status === 423, unreachable: answer.status !== 423 });
+        return sendJson(response, 200, { id, ...universeOf(answer, { full: url.searchParams.get('full') === '1' }) });
       }
       if (request.method === 'POST' && url.pathname === '/api/salas/start') {
         const payload = await body(request).catch(() => ({}));

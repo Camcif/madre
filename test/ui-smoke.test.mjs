@@ -708,7 +708,7 @@ test('the guide to creating a module says what one is and puts /module in the co
 // given at placement was undone a second or two later. This checks the outline is a brain's and
 // that both the placement and the target read from the same function.
 test('the archive settles into the shape of a brain, not a ball', async () => {
-  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../public/nostromo-engine.js', import.meta.url), 'utf8');
   assert.match(app, /const target = NOSTROMO_ORBIT \* brainRadius\(/, 'the force still pulls everything onto a circle, so any shape is undone');
   assert.match(app, /const radius = NOSTROMO_ORBIT \* brainRadius\(/, 'the first placement is not on the same outline');
 

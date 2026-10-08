@@ -12,7 +12,7 @@
 
 import { t } from '../i18n.mjs';
 
-const STATIC = new Set(['/', '/app.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js', '/styles.css']);
+const STATIC = new Set(['/', '/app.js', '/nostromo-engine.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js', '/styles.css']);
 
 const READ = new Set([
   '/api/state', '/api/events', '/api/chats', '/api/version', '/api/whats-new', '/api/glance', '/api/handoff',

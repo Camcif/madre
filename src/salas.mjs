@@ -94,6 +94,33 @@ export async function roomComesUp(stateRoot, id, { timeoutMs = 25000, everyMs = 
   return null;
 }
 
+// What the Macroverso needs of a room's archive to draw it as a NOSTROMO, and nothing more. Without
+// `full`, no memory's words leave their room: a far universe is drawn from kinds, zones, how much
+// ledger each memory covers, how often it was reached for, and the links between them. Only the
+// chosen universe asks for the words, and only the Mac may ask (the route refuses a phone).
+export function universeOf(research, { full = false } = {}) {
+  const memories = (research?.memories ?? []).map((memory) => ({
+    id: memory.id,
+    kind: memory.kind,
+    zone: memory.zone ?? 'hold',
+    fromSequence: memory.fromSequence ?? 0,
+    throughSequence: memory.throughSequence ?? 0,
+    sourcesCount: Array.isArray(memory.sources) ? memory.sources.length : 0,
+    recalled: memory.recalled ?? 0,
+    lastRecalled: memory.lastRecalled ?? null,
+    cold: memory.cold ?? null,
+    ...(full ? { text: memory.text ?? '', agent: memory.agent ?? null, origin: memory.origin ?? null, created: memory.created ?? null } : {}),
+  }));
+  const ids = new Set(memories.map((memory) => memory.id));
+  const links = (research?.links ?? []).filter((link) => ids.has(link.a) && ids.has(link.b)).map((link) => ({ a: link.a, b: link.b, weight: link.weight ?? 0.5 }));
+  return {
+    memories,
+    links,
+    maturity: research?.maturity ?? null,
+    stats: { entries: research?.stats?.entries ?? 0, embeddings: research?.stats?.embeddings ?? 0 },
+  };
+}
+
 // What a room says about itself, read from its own page's address. A room on an older MADRE
 // answers 404 to the routes it does not have yet, and is said to be outdated (S-005).
 export async function askRoom(port, path, { method = 'GET', body = null, fetchImpl = globalThis.fetch, timeoutMs = 1500 } = {}) {
@@ -106,7 +133,7 @@ export async function askRoom(port, path, { method = 'GET', body = null, fetchIm
     });
     if (response.status === 404) return { outdated: true };
     const answer = await response.json().catch(() => ({}));
-    return response.ok ? answer : { unreachable: true, error: answer?.error ?? null };
+    return response.ok ? answer : { unreachable: true, status: response.status, error: answer?.error ?? null };
   } catch {
     return { unreachable: true };
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { knownRooms, markProject, startRoom } from '../src/salas.mjs';
+import { knownRooms, markProject, startRoom, universeOf } from '../src/salas.mjs';
 import { loadConfig, updateConfig } from '../src/config.mjs';
 import { createPulseServer } from '../src/server.mjs';
 
@@ -87,8 +87,13 @@ test('salas · the room lists every room, counts its archive without reading it 
     const page = await fetch(`${base}/salas`);
     assert.equal(page.status, 200);
     assert.match(await page.text(), /salas-mac\.js/);
+    // The macroverse reads a room's archive through this one, the way its own NOSTROMO does.
+    const universe = await fetch(`${base}/api/salas/universe?id=${encodeURIComponent(mine.id)}`).then((answer) => answer.json());
+    assert.deepEqual(Object.keys(universe).sort(), ['id', 'links', 'maturity', 'memories', 'stats']);
+    assert.deepEqual(universe.memories, []);
+    assert.equal((await fetch(`${base}/api/salas/universe?id=nope`)).status, 404);
 
-    for (const [method, path] of [['GET', '/salas'], ['GET', '/api/salas'], ['POST', '/api/salas/start'], ['POST', '/api/salas/close'], ['POST', '/api/salas/stop-all'], ['POST', '/api/room/close']]) {
+    for (const [method, path] of [['GET', '/salas'], ['GET', '/api/salas'], ['GET', '/api/salas/universe'], ['POST', '/api/salas/start'], ['POST', '/api/salas/close'], ['POST', '/api/salas/stop-all'], ['POST', '/api/room/close']]) {
       const answer = await fetch(`${base}${path}`, { method, headers: phone, body: method === 'POST' ? '{}' : undefined });
       assert.equal(answer.status, 403, `${method} ${path} reached from a phone`);
     }
@@ -104,23 +109,63 @@ test('salas · the room lists every room, counts its archive without reading it 
   }
 });
 
-// THE MACROVERSE (docs/MACROVERSO.md, phase 2): imposing, and light on the machine.
-test('salas · the macroverse draws what is true, painted once and only moved, and rests when nobody looks', async () => {
+// THE MACROVERSE (docs/MACROVERSO.md, phases 2 and 3a): every room a NOSTROMO, imposing, and light
+// on the machine.
+test('salas · the macroverse draws every room with NOSTROMO\'s own engine, one live at a time, painted once and only moved, and rests when nobody looks', async () => {
   const source = await readFile(join(import.meta.dirname, '..', 'public', 'macroverso.js'), 'utf8');
   const page = await readFile(join(import.meta.dirname, '..', 'public', 'salas-mac.js'), 'utf8');
   // No shader, no WebGL: canvas 2D, never denser than two pixels per point.
   assert.doesNotMatch(source, /webgl|getContext\('webgl/i);
   assert.match(source, /view\.dpr = Math\.min\(2, window\.devicePixelRatio \|\| 1\);/);
-  // A universe is painted again only when what it shows has changed.
-  assert.match(source, /before && before\.face === face && before\.dpr === view\.dpr \? before\.sprite :/);
+  // The same painters as the room's NOSTROMO, imported and never copied: no palette of its own.
+  assert.match(source, /from '\.\/nostromo-engine\.js'/);
+  assert.doesNotMatch(source, /KIND_COLOURS|#ffdc3c/);
+  assert.match(source, /engine\.drawNostromo\(/);
+  // A universe is read and painted again only when what it shows has changed; a sprite is never
+  // wider than a thousand pixels; the sky and the stars are the macroverse's, not the engine's.
+  assert.match(source, /before && before\.face === face && before\.dpr === view\.dpr \? before : null/);
+  assert.match(source, /const SPRITE_MAX = 1024;/);
+  assert.match(source, /Math\.min\(SPRITE_MAX, /);
+  assert.match(source, /bare: true/);
+  // One universe is the real thing at a time; the rest are sprites.
+  assert.match(source, /let live = null;/);
+  assert.equal((source.match(/live = \{/g) ?? []).length, 1, 'more than one place makes a live scene');
+  // The camera is declared before it is used (S-015), and a resize settles before anything is
+  // painted again (S-016).
+  assert.ok(source.indexOf('const FOCUS_ZOOM = ') < source.indexOf('export function openMacroverso'), 'FOCUS_ZOOM is used before it is declared');
+  assert.match(source, /resizeTimer = setTimeout\(\(\) => \{ size\(\); layout\(rooms\); redraw\(\); \}, 150\);/);
   // Frames stop in a hidden tab, and someone who asked for less motion gets still frames.
   assert.match(source, /document\.addEventListener\('visibilitychange', onVisible\);/);
   assert.match(source, /raf = reduced && !camera\.to \? 0 : requestAnimationFrame\(frame\);/);
-  // Nothing joins two universes until a link exists (phase 3): it draws no line at all.
+  // Nothing joins two universes until a link exists (phase 3c): it draws no line at all.
   assert.doesNotMatch(source, /lineTo\(/);
-  // Entered from SALAS, and only on a large screen.
+  // Entered from SALAS, and only on a large screen; its accent is the night's in either theme (S-014).
   assert.match(page, /ui\.macro\.hidden = !data\.rooms\.length \|\| window\.innerWidth < 900;/);
+  assert.match(page, /function darkAccent\(/);
+  assert.match(page, /accent: darkAccent\(\),/);
   // On a phone it is one line of the archive per room, read through the bridge.
   const bridge = await readFile(join(import.meta.dirname, '..', 'src', 'bridge', 'server.mjs'), 'utf8');
   assert.match(bridge, /\/api\/glance\?census=1/);
+});
+
+test('salas · a universe carries what a NOSTROMO is drawn from and, unless the words are asked for, not one word', () => {
+  const research = {
+    memories: [
+      { id: 7, kind: 'decision', zone: 'bridge', text: 'the secret plan', sources: [1, 2, 3], fromSequence: 4, throughSequence: 9, recalled: 2, lastRecalled: '2026-10-08T00:00:00.000Z', agent: 'claude', origin: 'distilled', created: '2026-10-07T00:00:00.000Z', messageId: 'm1', confidence: 0.9 },
+      { id: 8, kind: 'fact', text: 'plain', sources: [] },
+    ],
+    links: [{ a: 7, b: 8, weight: 0.8 }, { a: 7, b: 99, weight: 0.5 }],
+    maturity: { score: 0.4, stage: null },
+    stats: { entries: 12, embeddings: 2, memories: 2 },
+  };
+  const far = universeOf(research);
+  assert.deepEqual(far.memories[0], { id: 7, kind: 'decision', zone: 'bridge', fromSequence: 4, throughSequence: 9, sourcesCount: 3, recalled: 2, lastRecalled: '2026-10-08T00:00:00.000Z', cold: null });
+  assert.equal(far.memories[1].zone, 'hold');
+  assert.ok(!JSON.stringify(far).includes('secret'), 'a memory\'s words left the room without being asked for');
+  assert.deepEqual(far.links, [{ a: 7, b: 8, weight: 0.8 }], 'a vein runs to a memory that was not sent');
+  assert.deepEqual(far.stats, { entries: 12, embeddings: 2 });
+  const near = universeOf(research, { full: true });
+  assert.equal(near.memories[0].text, 'the secret plan');
+  assert.equal(near.memories[0].agent, 'claude');
+  assert.equal(near.memories[0].messageId, undefined, 'more than the words crossed');
 });

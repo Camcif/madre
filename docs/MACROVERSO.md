@@ -82,10 +82,10 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-011** | El regex de pasos de delegación ignora `@x #4:` en silencio | `src/directives.mjs:50` | — | ANOTADO |
 | **S-012** | El bloque `mode` del prompt dice «Read-only…» también en `#3` y `#4` | `src/room/prompt.mjs:98` | — | ANOTADO |
 | **S-013** | Purgar la privacidad reescribe solo el ledger de la conversación abierta. Falta verificar que limpia la tabla `memories`, que es lo que cruza un enlace | `src/room.mjs:660`, `src/memory.mjs:333-370` | 3b | VERIFICAR |
-| **S-014** | En tema claro el Macroverso, siempre oscuro, recibe el acento claro | `public/salas-mac.js:258-264` | 3a | ABIERTO |
-| **S-015** | `FOCUS_ZOOM` se usa antes de declararse; hoy no falla por el orden de las llamadas | `public/macroverso.js:211,228,447` | 3a | ABIERTO |
-| **S-016** | `resize` repinta todos los sprites sin debounce | `public/macroverso.js:226-228,489-490` | 3a | ABIERTO |
-| **S-017** | El NOSTROMO de la sala no tiene tope de densidad, ni pausa al ocultar la pestaña, ni medición de cuadro | `public/app.js:15343,15746-15751` | 3a | MEDIR |
+| **S-014** | En tema claro el Macroverso, siempre oscuro, recibía el acento claro. Ahora lee el acento de la regla de la hoja de estilos, antes de que el esquema claro lo recoloree | `public/salas-mac.js` (`darkAccent`) | 3a | ARREGLADO |
+| **S-015** | `FOCUS_ZOOM` se usaba antes de declararse. Ahora es una constante del módulo, declarada arriba; una prueba lo fija | `public/macroverso.js` | 3a | ARREGLADO |
+| **S-016** | `resize` repintaba todos los sprites sin debounce. Ahora espera 150 ms y repinta solo el cielo y las estrellas; los sprites dependen de la densidad, no del tamaño de la ventana | `public/macroverso.js` | 3a | ARREGLADO |
+| **S-017** | El NOSTROMO de la sala no tiene tope de densidad ni pausa al ocultar la pestaña (el navegador ya no entrega cuadros a una pestaña oculta). Medido a 1440×900 y densidad 2 con 171 memorias y 338 venas: 5.4 ms de mediana por cuadro antes de la extracción, 5.8-6.0 después (A/B síncrono en el mismo minuto, 300 ticks por corrida; la versión anterior dio 6.9-7.2). Ni tope ni pausa hacen falta | `public/nostromo-engine.js` | 3a | MEDIDO · SIN CAMBIO |
 | **S-018** | `docs/INTERNALS.md:83` dice que varios turnos `#2` corren a la vez; el código deja un solo escritor por proyecto | `src/room/control.mjs:12-16` | — | ANOTADO |
 
 ---
@@ -209,7 +209,7 @@ el encargo puede asumir la recomendación mientras tanto.
 |---|---|---|
 | 1 | Salas en escritorio, S-001..005 y S-007 | HECHA |
 | 2 | Macroverso para ver | HECHA |
-| 3a | El Macroverso como flota de NOSTROMOs: pintores compartidos, escena viva, espacio infinito; S-014..S-017 | ENCARGADA |
+| 3a | El Macroverso como flota de NOSTROMOs: pintores compartidos, escena viva, espacio infinito; S-014..S-017 | HECHA |
 | 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | ENCARGADA |
 | 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | ENCARGADA |
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | ENCARGADA |
@@ -243,3 +243,18 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   dibujo de NOSTROMO): salen S-008..S-018 y D-S07..D-S10. Se escribe `docs/MACROVERSO-ENCARGO.md`,
   el prompt de ejecución de las fases 3 y 4 con cada hecho citado, compuertas, pruebas y
   presupuestos. Nada construido todavía.
+- `2026-10-08` · Fase 3a hecha. La física y los pintores de NOSTROMO salen de `public/app.js`
+  (2,400 líneas, verbatim por rangos con anclas) a `public/nostromo-engine.js`: lo compartido
+  arriba, lo de cada escena cerrado sobre el objeto que recibe `createNostromo`, con tres ganchos
+  (`words`, `covered`, `onClang`) para lo que solo la sala sabe. Las pruebas que extraían por
+  texto leen el motor; la sala no cambia nada que se vea (captura antes/después) y no empeora
+  (S-017). El Macroverso dibuja cada sala con ese motor: lejos, una escena colocada, relajada 60
+  pasos y pintada una vez en un sprite transparente (≤ 300 memorias, ≤ 1024 px); cerca, una sola
+  escena viva compuesta sobre el espacio, que se gira con el arrastre y en la que se toca una
+  memoria para leerla en la ficha; el espacio se arrastra, se acerca con la rueda y vuelve con
+  RECENTRAR. Datos por `GET /api/salas/universe?id=` (sin palabras salvo `&full=1`, nunca desde
+  el teléfono; `universeOf` en `src/salas.mjs`). Medido en Chrome a 1440×900 y densidad 2 con
+  tres salas: vista lejana 0.7 ms de mediana y 0.9 en p95; escena viva de 171 memorias 5.5 ms de
+  mediana, lo que cuesta en su sala. S-014, S-015 y S-016 arreglados. Verificado en pantalla:
+  flota, elección, memoria leída, Esc en dos pasos, rueda, arrastre, Recentrar, acento de noche
+  en tema claro. No verificado: movimiento reducido y pestaña oculta (solo por prueba de código).

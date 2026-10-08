@@ -156,4 +156,12 @@ body.sm-in-macro { overflow: hidden; }
 .mv-counts { margin: 2px 0 0; font-size: 12.5px; color: rgba(242, 241, 238, .5); }
 .mv-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .mv .sm-btn.ghost { color: rgba(242, 241, 238, .78); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); }
+.mv-recenter { position: absolute; left: 40px; bottom: 54px; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.mv-recenter:hover { background: rgba(255, 255, 255, .14); }
+.mv-recenter[hidden] { display: none; }
+/* The memory picked inside the chosen universe: its kind in its colour, its words under it. */
+.mv-memory { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k, #fff) 35%, transparent); }
+.mv-memory[hidden] { display: none; }
+.mv-memory b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--k, #f2f1ee); }
+.mv-memory p { margin: 0; font-size: 13.5px; line-height: 1.4; color: rgba(242, 241, 238, .88); max-height: 7.2em; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .mv, .mv.leaving, .mv-card { animation: none; } }

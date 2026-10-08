@@ -233,7 +233,9 @@ function macroWords() {
     title: t('Macroverse'),
     mac: (data?.mac ?? t('This Mac')).toUpperCase(),
     back: t('Back to Rooms'),
-    hint: t('Click a universe to look at it · ← → to go from one to the next · Esc to come back'),
+    hint: t('Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · ← → from one to the next · Esc to come back'),
+    recenter: t('RECENTER'),
+    veins: (n) => t('{n} veins', { n }),
     sub: (rooms) => {
       const open = rooms.filter((room) => room.open);
       const memories = open.reduce((sum, room) => sum + (room.glance?.census?.memories ?? 0), 0);
@@ -252,16 +254,33 @@ function macroWords() {
     all: t('All the universes'),
   };
 }
+// The macroverse is night in either theme, so it wears the accent as the night does: the hex the
+// stylesheet gives that accent before the light scheme recolours it (S-014), read from the rule
+// itself rather than from the page, which may be light.
+function darkAccent() {
+  const wanted = `[data-accent="${root.dataset.accent || 'madre'}"]`;
+  try {
+    for (const sheet of document.styleSheets) {
+      let rules;
+      try { rules = sheet.cssRules; } catch { continue; }
+      for (const rule of rules) {
+        if (rule.selectorText !== wanted) continue;
+        const hex = rule.style.getPropertyValue('--acc').trim();
+        if (/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+      }
+    }
+  } catch { /* no sheets to read: the house accent */ }
+  return '#9bff66';
+}
 ui.macro.addEventListener('click', async () => {
   if (macro || !data) return;
   const { openMacroverso } = await import('./macroverso.js');
-  const accent = getComputedStyle(document.body).getPropertyValue('--s-acc').trim();
   document.body.classList.add('sm-in-macro');
   macro = openMacroverso({
     host: document.body,
     rooms: data.rooms,
     here: data.here,
-    accent: /^#[0-9a-f]{6}$/i.test(accent) ? accent : '#9bff66',
+    accent: darkAccent(),
     words: macroWords(),
     actions: {
       wake: async (room) => { await startRoom(room); },
