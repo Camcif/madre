@@ -21,21 +21,34 @@ const SPLIT_CHAT = (() => {
     return asked.get('pane') === 'split' && /^[a-z0-9]+$/.test(id) ? id : null;
   } catch { return null; }
 })();
+// A whole page looking at one conversation by its own address, `/?en=<id>`: how a phone moves
+// between conversations without moving the one the room has open on the Mac. Everything about a
+// conversation goes to the server with `chat=<id>`, as from the half on the right; the page keeps
+// its bar and everything else.
+const VIEW_CHAT = (() => {
+  try {
+    const id = new URLSearchParams(globalThis.location?.search ?? '').get('en') ?? '';
+    return /^[a-z0-9]+$/.test(id) ? id : null;
+  } catch { return null; }
+})();
+const SCOPED_CHAT = SPLIT_CHAT ?? VIEW_CHAT;
 const CHAT_SCOPED = /^\/api\/(state|events|messages|messages\/rate|stop-turn|attachments|runs|commands|briefing|questions|decisions|plans\/[^/]+\/stop|modes\/[^/]+\/decide|control\/[^/]+\/undo)$/;
 // One road for every request the half on the right makes: the ones about a conversation name it.
 function chatScoped(input) {
-  if (!SPLIT_CHAT || typeof input !== 'string' || !input.startsWith('/api/')) return input;
+  if (!SCOPED_CHAT || typeof input !== 'string' || !input.startsWith('/api/')) return input;
   const url = new URL(input, 'http://madre.local');
   if (!CHAT_SCOPED.test(url.pathname)) return input;
-  url.searchParams.set('chat', SPLIT_CHAT);
+  url.searchParams.set('chat', SCOPED_CHAT);
   return `${url.pathname}${url.search}`;
 }
-if (SPLIT_CHAT) {
-  document.documentElement?.classList.add('split-pane');
+if (SCOPED_CHAT) {
   const nativeFetch = globalThis.fetch.bind(globalThis);
   globalThis.fetch = (input, init) => nativeFetch(chatScoped(input), init);
   const NativeSource = globalThis.EventSource;
   if (typeof NativeSource === 'function') globalThis.EventSource = class extends NativeSource { constructor(url, options) { super(chatScoped(String(url)), options); } };
+}
+if (SPLIT_CHAT) {
+  document.documentElement?.classList.add('split-pane');
   // The two halves share this browser's storage. What the left half remembers (panels, theme,
   // language, the split itself) is the left half's to write; the right one only reads it. The
   // model and effort chosen per agent are the human's, wherever they chose them.
@@ -456,6 +469,12 @@ const scroller = {
   get view() { return pageScrolls() ? (window.innerHeight ?? 0) : (els.thread?.clientHeight ?? 0); },
   to(options) { (pageScrolls() ? window : els.thread)?.scrollTo?.(options); },
 };
+
+// Back to the box after a choice that is not writing (an agent, a model, an effort). On a phone
+// that would put the keyboard over the room for nothing; the box waits to be touched.
+function focusComposer() {
+  if (!state.device) els.input?.focus();
+}
 
 function scrollToEnd() {
   scroller.top = scroller.height;
@@ -1490,6 +1509,8 @@ function browserMountFrame() {
 }
 
 function browserShow() {
+  phoneOneSheet('browser');
+  if (state.device) void phoneServers();
   if (!browser.dialog) return;
   const show = () => {
     browser.dialog.hidden = false;
@@ -2347,7 +2368,7 @@ function renderPicker() {
       els.target.value = agent.id;
       state.typedTarget = null;
       setMode(defaultModeFor(agent.id));
-      els.input.focus();
+      focusComposer();
     };
     pick.title = els.target.value === agent.id ? t('{label} · click again to choose its model', { label: agent.label }) : agent.label;
     // Under the pointer, the provider's name comes out of the sphere.
@@ -2462,7 +2483,7 @@ async function toggleModelMenu(id, anchor) {
   for (const option of options) {
     const button = el('button', `model-option${(state.chosenModel[id] ?? null) === option.name ? ' current' : ''}`, option.label);
     button.type = 'button';
-    button.addEventListener('click', () => { rememberModel(id, option.name); closeModelMenu(); renderPicker(); els.input.focus(); });
+    button.addEventListener('click', () => { rememberModel(id, option.name); closeModelMenu(); renderPicker(); focusComposer(); });
     list.append(button);
   }
   modelMenu.append(list);
@@ -2743,7 +2764,7 @@ function toggleEffortMenu(id, anchor) {
     if (step) { event.preventDefault(); commit(Math.max(0, Math.min(last, (current < 0 ? shownAt() : current) + step))); }
     else if (event.key === 'Home') { event.preventDefault(); commit(null); }
     else if (event.key === 'End') { event.preventDefault(); commit(last); }
-    else if (event.key === 'Enter') { event.preventDefault(); closeEffortMenu(); els.input.focus(); }
+    else if (event.key === 'Enter') { event.preventDefault(); closeEffortMenu(); focusComposer(); }
   });
 
   paintChoice();
@@ -7074,10 +7095,18 @@ function sideGrip(surface) {
 }
 
 // Shown at once, so the panel's own arrival plays; put away the way it came, and only then hidden.
+// On a phone a panel is a sheet the size of the screen, and one sheet at a time: opening one puts
+// the others away, or the one underneath could never be reached again.
+function phoneOneSheet(except) {
+  if (!state.device) return;
+  for (const one of panelSides) if (one.key !== except && one.node() && !one.node().hidden) one.close();
+  if (except !== 'browser' && document.querySelector('#browser') && !document.querySelector('#browser').hidden) browserHide();
+}
 function showPanel(key, open) {
   const panel = panelSides.find((one) => one.key === key);
   const node = panel?.node();
   if (!node) return;
+  if (open) phoneOneSheet(key);
   clearTimeout(panelLeaving.get(node));
   if (open) {
     const arriving = node.hidden || node.classList.contains('leaving');
@@ -8102,8 +8131,13 @@ async function loadChats() {
   } catch { /* the panel simply shows what it had */ }
 }
 
+// A phone goes to a conversation by its address and leaves the room's open one where it is.
+function phoneChatAddress(id, extra = '') {
+  return id && id !== state.roomChat ? `/?en=${encodeURIComponent(id)}${extra ? `&${extra}` : ''}` : `/${extra ? `?${extra}` : ''}`;
+}
 async function openChat(id, { beside = null } = {}) {
   if (id === chats.active) { setChats(false); return; }
+  if (state.device) { globalThis.location.href = phoneChatAddress(id); return; }
   // Leaving a conversation at work is the moment to ask once for a system notification, while
   // the click still counts as the human's: it is how they hear that it finished.
   const leavingBusy = chats.list.find((chat) => chat.id === chats.active)?.working;
@@ -8133,7 +8167,8 @@ function setChats(open) {
   // The handle is how a closed panel is opened. Once it is open, the panel has its own way out
   // and the handle would only stand on top of it.
   // It comes back once the panel has gone, not while it is still sliding out over the same corner.
-  if (open) { if (els.chatsButton) els.chatsButton.hidden = open; }
+  // On a phone the handle is a key in the bar, under the sheet: it stays where it is.
+  if (open) { if (els.chatsButton && !state.device) els.chatsButton.hidden = open; }
   else setTimeout(() => { if (!chats.open && els.chatsButton) els.chatsButton.hidden = false; }, reducedMotion() ? 0 : 200);
   els.chatsButton?.setAttribute('aria-pressed', String(open));
   try { localStorage.setItem('pulse.chats', open ? 'open' : 'closed'); } catch { /* no storage */ }
@@ -8186,7 +8221,7 @@ els.chatsButton?.addEventListener('click', () => setChats(!chats.open));
     placeNotices();
   };
   button.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || state.device) return;
     carried = false;
     const start = { x: event.clientX, y: event.clientY, ox: offset.x, oy: offset.y, id: event.pointerId };
     pending = { start, timer: setTimeout(() => {
@@ -8214,7 +8249,7 @@ els.chatsButton?.addEventListener('click', () => setChats(!chats.open));
     event.stopImmediatePropagation();
   }, { capture: true });
   button.addEventListener('contextmenu', (event) => { if (carry || pending) event.preventDefault(); });
-  window.addEventListener?.('resize', () => { if (!offset.x && !offset.y) return; clamp(); place(); });
+  window.addEventListener?.('resize', () => { if (state.device || (!offset.x && !offset.y)) return; clamp(); place(); });
 })();
 els.chatsClose?.addEventListener('click', () => setChats(false));
 els.chatsNew?.addEventListener('click', async () => {
@@ -8223,6 +8258,7 @@ els.chatsNew?.addEventListener('click', async () => {
   const response = await fetch('/api/chats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'the conversation was not started.'}`); els.chatsNew.disabled = false; return; }
+  if (state.device && result.opened) { globalThis.location.href = phoneChatAddress(result.opened); return; }
   window.location.reload();
 });
 try { if (!SPLIT_CHAT && localStorage.getItem('pulse.chats') === 'open') setChats(true); } catch { /* no storage */ }
@@ -8681,25 +8717,26 @@ function atBottom() {
 // The conversation is not cut where the composer begins: it runs on beneath it. The thread is told
 // how tall the strip under it is, so its last line can still come up above the box; a reader at
 // the end stays at the end when that strip grows or shrinks.
-(() => {
+function measureDock() {
   const shell = document.querySelector('.shell');
   if (!shell?.style?.setProperty || !els.composer?.getBoundingClientRect) return;
-  let last = -1;
-  const measure = () => {
-    const top = els.composer.getBoundingClientRect().top;
-    // On a phone the box is fixed to the screen and the page scrolls: the strip ends at the screen's edge.
-    const bottom = pageScrolls() ? window.innerHeight : shell.getBoundingClientRect().bottom;
-    const height = Math.max(0, Math.ceil(bottom - top));
-    if (height === last) return;
-    const stay = atBottom();
-    last = height;
-    shell.style.setProperty('--dock-h', `${height}px`);
-    if (stay) scrollToEnd();
-  };
-  measure();
-  if (typeof ResizeObserver === 'function') new ResizeObserver(measure).observe(els.composer);
-  window.addEventListener?.('resize', measure);
-})();
+  const box = els.composer.getBoundingClientRect();
+  // On a phone the box is fixed to the bottom of the screen and lifted over the keyboard: the strip
+  // is the box and the lift, wherever the page has scrolled. Measured from the screen's edge it
+  // depended on where the box stood at that instant, and Safari once left 906px of nothing.
+  const lift = pageScrolls() && typeof getComputedStyle === 'function' ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--kb')) || 0 : 0;
+  const height = Math.max(0, Math.ceil(pageScrolls() ? box.height + lift : shell.getBoundingClientRect().bottom - box.top));
+  if (height === measureDock.last) return;
+  const stay = atBottom();
+  measureDock.last = height;
+  shell.style.setProperty('--dock-h', `${height}px`);
+  if (stay) scrollToEnd();
+}
+if (document.querySelector('.shell') && els.composer?.getBoundingClientRect) {
+  measureDock();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => measureDock()).observe(els.composer);
+  window.addEventListener?.('resize', () => measureDock());
+}
 
 function armExpendable() {
   if (state.expendable) return;
@@ -8939,9 +8976,24 @@ adoptLanguage(initial.language);
 state.device = initial.device ?? null;
 state.roomId = initial.room ?? null;
 state.phones = initial.phones ?? 0;
+// The conversation the room has open (the Mac's), which a phone page may or may not be looking at.
+state.roomChat = initial.chats?.active ?? null;
 document.documentElement.classList.toggle('via-phone', Boolean(state.device));
 { const back = document.querySelector('#salas-link'); if (back) back.hidden = !state.device; }
 if (state.device) {
+  phoneSheets();
+  phoneKeyboard();
+  // Nothing floats over the conversation on a phone, where a thumb scrolling past it would press
+  // it: the conversations of this room are a key in the bar, beside the way back to the rooms. It
+  // wears the bar's keys, and it does not travel.
+  {
+    const key = els.chatsButton;
+    const left = document.querySelector('.shell > .bar > .bar-left');
+    if (key && left) { key.style.translate = ''; key.classList.add('mother-button'); key.hidden = false; left.after(key); }
+  }
+  // A phone starts on the conversation: panels this browser left open come back closed.
+  for (const one of panelSides) if (one.node() && !one.node().hidden) one.close();
+  if (document.querySelector('#browser') && !document.querySelector('#browser').hidden) browserHide();
   // NOSTROMO is a still picture on a phone: its help speaks of a finger, not of a wheel.
   { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('TOUCH A MEMORY TO READ IT · DO NOT TOUCH MOTHER'); }
   // Files and servers are on the Mac: on the phone they are there to be seen and switched, and say so.
@@ -8969,7 +9021,7 @@ if (initial.chats?.chats?.length > 1) {
 }
 chats.list = namedChats(initial.chats?.chats) ?? [];
 // The half on the right is looking at its own conversation, whichever one the left has open.
-chats.active = SPLIT_CHAT ?? initial.chats?.active ?? null;
+chats.active = SPLIT_CHAT ?? VIEW_CHAT ?? initial.chats?.active ?? null;
 paintTitle();
 // The split, as it was left: only while that conversation still exists and is not the open one.
 try {
@@ -10552,7 +10604,8 @@ function openMother() {
   if (windowsAside) setWindowsAside(false);
   bringWindowForward(node);
   mother.button.setAttribute('aria-pressed', 'true');
-  mother.input.focus();
+  // On a phone the keyboard would cover what MU/TH/UR says; it comes up when the field is touched.
+  if (!state.device) mother.input.focus();
 }
 function closeMother() {
   const node = mother.dialog;
@@ -18178,16 +18231,28 @@ function barLayout() {
 // On a narrow screen the keys that do not fit go, from the end of your order, into one «more» key
 // before AJUSTES; it opens a small card with them. AJUSTES and the brand always stay in view. While
 // the bar is being arranged every key shows, and the bar scrolls sideways instead.
+// A bar spills when its content is wider than it is, and also when a key only crosses into its
+// padding: Safari counts that as no overflow at all, and AJUSTES ended up against the edge.
+function barSpills(bar) {
+  if (bar.scrollWidth > bar.clientWidth + 1) return true;
+  if (typeof getComputedStyle !== 'function') return false;
+  const end = bar.getBoundingClientRect().right - (parseFloat(getComputedStyle(bar).paddingRight) || 0);
+  for (const node of bar.children ?? []) {
+    if (node.hidden || !node.getClientRects?.().length || /absolute|fixed/.test(getComputedStyle(node).position)) continue;
+    if (node.getBoundingClientRect().right > end + 0.5) return true;
+  }
+  return false;
+}
 function barFit() {
   const bar = barKit.node;
   if (!bar || !barKit.more || typeof bar.getBoundingClientRect !== 'function') return;
   for (const node of bar.querySelectorAll?.('.bar-overflow') ?? []) node.classList.remove('bar-overflow');
   barKit.hidden = [];
   barKit.more.hidden = true;
-  if (barKit.editing || !(bar.scrollWidth > bar.clientWidth + 1)) { barCloseMore(); return; }
+  if (barKit.editing || !barSpills(bar)) { barCloseMore(); return; }
   barKit.more.hidden = false;
   const order = [...barKit.order];
-  while (order.length && bar.scrollWidth > bar.clientWidth + 1) {
+  while (order.length && barSpills(bar)) {
     const id = order.pop();
     const nodes = barKit.extras.has(id) ? [barKit.extras.get(id)] : barNodes(id);
     if (!nodes.some((node) => node && !node.classList.contains('bar-off'))) continue;
@@ -18204,6 +18269,8 @@ function barDrawMore() {
   for (const id of barKit.hidden ?? []) {
     const entry = catalogue.get(id);
     if (!entry) continue;
+    // Pairing a phone is done on the Mac; on a phone the key is not offered.
+    if (state.device && id === 'phone') continue;
     const tile = el('button', 'bar-tile');
     tile.type = 'button';
     tile.setAttribute('role', 'menuitem');
@@ -18500,7 +18567,15 @@ if (barKit.node) {
   barKit.more.addEventListener('click', (event) => { event.stopPropagation(); if (barKit.moreCard && !barKit.moreCard.hidden) barCloseMore(); else barDrawMore(); });
   barLayout();
   let fitting = 0;
-  window.addEventListener?.('resize', () => { cancelAnimationFrame?.(fitting); fitting = requestAnimationFrame?.(() => barFit()) ?? 0; });
+  const refit = () => { cancelAnimationFrame?.(fitting); fitting = requestAnimationFrame?.(() => barFit()) ?? 0; };
+  window.addEventListener?.('resize', refit);
+  // A key that comes or goes on its own (STOP ALL while agents work, a pill) changes what fits, and
+  // so does the bar's own font arriving. «More» is left out: it is the fitting's own doing.
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver((records) => { if (records.some((record) => record.target !== barKit.more)) refit(); })
+      .observe(barKit.node, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden'] });
+  }
+  document.fonts?.ready?.then(refit, () => {});
   document.addEventListener('pointerdown', (event) => { if (barKit.moreCard && !barKit.moreCard.hidden && !barKit.moreCard.contains(event.target) && !barKit.more.contains(event.target)) barCloseMore(); });
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && barKit.moreCard && !barKit.moreCard.hidden) barCloseMore(); });
   // Right-click on the bar between keys, while it is open, closes it, as a second right-click on a
@@ -18755,7 +18830,11 @@ async function handoffApply(entry) {
     } else if (entry.port) globalThis.open?.(`http://127.0.0.1:${entry.port}/?continuar=phone`, '_blank', 'noopener');
     return;
   }
-  if (entry.chat && entry.chat !== chats.active && chats.list.some((chat) => chat.id === entry.chat)) await openChat(entry.chat);
+  if (entry.chat && entry.chat !== chats.active && chats.list.some((chat) => chat.id === entry.chat)) {
+    // On a phone the conversation is another address: go there, and take the place on arrival.
+    if (state.device) { globalThis.location.href = phoneChatAddress(entry.chat, 'continuar=mac'); return; }
+    await openChat(entry.chat);
+  }
   if (entry.anchor) document.getElementById(entry.anchor)?.scrollIntoView({ block: 'start' });
   if (entry.draft && els.input && !els.input.value.trim()) { els.input.value = entry.draft; autosize(); els.input.focus(); }
 }
@@ -18797,12 +18876,148 @@ document.addEventListener('visibilitychange', () => {
 });
 // Arrived from the other side's offer: take its place now.
 {
+  // The address stays this conversation's, without what brought the page here.
+  const here = `${globalThis.location?.pathname ?? '/'}${VIEW_CHAT ? `?en=${VIEW_CHAT}` : ''}`;
   const asked = new URLSearchParams(globalThis.location?.search ?? '').get('continuar');
   if (asked === 'mac' || asked === 'phone') {
-    globalThis.history?.replaceState?.(null, '', globalThis.location?.pathname ?? '/');
+    globalThis.history?.replaceState?.(null, '', here);
     fetch('/api/handoff').then((response) => response.json()).then((both) => {
       try { localStorage.setItem('pulse.handoffTaken', String(both?.[asked]?.at ?? 0)); } catch { /* no storage */ }
       return handoffApply(both?.[asked]);
     }).catch(() => {});
   } else void handoffOffer();
+}
+
+
+/* ---------- Sheets on a phone ----------
+   Everything that floats on the Mac rises from the bottom on a phone, the way a sheet does on iOS:
+   rounded at the top, a grabber, the room dimmed behind it. It closes with its own ×, with a
+   touch on the dimmed room, or pulled down by its top edge. Opening one never puts the keyboard up:
+   a dialog that opens gives focus to its first field, and on a phone that field is a search box. */
+// Function-scoped, not module constants: this runs while the room boots, before the end of this
+// file has been read.
+function phoneSheetsOpen() {
+  return [...document.querySelectorAll('dialog.surface[open], dialog.viewer[open], dialog#nostromo[open], .tree:not([hidden]), .browser-dock:not([hidden])')];
+}
+function phoneSheetClose(sheet) {
+  const closes = sheet.querySelectorAll('.x-close, #chats-close, #tree-close, #browser-close, #viewer-close, #mother-close, #modules-close, #nostromo-close, #core-close, #economy-close, #module-guide-close');
+  const close = [...closes].find((one) => one.closest('dialog, .tree, .browser-dock') === sheet);
+  if (close) close.click();
+  else if (typeof sheet.close === 'function') sheet.close();
+}
+function phoneSheets() {
+  if (phoneSheets.ready) return;
+  phoneSheets.ready = true;
+  // A dialog that opens focuses the first thing in it that asks for focus, and failing that its
+  // first field. Each one gets a quiet first thing that asks: no field is touched, no keyboard.
+  if (DIALOG) {
+    for (const name of ['show', 'showModal']) {
+      const native = DIALOG[name];
+      DIALOG[name] = function opened(...args) {
+        if (!this.querySelector(':scope > .phone-focus')) {
+          const sink = el('span', 'phone-focus');
+          sink.tabIndex = -1;
+          sink.setAttribute('autofocus', '');
+          sink.setAttribute('aria-hidden', 'true');
+          this.prepend(sink);
+        }
+        return native.apply(this, args);
+      };
+    }
+  }
+  const veil = el('div', 'phone-veil');
+  veil.hidden = true;
+  document.body?.append(veil);
+  const top = () => phoneSheetsOpen().at(-1) ?? null;
+  veil.addEventListener('click', () => { const sheet = top(); if (sheet) phoneSheetClose(sheet); });
+  const dress = (sheet) => {
+    if (sheet.dataset.phoneSheet) return;
+    sheet.dataset.phoneSheet = '1';
+    const grab = el('span', 'phone-grabber');
+    grab.setAttribute('aria-hidden', 'true');
+    sheet.prepend(grab);
+    // Pulled down by its top edge: it follows the finger, and past a third of a thumb it goes.
+    let start = null;
+    sheet.addEventListener('touchstart', (event) => {
+      const y = event.touches[0]?.clientY ?? 0;
+      start = y - sheet.getBoundingClientRect().top < 56 ? y : null;
+    }, { passive: true });
+    sheet.addEventListener('touchmove', (event) => {
+      if (start === null) return;
+      const dy = Math.max(0, (event.touches[0]?.clientY ?? start) - start);
+      sheet.style.transition = 'none';
+      sheet.style.translate = `0 ${dy}px`;
+    }, { passive: true });
+    sheet.addEventListener('touchend', (event) => {
+      if (start === null) return;
+      const dy = (event.changedTouches[0]?.clientY ?? start) - start;
+      start = null;
+      sheet.style.transition = '';
+      sheet.style.translate = '';
+      if (dy > 90) phoneSheetClose(sheet);
+    });
+  };
+  // It writes only what changes: the observer hears its own writes, and the same value written
+  // again is still a change to it, which kept it writing for ever.
+  const settle = () => {
+    const open = phoneSheetsOpen();
+    for (const sheet of open) dress(sheet);
+    const none = open.length === 0;
+    if (veil.hidden !== none) veil.hidden = none;
+    if (document.documentElement.classList.contains('sheet-up') === none) document.documentElement.classList.toggle('sheet-up', !none);
+  };
+  new MutationObserver(settle).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['open', 'hidden'] });
+  settle();
+}
+
+// SERVERS on a phone: the browser beside the room opens addresses on the Mac, which from a phone
+// would be the phone itself. Here the panel is a list of what is serving on the Mac, to be seen.
+async function phoneServers() {
+  const panel = document.querySelector('#browser');
+  if (!panel) return;
+  const head = panel.querySelector('.browser-head');
+  if (head) head.dataset.phoneTitle = t('Servers on your Mac');
+  let list = panel.querySelector('.phone-servers');
+  if (!list) { list = el('div', 'phone-servers'); panel.append(list); }
+  list.replaceChildren(el('p', 'phone-say phone-quiet', t('One moment…')));
+  const read = await fetch('/api/ports').then((response) => response.json()).catch(() => null);
+  if (!read || read.error) { list.replaceChildren(el('p', 'phone-say', read?.error ? resay(read.error) : t('The servers could not be read.'))); return; }
+  const rows = (read.ports ?? []).map((one) => {
+    const row = el('div', 'phone-server');
+    row.append(el('b', null, `:${one.port}`), el('span', null, one.title ?? one.name ?? one.command ?? ''));
+    return row;
+  });
+  // Where they are switched on or off, a touch away.
+  const switches = sxButton(t('Switches in Settings'), () => { browserHide(); openSettingsOn('files'); });
+  list.replaceChildren(...(rows.length ? rows : [el('p', 'phone-say', t('No server of this project is running on your Mac.'))]), switches);
+}
+
+// The keyboard on a phone: the box is fixed to the bottom of the page, and the keyboard covers the
+// bottom of the screen while Safari slides what is visible down the page to reach the field. The
+// part of the page still visible is the visual viewport: the box stands on its bottom (--kb, how
+// far that is above the page's) and the bar hangs from its top (--vv-top), so both stay in sight
+// with the conversation between them, as in Messages. Measured from the viewports alone: from the
+// box's own position it counted Safari's slide twice and left the box floating mid-screen.
+function phoneKeyboard() {
+  const view = window.visualViewport;
+  if (!view || !els.composer) return;
+  const root = document.documentElement;
+  let lift = 0;
+  let top = 0;
+  const settle = () => {
+    // Pinched in, what is visible is a window onto the page: nothing follows it.
+    const still = Math.abs((view.scale ?? 1) - 1) > 0.01;
+    const nextTop = still ? 0 : Math.max(0, Math.round(view.offsetTop));
+    // The page's own height: Safari shrinks innerHeight with the keyboard, the page stays as tall.
+    const nextLift = still ? 0 : Math.max(0, Math.round((root.clientHeight || window.innerHeight) - view.offsetTop - view.height));
+    if (nextTop !== top) { top = nextTop; root.style.setProperty('--vv-top', `${top}px`); }
+    if (Math.abs(nextLift - lift) < 2) return;
+    lift = nextLift;
+    root.style.setProperty('--kb', `${lift}px`);
+    // The conversation's last line rides up with the box.
+    measureDock();
+  };
+  view.addEventListener('resize', settle);
+  view.addEventListener('scroll', settle);
+  settle();
 }

@@ -478,7 +478,10 @@ test('installs and updates show their real progress in one sheet, and this room\
 test('bar: on a narrow screen what does not fit waits behind «more», and settings and the brand stay', async () => {
   const [app, css] = await Promise.all([read('app.js'), read('styles.css')]);
   assert.match(app, /function barFit\(\) \{/);
-  assert.match(app, /if \(barKit\.editing \|\| !\(bar\.scrollWidth > bar\.clientWidth \+ 1\)\) \{ barCloseMore\(\); return; \}/);
+  assert.match(app, /if \(barKit\.editing \|\| !barSpills\(bar\)\) \{ barCloseMore\(\); return; \}/);
+  // A key that only crosses into the bar's padding spills too: Safari counts that as no overflow.
+  assert.match(app, /function barSpills\(bar\) \{\n  if \(bar\.scrollWidth > bar\.clientWidth \+ 1\) return true;/);
+  assert.match(app, /if \(node\.getBoundingClientRect\(\)\.right > end \+ 0\.5\) return true;/);
   assert.match(app, /if \(barKit\.more\) want\.push\(barKit\.more\);\n  want\.push\(\.\.\.barNodes\(BAR_FIXED\)\);/, '«more» is not right before settings');
   assert.match(css, /\.bar \.bar-overflow \{ display: none !important; \}/);
   assert.match(css, /\.bar > \.bar-left \{ min-width: 58px; flex-shrink: 1; \}/, 'the brand can be squeezed out again');

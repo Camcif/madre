@@ -754,8 +754,34 @@ export async function createPulseServer({
   // Everything that listens to the open conversation, attached in one place so that opening
   // another attaches exactly the same things to it. Live readings go straight to whoever is
   // watching and are never stored, so a page that opens later simply never sees them.
+  // What waits for the human in a conversation (docs/MOBILE.md, MOV-004): a choice an agent offered
+  // or a line it asked to run, since the human last spoke; a mode a plan asked for, until it is
+  // decided. Kept as the room speaks, so the list of rooms on a phone never reads a ledger to know.
+  // What was left unanswered half a day ago is not waiting for anybody any more.
+  const asksByRoom = new WeakMap();
+  const ASK_FRESH_MS = 12 * 60 * 60 * 1000;
+  function trackAsks(target, history = []) {
+    const asks = new Map();
+    const feed = (event) => {
+      const said = event?.payload ?? {};
+      if (event?.type === 'message.created' && said.role === 'user') { for (const key of [...asks.keys()]) asks.delete(key); }
+      else if (event?.type === 'choice.offered') asks.set(`choice:${said.responseMessageId}`, { kind: 'choice', agent: said.agent, text: said.question ?? null, at: event.timestamp });
+      else if (event?.type === 'run.requested') asks.set(`run:${said.responseMessageId}`, { kind: 'run', agent: said.agent, text: said.commands?.[0]?.line ?? null, at: event.timestamp });
+      else if (event?.type === 'run.started') asks.delete(`run:${said.responseMessageId}`);
+    };
+    for (const event of history) feed(event);
+    asksByRoom.set(target, asks);
+    return target.subscribe(feed);
+  }
+  function asksOf(target, now = Date.now()) {
+    const modes = (target.pendingModes?.() ?? []).map((asked) => ({ kind: 'mode', agent: asked.agent, mode: asked.mode, text: null }));
+    const kept = [...(asksByRoom.get(target)?.values() ?? [])].filter((ask) => now - Date.parse(ask.at ?? 0) < ASK_FRESH_MS);
+    return [...modes, ...kept];
+  }
+  let unsubscribeAsks = () => {};
   function wireRoom() {
     unsubscribe = room.subscribe(() => { void broadcastPending(); });
+    unsubscribeAsks = trackAsks(room, historicalEvents);
     unsubscribeSentinel = room.subscribe((event) => { void sentinel.observe(event).catch(() => null); });
     unsubscribeEyecat = room.subscribe((event) => { void eyecat.observe(event).catch(() => null); });
     unsubscribeGhost = room.subscribeGhost((event) => { for (const client of clients.keys()) writeEvent(client, event); });
@@ -775,7 +801,7 @@ export async function createPulseServer({
       .map((event) => ({ ...event.payload, path: join(attachmentsRoot, event.payload.fileName), dir: attachmentsRoot })));
   }
   function unwireRoom() {
-    for (const off of [unsubscribe, unsubscribeSentinel, unsubscribeEyecat, unsubscribeGhost, unsubscribeLive, unsubscribeChats, unsubscribeActivity]) { try { off(); } catch { /* already gone */ } }
+    for (const off of [unsubscribe, unsubscribeSentinel, unsubscribeEyecat, unsubscribeGhost, unsubscribeLive, unsubscribeChats, unsubscribeActivity, unsubscribeAsks]) { try { off(); } catch { /* already gone */ } }
     unsubscribe = unsubscribeSentinel = unsubscribeEyecat = unsubscribeGhost = unsubscribeLive = unsubscribeChats = unsubscribeActivity = () => {};
   }
 
@@ -860,7 +886,9 @@ export async function createPulseServer({
       chatWrites = chatWrites.then(() => touchChat(roomDir, id, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
     });
     const offActivity = watchActivity(target, id);
-    const entry = { room: target, store: source, feed: null, off: () => { offTouch(); offActivity(); } };
+    let offAsks = () => {};
+    void source?.readAll?.().then((history) => { offAsks = trackAsks(target, history); }).catch(() => null);
+    const entry = { room: target, store: source, feed: null, off: () => { offTouch(); offActivity(); offAsks(); } };
     parked.set(id, entry);
     return entry;
   }
@@ -1357,12 +1385,20 @@ export async function createPulseServer({
         const latest = chats[0] ?? null;
         const working = new Set(room.activeTurns().map((turn) => turn.agent));
         for (const held of parked.values()) for (const turn of held.room.activeTurns()) working.add(turn.agent);
+        // What waits for the human, and in which conversation, so the phone opens straight to it.
+        const titleOf = (id) => chats.find((one) => one.id === id)?.title ?? null;
+        const waiting = [
+          ...asksOf(room).map((ask) => ({ ...ask, chat: chatId, chatTitle: titleOf(chatId) })),
+          ...[...parked.entries()].flatMap(([id, held]) => asksOf(held.room).map((ask) => ({ ...ask, chat: id, chatTitle: titleOf(id) }))),
+        ];
         return sendJson(response, 200, {
           project: basename(canonicalProjectRoot),
           version: PACKAGE.version ?? null,
           chats: chats.length,
           chat: latest ? { id: latest.id, title: latest.title, named: latest.named, preview: latest.preview, at: latest.updatedAt, messages: latest.messages } : null,
           working: [...working],
+          waiting: waiting.slice(0, 5).map(({ kind, agent, mode, text, chat, chatTitle }) => ({ kind, agent, mode: mode ?? undefined, text: typeof text === 'string' ? text.slice(0, 140) : null, chat, chatTitle })),
+          waitingCount: waiting.length,
         });
       }
       // Where the person was, to pick it up on the other side (bridge/handoff.mjs).
@@ -1961,6 +1997,12 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/chats') {
         if (room.busy() && !(await turnsPolicy()).enabled) return sendJson(response, 409, { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') });
         const payload = await body(request).catch(() => ({}));
+        // A phone looks at conversations by their own address and never moves the one the room has
+        // open: the Mac would be left showing one conversation while sending into another.
+        if (viaPhone) {
+          const made = await createChat(roomDir, { title: typeof payload.title === 'string' ? payload.title : null, activate: false });
+          return sendJson(response, 200, { ...(await chatsView()), opened: made.id });
+        }
         const made = await createChat(roomDir, { title: typeof payload.title === 'string' ? payload.title : null });
         const mounted = await mountChat(made.id);
         if (mounted.error) return sendJson(response, 409, mounted);
@@ -1968,6 +2010,7 @@ export async function createPulseServer({
       }
       const chatMatch = url.pathname.match(/^\/api\/chats\/([a-z0-9]+)$/);
       if (chatMatch && request.method === 'POST') {
+        if (viaPhone) return sendJson(response, 200, { ...(await chatsView()), opened: chatMatch[1] });
         const mounted = await mountChat(chatMatch[1]);
         if (mounted.error) return sendJson(response, 409, mounted);
         return sendJson(response, 200, { ...(await chatsView()), opened: chatMatch[1] });

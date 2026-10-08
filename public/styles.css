@@ -7550,28 +7550,101 @@ dialog.room-ask:not(.console) .room-ask-code { width: 100%; margin: 2px 0 0; pad
    The page scrolls, not the thread: Safari folds its bars away while the person reads, and the room
    runs on under them. The bar and the box stay put; the strip under the box is measured to the
    screen's edge (app.js). Nothing floats: what is a window on the Mac is a sheet the size of the
-   screen here. Fields are 16px, because Safari zooms into anything smaller the moment it is touched. */
+   screen here. Fields are 16px, because Safari zooms into anything smaller the moment it is touched.
+   A touch does only what it touched: no grey flash on whatever it landed on, no zoom from a double
+   tap, nothing behind a sheet that scrolls while the sheet is up. */
+html.via-phone { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+html.via-phone.sheet-up { overflow: hidden; }
+.via-phone .phone-veil { touch-action: none; }
+.via-phone :is(.bar, .composer > .pick-options, .composer .field > button) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html.via-phone, html.via-phone body { height: auto; min-height: 100%; }
 html.via-phone { background-color: var(--bg); }
+/* The page's ground is the root's on a phone; the body paints nothing over the wallpaper. */
+html.via-phone body { background: transparent !important; }
 .via-phone .shell { height: auto; min-height: 100dvh; display: block; }
-.via-phone .shell > .bar { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 8px; right: 8px; width: auto; z-index: 40; margin: 0; padding-right: 10px; }
+.via-phone .shell > .bar { position: fixed; top: calc(env(safe-area-inset-top) + 8px + var(--vv-top, 0px)); left: 8px; right: 8px; width: auto; z-index: 40; margin: 0; padding-right: 10px; }
+/* Nothing in the phone's bar gives way: «‹ Rooms» keeps its words, and whatever does not fit is
+   overflow, which goes into «more» (app.js) and leaves AJUSTES its margin. The conversation's name
+   is in the conversations key; the connection shows itself only when it is not live. */
+.via-phone .bar > .bar-left { flex: none; min-width: 0; overflow: visible; gap: 6px; }
+.via-phone .bar-left :is(.chat-here, .connection[data-state="live"]) { display: none; }
+.via-phone .bar > .chats-button { position: relative; inset: auto; grid-row: auto; margin: 0 auto 0 0; width: 34px; height: 34px; border-radius: 11px; translate: none !important; animation: none; }
+/* Where you are on the left, what you can do on the right, AJUSTES last at the bar's own margin. */
+/* Above the bar: the conversation scrolled through the gap between the bar and the top of the
+   screen, a line of text cut by both. The top fades to the room's ground down past the bar, the
+   way iOS fades a list under its own floating bars. (Over the clock itself Safari shows the page
+   as it likes; added to the home screen, the safe area keeps the bar below it.) */
+.via-phone .shell::after {
+  content: ''; position: fixed; left: 0; right: 0; top: var(--vv-top, 0px); z-index: 39; pointer-events: none;
+  height: calc(env(safe-area-inset-top) + 8px + 54px + 18px);
+  background-color: var(--phone-ground, var(--bg));
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 46px), rgba(0, 0, 0, .55) calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 46px), rgba(0, 0, 0, .55) calc(100% - 22px), transparent);
+}
 .via-phone .shell > .thread { overflow: visible; height: auto; padding-top: calc(env(safe-area-inset-top) + 64px); }
-.via-phone .shell > .composer { position: fixed; left: 8px; right: 8px; bottom: 0; z-index: 40; margin: 0; width: auto; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+.via-phone .shell > .composer { position: fixed; left: 8px; right: 8px; bottom: var(--kb, 0px); z-index: 40; margin: 0; width: auto; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
 .via-phone :is(.shell > .colophon, #colophon) { display: none !important; }
-.via-phone .shell > .chats-button { position: fixed; top: calc(env(safe-area-inset-top) + 70px); left: 12px; z-index: 39; margin: 0; }
-.via-phone dialog:is(.surface, .viewer)[open] {
-  position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;
-  margin: 0 !important; border-radius: 0 !important; transform: none !important; translate: none !important; z-index: 60 !important;
-  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+/* A sheet rises from the bottom: rounded at the top, under a grabber, the room dimmed behind it. */
+.via-phone :is(dialog:is(.surface, .viewer)[open], dialog#nostromo[open], .tree:not([hidden]), .browser-dock:not([hidden])) {
+  position: fixed !important; inset: calc(env(safe-area-inset-top) + 10px + var(--vv-top, 0px)) 0 var(--kb, 0px) 0 !important; width: 100% !important; height: auto !important;
+  max-width: none !important; max-height: none !important; margin: 0 !important; transform: none !important;
+  border-radius: 20px 20px 0 0 !important; overflow: hidden; z-index: 60 !important; padding-top: 14px !important; padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg); box-shadow: 0 -12px 40px -16px rgba(0, 0, 0, .55) !important;
+  transition: translate calc(220ms * var(--motion-scale, 1)) var(--ease-out, ease-out);
 }
-.via-phone :is(.tree, .browser-dock):not([hidden]) {
-  position: fixed !important; inset: 0 !important; z-index: 55; width: auto !important; height: auto !important; max-width: none !important;
-  margin: 0 !important; border-radius: 0 !important; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); background: var(--bg);
-}
-.via-phone :is(.win-edge, .stage-grip, .chat-beside, #viewer-edit, #tree-new) { display: none !important; }
+.phone-grabber { position: absolute; top: 6px; left: 50%; z-index: 6; width: 38px; height: 5px; border-radius: 3px; translate: -50% 0; background: color-mix(in srgb, var(--text) 26%, transparent); pointer-events: none; }
+.phone-focus { position: absolute; width: 1px; height: 1px; overflow: hidden; outline: 0; }
+.phone-veil { position: fixed; inset: 0; z-index: 54; background: rgba(0, 0, 0, .42); }
+.phone-veil[hidden] { display: none; }
+/* The modes a window has on the Mac stay there; its × stays everywhere. */
+.via-phone :is(.win-edge, .stage-grip, .chat-beside, .surface-mode:not(.close), .surface-sep, #viewer-edit, #tree-new) { display: none !important; }
 .phone-desk-note { margin: 0; padding: 10px 16px; font-size: 13px; line-height: 1.45; color: var(--text-2); background: color-mix(in srgb, var(--acc, var(--phosphor)) 10%, transparent); }
 .via-phone :is(textarea, input, select), .via-phone .editor :is(textarea, .highlight) { font-size: 16px !important; }
 .via-phone .bar > .handoff-pill { display: none !important; }
 .via-phone .salas-link { flex: none; }
 /* In MODULES on a phone: nothing opens as a window, and installing somebody's module is the Mac's. */
 .via-phone :is(.mods-app, #modules-add) { display: none !important; }
+
+/* The box you write in, on a phone: room to breathe, keys a thumb can hit (40px), the line that
+   names the crew left to the orb that already shows who answers, and the mode, model and effort
+   chips on one row that fits: no row that slides sideways under a thumb going up. The model's name
+   is what gives (an ellipsis); effort is its meter, its word stays in the menu it opens. */
+.via-phone .composer .field { gap: 10px 8px; padding: 10px 10px 10px 12px; border-radius: 24px; }
+.via-phone .composer .field > .crew-label { display: none; }
+.via-phone .composer .field > :is(#attach, button[type="submit"]) { width: 40px; height: 40px; }
+.via-phone .composer .field > #ash-toggle { height: 36px; }
+.via-phone .composer .editor { min-height: 44px; }
+.via-phone .composer > .pick-options { overflow: hidden; padding: 2px 4px 0; }
+/* The chips sit on the room's ground, not on the conversation: what scrolls under the box fades out
+   behind the box and is gone behind the chips, as at the top. */
+.via-phone .shell > .composer::before {
+  content: ''; position: absolute; z-index: -1; left: -8px; right: -8px; top: 30%; bottom: 0; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--phone-ground) 45%);
+}
+/* Over a wallpaper both ends keep a trace of it; the words over them still read on the room's ground. */
+html.via-phone { --phone-ground: var(--bg); }
+html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground: color-mix(in srgb, var(--bg) 84%, transparent); }
+.via-phone .composer > .pick-options .pick-label { flex-wrap: nowrap; min-width: 0; gap: 6px; }
+.via-phone .composer > .pick-options :is(.mode-chip, .model-chip, .effort-chip) { flex: none; height: 32px; margin-left: 0; }
+.via-phone .composer > .pick-options .model-chip { flex: 0 1 auto; min-width: 0; }
+.via-phone .composer > .pick-options .model-chip > .word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.via-phone .composer > .pick-options .effort-chip > .word { display: none; }
+
+/* A message on a phone is never wider than the screen. Its column gives way to the screen instead
+   of to its widest line, and the line above the bubble keeps who spoke and loses the rest: the
+   quote ellipsizes, and the tokens are already under the bubble. */
+.via-phone .row { grid-template-columns: 28px minmax(0, 1fr); }
+.via-phone .row.user { grid-template-columns: minmax(0, 1fr); }
+.via-phone .row .col > * { min-width: 0; max-width: 100%; }
+.via-phone .who { overflow: hidden; }
+.via-phone .who .spent { display: none; }
+
+/* SERVERS on a phone: a title, the note and the list; the browser itself stays on the Mac. */
+.via-phone #browser :is(#browser-tabs, #browser-body, .dock-grip) { display: none !important; }
+.via-phone #browser .browser-head > :not(.surface-modes) { display: none !important; }
+.via-phone #browser .browser-head::before { content: attr(data-phone-title); margin-right: auto; font-family: var(--read); font-size: 15px; font-weight: 650; letter-spacing: 0; color: var(--text); }
+.phone-servers { display: grid; gap: 8px; justify-items: stretch; padding: 14px 16px; overflow-y: auto; }
+.phone-servers .sx-btn { justify-self: start; margin-top: 6px; }
+.phone-server { display: flex; align-items: baseline; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--panel); box-shadow: var(--raise, none); }
+.phone-server b { font-family: var(--mono); font-size: 14px; color: color-mix(in srgb, var(--acc, var(--phosphor)) 70%, var(--text)); }
+.phone-server span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--text-2); }

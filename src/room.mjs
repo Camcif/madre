@@ -292,6 +292,8 @@ export class Room {
   // The human's answer to a pending request: 'once', 'plan' or 'deny'.
   decideMode(requestId, decision) { return this.#escalation.decide(requestId, decision); }
   modeAsked(requestId) { return this.#escalation.modeOf(requestId); }
+  // The modes plans are waiting for the human to grant, as asked.
+  pendingModes() { return this.#escalation.pending(); }
 
   subscribeGhost(listener) { return this.#ghost.subscribe(listener); }
 

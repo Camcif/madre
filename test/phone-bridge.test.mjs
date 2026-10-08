@@ -248,8 +248,78 @@ test('phone · the room: pairing is the Mac\'s, a phone asks up to #2, and what 
     const where = await fetch(`${base}/api/handoff`).then((answer) => answer.json());
     assert.equal(where.phone.draft, 'half a thought');
     assert.equal(where.phone.kind, 'iphone');
+
+    // A phone starts or opens a conversation by its address; the one open on the Mac stays open.
+    const open = async () => (await fetch(`${base}/api/chats`).then((answer) => answer.json())).active;
+    const before = await open();
+    const made = await fetch(`${base}/api/chats`, { method: 'POST', headers: phone, body: '{}' }).then((answer) => answer.json());
+    assert.ok(made.opened && made.opened !== before);
+    assert.equal(await open(), before, 'a conversation started on the phone moved the Mac\'s');
+    await fetch(`${base}/api/chats/${made.opened}`, { method: 'POST', headers: phone, body: '{}' });
+    assert.equal(await open(), before, 'a conversation opened on the phone moved the Mac\'s');
+    const seen = await fetch(`${base}/api/state?chat=${made.opened}`, { headers: phone }).then((answer) => answer.json());
+    assert.equal(seen.chat, made.opened, 'the phone cannot read the conversation it started');
   } finally {
     await close(server);
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
+});
+
+test('phone · what waits for the human: a choice an agent offered, until the human speaks again', async () => {
+  const root = await scratch('madre-phone-waiting-');
+  const agents = [{ id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/fake', version: 'test' }];
+  let reply = 'Here is what I would do.\n\n```pulse-ask\nWhere should the export live?\n- In the project (recommended)\n- Beside the room log\n- Somewhere you name\n```';
+  const { server, store } = await createPulseServer({ projectRoot: root, stateRoot: root, agents, invokers: { 'codex-readonly': async () => ({ text: reply }) } });
+  const port = await listen(server);
+  const base = `http://127.0.0.1:${port}`;
+  const phone = { 'x-madre-device': 'd1', 'x-madre-device-kind': 'iphone', 'content-type': 'application/json' };
+  const settle = async (want) => {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      const events = await store.readAll();
+      if (want(events)) return events;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    return store.readAll();
+  };
+  try {
+    // Choices are a module: switched on, the way the Mac does it.
+    await fetch(`${base}/api/extensions/choices/install`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: true }) });
+    const glance = () => fetch(`${base}/api/glance`, { headers: phone }).then((answer) => answer.json());
+    assert.equal((await glance()).waitingCount, 0);
+    await fetch(`${base}/api/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'where should the export go?', target: 'codex' }) });
+    const events = await settle((all) => all.some((event) => event.type === 'choice.offered'));
+    assert.ok(events.some((event) => event.type === 'choice.offered'), 'the agent never offered a choice');
+    const waiting = await glance();
+    assert.equal(waiting.waitingCount, 1);
+    assert.deepEqual([waiting.waiting[0].kind, waiting.waiting[0].agent, waiting.waiting[0].text], ['choice', 'codex', 'Where should the export live?']);
+    assert.equal(typeof waiting.waiting[0].chat, 'string', 'the phone cannot open the conversation that waits');
+    reply = 'Done: it lives in the project.';
+    await fetch(`${base}/api/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'In the project', target: 'codex' }) });
+    await settle((all) => all.filter((event) => event.type === 'message.created' && event.payload.role !== 'user').length >= 2);
+    assert.equal((await glance()).waitingCount, 0, 'an answered choice still waits');
+  } finally {
+    await close(server);
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('phone · the page on a phone: nothing spills past the screen, nothing floats over the conversation, and the keyboard is followed', async () => {
+  const [app, css] = await Promise.all([readFile(new URL('../public/app.js', import.meta.url), 'utf8'), readFile(new URL('../public/styles.css', import.meta.url), 'utf8')]);
+  // The strip under the conversation is the box and its lift, wherever the page has scrolled.
+  assert.match(app, /Math\.ceil\(pageScrolls\(\) \? box\.height \+ lift : shell\.getBoundingClientRect\(\)\.bottom - box\.top\)/);
+  // The keyboard is followed from the viewports alone: the box on the visible bottom, the bar from the visible top.
+  assert.match(app, /\(root\.clientHeight \|\| window\.innerHeight\) - view\.offsetTop - view\.height/);
+  assert.match(app, /root\.style\.setProperty\('--vv-top', `\$\{top\}px`\)/);
+  assert.match(css, /\.via-phone \.shell > \.bar \{ position: fixed; top: calc\(env\(safe-area-inset-top\) \+ 8px \+ var\(--vv-top, 0px\)\);/);
+  // The conversations are a key in the bar, and it does not travel.
+  assert.match(app, /key\.classList\.add\('mother-button'\); key\.hidden = false; left\.after\(key\);/);
+  assert.match(app, /if \(event\.button !== 0 \|\| state\.device\) return;/);
+  // No row slides sideways under a thumb: the chips fit, and a message is never wider than the screen.
+  assert.match(css, /\.via-phone \.composer > \.pick-options \{ overflow: hidden;/);
+  assert.doesNotMatch(css, /\.via-phone \.composer > \.pick-options \{ overflow-x: auto/);
+  assert.match(css, /\.via-phone \.row \{ grid-template-columns: 28px minmax\(0, 1fr\); \}/);
+  assert.match(css, /\.via-phone \.who \.spent \{ display: none; \}/);
+  // A touch does only what it touched, and nothing scrolls behind a sheet.
+  assert.match(css, /html\.via-phone \{ touch-action: manipulation; -webkit-tap-highlight-color: transparent; \}/);
+  assert.match(css, /html\.via-phone\.sheet-up \{ overflow: hidden; \}/);
 });

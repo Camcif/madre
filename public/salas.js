@@ -47,10 +47,19 @@ function ago(iso) {
   return new Date(at).toLocaleDateString(language, { day: 'numeric', month: 'short' });
 }
 
-async function openRoom(id, { carry = false } = {}) {
+async function openRoom(id, { carry = false, chat = null } = {}) {
   const answer = await fetch('/bridge/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room: id }) });
   if (!answer.ok) { await refresh(); return; }
-  location.href = carry ? '/?continuar=mac' : '/';
+  // A conversation by its own address: the phone never moves the one the room has open on the Mac.
+  location.href = carry ? '/?continuar=mac' : chat ? `/?en=${encodeURIComponent(chat)}` : '/';
+}
+
+const MODE_NAMES = ['GHOST', 'EXCHANGE', 'CREATE', 'CONTROL', 'AIRLOCK'];
+// What an agent is waiting for, in one line.
+function askLine(ask) {
+  if (ask.kind === 'mode') return t('@{agent} asks for #{n} {label}', { agent: ask.agent, n: ask.mode, label: MODE_NAMES[ask.mode] ?? '' });
+  if (ask.kind === 'run') return ask.text ? t('@{agent} wants to run {line}', { agent: ask.agent, line: ask.text }) : t('@{agent} wants to run a command', { agent: ask.agent });
+  return ask.text ? t('@{agent} asks you: {question}', { agent: ask.agent, question: ask.text }) : t('@{agent} asks you to choose', { agent: ask.agent });
 }
 
 function drawRoom(room) {
@@ -60,18 +69,28 @@ function drawRoom(room) {
   const head = el('span', 'salas-room-head');
   head.append(el('b', null, room.project), el('time', null, ago(room.chat?.at)));
   row.append(head);
+  if (room.waitingCount) row.classList.add('waiting');
   if (room.outdated || room.unreachable) {
     row.disabled = true;
     row.append(el('span', 'salas-room-note', room.outdated ? t('Update MADRE in this room on your Mac to use it from here.') : t('This room is not answering.')));
   } else {
-    if (room.chat) row.append(el('span', 'salas-room-chat', chatName(room.chat.title)));
-    if (room.chat?.preview) row.append(el('span', 'salas-room-preview', room.chat.preview));
+    const ask = room.waiting?.[0];
+    if (ask) {
+      // What waits comes first, in the accent: it is the one thing on this screen that needs you.
+      const mark = el('span', 'salas-room-wait');
+      mark.append(el('b', null, room.waitingCount > 1 ? t('Waiting for you · {n}', { n: room.waitingCount }) : t('Waiting for you')), el('span', null, askLine(ask)));
+      row.append(mark);
+      if (ask.chatTitle) row.append(el('span', 'salas-room-chat', chatName(ask.chatTitle)));
+    } else {
+      if (room.chat) row.append(el('span', 'salas-room-chat', chatName(room.chat.title)));
+      if (room.chat?.preview) row.append(el('span', 'salas-room-preview', room.chat.preview));
+    }
     if (room.working?.length) {
       const busy = el('span', 'salas-room-busy');
       busy.append(el('i', null), document.createTextNode(t('{agents} working', { agents: room.working.map((id) => `@${id}`).join(', ') })));
       row.append(busy);
     }
-    row.addEventListener('click', () => { void openRoom(room.id); });
+    row.addEventListener('click', () => { void openRoom(room.id, { chat: ask?.chat ?? null }); });
   }
   item.append(row);
   return item;
@@ -101,7 +120,11 @@ async function refresh() {
   }
   if (data.language && data.language !== language) { language = setLanguage(data.language); root.lang = language; translateStatic(); }
   ui.mac.textContent = t('On {mac}', { mac: data.mac });
-  ui.list.replaceChildren(...data.rooms.map(drawRoom));
+  // What waits for you first, then what is working, then the rest as the Mac lists them, and last
+  // the rooms this phone cannot use yet.
+  const weight = (room) => (room.outdated || room.unreachable ? -1 : (room.waitingCount ? 2 : 0) + (room.working?.length ? 1 : 0));
+  const ordered = [...data.rooms].sort((a, b) => weight(b) - weight(a));
+  ui.list.replaceChildren(...ordered.map(drawRoom));
   ui.empty.hidden = data.rooms.length > 0;
   ui.empty.textContent = t('No room is open on your Mac. Open MADRE in a project there and it appears here.');
   ui.stop.hidden = !data.rooms.some((room) => room.working?.length);

@@ -243,7 +243,7 @@ La versión de cada fase se decide al cerrarla (D-M06). El puerto a Windows apun
 | MOV-001 | Puente dentro de la primera sala que toma el puerto, registro de salas, reenvío con `Host`/`Origin` reescritos y sala elegida por cookie | `src/bridge/server.mjs`, `host.mjs` | 1 | HECHO · 2026-10-07 |
 | MOV-002 | Invitaciones, sesiones por dispositivo, HMAC en `~/.pulse/devices.json`, llave en `~/.pulse/credentials/`, redes por la dirección del router, QR propio | `src/bridge/devices.mjs`, `network.mjs`, `qr.mjs` | 1 | HECHO · 2026-10-07 |
 | MOV-003 | Lista de rutas permitidas y política por modo (sección 4), tope de peticiones, cabeceras | `src/bridge/policy.mjs` | 1 | HECHO · 2026-10-07 |
-| MOV-004 | Pantalla Salas: estado por sala, quién trabaja, Detener todo (con segundo toque). La marca de «te espera» queda pendiente: la sala todavía no expone qué espera respuesta | `public/salas.*`, `/api/glance` | 1 | HECHO · 2026-10-07 |
+| MOV-004 | Pantalla Salas: estado por sala, quién trabaja, «Te espera» (elecciones y comandos propuestos desde el último mensaje del humano, modos pedidos por un plan) con la sala que espera arriba y abierta en esa conversación, Detener todo (con segundo toque) | `public/salas.*`, `/api/glance` | 1 | HECHO · 2026-10-07 |
 | MOV-005 | Continuidad en ambos sentidos | `public/app.js`, puente | 1 | HECHO · 2026-10-07 |
 | MOV-006 | Tecla Teléfono, QR, pantalla «Listo» y guía de «Añadir a inicio» | `public/` | 1 | HECHO · 2026-10-07 |
 | MOV-007 | Teléfonos emparejados y «Olvidar» | Ajustes › Privacidad | 1 | HECHO · 2026-10-07 |
@@ -293,7 +293,34 @@ patrones, reescritos sin dependencias:
   entradas. Un iPhone real se emparejó con el QR en pantalla; el resto se probó con el navegador
   en tamaño teléfono, por la IP de la red: emparejar, Salas, abrir sala, #3/#4 bloqueados,
   continuidad en los dos sentidos, olvidar.
-  Pendiente de la fase 1: la marca «te espera» en Salas.
 - `2026-10-07` · Primera ronda con un iPhone real: logo de Salas, scroll de página para que
   Safari esconda sus barras, campos a 16 px (sin zoom al tocar), barra sin desbordes, ventanas
   como hojas, NOSTROMO fijo, Ajustes y módulos abiertos al teléfono (D-M03 ampliada).
+- `2026-10-07` · «Te espera» en Salas: la sala lleva en memoria lo que espera al humano (no lee el
+  registro en cada consulta) y lo que lleva más de 12 horas sin respuesta deja de contar. Con
+  esto la fase 1 queda completa.
+- `2026-10-07` · Conversaciones en el teléfono: una hoja a la vez por encima de la barra y la caja
+  (antes la tapaban y no había salida), y el teléfono ve cada conversación por su dirección
+  (`/?en=<id>`, la misma maquinaria `?chat=` de la mitad derecha). Elegir o empezar una
+  conversación en el teléfono ya no cambia la que la sala tiene abierta en la Mac: antes la Mac
+  se quedaba mostrando una y enviando a otra.
+- `2026-10-07` · Pasada de UX con el iPhone real. El fondo de pantalla no se veía: el fondo del
+  `html` impedía que el del `body` subiera y el `body` lo tapaba. Los cierres de las hojas se
+  ocultaban con los botones de ventana (comparten `surface-mode`). Un `<dialog>` enfoca su primer
+  campo al abrirse y en iOS eso levanta el teclado: cada hoja abre con el foco en un ancla sin
+  campo. Hojas al estilo iOS (asa, velo, deslizar para cerrar, esquinas de 20 px), caja de texto
+  con más aire y una altura que sigue al teclado por `visualViewport`. Servidores en el teléfono
+  es una lista con su estado, sin el navegador de la Mac. Queda por confirmar en el iPhone: el
+  teclado, el gesto de deslizar y las áreas seguras.
+- `2026-10-07` · Segunda pasada, en el Safari real del simulador de iOS (iPhone 17 Pro, iOS 26),
+  que mostró lo que el emulador de Chrome escondía: en Safari «‹ Salas» se encogía en vez de
+  desbordar, así que la barra nunca pasaba teclas a «•••»; el hueco bajo la conversación medía
+  906 px por medirse desde la posición de la caja; con el teclado, `getBoundingClientRect` es
+  relativo a la vista visible y `innerHeight` se encoge, y la caja quedaba a media pantalla. Ahora
+  la caja y la barra siguen a `visualViewport` (`--kb`, `--vv-top`) y las hojas también. El
+  encabezado de cada burbuja ya no ensancha la columna, los chips caben sin deslizarse, el botón
+  de conversaciones vive en la barra y no flota, y se quitaron el destello de toque, el zoom por
+  doble toque y el scroll detrás de una hoja. Sobre el reloj, Safari 26 muestra la página a su
+  manera; agregada a inicio, el área segura deja la barra debajo. Para probar: cada `simctl
+  openurl` abre una pestaña con su propio flujo en vivo, y a las seis Safari deja de cargar
+  (límite de HTTP/1.1 por servidor); se cierra Safari del simulador para empezar limpio.

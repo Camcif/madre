@@ -127,7 +127,8 @@ test('chats: the panel is the files panel on the other edge, and its handle is i
   // One line each: the title is the summary, so a preview under it says the same thing twice.
   assert.ok(!app.includes("el('span', 'said', chat.preview)"), 'a conversation is two lines again');
   // The handle is how a closed panel is opened; once it is open it would only stand on top of it.
-  assert.match(app, /if \(els\.chatsButton\) els\.chatsButton\.hidden = open;/);
+  // On a phone the handle is a key in the bar, under the sheet, and stays.
+  assert.match(app, /if \(els\.chatsButton && !state\.device\) els\.chatsButton\.hidden = open;/);
   // And the handle is lit the way the buttons in the bar are, not with a halo of its own.
   assert.match(css, /\.chats-button:hover,\n:root\[data-theme="light"\]|:root\[data-theme="light"\] \.chats-button:hover/);
   // The handle sits in the canvas, under the bar, where the conversation it opens begins.

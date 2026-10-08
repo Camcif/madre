@@ -75,11 +75,12 @@ export async function listChats(roomDir) {
   return { active: index.active, chats };
 }
 
-export async function createChat(roomDir, { title = null, now = new Date().toISOString() } = {}) {
+export async function createChat(roomDir, { title = null, now = new Date().toISOString(), activate = true } = {}) {
   const index = await chatIndex(roomDir);
   const id = randomUUID().replace(/-/g, '').slice(0, 16);
   index.chats[id] = { title: title ? String(title).slice(0, CHAT_TITLE_MAX) : null, createdAt: now, updatedAt: now, messages: 0, preview: null };
-  index.active = id;
+  // A conversation started from a phone is the phone's: the room keeps the one it had open.
+  if (activate) index.active = id;
   await mkdir(join(roomDir, 'chats', id), { recursive: true });
   await writeIndex(roomDir, index);
   return shape(id, index.chats[id], index.active);
