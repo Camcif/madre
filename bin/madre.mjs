@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import { openUrl, startPulse } from '../src/server.mjs';
@@ -10,6 +11,7 @@ import { probeAll } from '../src/auth-probe.mjs';
 import { applyConfigToEnv, loadConfig } from '../src/config.mjs';
 import { isOnline, runSetup } from '../src/setup.mjs';
 import { parseArgs } from '../src/cli-args.mjs';
+import { ensureSalasProject, isSalasRoom, projectRootFor } from '../src/salas.mjs';
 import { createServer } from 'node:net';
 
 const cli = parseArgs(process.argv.slice(2));
@@ -77,7 +79,13 @@ async function openRoom(options) {
   process.exit(2);
 }
 
-const projectRoot = resolve(option('--project', process.cwd()));
+const stateRoot = process.env.PULSE_HOME;
+// Which project this run is about (src/salas.mjs, docs/MACROVERSO.md D-S09): the one named with
+// --project; the room of Salas for `madre salas`, and for a bare `madre` from the home folder;
+// anywhere else, the folder MADRE was run from. The notebook of Salas lives under MADRE's own
+// state, `~/.pulse/salas` unless PULSE_HOME says where that state is.
+const salasHome = stateRoot ?? join(homedir(), '.pulse');
+const projectRoot = projectRootFor({ command, project: option('--project', null), cwd: process.cwd(), home: homedir(), stateRoot: salasHome });
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
 if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 5)) {
   console.error(`\n  MOTHER › MADRE needs Node 22.5 or newer (found ${process.version}): the room's memory runs on node:sqlite.\n`);
@@ -91,8 +99,10 @@ if (has('--version') || has('-v') || command === 'version') {
   console.log(`madre ${pkg.version}${commit ? ` · ${commit}` : ''} · node ${process.version}`);
   process.exit(0);
 }
-const stateRoot = process.env.PULSE_HOME;
 if (command !== 'help') {
+  // The notebook of Salas is MADRE's own folder: made here, empty, the first time it is opened
+  // (D-S08). If it cannot be made, the check below says so, as for any folder that is not there.
+  if (isSalasRoom(projectRoot, salasHome)) await ensureSalasProject(salasHome).catch((error) => console.error(`  MOTHER › could not make the folder of Salas at ${projectRoot}: ${error.message}`));
   const stats = await stat(projectRoot).catch(() => null);
   if (!stats?.isDirectory()) {
     console.error(`\n  MOTHER › project folder not found: ${projectRoot}\n  Pass an existing directory with --project, or run MADRE from inside the project.\n`);
@@ -182,7 +192,9 @@ if (command === 'doctor' && (has('--catalog') || has('--conditions'))) {
   } else {
     process.exitCode = action === 'report' && !online ? 1 : 0;
   }
-} else if (command === 'start') {
+} else if (command === 'start' || command === 'salas') {
+  // `madre salas` is `madre start` on the notebook of Salas (projectRoot, above): the same look
+  // for a room already open, the same walk up the ports, the same browser unless --no-open.
   const port = Number(option('--port', '4317'));
   const noOpen = has('--no-open');
   // First contact happens in the room, not here: MADRE opens even with nobody online and the
@@ -205,10 +217,13 @@ if (command === 'doctor' && (has('--catalog') || has('--conditions'))) {
 
   madre start [--project PATH] [--port 4317] [--no-open] [--setup]
               Without --port, a busy 4317 falls through to the next free port.
+  madre salas [--port 4317] [--no-open]
+              The same room opens with a bare madre from your home folder.
   madre setup [--project PATH] [--port 4317] [--no-open]
   madre doctor [--project PATH] [--json]
 
   start   Opens the project room. With nobody online, runs setup first.
+  salas   Opens the room of Salas: every room on this computer, in one place.
   setup   Detects the agents on this computer, shows who has a session,
           and runs each agent's own sign-in from here.
   doctor  Prints the same diagnosis without the wizard.
