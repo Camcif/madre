@@ -6,7 +6,10 @@
 export function parseArgs(argv) {
   const args = [...argv];
   const helpFlags = new Set(['help', '--help', '-h']);
-  const command = helpFlags.has(args[0])
+  // The first word is the command: `start` when there is none, or when the line opens with an
+  // option. `salas` (docs/MACROVERSO.md, D-S09) is one more word here; what it opens is decided
+  // beside the room of Salas, in src/salas.mjs.
+  let command = helpFlags.has(args[0])
     ? 'help'
     : args[0]?.startsWith('-') ? 'start' : (args.shift() ?? 'start');
 
@@ -29,6 +32,10 @@ export function parseArgs(argv) {
       flags.add(name);
     }
   }
+  // `--help` after a command asks for the help, not for the command: `madre salas --help` prints
+  // what `salas` does instead of opening it. A value never starts with `-`, so `-h` on its own is
+  // never something an option was given.
+  if (flags.has('help') || args.includes('-h')) command = 'help';
   return {
     command,
     option: (name, fallback) => options[name] ?? fallback,

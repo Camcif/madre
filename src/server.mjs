@@ -90,7 +90,7 @@ import { currentNetwork, lanAddresses } from './bridge/network.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
-import { askRoom, knownRooms, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, universeOf } from './salas.mjs';
+import { askRoom, isSalasRoom, knownRooms, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, universeOf } from './salas.mjs';
 import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
@@ -184,6 +184,9 @@ export async function createPulseServer({
   const agents = providedAgents ?? await detector();
   const canonicalProjectRoot = await realpath(projectRoot).catch(() => resolve(projectRoot));
   const roomDir = join(root, 'rooms', projectRoomId(canonicalProjectRoot));
+  // Whether this is the room of Salas (docs/MACROVERSO.md, fase 3d): the room whose project is
+  // the notebook of Salas, decided once from real paths; the page carries the MACROVERSO key there.
+  const salasRoom = isSalasRoom(canonicalProjectRoot, root);
   // What left this machine. Every fetch this process makes — MADRE's own and any a module makes,
   // because a module runs in here and cannot opt out — goes through one wrapper and lands in a
   // line beside the ledger. Bodies, headers and query values are never in it. One room per
@@ -1656,6 +1659,8 @@ export async function createPulseServer({
           // Behind the bridge, the page is on a phone and knows it. On the Mac it learns whether a
           // phone is paired, so it keeps its place for the phone only when there is one.
           device: viaPhone ? { kind: phoneKind } : null,
+          // The room of Salas knows it is: true only there, false in every other room.
+          salas: salasRoom,
           room: basename(roomDir),
           phones: viaPhone ? undefined : (await readStore(root).catch(() => ({ devices: [] }))).devices.length,
           // Which MADRE this is. The page prints it in the corner: the one fact a bug report

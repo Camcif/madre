@@ -90,6 +90,8 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-019** | `RoomMemory.purge()` reinserta cada nota redactada **sin** `zone`, `refuted_by`, `contradicts`, `correction`, `detector`, `confidence` ni `recalled`: justo después de purgar, toda nota que llevaba un término privado queda en `hold` y `travels()` la deja viajar (a un turno y por un enlace), aunque estuviera en enfermería o en la esclusa. Al reabrir la sala, `#restandAll()` devuelve las aberraciones a `medbay`, pero una nota refutada perdió `refuted_by` para siempre y sigue viajando. Reproducido con un sondeo sobre `main` (tres notas: aberración, aberración y hecho refutado → tras la purga las tres en `hold`; tras reabrir, el hecho refutado sigue en `hold`). `src/memory.mjs` es solo lectura en este encargo: no se arregló | `src/memory.mjs:339,363` | — | ABIERTO |
 | **S-020** | La llave del canal (`~/.pulse/credentials/enlaces.json`) prueba «un proceso de MADRE en esta Mac», no qué sala pide: el `asking` de la petición es la palabra de quien llama. Es el límite [I] que el encargo pedía anotar (§4B); una sala que mienta sobre su id solo obtiene lo que un contrato ya deja leer a esa otra sala | `src/enlaces.mjs`, `src/server.mjs` (sección ENLACES) | 3b | ANOTADO |
 | **S-021** | `enlace.received` no dice qué agente ni qué turno pidió la lectura (`turn: null`): el servidor MCP `pulse-enlaces` no recibe el id del mensaje (solo `pulse-memory` lo recibe, y se lo pone el núcleo en `memoryServerForTurn`), y el `env` que fija el contrato de 3c no lleva `turn.agent`. D-S04 pedía ver «quién lo pidió y para qué turno»; hoy lo más cercano es `turn.cost.servers` de la sala, que dice qué servidores viajaron en cada turno. Falta decidir si el módulo añade `PULSE_ENLACES_AGENT` y un campo `agent` al cuerpo de `/api/enlace/ask`, o si el núcleo expone el id del turno a los módulos | `src/modules/enlaces.mjs`, `src/server.mjs` (`/api/enlace/ask`) | 3c | ABIERTO |
+| **S-022** | `--help` después de un comando se ignoraba: `madre start --help` abría la sala, y `madre salas --help` la habría abierto también. Ahora `parseArgs` toma `--help` o `-h` en cualquier posición como la ayuda; un valor nunca empieza por `-`, así que ninguna opción pierde el suyo | `src/cli-args.mjs` | 3d | ARREGLADO |
+| **S-023** | Abrir la sala de Salas deja `.pulse/mother.env` dentro del cuaderno, como en cualquier proyecto: es el sello del canal de MU/TH/UR, que el núcleo escribe en `<proyecto>/.pulse/`. El CLI crea el cuaderno vacío y no escribe nada; lo que sí escribe es la sala, igual que en toda sala, y el checkpoint ya excluye `.pulse/` (`FORBIDDEN`). Las pruebas fijan que eso es lo único que aparece dentro | `src/server.mjs` (`MotherChannel`), `src/checkpoint.mjs:21` | 3d | ANOTADO · SIN CAMBIO |
 
 ---
 
@@ -216,7 +218,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 3a | El Macroverso como flota de NOSTROMOs: pintores compartidos, escena viva, espacio infinito; S-014..S-017 | HECHA |
 | 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | HECHA |
 | 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | HECHA |
-| 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | ENCARGADA |
+| 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | HECHA |
 | 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | ENCARGADA |
 | 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | ENCARGADA |
 | 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje | ENCARGADA |
@@ -325,3 +327,37 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   servidor MCP real por stdio) y reglas de contrato en `test/enlaces.test.mjs`; suite 628 en verde y
   `pack:check`. Sin interfaz (Salas, Macroverso, línea de MU/TH/UR), sin sala de Salas (3d), sin
   órdenes (4b).
+- `2026-10-08` · Fase 3d, parte de servidor y línea de comandos, hecha (rama `salas/3d` desde
+  `5ae1dca`, sin push; la tecla MACROVERSO en la barra y la tarjeta de Salas primero se construyen
+  aparte, en `main`). Compuerta de entrada: `bin/madre.mjs:80` y `:21-35`, `src/cli-args.mjs:9-11`
+  y `src/checkpoint.mjs:20-27,33-43,54` confirmadas con `grep` sobre `5ae1dca`; `markOpen`,
+  `markProject`, `knownRooms` y `GET /api/salas` existen como dice el encargo, con las líneas
+  movidas por 3b y 3c. D-S08 y D-S09 asumidas tal cual: el cuaderno es `~/.pulse/salas` (bajo
+  `PULSE_HOME` cuando está), creado vacío por el CLI con `mkdir -p` la primera vez; `madre salas`
+  abre su sala exactamente como `madre start --project <cuaderno>` (la misma búsqueda de una sala
+  ya abierta, el mismo `openRoom` y su paseo por los puertos, el navegador salvo `--no-open`);
+  `madre` sin `--project` abre esa sala solo cuando el directorio actual es `$HOME`, y en cualquier
+  otra carpeta sigue abriendo la de esa carpeta. La regla es una función pura, `projectRootFor` en
+  `src/salas.mjs`, que `bin/madre.mjs` usa: `--project` gana siempre (también con `salas` y desde
+  `$HOME`), y vale para todo comando que trabaja sobre un proyecto (`madre doctor` desde `$HOME`
+  reporta el cuaderno). `cwd` y `$HOME` se comparan como rutas reales, nunca como texto
+  (`realFolder`: `process.cwd()` es la ruta física y `homedir()` la de `$HOME`, y en esta Mac
+  difieren bajo `/var`); `salasRoomId` pasa a la misma regla. `isSalasRoom` en `src/salas.mjs` y
+  `GET /api/state` con `salas: true` solo en esa sala, `false` en las demás. `--help` después de
+  cualquier comando imprime la ayuda (S-022), que menciona `salas` en inglés como el resto de la
+  terminal. Verificado en `test/salas-room.test.mjs`: parse, regla de `$HOME` con un enlace
+  simbólico, cuaderno vacío e intacto, `/api/state` y `knownRooms`/`/api/salas` con dos salas
+  reales (`here: true` y `salas` igual a su id), y el CLI de verdad sin shell: `madre salas` abre,
+  un segundo `madre salas` encuentra la abierta y sale con 0, `SIGTERM` la cierra y borra
+  `open.json`, `madre` desde `$HOME` abre la misma sala y desde una carpeta dentro de `$HOME` abre
+  la suya. Sale S-023. Suite 633 en verde y `pack:check`. Sin BISHOP, sin órdenes, sin Ajustes para
+  cambiar la carpeta (D-S08), sin tocar `public/*`.
+- `2026-10-08` · Fase 3d hecha y fusionada (rama `salas/3d`), con su interfaz: la tecla MACROVERSO
+  en la barra solo en la sala de Salas (`state.salas`), que abre Salas ya dentro del Macroverso;
+  la sala de Salas primera en Salas con su marca. Verificado abriendo la sala de verdad con
+  `madre salas` en esta Mac (`~/.pulse/salas`, puerto 4318): `state.salas: true`, Salas la lista con
+  el mismo id que usan los contratos, la barra lleva Salas y Macroverso, la tecla entra al
+  Macroverso con los cuatro universos (ella incluida), la hoja de firma muestra el bloque de
+  órdenes solo con ella en un extremo (hacia pulse), rechaza una designación ajena y acepta la
+  correcta sin distinguir mayúsculas («órdenes hasta #1»), y la revocación deja la línea en las dos
+  salas. Fases 3a–3d completas; quedan 4a–4c (BISHOP) y 3e (se pregunta).

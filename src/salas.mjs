@@ -12,7 +12,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { closeSync, openSync, realpathSync } from 'node:fs';
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const MADRE_BIN = fileURLToPath(new URL('../bin/madre.mjs', import.meta.url));
@@ -39,9 +39,44 @@ export function projectRoomId(projectRoot) {
 // really under /private/tmp on a Mac) and the id is the same before and after the folder exists.
 export const salasProjectRoot = (stateRoot) => join(stateRoot, 'salas');
 export function salasRoomId(stateRoot) {
-  let real = resolve(stateRoot);
-  try { real = realpathSync(real); } catch { /* not there yet: the path as given */ }
-  return projectRoomId(join(real, 'salas'));
+  return projectRoomId(realFolder(salasProjectRoot(stateRoot)));
+}
+
+// The real path of a folder; while it is not there yet, the real path of its parent and its name.
+// Two spellings of one folder compare equal this way, with or without a link in the path, and a
+// folder about to be made compares equal to itself once made. Never the text as given.
+function realFolder(path) {
+  const given = resolve(path);
+  try { return realpathSync(given); } catch { /* not there yet */ }
+  let parent = dirname(given);
+  try { parent = realpathSync(parent); } catch { /* nor its parent: as given */ }
+  return join(parent, basename(given));
+}
+
+// Is this project the notebook of Salas, that is, is this room the room of Salas (phase 3d)?
+// Asked of real paths on both sides, as the server names its own project.
+export function isSalasRoom(projectRoot, stateRoot) {
+  return realFolder(projectRoot) === realFolder(salasProjectRoot(stateRoot));
+}
+
+// The notebook is made the first time something opens it, and made empty: a folder and nothing
+// in it. What the room keeps (its record, its memory) stays beside its record, as for any room.
+// A notebook already there is left as it is.
+export async function ensureSalasProject(stateRoot) {
+  const folder = salasProjectRoot(stateRoot);
+  await mkdir(folder, { recursive: true });
+  return folder;
+}
+
+// Which project a run of `madre` is about (D-S09), said once and with nothing started, so the
+// rule can be tested as a rule. `--project` wins, always. `madre salas` is the room of Salas. So
+// is a bare `madre` from the home folder itself, the one folder that is nobody's project; from
+// any other folder, `madre` opens that folder, as it always did. No guess about what looks like
+// a project; `cwd` and `home` are compared as real paths, never as text.
+export function projectRootFor({ command, project, cwd, home, stateRoot }) {
+  if (typeof project === 'string' && project) return resolve(project);
+  if (command === 'salas' || realFolder(cwd) === realFolder(home)) return resolve(salasProjectRoot(stateRoot));
+  return resolve(cwd);
 }
 
 // Where the project is, kept beside its record (S-002): the room's id is a hash of the path and
