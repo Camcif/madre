@@ -141,6 +141,7 @@ export class Room {
   #delegation;
   #privacy = null;
   #toolsForTurn = null;
+  #bishopForTurn = null;
   #maxPlanSteps;
   #maxConcurrentTurns;
   #planMaxAgeMs;
@@ -164,6 +165,7 @@ export class Room {
     mother = null,
     privacy = null,
     toolsForTurn = null,   // async ({ agent, mode, lease, scratchDir }) => MCP server specs from the modules
+    bishopForTurn = null,  // async ({ agent, mode, text, preview }) => bounded BISHOP context in Salas
     historicalEvents = [],
     invokers = defaultInvokers,
     agentTimeouts = {},
@@ -194,6 +196,7 @@ export class Room {
     this.#mother = mother;
     this.#privacy = privacy;
     this.#toolsForTurn = toolsForTurn;
+    this.#bishopForTurn = bishopForTurn;
     this.#invokers = invokers;
     this.#agentTimeouts = agentTimeouts;
     this.#maxMessageChars = maxMessageChars;
@@ -1309,10 +1312,9 @@ export class Room {
     return outcome?.responseMessageId ?? null;
   }
 
-  // What the next turn to an agent would carry, built exactly the way a turn builds it and sent
-  // nowhere. Nothing here counts: a memory read for this was not recalled, the window does not
-  // move, and no process is started. It is the document MADRE writes in the human's name, which
-  // until now existed only for the instant a CLI was reading it.
+  // What the next turn to an agent would carry, built without starting a process or counting a
+  // memory read. Signed linked notes for BISHOP are fetched only on send, so the preview marks
+  // that one dynamic part instead of spending a contract's hourly reading allowance here.
   async briefing({ agent: agentId, mode = 1, text = '', ash = false } = {}) {
     const agent = this.#agents.find((one) => one.id === agentId && one.detected);
     if (!agent) return null;
@@ -1326,6 +1328,7 @@ export class Room {
     const mcpServers = this.#toolsForTurn && agent.adapter !== 'madre-local'
       ? await this.#toolsForTurn({ agent: agent.id, mode, lease: null, scratchDir: null }).catch(() => [])
       : [];
+    const bishop = this.#bishopForTurn ? await this.#bishopForTurn({ agent: agent.id, mode, text, preview: true }).catch(() => null) : null;
     const scopes = this.scopesFor(agent.id);
     // The lease a turn at this mode would be given, shaped exactly as the turn shapes it but
     // creating nothing: no folder is made, no checkpoint is taken. Without it the preview would
@@ -1348,7 +1351,7 @@ export class Room {
       context: built.context, recall: built.recall, memories: built.memories,
       attachments: [], references: [], lease,
       scopes: { web: scopes.web.enabled && scopes.web.wired, imageGen: scopes.imageGen.enabled && scopes.imageGen.wired },
-      ash: ash === true && this.ashEnabled(), choices: this.#choicesEnabled && mode !== 0, runs: this.#runsEnabled && mode !== 0 && mode < 4, mode, escalation: null, mcpServers,
+      ash: ash === true && this.ashEnabled(), choices: this.#choicesEnabled && mode !== 0, runs: this.#runsEnabled && mode !== 0 && mode < 4, mode, escalation: null, mcpServers, bishop,
     });
     // Each block with what put it here and what would take it away, so "read, never written" can
     // be checked one block at a time instead of believed.
@@ -1365,6 +1368,7 @@ export class Room {
       window: { from: built.context?.firstSequence ?? null, through: built.context?.throughSequence ?? null, omitted: built.context?.omittedMessages ?? 0, carried: built.context?.messages?.length ?? 0 },
       recalled: built.memories?.length ?? 0,
       quoted: built.recall?.entries?.length ?? 0,
+      dynamic: Boolean(bishop && agent.adapter === 'madre-local'),
     };
   }
 
@@ -1543,9 +1547,10 @@ export class Room {
       const mcpServers = this.#toolsForTurn && agent.adapter !== 'madre-local'
         ? await this.#toolsForTurn({ agent: agent.id, mode: turnMode, text, lease, scratchDir: lease?.scratchDir ? joinPath(this.#projectRoot, lease.scratchDir) : null, servers: this.#runDesk.serving().filter((one) => !one.network).map((one) => one.port) }).catch(() => [])
         : [];
+      const bishop = this.#bishopForTurn ? await this.#bishopForTurn({ agent: agent.id, mode: turnMode, text }).catch(() => null) : null;
       // The prompt and the shape it was built from: one is sent, the other is kept until the CLI
       // says what it cost, so the bill can be attributed to the blocks that caused it.
-      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
+      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, bishop, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
       this.#promptShape.set(responseMessageId, { parts: shaped.parts, spared: shaped.spared, servers: [this.#memoryServer?.name, ...mcpServers.map((server) => server.name)].filter(Boolean) });
       // What this turn is about to read, said while it is still reading it. The size is exact;
       // only the conversion to tokens is an estimate, and it is made at this room's own rate.
@@ -1576,6 +1581,7 @@ export class Room {
         imageStudio,
         memoryServer: memoryServerForTurn(this.#memoryServer, { agent: agent.id, messageId: responseMessageId, mode: turnMode }),
         mcpServers,
+        bishop,
         // For @madre: who asks, who it may convene, and whether a plan would run at all.
         requester,
         crew: others,

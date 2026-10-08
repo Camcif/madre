@@ -402,6 +402,7 @@ export async function createPulseServer({
     privacy,
     // Modules may hand tools to a turn; the room asks once per turn, the server knows the port.
     toolsForTurn: async (turn) => modulesToolsForTurn(await moduleContext(), { ...turn, port: listeningPort(), roomDir }),
+    bishopForTurn: salasRoom ? async (turn) => moduleById('bishop').promptForTurn(await moduleContext(), turn) : null,
     softTokenBudget,
     contextMaxChars,
     recallShare: Number(process.env.PULSE_RECALL_SHARE ?? memorySettings.recallShare),

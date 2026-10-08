@@ -153,7 +153,7 @@ function card(room) {
     const why = room.here ? t('This page closes with it.') : glance.working?.length ? t('What is running stops.') : t('Nothing is running.');
     actions.append(el('span', 'sm-ask', why), button('sm-btn danger', t('Close it'), () => closeRoom(room)), button('sm-btn ghost', t('Cancel'), () => { asking.delete(room.id); draw(); }));
   } else if (room.open) {
-    const go = el('a', 'sm-btn primary', room.here ? t('Back to the room') : t('Open'));
+    const go = el('a', 'sm-btn primary', data?.salas === room.id ? t('Talk to BISHOP') : room.here ? t('Back to the room') : t('Open'));
     go.href = room.here ? '/' : `http://127.0.0.1:${room.open.port}/`;
     actions.append(go);
     if (!glance.outdated) actions.append(button('sm-btn ghost', t('Close'), () => { failed.delete(room.id); asking.add(room.id); draw(); }));

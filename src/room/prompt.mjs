@@ -30,6 +30,7 @@ export const BLOCK_SOURCES = {
   ash: { when: 'Ash is on', where: 'MODULES → ASH' },
   mother: { when: 'MU/TH/UR has spoken to the crew and the turn is not GHOST', where: null },
   mcp: { when: 'a module hands tools to this turn', where: 'MODULES' },
+  bishop: { when: 'BISHOP is on in Salas and this is its chosen agent', where: 'MODULES → BISHOP' },
   sdk: { when: 'the message asks for a module and the turn may create files', where: null },
   lease: { when: 'the turn is #2 or higher and this agent may write', where: 'Settings › Permissions for the agent\'s max mode · Settings › Agents for its abilities' },
   'control-held': { when: 'another agent holds CONTROL while this one works', where: null },
@@ -48,7 +49,7 @@ export const BLOCK_SOURCES = {
   ask: { when: 'the human is the one asking', where: null },
 };
 
-export const PROMPT_BLOCKS = ['room', 'who', 'style', 'privacy', 'madre', 'memory-server', 'mode', 'inspect', 'ash', 'mother', 'mcp', 'sdk', 'lease', 'control-held', 'escalation', 'web', 'shared-lease', 'memories', 'recall', 'context', 'delegation', 'choices', 'runs', 'abilities', 'attachments', 'references', 'ask'];
+export const PROMPT_BLOCKS = ['room', 'who', 'style', 'privacy', 'madre', 'memory-server', 'mode', 'inspect', 'ash', 'mother', 'mcp', 'bishop', 'sdk', 'lease', 'control-held', 'escalation', 'web', 'shared-lease', 'memories', 'recall', 'context', 'delegation', 'choices', 'runs', 'abilities', 'attachments', 'references', 'ask'];
 
 // Whether this turn could plausibly produce a MADRE module. The SDK block is long and is only
 // ever of use when the human is asking for one, so it is not carried by every leased turn. The
@@ -71,7 +72,7 @@ export function sparedChars(options) {
 export function promptParts({
   agent, text, requester, depth, allowDelegation, context, recall = null, memories = null,
   attachments = [], references = [], lease = null, scopes = null, imageStudio = null,
-  sharedLeaseHint = null, ash = false, choices = false, runs = false, mode = 1, escalation = null, mcpServers = [],
+  sharedLeaseHint = null, ash = false, choices = false, runs = false, mode = 1, escalation = null, mcpServers = [], bishop = null,
   // What the room adds:
   others = [], delegation = true, maxPlanSteps = 4, scopesFor = () => ({}), motherLines = [], memoryServer = null, controlHolder = null, privacyMarker = '[ENTIDAD-ORG]', madreModel = null, sdk = null,
 }) {
@@ -106,6 +107,7 @@ export function promptParts({
       mcpServers.length
         ? `Tools from MADRE's modules, attached to this turn as MCP servers:\n${mcpServers.map((server) => `- ${server.name}: ${server.brief ?? (server.tools?.length ? server.tools.join(', ') : 'see its tool list')}`).join('\n')}`
         : null },
+    { id: 'bishop', text: bishop },
     { id: 'sdk', text: lease && sdk && wantsModule(text) ? `Building a MADRE module: MADRE is modular and the human may ask you for a module (a slash command, a tool for the agents, an integration). Read the SDK guide at ${sdk.guide} and the complete example at ${sdk.example}. If it talks to a service outside this machine, read ${sdk.connector} too: a connector is ONE file that is both the module and the MCP server it spawns, and that shape is not guessable. Then write ONE file named <id>.module.mjs (default export a plain spec object) in ${lease.scratchDir ? `${lease.outDir}/${lease.scratchDir}` : lease.outDir}. Do not touch ~/.pulse/modules or .madre/modules: MADRE shows the human an INSTALL card and they decide. A module runs inside MADRE with the human's permissions, so keep it small and honest about what it reaches. Never hardcode a credential or invent somewhere to keep one: declare 'secrets' and read them back with ctx.vault, which is where MADRE keeps them and the only place that is safe.` : null },
     { id: 'lease', text: lease ? leaseInstructions({ outDir: lease.outDir, agentId: agent.id, scopes: lease.scopes, capable: scopesFor(agent.id), imageStudio, control: Boolean(lease.control), create: Boolean(lease.create), airlock: Boolean(lease.airlock), scratchDir: lease.scratchDir ?? null }) : null },
     { id: 'control-held', text: !lease?.control && controlHolder && controlHolder !== agent.id ? `Heads-up: @${controlHolder} currently holds CONTROL and may be changing project files while you work; cite the state you actually read.` : null },

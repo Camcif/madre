@@ -10854,11 +10854,23 @@ function drawFilesSettings(host) {
   }
 }
 
+// In Salas, the agent chosen on BISHOP's card is the agent the composer addresses when that
+// choice first loads or changes. A manual pick after that remains the human's until it changes.
+let bishopChoice = null;
 async function refreshModules() {
   try {
     const data = await fetch('/api/extensions').then((response) => response.json());
     modules.failures = data.failures ?? []; modules.folders = data.folders ?? null; modules.sdk = data.sdk ?? null; modules.items = data.extensions ?? [];
     modules.installing = data.installing ?? null;
+    if (state.salas) {
+      const card = modules.items.find((item) => item.id === 'bishop');
+      const selected = card?.status?.installed ? card.controls?.find((control) => control.key === 'agent')?.value ?? null : null;
+      if (selected && selected !== bishopChoice && state.agents.get(selected)?.ready) {
+        els.target.value = selected;
+        renderPicker();
+      }
+      bishopChoice = selected;
+    }
   } catch (error) {
     modules.items = [];
     toast(t('UNABLE TO LIST MODULES: {error}', { error: error.message }));
@@ -13436,6 +13448,7 @@ function renderCoreDoc(briefing) {
   const doc = el('div', 'core-doc');
   doc.append(brewHead(t('THE DOCUMENT'), t('{n} BLOCKS · {ch} CH · ≈{tokens} TOKENS', { n: briefing.parts.length, ch: briefing.chars.toLocaleString(), tokens: tokensFor(briefing.chars).toLocaleString() })));
   doc.append(el('p', 'note', t('BUILT NOW AND SENT NOWHERE. CHANGE WHO IT GOES TO AND THE WORDS CHANGE; RAISE THE MODE AND THE PERMISSION IT WOULD BE GIVEN APPEARS, WRITTEN OUT.')));
+  if (briefing.dynamic) doc.append(el('p', 'note', t('BISHOP fetches signed linked notes when you send. They are not shown in this preview, so looking here does not use a link reading.')));
 
   // The blocks in the document's own order, which is the order they are said in.
   const widest = briefing.parts.reduce((top, part) => Math.max(top, part.chars), 1);
@@ -13700,7 +13713,9 @@ document.querySelector('#core-copy')?.addEventListener('click', async () => {
   if (!core.last) return;
   try {
     await navigator.clipboard.writeText(core.last.parts.map((part) => part.text).join('\n'));
-    toast(t('MU/TH/UR › the whole briefing is on your clipboard, exactly as the agent receives it.'));
+    toast(core.last.dynamic
+      ? t('MU/TH/UR › preview copied. BISHOP adds signed linked notes when you send.')
+      : t('MU/TH/UR › the whole briefing is on your clipboard, exactly as the agent receives it.'));
   } catch { toast(t('The clipboard is not available here.')); }
 });
 

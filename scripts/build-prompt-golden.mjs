@@ -32,6 +32,7 @@ const shapes = {
   mother: { agent, text: 'atencion', requester: 'mother', depth: 0, allowDelegation: false, context: { messages: [], omittedMessages: 0 }, others: [], mode: 1 },
   control: { agent, text: 'arregla', requester: 'you', depth: 0, allowDelegation: false, context, others: [], mode: 3, lease: { outDir: '.pulse/out', scopes: {}, control: true }, controlHolder: 'claude', escalation: 'declined' },
   airlock: { agent, text: 'despliega', requester: 'you', depth: 0, allowDelegation: false, context, others: [], mode: 4, lease: { outDir: '.pulse/out', scopes: {}, airlock: true } },
+  bishop: { agent: { id: 'madre' }, text: '¿Qué decidieron?', requester: 'you', depth: 0, allowDelegation: false, context: { messages: [], omittedMessages: 0 }, others: [], mode: 1, bishop: 'BISHOP: según la sala Aurora, la firma se verifica primero.' },
 };
 const golden = {};
 for (const [name, opts] of Object.entries(shapes)) golden[name] = buildPrompt(opts);

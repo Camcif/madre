@@ -6,7 +6,7 @@ se anota aquí. Lo que toca procesos o rutas sigue además las reglas de `docs/W
 
 | | |
 |---|---|
-| Estado | **Fases 1 y 2 · hechas** (Salas en escritorio y el Macroverso para ver). **3 y 4 · encargadas**: D-S01..06 cerradas el 2026-10-08; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
+| Estado | **Fases 1, 2, 3a–3d y 4a · hechas**. Pendientes: 4b, 4c y la decisión de 3e. D-S01..06 cerradas el 2026-10-08; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
 | Origen | Pedido del 2026-10-08, después de probar Salas en el teléfono; ampliado el mismo día (§1, puntos 6-8) |
 | Regla en vigor | Nada aquí cambia el núcleo de una sala (registro, memoria, modos). Un enlace lee; nunca escribe en otra sala. Una orden entra a una sala solo por la puerta que esa sala ya tiene para el humano |
 | Encargo | `docs/MACROVERSO-ENCARGO.md`: hechos verificados con `ruta:línea`, diseño, compuertas, pruebas y presupuestos de las fases 3 y 4. Este documento sigue siendo el único lugar de hallazgos (`S-0xx`), decisiones (`D-Sxx`) y bitácora |
@@ -92,9 +92,9 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-021** | `enlace.received` no dice qué agente ni qué turno pidió la lectura (`turn: null`): el servidor MCP `pulse-enlaces` no recibe el id del mensaje (solo `pulse-memory` lo recibe, y se lo pone el núcleo en `memoryServerForTurn`), y el `env` que fija el contrato de 3c no lleva `turn.agent`. D-S04 pedía ver «quién lo pidió y para qué turno»; hoy lo más cercano es `turn.cost.servers` de la sala, que dice qué servidores viajaron en cada turno. Falta decidir si el módulo añade `PULSE_ENLACES_AGENT` y un campo `agent` al cuerpo de `/api/enlace/ask`, o si el núcleo expone el id del turno a los módulos | `src/modules/enlaces.mjs`, `src/server.mjs` (`/api/enlace/ask`) | 3c | ABIERTO |
 | **S-022** | `--help` después de un comando se ignoraba: `madre start --help` abría la sala, y `madre salas --help` la habría abierto también. Ahora `parseArgs` toma `--help` o `-h` en cualquier posición como la ayuda; un valor nunca empieza por `-`, así que ninguna opción pierde el suyo | `src/cli-args.mjs` | 3d | ARREGLADO |
 | **S-023** | Abrir la sala de Salas deja `.pulse/mother.env` dentro del cuaderno, como en cualquier proyecto: es el sello del canal de MU/TH/UR, que el núcleo escribe en `<proyecto>/.pulse/`. El CLI crea el cuaderno vacío y no escribe nada; lo que sí escribe es la sala, igual que en toda sala, y el checkpoint ya excluye `.pulse/` (`FORBIDDEN`). Las pruebas fijan que eso es lo único que aparece dentro | `src/server.mjs` (`MotherChannel`), `src/checkpoint.mjs:21` | 3d | ANOTADO · SIN CAMBIO |
-| **S-024** | La fase 4a necesita pasar a cada turno el censo y los contratos en un bloque `bishop`, también cuando BISHOP usa `@madre`. El SDK solo ofrece `toolsForTurn`; la sala lo omite para `madre-local` y `promptParts` recibe opciones fijas sin un bloque aportado por módulos. El humano autorizó el callback acotado por turno en `src/server.mjs` y `src/room.mjs`, solo en Salas y para el agente elegido (≤ 1500 caracteres). La implementación sigue detenida por S-026 | `src/modules/sdk.mjs`, `src/server.mjs`, `src/room.mjs`, `src/room/prompt.mjs` | 4a | AUTORIZADO · BLOQUEADO POR S-026 |
-| **S-026** | El adaptador `@madre` no recibe el bloque `bishop` aunque `Room` lo ponga en el prompt: `briefingFor()` extrae solo `<context>` y el archivo local, y `SYSTEM` ordena usar solo esas dos fuentes con citas `[#n]`. Verificado con una llamada directa que omite un bloque `<bishop>`. 4a exige que `@madre` lea hasta 12 notas enlazadas y cite la sala; la corrección requiere una excepción acotada en `src/adapters/madre.mjs`, que §6 declara de solo lectura. No se autoriza por inferencia | `src/adapters/madre.mjs` (`SYSTEM`, `briefingFor`, `madreInvoker`) | 4a | PARADA · DECISIÓN DEL HUMANO |
+| **S-024** | Faltaba un conducto del módulo al bloque `bishop`, también para `@madre`, porque `toolsForTurn` no viaja al agente local. Con la excepción autorizada, el callback en `src/server.mjs`/`src/room.mjs` prepara el bloque solo en Salas y para el agente elegido; `promptParts` lo identifica y mide (≤ 1500 caracteres). El fixture dorado añade solo la forma BISHOP | `src/modules/bishop.mjs`, `src/server.mjs`, `src/room.mjs`, `src/room/prompt.mjs`, `test/prompt.test.mjs` | 4a | ARREGLADO |
 | **S-025** | La exposición de privacidad no contaba `correction` y la purga solo reescribía una nota si `text` tenía el término privado. Además, calculaba `norm` sin la clave propia de las aberraciones, con riesgo de colisión tras redactar. La exposición y la purga ahora incluyen la corrección y recalculan `norm` mediante `memoryKey` | `src/memory.mjs` (`exposure`, `purge`), `test/memory.test.mjs` | — | ARREGLADO |
+| **S-026** | `@madre` descartaba el bloque `bishop` al reconstruir su briefing y su sistema solo admitía el archivo de esta sala. Con la excepción autorizada, `Room` pasa el bloque como argumento separado y el adaptador usa reglas BISHOP solo cuando ese argumento existe: notas enlazadas con contrato, cita por sala, sin darles secuencias de Salas. Un texto del usuario no puede fingir ese argumento | `src/adapters/madre.mjs`, `src/room.mjs`, `test/madre-agent.test.mjs`, `test/bishop.test.mjs` | 4a | ARREGLADO |
 
 ---
 
@@ -222,7 +222,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 3b | S-008; contratos, candados en la sala que entrega, llave del canal, contadores | HECHA |
 | 3c | Herramienta `pulse-enlaces`, monitor en Salas, firma desde Salas y el Macroverso, venas | HECHA |
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | HECHA |
-| 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | PARADA · S-026 |
+| 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | HECHA |
 | 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | ENCARGADA |
 | 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje | ENCARGADA |
 | 3e | Recall automático de notas enlazadas | Se pregunta antes de empezar |
@@ -401,3 +401,14 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   `/private/tmp/madre-bishop-4a-bishop.test.mjs`. 4a espera decisión sobre S-026;
   4b, 4c y 3e no empezaron. Suite 634/634 y `pack:check` en verde tras retirar el
   prototipo. Sin handoff ni publicación.
+- `2026-10-08` · El humano autorizó la excepción S-026 para el adaptador local. Se cerró 4a:
+  BISHOP aparece solo en la sala de Salas, permite elegir un agente listo y añade un bloque
+  medido de hasta 1500 caracteres con censo y contratos. `@madre` recibe por un argumento
+  separado hasta 12 notas leídas con los candados de ENLACES y cita su sala de origen;
+  la vista previa no consume lecturas del contrato. El fixture dorado agregó únicamente
+  la forma BISHOP porque es un bloque nuevo; los prompts previos conservaron su forma.
+  Prueba aislada con tres servidores y Ollama `qwen2.5:7b`: respondió citando Aurora y
+  Boreal; al revocar un contrato dejó de recibir las notas de esa sala. Suite 637/637
+  y `pack:check` en verde. La primera suite marcó 636/637 por una muestra aleatoria de
+  NOSTROMO; su archivo pasó 27/27 aislado y la repetición completa pasó 637/637.
+  Sigue 4b; no se hizo handoff ni publicación.

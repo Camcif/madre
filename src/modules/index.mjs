@@ -23,6 +23,8 @@ import playwright from './playwright.mjs';
 import correo from './correo.mjs';
 import github from './github.mjs';
 import enlaces from './enlaces.mjs';
+import bishop from './bishop.mjs';
+import { isSalasRoom } from '../salas.mjs';
 import { defineModule, matchRoute } from './sdk.mjs';
 
 // The lab: modules that are built and tested but not offered yet, because they are not finished
@@ -31,7 +33,7 @@ import { defineModule, matchRoute } from './sdk.mjs';
 // so a module of somebody's own cannot take one and collide with it the day it comes out.
 export const LAB_MODULES = [correo];
 const labsAsked = new Set(String(process.env.PULSE_LABS ?? '').split(',').map((id) => id.trim()).filter(Boolean));
-export const MODULES = [ahp, imageStudio, gitPulse, ash, intents, choices, runs, ripley, ollama, playwright, github, enlaces, ...LAB_MODULES.filter((module) => labsAsked.has(module.id))];
+export const MODULES = [ahp, imageStudio, gitPulse, ash, intents, choices, runs, ripley, ollama, playwright, github, enlaces, bishop, ...LAB_MODULES.filter((module) => labsAsked.has(module.id))];
 export const BUILTIN_IDS = new Set([...MODULES, ...LAB_MODULES].map((module) => module.id));
 export const loadFailures = [];   // { file, error } for MODULES to show
 export const moduleFolders = ({ stateRoot, projectRoot }) => ({ user: join(stateRoot, 'modules'), project: join(projectRoot, '.madre', 'modules') });
@@ -175,7 +177,8 @@ export const moduleById = (id) => MODULES.find((module) => module.id === id) ?? 
 // What MODULES shows, with each card's update state attached from the cache when the room offers
 // the service. Never a network read: a screen that waits on a registry is a screen that hangs.
 export async function describeModules(ctx) {
-  const items = await Promise.all(MODULES.map((module) => module.describe(ctx)));
+  const visible = MODULES.filter((module) => module.id !== 'bishop' || (ctx.projectRoot && ctx.stateRoot && isSalasRoom(ctx.projectRoot, ctx.stateRoot)));
+  const items = await Promise.all(visible.map((module) => module.describe(ctx)));
   const look = ctx.services?.moduleUpdate;
   // One place, at the boundary: what a module says about itself is written in English inside the
   // module, and it is the card that speaks the room's language. Nothing in the module files
