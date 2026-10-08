@@ -14,6 +14,9 @@
     <div class="shell">
       <header id="bar" class="bar">
         <div class="bar-left">
+          <a id="salas-link" class="salas-link" href="/salas" hidden aria-label="Rooms" title="Rooms">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Rooms</span>
+          </a>
           <a class="brand" href="https://madre.run" target="_blank" rel="noopener noreferrer" aria-label="MADRE · madre.run" title="MADRE · madre.run">
             <svg class="brand-logo" viewBox="-4.8 -4.8 377.1 49.6" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g class="pulse" transform="translate(0 0) scale(2.5) translate(0 -2)"><path class="beat" d="M1 10H16L20 10L23.5 2L28 18L32 10L35 10L37 6L39 10H52" stroke-width="1.92" pathLength="100"/><circle class="beat-dot" cx="60" cy="10" r="3" stroke="none"/></g><g class="word" transform="translate(193.5 7)" stroke-width="4.8"><path d="M0 26V0L14 14.3L28 0V26"/><path transform="translate(36.5 0)" d="M0 26V7.8A7.8 7.8 0 0 1 7.8 0H17.2A7.8 7.8 0 0 1 25 7.8V26M0 15.6H25"/><path transform="translate(71.5 0)" d="M0 0H16A12 12 0 0 1 28 12V14A12 12 0 0 1 16 26H0Z"/><path transform="translate(110.5 0)" d="M0 26V0H20.85A7.15 7.15 0 0 1 28 7.15V7.15A7.15 7.15 0 0 1 20.85 14.3H0M15.12 14.3L28 26"/><path transform="translate(146 0)" d="M28 0H0V26H28M0 13H21"/></g></g></svg>
             <svg class="brand-icon" viewBox="-4.8 -4.8 167.1 49.6" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g class="pulse" transform="translate(0 0) scale(2.5) translate(0 -2)"><path d="M1 10H16L20 10L23.5 2L28 18L32 10L35 10L37 6L39 10H52" stroke-width="1.92"/><circle class="beat-dot" cx="60" cy="10" r="3" stroke="none"/></g></g></svg>
@@ -29,6 +32,7 @@
           <span id="agents-count" class="bar-count"></span>
         </button>
         <button id="steps-pill" class="stop-all steps-pill" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><svg class="steps-ring" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="2" opacity=".22"/><circle class="steps-arc" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" pathLength="1" transform="rotate(-90 10 10)"/></svg><span class="steps-label">First steps</span><span class="steps-count"></span></button>
+        <button id="handoff-pill" class="stop-all handoff-pill" type="button" hidden><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="2.8" width="8" height="14.4" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 14.6h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="handoff-words"></span></button>
         <button id="update-pill" class="stop-all update-pill" type="button" hidden title="A newer MADRE is on npm"></button>
         <button id="stop-all" class="stop-all" type="button" title="STOPALL · halt every plan and every agent turn" hidden>
           <svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="4" y="4" width="12" height="12" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>STOP ALL
@@ -50,6 +54,9 @@
         </button>
         <button id="tree-button" class="tree-button" type="button" title="Project files panel" aria-pressed="false" aria-controls="tree">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M2.75 6.5A2.25 2.25 0 0 1 5 4.25h2.6c.55 0 1.05.24 1.4.65l.9 1.1H15a2.25 2.25 0 0 1 2.25 2.25v5.75A2.25 2.25 0 0 1 15 16.25H5a2.25 2.25 0 0 1-2.25-2.25z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-k" d="M3.1 8.6h13.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-open" d="M2.9 15.9 5.2 10.1a1.4 1.4 0 0 1 1.3-.9h11.3c.7 0 1.2.7.9 1.4l-2 5.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button id="phone-button" class="tree-button phone-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Phone" title="Phone · use MADRE from your phone">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="5.6" y="2.6" width="8.8" height="14.8" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path class="ic-k" d="M8.8 14.6h2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         </button>
         <button id="custom-button" class="tree-button custom-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings" aria-label="Settings">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h6M14 6h2.5M3.5 14h2.5M10.5 14h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-f" cx="11.8" cy="6" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-f" cx="8.2" cy="14" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>

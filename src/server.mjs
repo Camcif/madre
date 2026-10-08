@@ -83,6 +83,13 @@ import { maturity } from './maturity.mjs';
 import { memoryDashboard } from './memory-dashboard.mjs';
 import { verdictFor } from './verdict.mjs';
 import { refuseForeign } from './request-guard.mjs';
+import { bridgeAnswers, hostBridge } from './bridge/host.mjs';
+import { BRIDGE_PORT } from './bridge/server.mjs';
+import { createInvite, forgetDevice, forgetNetwork, readStore, setEnabled, storeView, trustNetwork } from './bridge/devices.mjs';
+import { currentNetwork, lanAddresses } from './bridge/network.mjs';
+import { PHONE_MAX_MODE } from './bridge/policy.mjs';
+import { qrSvg } from './bridge/qr.mjs';
+import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(sourceDirectory, '..', 'public');
@@ -202,7 +209,23 @@ export async function createPulseServer({
     error.code = 'ROOM_IN_USE';
     throw error;
   }
-  const markOpen = async (port) => { await mkdir(roomDir, { recursive: true }).catch(() => {}); await writeFile(openMark, JSON.stringify({ pid: process.pid, port, at: new Date().toISOString() })).catch(() => {}); };
+  // The mark also says which project and which MADRE, for the bridge's list of rooms on the phone.
+  let openPort = null;
+  const markOpen = async (port) => { openPort = port; await mkdir(roomDir, { recursive: true }).catch(() => {}); await writeFile(openMark, JSON.stringify({ pid: process.pid, port, at: new Date().toISOString(), project: basename(canonicalProjectRoot), version: PACKAGE.version ?? null })).catch(() => {}); };
+  // The phone (docs/MOBILE.md): this room offers to host the bridge once it is open; see bridge/host.mjs.
+  const phone = hostBridge({ root, publicDirectory });
+  async function phoneView() {
+    const store = await readStore(root);
+    const here = await currentNetwork().catch(() => null);
+    return {
+      available: Boolean(here),
+      network: here ? { id: here.id, gateway: here.gateway, trusted: store.networks.some((one) => one.id === here.id) } : null,
+      addresses: here ? lanAddresses({ device: here.device }) : [],
+      port: BRIDGE_PORT,
+      bridge: { up: await bridgeAnswers(), here: phone.status().hosting },
+      ...storeView(store),
+    };
+  }
   const releaseOpen = () => { try { rmSync(openMark, { force: true }); } catch { /* it was already gone */ } };
   // The human's own modules, from ~/.pulse/modules and <project>/.madre/modules.
   await loadExternalModules({ stateRoot: root, projectRoot: canonicalProjectRoot }).catch((error) => console.error(`MADRE modules: ${error.message}`));
@@ -1197,6 +1220,10 @@ export async function createPulseServer({
     // not beside the first route that happened to need it: a const sits in its temporal dead zone
     // until its own line runs, so any route above it threw instead of refusing.
     const designationOk = (given) => typeof given === 'string' && given.trim().toLowerCase() === basename(canonicalProjectRoot).toLowerCase();
+    // A request the bridge passed on from a paired phone. It reaches the room from 127.0.0.1 like
+    // anything on this Mac, so «only from this computer» has to ask this too.
+    const viaPhone = typeof request.headers['x-madre-device'] === 'string';
+    const phoneKind = viaPhone ? String(request.headers['x-madre-device-kind'] ?? 'other').slice(0, 20) : null;
     try {
       if (request.method === 'GET' && url.pathname === '/') {
         const html = await readFile(join(publicDirectory, 'index.html'));
@@ -1278,6 +1305,77 @@ export async function createPulseServer({
         });
         return response.end(image);
       }
+      // ---------- The phone (docs/MOBILE.md) ----------
+      // Pairing and the list of phones are the Mac's alone: nothing that came through the bridge
+      // reaches them.
+      if (url.pathname === '/api/phone' || url.pathname.startsWith('/api/phone/')) {
+        if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
+        if (request.method === 'GET' && url.pathname === '/api/phone') return sendJson(response, 200, await phoneView());
+        const payload = request.method === 'POST' ? await body(request).catch(() => ({})) : {};
+        if (request.method === 'POST' && url.pathname === '/api/phone/trust') {
+          const here = await currentNetwork().catch(() => null);
+          if (!here) return sendJson(response, 412, { error: t('MADRE cannot tell which network this computer is on.') });
+          await trustNetwork(root, { id: here.id, name: typeof payload.name === 'string' ? payload.name : null });
+          await phone.tick();
+          return sendJson(response, 200, await phoneView());
+        }
+        if (request.method === 'POST' && url.pathname === '/api/phone/invite') {
+          const here = await currentNetwork().catch(() => null);
+          const store = await readStore(root);
+          if (!here || !store.networks.some((one) => one.id === here.id)) return sendJson(response, 412, { error: t('Mark this network as trusted first.'), trust: true });
+          const address = lanAddresses({ device: here.device })[0];
+          if (!address) return sendJson(response, 412, { error: t('This Mac has no address on the local network.') });
+          if (!store.enabled) await setEnabled(root, true);
+          const invite = await createInvite(root);
+          await phone.tick();
+          // Whichever room hosts it, the bridge has to answer before the code is shown.
+          for (let wait = 0; wait < 10 && !(await bridgeAnswers()); wait += 1) await new Promise((done) => setTimeout(done, 200));
+          if (!(await bridgeAnswers())) return sendJson(response, 503, { error: t('The bridge did not open on port {port}. Another program may be using it.', { port: BRIDGE_PORT }) });
+          const link = `http://${address}:${BRIDGE_PORT}/bridge/pair?c=${invite.code}`;
+          return sendJson(response, 200, { invite: { id: invite.id, expiresAt: invite.expiresAt }, url: link, qr: qrSvg(link, { label: t('Code to pair your phone') }), ...(await phoneView()) });
+        }
+        if (request.method === 'POST' && url.pathname === '/api/phone/forget') {
+          await forgetDevice(root, String(payload.id ?? ''));
+          await phone.tick();
+          return sendJson(response, 200, await phoneView());
+        }
+        if (request.method === 'POST' && url.pathname === '/api/phone/networks/forget') {
+          await forgetNetwork(root, String(payload.id ?? ''));
+          await phone.tick();
+          return sendJson(response, 200, await phoneView());
+        }
+        if (request.method === 'POST' && url.pathname === '/api/phone/enabled') {
+          await setEnabled(root, payload.on !== false);
+          await phone.tick();
+          return sendJson(response, 200, await phoneView());
+        }
+        return sendJson(response, 404, { error: t('Not found.') });
+      }
+      // The room in one line, for the list of rooms on the phone.
+      if (request.method === 'GET' && url.pathname === '/api/glance') {
+        const { chats } = await listChats(roomDir);
+        const latest = chats[0] ?? null;
+        const working = new Set(room.activeTurns().map((turn) => turn.agent));
+        for (const held of parked.values()) for (const turn of held.room.activeTurns()) working.add(turn.agent);
+        return sendJson(response, 200, {
+          project: basename(canonicalProjectRoot),
+          version: PACKAGE.version ?? null,
+          chats: chats.length,
+          chat: latest ? { id: latest.id, title: latest.title, named: latest.named, preview: latest.preview, at: latest.updatedAt, messages: latest.messages } : null,
+          working: [...working],
+        });
+      }
+      // Where the person was, to pick it up on the other side (bridge/handoff.mjs).
+      if (url.pathname === '/api/handoff') {
+        if (request.method === 'GET') return sendJson(response, 200, await readHandoff(root));
+        if (request.method === 'POST') {
+          const payload = await body(request).catch(() => ({}));
+          const { chats } = await listChats(roomDir);
+          const chat = chats.find((one) => one.id === payload.chat) ?? chats.find((one) => one.active) ?? null;
+          const saved = await writeHandoff(root, viaPhone ? 'phone' : 'mac', { room: basename(roomDir), project: basename(canonicalProjectRoot), port: openPort, chat: chat?.id ?? null, chatTitle: chat?.title ?? null, anchor: payload.anchor, draft: payload.draft, kind: phoneKind });
+          return sendJson(response, 200, { saved });
+        }
+      }
       if (request.method === 'GET' && url.pathname === '/api/state') {
         // `?chat=` reads another conversation, held open beside the one on screen; the room-wide
         // parts are the same, the record and what is running in it are that conversation's.
@@ -1289,6 +1387,11 @@ export async function createPulseServer({
           ...(here.main ? {} : { chat: here.id }),
           projectRoot,
           platform: process.platform,
+          // Behind the bridge, the page is on a phone and knows it. On the Mac it learns whether a
+          // phone is paired, so it keeps its place for the phone only when there is one.
+          device: viaPhone ? { kind: phoneKind } : null,
+          room: basename(roomDir),
+          phones: viaPhone ? undefined : (await readStore(root).catch(() => ({ devices: [] }))).devices.length,
           // Which MADRE this is. The page prints it in the corner: the one fact a bug report
           // always needs and nobody ever remembers to ask for.
           version: PACKAGE.version,
@@ -1501,7 +1604,10 @@ export async function createPulseServer({
         return sendJson(response, 200, { settings: effectiveSettings(), config: await readConfig(root), sessions, sessionsAt, loggingIn, agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })) });
       }
       if (request.method === 'POST' && url.pathname === '/api/settings') {
-        return sendJson(response, 200, { settings: await applySettings(await body(request)) });
+        const patch = await body(request);
+        // Permissions and the key that opens #3 and #4 are changed on the Mac.
+        if (viaPhone && (patch?.scopes !== undefined || patch?.override !== undefined)) return sendJson(response, 403, { error: t('Permissions are changed on the Mac.') });
+        return sendJson(response, 200, { settings: await applySettings(patch) });
       }
       // NOSTROMO: the archive is behind the project designation, like CONTROL.
       // Sentinel: reports, settings, the manual road (a prefilled issue) and the automatic one.
@@ -2021,7 +2127,7 @@ export async function createPulseServer({
       if (vaultMatch && (request.method === 'POST' || request.method === 'DELETE')) {
         const id = vaultMatch[1];
         const address = request.socket.remoteAddress ?? '';
-        if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address)) {
+        if (viaPhone || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address)) {
           return sendJson(response, 403, { error: t('A key is only accepted from this computer, never over the network.') });
         }
         const module = moduleById(id);
@@ -2045,7 +2151,7 @@ export async function createPulseServer({
       if (keyMatch) {
         const id = keyMatch[1];
         const address = request.socket.remoteAddress ?? '';
-        if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address)) {
+        if (viaPhone || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address)) {
           return sendJson(response, 403, { error: t('A key is only accepted from this computer, never over the network.') });
         }
         const agent = agents.find((item) => item.id === id);
@@ -2240,6 +2346,8 @@ export async function createPulseServer({
       }
       const installMatch = request.method === 'POST' && url.pathname.match(/^\/api\/extensions\/([a-z0-9-]+)\/install$/);
       if (installMatch) {
+        // A phone switches MADRE's own modules; installing one runs commands in the project.
+        if (viaPhone && !extensionById(installMatch[1])?.toggle) return sendJson(response, 403, { error: t('This is done on the Mac.') });
         const result = await installExtension(installMatch[1], await body(request));
         return sendJson(response, result.status, result.body);
       }
@@ -2254,11 +2362,20 @@ export async function createPulseServer({
         const { decision } = await body(request);
         const here = await scopeOf(url);
         if (here.error) return sendJson(response, 404, here);
+        // From a phone a mode is granted up to #2, as it is asked for up to #2.
+        if (viaPhone && decision !== 'deny' && (here.room.modeAsked(requestId) ?? 0) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.') });
         const result = here.room.decideMode(requestId, decision);
         return sendJson(response, result.ok ? 200 : 409, result);
       }
       if (request.method === 'POST' && url.pathname === '/api/messages') {
         const payload = await body(request);
+        // A phone asks up to #2. The bridge already said so; the room says it again, and records
+        // where the message came from. Only the bridge's word counts for that, never the body's.
+        if (viaPhone) {
+          const written = typeof payload.text === 'string' ? Number(payload.text.match(/(^|\s)#([0-4])(?=\s|$)/)?.[2] ?? -1) : -1;
+          if (Math.max(Number.isInteger(payload.mode) ? payload.mode : 1, written) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.') });
+          payload.via = phoneKind;
+        } else delete payload.via;
         // `?chat=` sends into a conversation held open beside the one on screen. TURNS counts it
         // like any other: the conversation on screen is one of the "others" when it is working.
         const here = await scopeOf(url);
@@ -2334,11 +2451,12 @@ export async function createPulseServer({
   };
   server.on('close', () => quotaMonitor.stop());
 
-  return { server, store, agents, quotaMonitor, markOpen, releaseOpen };
+  server.on('close', () => { void phone.stop(); });
+  return { server, store, agents, quotaMonitor, markOpen, releaseOpen, phone };
 }
 
 export async function startPulse({ port, projectRoot, openBrowser }) {
-  const { server, agents, markOpen } = await createPulseServer({ projectRoot, quotaSources: defaultQuotaSources() });
+  const { server, agents, markOpen, phone } = await createPulseServer({ projectRoot, quotaSources: defaultQuotaSources() });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, '127.0.0.1', resolve);
@@ -2346,6 +2464,8 @@ export async function startPulse({ port, projectRoot, openBrowser }) {
   const address = server.address();
   // The room is taken from here on, and says so on disk for anyone who tries to open it again.
   await markOpen(address.port);
+  // From here this room offers to host the phone's bridge, when there is a phone to reach it.
+  phone.start();
   const url = `http://127.0.0.1:${address.port}`;
   const ready = agents.filter((agent) => agent.ready).map((agent) => agent.label).join(', ') || 'none';
   const detected = agents.filter((agent) => agent.detected).map((agent) => agent.label).join(', ') || 'none';

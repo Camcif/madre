@@ -444,8 +444,21 @@ const takeTitle = (event) => { const node = event.target?.closest?.('[title]'); 
 document.addEventListener('pointerover', takeTitle, true);
 document.addEventListener('focusin', takeTitle, true);
 
+// Who scrolls. On a phone it is the page itself, so the browser can fold its bars away while the
+// person reads and the room runs on under them; everywhere else the thread is its own scroller.
+// Everything that reads or moves the conversation's scroll asks here.
+const pageScrolls = () => Boolean(state.device);
+const scroller = {
+  get node() { return pageScrolls() ? (document.scrollingElement ?? document.documentElement) : els.thread; },
+  get top() { return this.node?.scrollTop ?? 0; },
+  set top(value) { if (this.node) this.node.scrollTop = value; },
+  get height() { return this.node?.scrollHeight ?? 0; },
+  get view() { return pageScrolls() ? (window.innerHeight ?? 0) : (els.thread?.clientHeight ?? 0); },
+  to(options) { (pageScrolls() ? window : els.thread)?.scrollTo?.(options); },
+};
+
 function scrollToEnd() {
-  els.thread.scrollTop = els.thread.scrollHeight;
+  scroller.top = scroller.height;
 }
 
 // The thread is pinned to its own end, and anything that changes how tall it is has to put it
@@ -458,7 +471,7 @@ function scrollToEnd() {
 // relayout turned every adjustment into "they scrolled away" and the thread stopped following.
 let pinnedToEnd = true;
 const measurePin = () => {
-  pinnedToEnd = els.thread.scrollHeight - els.thread.scrollTop - els.thread.clientHeight < 120;
+  pinnedToEnd = scroller.height - scroller.top - scroller.view < 120;
 };
 for (const how of ['wheel', 'touchmove', 'keydown']) els.thread?.addEventListener(how, () => setTimeout(measurePin, 90), { passive: true });
 
@@ -471,7 +484,7 @@ for (const how of ['wheel', 'touchmove', 'keydown']) els.thread?.addEventListene
 // next frame of it, which is how the thread ended up parked hundreds of pixels short of its end.
 function keepPinned() {
   if (!pinnedToEnd || !els.thread) return;
-  els.thread.scrollTo({ top: els.thread.scrollHeight, behavior: 'instant' });
+  scroller.to({ top: scroller.height, behavior: 'instant' });
 }
 if (typeof ResizeObserver === 'function' && els.thread) {
   const watch = new ResizeObserver(() => { keepPinned(); requestAnimationFrame(keepPinned); });
@@ -2779,15 +2792,18 @@ function toggleModeMenu(id, anchor) {
   modeMenu.append(title);
   const ladder = el('div', 'mode-ladder');
   for (const n of [0, 1, 2, 3, 4]) {
-    const locked = n > cap;
-    const raise = locked && n >= 3 && canRaise;
+    // From a phone the room goes up to #2; #3 and #4 are opened on the Mac (docs/MOBILE.md).
+    const onTheMac = Boolean(state.device) && n > 2;
+    const locked = n > cap || onTheMac;
+    const raise = locked && !onTheMac && n >= 3 && canRaise;
     const option = el('button', `mode-option o${n}${state.mode === n ? ' current' : ''}${locked ? ' locked' : ''}`);
     option.type = 'button';
     option.disabled = locked && !raise;
     const body = el('span', 'body');
     body.append(el('span', 'name', MODES[n].label), el('span', 'hint', MODES[n].hint));
     option.append(el('span', 'n', `#${n}`), body);
-    const tag = state.mode === n ? t('NOW') : raise ? t('RAISE TO #{n} ›', { n }) : locked ? t('LOCKED') : n === 4 ? t('OVERRIDE ×2') : n === 3 ? t('OVERRIDE') : n === defaultModeFor(id) ? t('DEFAULT') : '';
+    if (onTheMac) option.title = t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.');
+    const tag = state.mode === n ? t('NOW') : onTheMac ? t('ON THE MAC') : raise ? t('RAISE TO #{n} ›', { n }) : locked ? t('LOCKED') : n === 4 ? t('OVERRIDE ×2') : n === 3 ? t('OVERRIDE') : n === defaultModeFor(id) ? t('DEFAULT') : '';
     if (tag) {
       const label = el('span', `tag${raise ? ' raise' : ''}`, tag);
       if (state.mode === n) label.append(el('span', 'dot'));
@@ -3347,6 +3363,7 @@ function renderUserMessage(event) {
   const col = el('div', 'col');
   const who = el('div', 'who');
   who.append(el('b', null, reviewed ? t('YOU · CREW (EXPENDABLE)') : t('YOU · CREW')));
+  if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
   const shownMode = Number.isInteger(mode) ? mode : create ? 2 : null;
   if (shownMode !== null && shownMode !== 1) who.append(el('span', `badge mode m${shownMode}`, `#${shownMode} ${MODES[shownMode].label}`));
   if (ash?.active) who.append(el('span', 'badge ash', t('ASH')));
@@ -5210,7 +5227,7 @@ void renderOpenQuestions(); return;
   // says something about itself: in a new project @madre's arrival used to take it away before
   // anyone had written a word.
   if (event.type.startsWith('message.') || event.type === 'command.output' || event.type === 'run.requested') removeEmpty();
-  const stickToBottom = els.thread.scrollHeight - els.thread.scrollTop - els.thread.clientHeight < 120;
+  const stickToBottom = scroller.height - scroller.top - scroller.view < 120;
   els.column.append(tidySystemLine(node));
   followTurn(event, node, stickToBottom);
 }
@@ -5224,12 +5241,12 @@ function followTurn(event, node, stickToBottom) {
   const isTurn = event.type === 'agent.started' || (event.type === 'message.created' && event.payload.role === 'user');
   const isAnswer = event.type === 'message.created' && event.payload.role !== 'user';
   if (isAnswer) {
-    const tall = node.getBoundingClientRect?.().height > els.thread.clientHeight * 0.7;
+    const tall = node.getBoundingClientRect?.().height > scroller.view * 0.7;
     if (tall) node.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-    else els.thread.scrollTo?.({ top: els.thread.scrollHeight, behavior: 'smooth' }) ?? scrollToEnd();
+    else scroller.to({ top: scroller.height, behavior: 'smooth' });
     return;
   }
-  if (isTurn) { els.thread.scrollTo?.({ top: els.thread.scrollHeight, behavior: 'smooth' }) ?? scrollToEnd(); return; }
+  if (isTurn) { scroller.to({ top: scroller.height, behavior: 'smooth' }); return; }
   if (stickToBottom) scrollToEnd();
 }
 
@@ -8234,7 +8251,8 @@ function rememberSplit() {
   try { localStorage.setItem('pulse.split', split.chat ?? ''); } catch { /* no storage */ }
 }
 function openSplit(id, { animate = true } = {}) {
-  if (SPLIT_CHAT || !split.box || !id || id === chats.active) return;
+  // A phone shows one conversation at a time: no halves and no windows there.
+  if (SPLIT_CHAT || state.device || !split.box || !id || id === chats.active) return;
   if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
   // Taking the split's place replaces what it shows, so only an empty split needs room.
   if (!split.chat && !canOpenBeside(id)) { besideFull(); return; }
@@ -8352,7 +8370,7 @@ function placeConvWindow(win, box) {
 }
 
 function openConvWindow(id, { box = null, animate = true } = {}) {
-  if (SPLIT_CHAT || !id || id === chats.active) return;
+  if (SPLIT_CHAT || state.device || !id || id === chats.active) return;
   if (convWindows.has(id)) { bringWindowForward(convWindows.get(id).node); return; }
   if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
   if (!canOpenBeside(id)) { besideFull(); return; }
@@ -8657,7 +8675,7 @@ const BURST_MS = 150;
 let pushes = [];
 
 function atBottom() {
-  return els.thread.scrollHeight - els.thread.scrollTop - els.thread.clientHeight < 4;
+  return scroller.height - scroller.top - scroller.view < 4;
 }
 
 // The conversation is not cut where the composer begins: it runs on beneath it. The thread is told
@@ -8669,13 +8687,14 @@ function atBottom() {
   let last = -1;
   const measure = () => {
     const top = els.composer.getBoundingClientRect().top;
-    const bottom = shell.getBoundingClientRect().bottom;
+    // On a phone the box is fixed to the screen and the page scrolls: the strip ends at the screen's edge.
+    const bottom = pageScrolls() ? window.innerHeight : shell.getBoundingClientRect().bottom;
     const height = Math.max(0, Math.ceil(bottom - top));
     if (height === last) return;
     const stay = atBottom();
     last = height;
     shell.style.setProperty('--dock-h', `${height}px`);
-    if (stay) els.thread.scrollTop = els.thread.scrollHeight;
+    if (stay) scrollToEnd();
   };
   measure();
   if (typeof ResizeObserver === 'function') new ResizeObserver(measure).observe(els.composer);
@@ -8820,7 +8839,7 @@ function stepsPaint() {
   const done = steps.record?.done.length ?? 0;
   const total = FIRST_STEPS.length;
   // Shown while there is something left, and for the moment after the last tick.
-  const shown = Boolean(steps.record?.on) && (done < total || steps.finishing);
+  const shown = !state.device && Boolean(steps.record?.on) && (done < total || steps.finishing);
   pill.hidden = !shown;
   if (!shown) return;
   pill.style?.setProperty?.('--steps', String(done / total));
@@ -8915,6 +8934,27 @@ if (initial.version) {
   if (corner) corner.replaceChildren(el('b', null, `MADRE ${initial.version}`), document.createTextNode('\u00a0·\u00a0© 2026 Jossue Alcalá'));
 }
 adoptLanguage(initial.language);
+// Behind the bridge this page is on a phone (docs/MOBILE.md): it says so, offers the way back to
+// the list of rooms, and leaves the Mac's keys to the Mac.
+state.device = initial.device ?? null;
+state.roomId = initial.room ?? null;
+state.phones = initial.phones ?? 0;
+document.documentElement.classList.toggle('via-phone', Boolean(state.device));
+{ const back = document.querySelector('#salas-link'); if (back) back.hidden = !state.device; }
+if (state.device) {
+  // NOSTROMO is a still picture on a phone: its help speaks of a finger, not of a wheel.
+  { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('TOUCH A MEMORY TO READ IT · DO NOT TOUCH MOTHER'); }
+  // Files and servers are on the Mac: on the phone they are there to be seen and switched, and say so.
+  for (const panel of [document.querySelector('#tree'), document.querySelector('#browser')]) {
+    if (!panel || panel.querySelector('.phone-desk-note')) continue;
+    const note = el('p', 'phone-desk-note', t('This looks better on the Mac. From here you can look around and switch things on or off.'));
+    const head = panel.querySelector('header');
+    if (head) head.after(note); else panel.prepend(note);
+  }
+  // The page took over the scroll: the strip under the box and the bar measure themselves again.
+  window.dispatchEvent?.(new Event('resize'));
+}
+stepsPaint();
 els.project.textContent = initial.projectRoot.split('/').filter(Boolean).at(-1) || initial.projectRoot;
 els.project.title = initial.projectRoot;
 // Which conversation this page is looking at, beside the project it belongs to — but only once
@@ -10009,6 +10049,12 @@ els.composer.addEventListener('submit', async (event) => {
   if (modeToken) {
     const wanted = Number(modeToken[2]);
     outgoing = outgoing.replace(/(^|\s)#[0-4](?=\s|$)/, '$1').replace(/\s{2,}/g, ' ').trim();
+    if (wanted >= 3 && state.device) {
+      els.input.value = text;
+      autosize();
+      toast(t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.'));
+      return;
+    }
     if (wanted >= 3) {
       // The override names the agent that will act: the one the message is addressed to, which is
       // its leading @mention when it has one, as on sending. It used to name the chip's, so
@@ -14337,6 +14383,11 @@ async function saveOverride(patch, confirmation) {
   await loadSettings();
 }
 function drawPermissions(host, data) {
+  // From a phone, permissions are read, not changed: they open #3 and #4, which stay on the Mac.
+  if (state.device) {
+    sxBlock(host, t('Permissions'), t('Permissions are changed on the Mac. From the phone a message goes up to #2 CREATE, and when an agent asks for a mode it is granted up to #2.'));
+    return;
+  }
   const config = data.settings.override ?? OVERRIDE_DEFAULT;
   const canHash = Boolean(globalThis.crypto?.subtle);
   const keys = sxBlock(host, t('The key of each mode'), t('What you type to arm #3 CONTROL and #4 AIRLOCK. It is asked for each message, unless a grace below still holds.'), { className: 'perm-keys' });
@@ -14471,6 +14522,7 @@ function drawPrivacy(host, data) {
     }
   });
   fetch('/api/privacy').then((response) => response.json()).then(showExposure).catch(() => { exposure.textContent = t('The exposure check is unavailable.'); });
+  drawPhones(host);
 }
 
 // Save one setting the moment it changes, the way the scope boxes do; the
@@ -15264,10 +15316,27 @@ function sizeNostromo() {
   return true;
 }
 
+// On a phone the map is a picture: laid out once, facing front, drawn once, and drawn again only
+// when it is touched. Turning a brain sixty times a second is what made it slow there.
+function stillNostromo() {
+  nostromo.still = true;
+  nostromo.reduced = true;
+  for (let step = 0; step < 200; step += 1) { stepNostromo(1, step / 60); nostromo.spin = 0; }
+  paintStillNostromo();
+}
+function paintStillNostromo() {
+  if (!nostromo.still) return;
+  nostromo.spin = 0;
+  projectNostromo();
+  for (let pass = 0; pass < 40; pass += 1) fitNostromo();
+  drawNostromo(0);
+}
 function startNostromo() {
   stopNostromo();
   if (typeof requestAnimationFrame !== 'function' || !nostromo.canvas?.getContext) return;
   if (!sizeNostromo()) return;
+  if (state.device) { nostromo.cam = { x: 0, y: 0, scale: 1, manual: false }; nostromo.yaw = 0; nostromo.pitch = 0; nostromo.rings = []; stillNostromo(); return; }
+  nostromo.still = false;
   nostromo.cam = { x: 0, y: 0, scale: 1, manual: false };
   // Every boarding starts from the side view, the way the camera starts from the whole system.
   nostromo.yaw = 0;
@@ -16938,6 +17007,8 @@ nostromo.canvas?.addEventListener('wheel', (event) => {
   nostromo.cam.manual = true;
   document.querySelector('#nostromo-recenter')?.removeAttribute('hidden');
 }, { passive: false });
+// The still map redraws after a touch, so the star picked shows it was picked.
+nostromo.canvas?.addEventListener('click', () => { if (nostromo.still) requestAnimationFrame(paintStillNostromo); });
 nostromo.canvas?.addEventListener('click', (event) => {
   if (drag.moved) { drag.moved = false; return; }
   const at = nostromoAt(event);
@@ -17051,7 +17122,7 @@ async function code000(count) {
     strikes.last = 0;
     nostromo.dialog.close();
     mother.dialog?.close?.();
-    els.thread?.scrollTo?.({ top: els.thread.scrollHeight, behavior: 'smooth' });
+    scroller.to({ top: scroller.height, behavior: 'smooth' });
     const minutes = result?.lockedForMs ? Math.ceil(result.lockedForMs / 60000) : 10;
     markIntruder(result?.lockedForMs ?? 10 * 60000);
     toast(t('MU/TH/UR › CODE000. The archive is sealed for {n} minutes and the crew has been told, in code. Access to NOSTROMO needs the designation again.', { n: minutes }));
@@ -17413,7 +17484,8 @@ window.addEventListener?.('resize', () => { if (tour.dialog?.open) placeTour(); 
 document.querySelector('#tour-button')?.addEventListener('click', () => { document.querySelector('#mother')?.close?.(); stepsResume(); startTour(); });
 function maybeStartTour() {
   // The half on the right of a split window is the same room; the left half already did this.
-  if (state.tourArmed || SPLIT_CHAT) return;
+  // A phone gets the room as it is: the tour points at keys that live on the Mac.
+  if (state.tourArmed || SPLIT_CHAT || state.device) return;
   state.tourArmed = true;
   // What is new comes first; the tour, if this page still owes it, waits until that is closed.
   void maybeShowWhatsNew().then((shown) => { if (!shown) tourIfOwed(); });
@@ -17452,6 +17524,8 @@ function hintsSeen() {
   try { return JSON.parse(localStorage.getItem(HINTS_KEY) ?? '{}') ?? {}; } catch { return {}; }
 }
 function firstTouch(id) {
+  // Its cards speak of the Mac's own gestures (a right-click, a panel beside the room).
+  if (state.device) return;
   const hint = FIRST_TOUCH[id];
   const seen = hintsSeen();
   if (!hint || seen[id]) return;
@@ -17919,7 +17993,7 @@ settingsUI.button?.addEventListener('click', () => openSettingsOn('release', { p
    bar, and in which order, is this browser's own: a convenience, kept in localStorage. */
 const BAR_KEY = 'pulse.barItems';
 const BAR_FIXED = 'settings';
-const BAR_DEFAULT = ['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder'];
+const BAR_DEFAULT = ['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
 // The keys that are in the markup. The crew is two elements — five spheres when there is room, one
 // button when there is not — and one key: taking it off takes both.
 const BAR_BUILT = {
@@ -17930,10 +18004,11 @@ const BAR_BUILT = {
   reload: { nodes: ['#reload-button'], name: () => t('Reload') },
   servers: { nodes: ['#browser-button'], name: () => t('Servers') },
   finder: { nodes: ['#tree-button'], name: () => t('Files') },
+  phone: { nodes: ['#phone-button'], name: () => t('Phone') },
   settings: { nodes: ['#custom-button'], name: () => t('Settings') },
 };
 // They ride with the crew when it is there, and lead the keys when it is not: where they always were.
-const BAR_CONTEXTUAL = ['#steps-pill', '#update-pill', '#stop-all'];
+const BAR_CONTEXTUAL = ['#steps-pill', '#handoff-pill', '#update-pill', '#stop-all'];
 // A module's name before the board has answered; once it has, the module says its own.
 const BAR_MODULE_NAMES = { ash: 'Ash', ollama: 'Ollama', intents: 'Intenciones' };
 const BAR_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -17954,11 +18029,26 @@ const barKit = {
   drag: null,
 };
 
+// Keys that joined the bar after a person arranged theirs. Each is put at the end once, so it can
+// be found; taken off after that, it stays off.
+const BAR_JOINED = ['phone'];
 function barStored() {
   if (barKit.saved) return [...barKit.saved];
   try {
     const raw = JSON.parse(localStorage.getItem(BAR_KEY) ?? 'null');
-    if (Array.isArray(raw) && raw.every((id) => typeof id === 'string')) return [...new Set(raw)];
+    if (Array.isArray(raw) && raw.every((id) => typeof id === 'string')) {
+      const list = [...new Set(raw)];
+      const met = JSON.parse(localStorage.getItem('pulse.barMet') ?? '[]');
+      const fresh = BAR_JOINED.filter((id) => !met.includes(id));
+      if (fresh.length) {
+        for (const id of fresh) if (!list.includes(id)) list.push(id);
+        localStorage.setItem(BAR_KEY, JSON.stringify(list));
+        localStorage.setItem('pulse.barMet', JSON.stringify([...met, ...fresh]));
+      }
+      return list;
+    }
+    // The bar as it ships already has them: met, so taking one off later is final.
+    localStorage.setItem('pulse.barMet', JSON.stringify(BAR_JOINED));
   } catch { /* no storage, or not a list: the bar as it ships */ }
   return [...BAR_DEFAULT];
 }
@@ -18444,3 +18534,275 @@ Object.assign(globalThis.__pulse, {
     catalogue: () => [...barCatalogue().keys()],
   },
 });
+
+/* ---------- The phone: pair it with a code, and pick up where you were (docs/MOBILE.md) ----------
+   The key PHONE opens a card under it. On a network nobody marked as trusted it asks first, in one
+   sentence, because the phone reaches this Mac over that Wi-Fi in plain http; then it shows the QR,
+   which works once and for ten minutes, and turns into «connected» the moment the phone uses it.
+   Pairing happens on the Mac only: the room refuses /api/phone to anything that came through the
+   bridge. Where the person was — the conversation, the message at the top of the screen, the
+   words left in the box — is sent to the room while a phone is paired, and the other side offers
+   to pick it up: a pill in the bar here, a card at the top of the list of rooms there. */
+function deviceLabel(kind) {
+  switch (kind) {
+    case 'iphone': return 'iPhone';
+    case 'ipad': return 'iPad';
+    case 'android': return t('Android phone');
+    case 'android-tablet': return t('Android tablet');
+    default: return t('phone');
+  }
+}
+const phoneUI = { button: document.querySelector('#phone-button'), card: null, view: null, invite: null, paired: null, poll: 0, clock: 0 };
+
+async function phoneCall(path, body) {
+  const response = await fetch(path, body === undefined ? undefined : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error ?? t('Request failed ({status}).', { status: response.status }));
+  return payload;
+}
+function phoneCard() {
+  return phoneUI.card ??= (() => {
+    const node = el('div', 'bar-card phone-card');
+    node.setAttribute('role', 'dialog');
+    node.setAttribute('aria-label', t('Use MADRE from your phone'));
+    node.hidden = true;
+    document.body?.append(node);
+    return node;
+  })();
+}
+function phonePlace() {
+  const card = phoneUI.card;
+  const key = (phoneUI.button?.offsetWidth ? phoneUI.button : barKit.more ?? phoneUI.button)?.getBoundingClientRect?.();
+  if (!card || !key) return;
+  const width = card.offsetWidth || 340;
+  card.style.top = `${Math.round(key.bottom + 8)}px`;
+  card.style.left = `${Math.round(Math.max(16, Math.min(window.innerWidth - width - 16, key.left + key.width / 2 - width / 2)))}px`;
+}
+function phoneClose() {
+  if (phoneUI.card) phoneUI.card.hidden = true;
+  clearInterval(phoneUI.poll);
+  clearInterval(phoneUI.clock);
+  phoneUI.button?.setAttribute('aria-expanded', 'false');
+}
+async function phoneOpen() {
+  phoneUI.paired = null;
+  phoneCard().hidden = false;
+  phoneUI.button?.setAttribute('aria-expanded', 'true');
+  phoneDraw({ busy: true });
+  try { phoneUI.view = await phoneCall('/api/phone'); } catch (error) { phoneDraw({ error: error.message }); return; }
+  if (phoneUI.view.available && phoneUI.view.network?.trusted) await phoneInvite();
+  else phoneDraw();
+}
+async function phoneTrust() {
+  phoneDraw({ busy: true });
+  try { phoneUI.view = await phoneCall('/api/phone/trust', {}); await phoneInvite(); } catch (error) { phoneDraw({ error: error.message }); }
+}
+async function phoneInvite() {
+  phoneUI.paired = null;
+  phoneDraw({ busy: true });
+  try {
+    const made = await phoneCall('/api/phone/invite', {});
+    phoneUI.view = made;
+    phoneUI.invite = made;
+    phoneDraw();
+    phoneWatch();
+  } catch (error) { phoneDraw({ error: error.message }); }
+}
+// While the code is on screen: the seconds it has left, and the moment a phone uses it.
+function phoneWatch() {
+  clearInterval(phoneUI.poll);
+  clearInterval(phoneUI.clock);
+  phoneUI.clock = setInterval(() => {
+    const left = (phoneUI.invite?.invite.expiresAt ?? 0) - Date.now();
+    const out = phoneUI.card?.querySelector('.phone-expires');
+    if (left <= 0) { clearInterval(phoneUI.clock); clearInterval(phoneUI.poll); phoneDraw(); return; }
+    if (out) out.textContent = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, '0')}`;
+  }, 1000);
+  phoneUI.poll = setInterval(async () => {
+    if (phoneUI.card?.hidden) { clearInterval(phoneUI.poll); return; }
+    const view = await phoneCall('/api/phone').catch(() => null);
+    const mine = view?.invites.find((one) => one.id === phoneUI.invite?.invite.id);
+    if (!mine?.redeemedAt) return;
+    clearInterval(phoneUI.poll);
+    clearInterval(phoneUI.clock);
+    phoneUI.view = view;
+    phoneUI.paired = view.devices.find((one) => one.id === mine.device) ?? { kind: 'other' };
+    phoneUI.invite = null;
+    state.phones = view.devices.length;
+    phoneDraw();
+  }, 1500);
+}
+function phoneDraw({ busy = false, error = null } = {}) {
+  const card = phoneCard();
+  const view = phoneUI.view;
+  const head = el('div', 'bar-card-head');
+  head.append(el('h3', null, t('Use MADRE from your phone')));
+  const body = el('div', 'phone-body');
+  const say = (text, className = 'phone-say') => body.append(el('p', className, text));
+  if (error) {
+    say(error, 'phone-say phone-error');
+    body.append(sxButton(t('Try again'), () => void phoneOpen()));
+  } else if (busy || !view) {
+    say(t('One moment…'), 'phone-say phone-quiet');
+  } else if (!view.available) {
+    say(t('MADRE cannot tell which network this computer is on, so it cannot open the door to a phone here.'));
+  } else if (!view.network?.trusted) {
+    say(t('Your phone reaches this Mac over your Wi-Fi. Do it only on a network you trust, like the one at home or at the office: on a public network, someone connected to it could see what passes between the two.'));
+    body.append(sxButton(t('This is a network I trust'), () => void phoneTrust(), { tone: 'primary' }));
+  } else if (phoneUI.paired) {
+    const done = el('div', 'phone-done');
+    done.append(el('span', 'phone-check'), el('b', null, t('Your {device} is connected.', { device: deviceLabel(phoneUI.paired.kind) })));
+    body.append(done);
+    say(t('On the phone, add MADRE to the home screen to open it like an app. Your rooms are there whenever this Mac is awake and on this Wi-Fi.'));
+    body.append(sxButton(t('Pair another phone'), () => void phoneInvite()));
+  } else if (phoneUI.invite && phoneUI.invite.invite.expiresAt > Date.now()) {
+    const qr = el('div', 'phone-qr');
+    qr.innerHTML = phoneUI.invite.qr; // trusted: the room's own SVG, drawn from its own link
+    body.append(qr);
+    say(t("Scan it with your phone's camera."), 'phone-lead');
+    const note = el('p', 'phone-say');
+    note.append(t('Your phone has to be on this same Wi-Fi. The code works once and expires in '), el('b', 'phone-expires', '10:00'), '.');
+    body.append(note);
+    const link = el('code', 'phone-link', phoneUI.invite.url.replace(/\?c=.*/, '?c=…'));
+    link.title = t('The address in the code');
+    body.append(link);
+    say(t('If your Mac asks whether to allow incoming connections, choose Allow.'), 'phone-say phone-quiet');
+  } else {
+    say(t('The code expired.'));
+    body.append(sxButton(t('Make another code'), () => void phoneInvite(), { tone: 'primary' }));
+  }
+  const parts = [head, body];
+  if (view?.devices?.length) {
+    const foot = el('button', 'phone-foot', view.devices.length === 1 ? t('1 phone paired · manage it in Settings') : t('{n} phones paired · manage them in Settings', { n: view.devices.length }));
+    foot.type = 'button';
+    foot.addEventListener('click', () => { phoneClose(); openSettingsOn('privacy', { part: 'phones' }); });
+    parts.push(foot);
+  }
+  card.replaceChildren(...parts);
+  phonePlace();
+}
+phoneUI.button?.addEventListener('click', () => { if (phoneUI.card && !phoneUI.card.hidden) phoneClose(); else void phoneOpen(); });
+document.addEventListener?.('pointerdown', (event) => { if (phoneUI.card && !phoneUI.card.hidden && !event.target?.closest?.('.phone-card, #phone-button')) phoneClose(); }, true);
+document.addEventListener?.('keydown', (event) => { if (event.key === 'Escape' && phoneUI.card && !phoneUI.card.hidden) phoneClose(); });
+window.addEventListener?.('resize', () => { if (phoneUI.card && !phoneUI.card.hidden) phonePlace(); });
+
+// AJUSTES › Privacy › Phones: which phones may reach this Mac, on which networks.
+function drawPhones(host) {
+  if (state.device) return;
+  const block = sxBlock(host, t('Phones'), t('The phones that can reach your rooms over your Wi-Fi. Their keys live only on this Mac: of each phone it keeps a fingerprint, never the key.'));
+  state.settingsTargets.phones = block;
+  const paint = (view) => {
+    block.rows.replaceChildren();
+    for (const old of block.querySelectorAll('.sx-foot')) old.remove();
+    if (!view.available) { sxRow(block, t('Not available here'), t('MADRE cannot tell which network this computer is on.')); return; }
+    sxRow(block, t('Use MADRE from your phone'), t('Turned off, no phone reaches this Mac, not even a paired one.'), sxSwitch(view.enabled, async (on) => paint(await phoneCall('/api/phone/enabled', { on }).catch((error) => { toast(error.message); return view; })), { label: t('Use MADRE from your phone') }));
+    for (const device of view.devices) {
+      const forget = sxButton(t('Forget'), async () => {
+        const next = await phoneCall('/api/phone/forget', { id: device.id }).catch((error) => { toast(error.message); return null; });
+        if (next) { state.phones = next.devices.length; paint(next); toast(t('MU/TH/UR › that phone can no longer reach this Mac.'), { tone: 'done' }); }
+      }, { tone: 'danger' });
+      const name = deviceLabel(device.kind);
+      sxRow(block, name.charAt(0).toUpperCase() + name.slice(1), t('Paired {date} · last seen {seen}', { date: new Date(device.createdAt).toLocaleDateString(), seen: new Date(device.seenAt ?? device.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) }), forget);
+    }
+    for (const network of view.networks) {
+      const here = network.id === view.network?.id;
+      const forget = sxButton(t('Forget'), async () => {
+        const next = await phoneCall('/api/phone/networks/forget', { id: network.id }).catch((error) => { toast(error.message); return null; });
+        if (next) paint(next);
+      });
+      sxRow(block, here ? t('This network') : t('A trusted network'), here ? t('Phones reach this Mac while it is on this network.') : t('Trusted on {date}.', { date: new Date(network.addedAt).toLocaleDateString() }), forget);
+    }
+    sxRow(block, t('Pair a phone'), t('A code to scan with its camera, good once for ten minutes.'), sxButton(t('Show the code'), () => { closeSettingsIfOpen(); void phoneOpen(); }, { tone: 'primary' }));
+    sxFoot(block, t('The phone reaches this Mac only on a network you trusted. From the phone you read, ask up to #2 CREATE, answer what an agent asks and stop everything; #3 CONTROL and #4 AIRLOCK are opened here.'));
+  };
+  phoneCall('/api/phone').then(paint).catch(() => sxRow(block, t('Not available here'), t('The list of phones could not be read.')));
+}
+function closeSettingsIfOpen() { if (settingsWindow.node?.open) openSettings(false); }
+
+// ---- Where the person was ----
+const handoff = { timer: 0, last: '', pill: document.querySelector('#handoff-pill'), touched: false };
+const handoffWanted = () => !SPLIT_CHAT && (Boolean(state.device) || state.phones > 0);
+// Only what the person did counts as where they were: the page scrolling itself to the last
+// message on load is not a place anybody stood.
+for (const kind of ['pointerdown', 'keydown', 'wheel', 'touchstart']) document.addEventListener?.(kind, () => { handoff.touched = true; }, { capture: true, passive: true });
+function handoffAnchor() {
+  // The first message below the bar on a phone, below the thread's top edge on the Mac.
+  const top = pageScrolls() ? (document.querySelector('#bar')?.getBoundingClientRect?.().bottom ?? 0) : (els.thread?.getBoundingClientRect?.().top ?? 0);
+  for (const row of els.column?.children ?? []) {
+    if (row.id && row.getBoundingClientRect().bottom > top + 12) return row.id;
+  }
+  return null;
+}
+function handoffSend({ leaving = false } = {}) {
+  if (!handoffWanted() || !handoff.touched) return;
+  const body = JSON.stringify({ chat: chats.active, anchor: handoffAnchor(), draft: els.input?.value ?? '' });
+  if (body === handoff.last) return;
+  handoff.last = body;
+  fetch('/api/handoff', { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: leaving }).catch(() => {});
+}
+function handoffNote(delay = 1500) {
+  if (!handoffWanted() || !handoff.touched) return;
+  clearTimeout(handoff.timer);
+  handoff.timer = setTimeout(handoffSend, delay);
+}
+async function handoffApply(entry) {
+  if (!entry) return;
+  if (entry.room && state.roomId && entry.room !== state.roomId) {
+    // Another room: on the phone the bridge opens it; on the Mac it is another address on this computer.
+    if (state.device) {
+      await fetch('/bridge/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room: entry.room }) }).catch(() => null);
+      globalThis.location.href = '/?continuar=mac';
+    } else if (entry.port) globalThis.open?.(`http://127.0.0.1:${entry.port}/?continuar=phone`, '_blank', 'noopener');
+    return;
+  }
+  if (entry.chat && entry.chat !== chats.active && chats.list.some((chat) => chat.id === entry.chat)) await openChat(entry.chat);
+  if (entry.anchor) document.getElementById(entry.anchor)?.scrollIntoView({ block: 'start' });
+  if (entry.draft && els.input && !els.input.value.trim()) { els.input.value = entry.draft; autosize(); els.input.focus(); }
+}
+// The other side's last place, offered when it is newer than this side's and was not taken yet.
+async function handoffOffer() {
+  if (!handoffWanted() || !handoff.pill) return;
+  const both = await fetch('/api/handoff').then((response) => response.json()).catch(() => null);
+  const theirs = both?.[state.device ? 'mac' : 'phone'];
+  const ours = both?.[state.device ? 'phone' : 'mac'];
+  let taken = 0;
+  try { taken = Number(localStorage.getItem('pulse.handoffTaken')) || 0; } catch { /* no storage */ }
+  const fresh = Boolean(theirs) && Date.now() - theirs.at < 2 * 60 * 60 * 1000 && (!ours || theirs.at > ours.at) && theirs.at > taken;
+  const was = handoff.pill.hidden;
+  handoff.pill.hidden = !fresh;
+  if (fresh) {
+    const where = theirs.project ?? '';
+    // Short on the bar, like Handoff's icon in the Dock; the whole sentence is its name.
+    handoff.pill.querySelector('.handoff-words').textContent = t('Continue · {where}', { where });
+    const whole = state.device
+      ? t('Continue from the Mac · {where}', { where })
+      : t('Continue from your {device} · {where}', { device: deviceLabel(theirs.kind), where });
+    handoff.pill.title = theirs.draft ? `${whole} · “${theirs.draft.slice(0, 60)}”` : whole;
+    handoff.pill.setAttribute('aria-label', whole);
+    handoff.pill.onclick = () => {
+      try { localStorage.setItem('pulse.handoffTaken', String(theirs.at)); } catch { /* no storage */ }
+      handoff.pill.hidden = true;
+      barFit?.();
+      void handoffApply(theirs);
+    };
+  }
+  if (was !== handoff.pill.hidden) barFit?.();
+}
+els.input?.addEventListener('input', () => handoffNote());
+els.thread?.addEventListener('scroll', () => handoffNote(2000), { passive: true });
+window.addEventListener?.('scroll', () => { if (pageScrolls()) handoffNote(2000); }, { passive: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') handoffSend({ leaving: true });
+  else void handoffOffer();
+});
+// Arrived from the other side's offer: take its place now.
+{
+  const asked = new URLSearchParams(globalThis.location?.search ?? '').get('continuar');
+  if (asked === 'mac' || asked === 'phone') {
+    globalThis.history?.replaceState?.(null, '', globalThis.location?.pathname ?? '/');
+    fetch('/api/handoff').then((response) => response.json()).then((both) => {
+      try { localStorage.setItem('pulse.handoffTaken', String(both?.[asked]?.at ?? 0)); } catch { /* no storage */ }
+      return handoffApply(both?.[asked]);
+    }).catch(() => {});
+  } else void handoffOffer();
+}

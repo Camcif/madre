@@ -7505,3 +7505,73 @@ dialog.room-ask:not(.console) .room-ask-code { width: 100%; margin: 2px 0 0; pad
 /* 1 · Labels lie flat on the picture. */
 :root[data-wallpaper]:not([data-wallpaper="default"]) #messages .thread-inner > * :is(.who, .col > .stamp) { background-color: var(--d1-fill) !important; box-shadow: none !important; }
 
+
+/* ==========================================================================================
+   THE PHONE (docs/MOBILE.md) — the card that pairs one with a code, the pill that offers to pick
+   up where the other side was, and the room as a phone sees it behind the bridge.
+   ========================================================================================== */
+.phone-card { z-index: 80; width: min(340px, calc(100vw - 32px)); }
+.phone-body { display: grid; gap: 10px; justify-items: stretch; }
+.phone-say { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.phone-quiet { font-size: 12.5px; color: color-mix(in srgb, var(--text) 55%, transparent); }
+.phone-error { color: var(--danger); }
+.phone-lead { margin: 0; font-size: 15px; font-weight: 600; color: var(--text); text-align: center; }
+/* The code is dark on white whatever the theme: that is what a camera reads best. */
+.phone-qr { justify-self: center; width: 208px; height: 208px; padding: 10px; border-radius: 16px; background: #ffffff; color: #0a0b0a; box-shadow: var(--key-rest, 0 1px 2px rgba(0, 0, 0, .12)); }
+.phone-qr svg { display: block; width: 100%; height: 100%; }
+.phone-expires { font-variant-numeric: tabular-nums; color: var(--text); }
+.phone-link { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 9px; border-radius: 8px; background: color-mix(in srgb, var(--text) 6%, transparent); font-family: var(--mono); font-size: 11px; color: var(--text-2); user-select: all; }
+.phone-done { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.phone-check { display: inline-grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--phosphor); }
+.phone-check::after { content: ""; width: 12px; height: 7px; margin-top: -3px; border: solid var(--phosphor-ink); border-width: 0 0 2.4px 2.4px; transform: rotate(-45deg); }
+.phone-body .sx-btn { justify-self: start; }
+.phone-foot { display: block; width: 100%; margin-top: 12px; padding: 10px 2px 0; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--text-2); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.phone-foot:hover { color: var(--text); }
+
+/* The pill is short and stays whole while it is up; a key that no longer fits waits behind «more». */
+.bar > .handoff-pill { opacity: 1; cursor: pointer; width: auto; height: 30px; padding: 0 12px 0 9px; gap: 6px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--acc, var(--phosphor)) 15%, transparent); color: var(--text); font-family: var(--read); font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; text-shadow: none; flex: none; max-width: 240px; overflow: hidden; }
+.bar > .bar-left { min-width: 58px; }
+.bar > .handoff-pill:hover { background: color-mix(in srgb, var(--acc, var(--phosphor)) 26%, transparent); }
+.bar > .handoff-pill[hidden] { display: none !important; }
+.handoff-pill .handoff-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.handoff-pill svg { flex: none; width: 16px; height: 16px; color: color-mix(in srgb, var(--acc, var(--phosphor)) 72%, var(--text)); }
+
+/* A message written from a phone says so beside who it went to. */
+#messages .who .badge.via { text-transform: none; letter-spacing: .02em; }
+
+/* Behind the bridge: the way back to the rooms, and the Mac's own keys left to the Mac. */
+.salas-link { display: inline-flex; align-items: center; gap: 2px; margin-right: 4px; padding: 6px 8px 6px 4px; border-radius: 10px; color: var(--text); font-family: var(--read); font-size: 14px; font-weight: 600; text-decoration: none; }
+.salas-link[hidden] { display: none; }
+.salas-link svg { width: 20px; height: 20px; color: color-mix(in srgb, var(--acc, var(--phosphor)) 72%, var(--text)); }
+.via-phone .bar-left .brand { display: none; }
+.via-phone :is(#phone-button, #reload-button) { display: none !important; }
+
+/* ---------- The room on a phone (docs/MOBILE.md) ----------
+   The page scrolls, not the thread: Safari folds its bars away while the person reads, and the room
+   runs on under them. The bar and the box stay put; the strip under the box is measured to the
+   screen's edge (app.js). Nothing floats: what is a window on the Mac is a sheet the size of the
+   screen here. Fields are 16px, because Safari zooms into anything smaller the moment it is touched. */
+html.via-phone, html.via-phone body { height: auto; min-height: 100%; }
+html.via-phone { background-color: var(--bg); }
+.via-phone .shell { height: auto; min-height: 100dvh; display: block; }
+.via-phone .shell > .bar { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 8px; right: 8px; width: auto; z-index: 40; margin: 0; padding-right: 10px; }
+.via-phone .shell > .thread { overflow: visible; height: auto; padding-top: calc(env(safe-area-inset-top) + 64px); }
+.via-phone .shell > .composer { position: fixed; left: 8px; right: 8px; bottom: 0; z-index: 40; margin: 0; width: auto; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+.via-phone :is(.shell > .colophon, #colophon) { display: none !important; }
+.via-phone .shell > .chats-button { position: fixed; top: calc(env(safe-area-inset-top) + 70px); left: 12px; z-index: 39; margin: 0; }
+.via-phone dialog:is(.surface, .viewer)[open] {
+  position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;
+  margin: 0 !important; border-radius: 0 !important; transform: none !important; translate: none !important; z-index: 60 !important;
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+}
+.via-phone :is(.tree, .browser-dock):not([hidden]) {
+  position: fixed !important; inset: 0 !important; z-index: 55; width: auto !important; height: auto !important; max-width: none !important;
+  margin: 0 !important; border-radius: 0 !important; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); background: var(--bg);
+}
+.via-phone :is(.win-edge, .stage-grip, .chat-beside, #viewer-edit, #tree-new) { display: none !important; }
+.phone-desk-note { margin: 0; padding: 10px 16px; font-size: 13px; line-height: 1.45; color: var(--text-2); background: color-mix(in srgb, var(--acc, var(--phosphor)) 10%, transparent); }
+.via-phone :is(textarea, input, select), .via-phone .editor :is(textarea, .highlight) { font-size: 16px !important; }
+.via-phone .bar > .handoff-pill { display: none !important; }
+.via-phone .salas-link { flex: none; }
+/* In MODULES on a phone: nothing opens as a window, and installing somebody's module is the Mac's. */
+.via-phone :is(.mods-app, #modules-add) { display: none !important; }

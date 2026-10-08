@@ -8,6 +8,14 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventana, varias conversaciones trabajan a la vez, una segunda conversación cabe en la otra mitad y los servidores de tu proyecto viven dentro de MADRE. También trae un editor de código en el visor, y escribir un proyecto de principio a fin ya no se corta a medias.
 
+### Tu Mac en tu teléfono (avance)
+
+- **Tus salas, en el teléfono, por tu Wi-Fi.** Una tecla nueva en la barra, **Teléfono**, muestra un QR. Lo escaneas con la cámara y listo: sin cuenta, sin contraseña, sin nada que teclear. El código sirve una vez y durante diez minutos. La primera vez, MADRE pregunta si la red es de confianza, porque el teléfono llega a la Mac por tu red local; solo se ofrece en la de tu casa u oficina.
+- **Salas: todas a la vez.** El teléfono abre en una lista de todas las salas abiertas en tu Mac, con lo último que se dijo y quién está trabajando. Un toque abre la sala con su conversación en vivo; *Detener todo*, con un segundo toque para confirmar, frena a todos los agentes de todas las salas. Se agrega a la pantalla de inicio como una app.
+- **Continuidad, como Handoff.** Lo que dejaste en la caja, la conversación y el mensaje donde ibas pasan de un lado al otro: en el teléfono, *Seguir donde ibas* arriba de Salas; en la Mac, *Continuar · proyecto* en la barra. Lo que escribes desde el teléfono queda en el registro con su origen.
+- **Desde el teléfono se lee, se pregunta hasta #2, se responde y se detiene.** #3 CONTROL, #4 AIRLOCK, las llaves, los módulos y los ajustes se quedan en la Mac. La sala lo verifica por su lado aunque el puente ya lo haya filtrado.
+- **Cómo está hecho.** Las salas siguen escuchando solo en tu Mac. Un puente, que vive dentro de la primera sala que lo toma, es lo único que el teléfono alcanza: acepta direcciones privadas, el nombre de esta Mac y un teléfono con su llave. De cada teléfono se guarda una huella, nunca su llave, y la llave del puente vive solo en `~/.pulse/credentials/`. Los teléfonos y las redes se olvidan en Ajustes › Privacidad › Teléfonos.
+
 ### Tu primera vez en MADRE
 
 - **Un recorrido nuevo, de cinco paradas**, sobre la sala misma: la caja y cómo preguntarle a cada agente (con `@`, el modo y `/`), MU/TH/UR y lo que guarda dentro, varias conversaciones a la vez, los gestos para moverte (clic derecho en la barra, clic en la caja, arrastrar ventanas, `⌘ ,`, Esc) y los módulos. Cada parada ilumina su parte de la pantalla y dice en una lista corta qué tecla hace qué.

@@ -15,7 +15,7 @@ Necesitas Node 22.5 o superior y al menos una de estas CLIs con sesión iniciada
 
 1. Entra a la carpeta del proyecto y corre `npx @jossuealcala/madre start`. La sala abre siempre, tengas agentes o no. Si no hay ninguno, lo primero que ves es el puente: cada agente con su botón para instalarlo y firmarlo, ahí mismo. MADRE muestra el comando exacto antes de correrlo y transmite cada línea. En cuanto uno queda listo, la sala se desbloquea sola.
 2. La sala abre en `http://127.0.0.1:4317`. Elige un agente en el selector o escribe `@claude …`. El chip junto a `to @agente` dice en qué modo sale el mensaje; `#1 EXCHANGE`, solo lectura, es el predeterminado.
-3. Para sumar o reconectar una IA más tarde: Ajustes → Agentes (el botón de ajustes de la barra, o ⌘, / Ctrl+,), donde la tripulación vive junto al resto de los ajustes. Codex y Claude Code se firman con un clic; Gemini y OpenCode aceptan su llave ahí mismo. MADRE no guarda credenciales: cada llave va al archivo de su propio CLI.
+3. Para sumar o reconectar una IA más tarde: Ajustes → Agentes (el botón de ajustes de la barra, o ⌘, / Ctrl+,), donde la tripulación vive junto al resto de los ajustes. Codex y Claude Code se firman con un clic; Gemini y OpenCode aceptan su llave ahí mismo. MADRE no guarda credenciales de proveedores: cada llave va al archivo de su propio CLI.
 4. Con Ollama, el módulo Ollama (Módulos, en la barra) ya está encendido: la memoria se embebe localmente y `@madre` aparece en la fila.
 5. Ajustes → Memoria decide quién destila la memoria y cada cuánto. NOSTROMO, desde la cabecera de MU/TH/UR, muestra lo que la sala recuerda.
 
@@ -199,9 +199,29 @@ Cada módulo es un archivo. Los tuyos van en `~/.pulse/modules/` (todas las sala
 
 ---
 
+## EL TELÉFONO · AVANCE
+
+Tus salas siguen en tu Mac; el teléfono es otra ventana a ellas, por tu Wi-Fi. El plan completo vive en `docs/MOBILE.md`.
+
+1. En la barra, **Teléfono** (el ícono del teléfono). La primera vez pregunta si la red es de confianza: el teléfono llega a la Mac por `http` en tu red, así que solo se ofrece en la de tu casa u oficina.
+2. Escanea el QR con la cámara. El código sirve una vez y durante diez minutos. El teléfono abre **Salas**: todas las salas abiertas en tu Mac, quién trabaja en cada una y *Seguir donde ibas* con tu conversación, tu lugar y tu borrador. Agrégala a la pantalla de inicio para abrirla como una app.
+
+| Desde el teléfono | |
+|---|---|
+| Leer, buscar, abrir archivos en el visor | Sí |
+| Escribir en `#0`, `#1` y `#2` · responder elecciones · correr lo que un agente propuso | Sí |
+| `STOPALL` en una sala, o **Detener todo** en todas desde Salas | Sí, siempre |
+| `#3 CONTROL`, `#4 AIRLOCK`, llaves, módulos, ajustes, emparejar otro teléfono | En la Mac |
+
+- **Continuidad.** Lo que dejas en la caja, la conversación y el mensaje donde ibas viajan de un lado al otro. En la Mac aparece *Continuar · proyecto* en la barra; en el teléfono, arriba de Salas.
+- **Quién lo dijo.** Lo que se escribe desde el teléfono queda en el registro con su origen («desde tu iPhone»).
+- **Teléfonos y redes** en Ajustes › Privacidad › Teléfonos: cada uno con *Olvidar*, y un interruptor que apaga el acceso de todos.
+- **La red** se reconoce por la dirección de hardware de su router. Si MADRE no puede leerla, la red es desconocida y el teléfono no se ofrece ahí.
+
 ## LO QUE SALE DE LA MÁQUINA
 
-- **Nada por sí solo.** MADRE no tiene nube, cuenta ni backend. No guarda credenciales.
+- **Nada por sí solo.** MADRE no tiene nube, cuenta ni backend. No guarda credenciales de proveedores; su única llave propia es la de tus teléfonos emparejados, que vive solo en `~/.pulse/credentials/`.
+- **El teléfono entra, no sale nada.** Con un teléfono emparejado, el puente escucha en tu Wi-Fi (puerto 4316) solo mientras la Mac está en una red que marcaste de confianza. Acepta únicamente direcciones privadas, el nombre de esta Mac y un teléfono con su llave. Es tráfico de tu red local; nada viaja a internet.
 - **Lo que un agente lee, viaja a su proveedor.** Codex a OpenAI, Claude Code a Anthropic, Gemini CLI a Google, OpenCode a quien tenga configurado. Si `OPENAI_BASE_URL` o `ANTHROPIC_BASE_URL` cambia ese destino, MADRE enseña solo el hostname y bloquea el turno antes de armar el briefing; un gateway verificado se autoriza por agente con `PULSE_ALLOW_CUSTOM_AGENT_ENDPOINTS`. Aplican la cuenta, los límites y los términos del destino efectivo. `@madre` y el archivista con Ollama no salen de la máquina.
 - **Dos envíos propios, ambos bajo tu interruptor.** El sentinel, apagado por defecto, envía reportes redactados al colector del proyecto. El canal de liberación, encendido por defecto, pregunta a npm por la última versión: viaja el nombre del paquete, nada más, la misma petición que hace `npx`. `PULSE_UPDATE_CHECK=0` lo apaga.
 - **Escritura.** En `#1` nadie escribe. En `#2` solo se añade: lo que existía se restaura al terminar el turno. En `#3` todo el proyecto salvo las zonas prohibidas, con checkpoint y `UNDO`. En un proyecto sin git, MADRE guarda sus fotografías en un repositorio sombra fuera del proyecto. Un comando que pide un agente lo corres tú, con checkpoint antes y `UNDO` después.

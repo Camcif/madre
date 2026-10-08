@@ -42,6 +42,8 @@ import { parseRunRequest, withoutRunRequest, whyText, expandHome } from './runs.
 import { imageStudioFor } from './image-studio.mjs';
 import { CAPABILITIES, imageModuleState } from './capabilities.mjs';
 import { resolveReferences } from './files.mjs';
+
+const VIA_KINDS = new Set(['iphone', 'ipad', 'android', 'android-tablet', 'other']);
 import { redactArgs } from './launch.mjs';
 
 // Adapters can fail with multi-line stderr or stack traces. The room keeps only
@@ -289,6 +291,7 @@ export class Room {
   }
   // The human's answer to a pending request: 'once', 'plan' or 'deny'.
   decideMode(requestId, decision) { return this.#escalation.decide(requestId, decision); }
+  modeAsked(requestId) { return this.#escalation.modeOf(requestId); }
 
   subscribeGhost(listener) { return this.#ghost.subscribe(listener); }
 
@@ -952,7 +955,7 @@ export class Room {
     this.#vectors.stop();
   }
 
-  async send({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false }) {
+  async send({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false, via = null }) {
     const parsed = parseMessage(text, target);
     const requestedMode = normalizeMode(mode, create === true ? 2 : 1);
     // This is the decision the human made when pressing Send. Capture it before modeCheck() —
@@ -999,6 +1002,8 @@ export class Room {
       mode: ghost ? 0 : control ? requestedMode : (standing || create ? 2 : 1),
       role: 'user',
       sender: 'you',
+      // Written from a paired phone: which kind, said by the bridge (docs/MOBILE.md, MOV-008).
+      via: VIA_KINDS.has(via) ? via : undefined,
       target: parsed.target,
       text: text2,
       ash: ashRequested ? { requested: true, active: ashActive } : undefined,

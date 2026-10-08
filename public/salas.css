@@ -1,0 +1,70 @@
+/* ROOMS, on the phone (salas.html). The tokens are the room's (styles.css, loaded first); this only
+   lays out one column for a thumb: the rooms as AJUSTES-style blocks, the one that asks for you in
+   the accent, and the edges of the screen kept clear of the notch and the home bar. */
+body.salas {
+  --s-acc: var(--acc, var(--phosphor));
+  --s-acc-ink: var(--acc-ink, var(--phosphor-ink, #0a1405));
+  min-height: 100dvh; margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--read); font-size: 15px; line-height: 1.45;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.salas button { font: inherit; color: inherit; }
+.salas-top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 14px 18px 12px; background: color-mix(in srgb, var(--bg) 92%, transparent); }
+/* The brand as the bar draws it on the Mac, drawn once and then still. */
+.salas-brand { display: inline-flex; align-items: center; flex: none; }
+.salas-brand .brand-logo { height: 15px; }
+.salas-mac { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-2); }
+.salas-stop { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px 0 11px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--terror, #ff4d4d) 14%, transparent); color: var(--terror, #ff4d4d); font-size: 13px !important; font-weight: 600; cursor: pointer; }
+.salas-stop svg { width: 15px; height: 15px; }
+.salas-stop.armed { background: var(--terror, #ff4d4d); color: #fff; }
+.salas-stop[hidden] { display: none; }
+
+.salas-main { max-width: 560px; margin: 0 auto; padding: 4px 16px 32px; }
+.salas-title { margin: 14px 2px 10px; font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+.salas-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.salas-room {
+  display: grid; gap: 3px; width: 100%; padding: 14px 16px; border: 0; border-radius: 18px; text-align: left; cursor: pointer;
+  background: var(--panel); box-shadow: var(--raise, 0 1px 2px rgba(0, 0, 0, .12), 0 8px 20px -14px rgba(0, 0, 0, .4));
+  transition: transform var(--motion-fast, 140ms) var(--ease-out, ease);
+}
+.salas-room:active:not(:disabled) { transform: scale(.985); }
+.salas-room:disabled { cursor: default; opacity: .72; }
+.salas-room-head { display: flex; align-items: baseline; gap: 10px; }
+.salas-room-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16.5px; font-weight: 650; }
+.salas-room-head time { flex: none; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.salas-room-chat { font-size: 13.5px; font-weight: 500; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.salas-room-preview { font-size: 13.5px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.salas-room-note { font-size: 13px; color: var(--text-2); }
+.salas-room-busy { display: inline-flex; align-items: center; gap: 7px; margin-top: 6px; justify-self: start; padding: 3px 10px 3px 8px; border-radius: 999px; background: color-mix(in srgb, var(--s-acc) 16%, transparent); font-size: 12.5px; font-weight: 600; color: color-mix(in srgb, var(--s-acc) 60%, var(--text)); }
+.salas-room-busy i { width: 7px; height: 7px; border-radius: 50%; background: var(--s-acc); animation: salas-beat 1.4s ease-in-out infinite; }
+@keyframes salas-beat { 50% { opacity: .35; transform: scale(.8); } }
+
+.salas-continue { display: flex; align-items: center; gap: 12px; width: 100%; margin: 6px 0 4px; padding: 14px 16px; border: 0; border-radius: 18px; text-align: left; cursor: pointer; background: color-mix(in srgb, var(--s-acc) 15%, var(--panel)); box-shadow: var(--raise, 0 1px 2px rgba(0, 0, 0, .12)); }
+.salas-continue[hidden] { display: none; }
+.salas-continue-words { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.salas-continue-words b { font-size: 15px; font-weight: 650; }
+.salas-continue-words span { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.salas-continue-draft { font-style: italic; }
+.salas-continue-go { flex: none; font-size: 26px; line-height: 1; color: color-mix(in srgb, var(--s-acc) 70%, var(--text)); }
+
+.salas-empty, .salas-foot { margin: 18px 4px 0; font-size: 13px; color: var(--text-2); text-align: center; }
+.salas-foot { color: var(--text-3); font-size: 12px; }
+
+.salas-welcome { position: fixed; inset: 0; z-index: 10; display: grid; align-items: end; background: color-mix(in srgb, #000 40%, transparent); padding: 0 10px calc(10px + env(safe-area-inset-bottom)); }
+.salas-welcome[hidden] { display: none; }
+.salas-sheet { justify-self: center; width: min(460px, 100%); padding: 22px 20px 18px; border-radius: 24px; background: var(--panel); box-shadow: 0 20px 50px -20px rgba(0, 0, 0, .5); text-align: center; animation: salas-up 240ms var(--ease-out, ease-out); }
+@keyframes salas-up { from { transform: translateY(24px); opacity: 0; } }
+.salas-check { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--s-acc); color: var(--s-acc-ink); }
+.salas-check svg { width: 28px; height: 28px; }
+.salas-sheet h2 { margin: 12px 0 6px; font-size: 20px; font-weight: 700; }
+.salas-sheet p { margin: 0; color: var(--text-2); font-size: 14.5px; }
+.salas-steps { margin: 12px 0 16px; padding: 12px 14px 12px 34px; border-radius: 14px; background: color-mix(in srgb, var(--text) 5%, transparent); text-align: left; font-size: 14.5px; display: grid; gap: 6px; }
+.salas-primary { width: 100%; height: 46px; border: 0; border-radius: 14px; background: var(--s-acc); color: var(--s-acc-ink) !important; font-weight: 650; font-size: 15.5px !important; cursor: pointer; }
+
+/* A page of one sentence: a phone that is not paired, or a code that no longer works. */
+body.salas.note main { max-width: 420px; margin: 0 auto; padding: 22vh 24px 0; text-align: center; }
+body.salas.note h1 { font-size: 22px; margin: 0 0 10px; }
+body.salas.note p { color: var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .salas-room-busy i, .salas-sheet { animation: none; } .salas-room { transition: none; } }
+/* The ground under Safari's bars is the page's own. */
+html:has(body.salas) { background: var(--bg); }

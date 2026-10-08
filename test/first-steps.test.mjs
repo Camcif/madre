@@ -34,7 +34,7 @@ test('first steps: offered once to a first visit, ticked by doing, never by a «
   // The list is defined before the room replays its record, so the replay can tick it.
   assert.ok(app.indexOf('const steps = {') < app.indexOf('/* ---------- bootstrap ---------- */'));
   // It rides in the bar with the other pills that come and go, and ? brings a hidden list back.
-  assert.match(app, /const BAR_CONTEXTUAL = \['#steps-pill', '#update-pill', '#stop-all'\];/);
+  assert.match(app, /const BAR_CONTEXTUAL = \['#steps-pill', '#handoff-pill', '#update-pill', '#stop-all'\];/);
   assert.match(app, /stepsResume\(\); startTour\(\);/);
   assert.match(page, /<button id="steps-pill" class="stop-all steps-pill" type="button" hidden/);
 });

@@ -79,25 +79,32 @@ elección, MU/TH/UR detectó un problema. Nada de un aviso por cada línea de la
 
 ### 3.2 · El puente (MOV-001)
 
-Un proceso nuevo y único por Mac, **el puente**, es lo único que el teléfono alcanza:
+Una pieza única por Mac, **el puente** (`src/bridge/`), es lo único que el teléfono alcanza:
 
 ```
 teléfono ──(fase 1: Wi-Fi · fase 2: relevo cifrado)──▶ PUENTE ──▶ 127.0.0.1:<puerto de cada sala>
 ```
 
-- **Nace solo.** Lo lanza la primera sala que arranca si hay un teléfono emparejado, o la tecla
-  Teléfono al emparejar el primero. Un archivo de marca (`~/.pulse/bridge.json`) evita que haya
-  dos. Se apaga solo unos minutos después de que se cierra la última sala. La persona nunca lo
-  arranca ni lo ve como proceso.
+- **Vive dentro de una sala, sin proceso propio** (`host.mjs`). Cada sala, cada 15 segundos, se
+  pregunta si un teléfono debería poder llegar ahora: el acceso está encendido, hay un teléfono
+  emparejado o un código vigente, y la red es de confianza. Si es así, intenta abrir el puerto
+  4316. La primera que lo logra hospeda el puente; las demás lo encuentran tomado. Si la sala que
+  lo hospeda se cierra, la siguiente lo toma. En una red sin confianza, quien lo hospeda lo cierra.
+  Así no hay que lanzar, vigilar ni matar un proceso aparte, y el puente vive exactamente mientras
+  haya una sala abierta.
 - **Conoce las salas** leyendo los `open.json`, comprobando que su proceso vive y preguntando a
   cada una `/api/version`. Una sala de una versión que no habla con el puente aparece en la lista
   con «Actualiza esta sala para usarla desde el teléfono».
-- **Reenvía** `/r/<sala>/…` a `http://127.0.0.1:<puerto>/…` reescribiendo `Host` y `Origin` a los
-  de la sala, de modo que la guarda de la sala no cambia. Añade `x-madre-device: <id>` para que
-  el registro diga desde dónde se habló.
-- **Sirve la interfaz** desde su propio paquete, con un pequeño cargador que antepone `/r/<sala>`
-  a cada `fetch` y `EventSource` de la página. La página de la sala no necesita saber que está
-  detrás de un puente.
+- **Reenvía** a `http://127.0.0.1:<puerto>/…` de la sala elegida (una cookie, `madre_room`, dice
+  cuál), reescribiendo `Host` y `Origin` a los de la sala, de modo que la guarda de la sala no
+  cambia. Añade `x-madre-device` y `x-madre-device-kind` (y borra los que mande el teléfono) para
+  que el registro diga desde dónde se habló.
+- **La página de la sala es la de la sala.** Como la sala se elige por cookie y no por ruta, cada
+  ruta absoluta de la página sigue funcionando detrás del puente, sin cargadores ni reescrituras.
+  Cada sala sirve su propia versión de la interfaz; el puente solo sirve Salas y sus estilos.
+- **Defensa en la sala también:** una petición con `x-madre-device` no puede pedir #3/#4, no
+  alcanza `/api/phone` y no cuenta como «esta computadora» para las llaves de proveedor y de
+  módulos, aunque llegue desde 127.0.0.1.
 - **Aplica la política del teléfono** (sección 4) con una lista de rutas **permitidas**, no
   prohibidas: lo que no está en la lista no pasa.
 - **Límites:** un tope de peticiones por dispositivo, cabeceras de seguridad (CSP, `nosniff`,
@@ -115,14 +122,24 @@ en lugar de Postgres:
 - **La llave del HMAC** (y en la fase 2 la identidad de la Mac) vive en
   `~/.pulse/credentials/bridge.key`, solo para el dueño. Nunca en `config.json`, en el registro ni
   en un log. **Ver D-M01:** contradice hoy la regla «MADRE no guarda credenciales propias».
-- **En Ajustes › Privacidad**, la lista de teléfonos emparejados, con «Olvidar este teléfono» en
-  cada uno. Olvidar revoca al instante, y la Mac avisa al teléfono si está conectado.
+- **En Ajustes › Privacidad › Teléfonos**, la lista de teléfonos emparejados y de redes de
+  confianza, cada uno con «Olvidar», y un interruptor que apaga el acceso de todos. Olvidar revoca
+  al instante: la siguiente petición del teléfono ya no entra.
+- **Varias salas escriben el mismo archivo:** cada cambio toma un candado de archivo y escribe por
+  renombrado, así que nadie lee medio archivo y dos salas a la vez no se pisan.
 
 ### 3.4 · Fase 1 · En tu Wi-Fi
 
-El puente escucha además en la red local, en un puerto fijo, y se anuncia por su nombre Bonjour
-(`<tu-mac>.local`), para que la dirección no cambie cuando el router reparte otra IP. El QR lleva
-`http://<tu-mac>.local:<puerto>/emparejar#<invitación>`.
+El puente escucha en la red local en el puerto 4316. El QR lleva
+`http://<IP de la Mac>:4316/bridge/pair?c=<invitación>`: la IP funciona en cualquier teléfono, y un
+nombre `.local` no todos los Android lo resuelven. Si el router le da otra IP a la Mac, se vuelve a
+escanear un código.
+
+**Cómo se reconoce una red** (`network.mjs`): por la dirección de hardware del router, con hash.
+En macOS, un proceso que lanza Node no ve la tabla de vecinos (`arp` le contesta vacía, aunque Node
+sí alcanza el router). Por eso, si `arp` no la da, se lee de `ipconfig getsummary`: el anuncio IPv6
+del router y el identificador DHCPv6 la traen. Una red que no da esa dirección es desconocida, y
+en una red desconocida el teléfono no se ofrece.
 
 **Límites honestos de esta fase** (ver D-M02):
 
@@ -130,8 +147,8 @@ El puente escucha además en la red local, en un puerto fijo, y se anuncia por s
 - Sin `https`, el navegador del teléfono no concede un contexto seguro: no hay service worker
   (no se instala como app de verdad, no hay avisos) ni `crypto.subtle` (la frase de #3/#4 no se
   puede comprobar en el teléfono).
-- La primera vez, macOS pregunta si permite conexiones entrantes a `node`. La tarjeta Teléfono lo
-  anticipa con una frase.
+- La primera vez, macOS puede preguntar si permite conexiones entrantes a `node`. La tarjeta
+  Teléfono lo anticipa con una frase.
 - No funciona fuera de esa red.
 
 Por eso la fase 1 se ofrece **solo en redes que la persona marca como de confianza** («Esta es mi
@@ -168,18 +185,26 @@ teléfono (app.madre.run, https, PWA) ──WebSocket──▶ relay.madre.run (
 
 ## 4 · Qué se puede hacer desde el teléfono
 
-Propuesta para D-M03:
+Lo que decide D-M03:
 
 | Acción | Teléfono |
 |---|---|
 | Leer salas y conversaciones, buscar, abrir archivos en el visor | Sí |
-| Escribir en #0 GHOST, #1 EXCHANGE y #2 CREATE | Sí |
-| Responder elecciones y aprobar comandos que un agente pide en #2 | Sí |
+| Escribir en #0 GHOST, #1 EXCHANGE y #2 CREATE, con modelo y esfuerzo; `/image`, `/module`, Intenciones | Sí |
+| Responder elecciones, aprobar comandos que pide un agente y conceder un modo que pide, hasta #2 | Sí |
+| Deshacer un cambio (UNDO) | Sí |
 | **STOPALL** y detener un turno | Sí, siempre |
-| #3 CONTROL | No por defecto. Se habilita en Ajustes › Permisos con «Permitir desde el teléfono», y pide la frase. |
+| Ajustes: apariencia, sala, memoria, privacidad, versión | Sí |
+| Encender o apagar los módulos de MADRE | Sí |
+| Archivos y servidores | Para ver; «se ve mejor en la Mac» |
+| Permisos y la llave de #3/#4 | No: se leen, se cambian en la Mac |
+| #3 CONTROL | Llega con la fase 2 (su frase necesita `crypto.subtle`) |
 | #4 AIRLOCK | Nunca desde el teléfono en esta versión |
-| Instalar o quitar módulos, cambiar llaves de proveedor, ajustes de sala | No: «Esto se hace en la Mac» |
-| Emparejar otro teléfono | No: solo desde la Mac |
+| Llaves de proveedor, instalar un módulo de terceros, olvidar memorias, editar archivos, emparejar otro teléfono | No: «Esto se hace en la Mac» |
+
+En el teléfono no hay ventanas: lo que en la Mac flota (Ajustes, MU/TH/UR, Módulos, Archivos,
+Servidores, el visor) es una hoja del tamaño de la pantalla. La página entera hace scroll, para que
+Safari esconda sus barras, y NOSTROMO es una imagen fija que se redibuja al tocarla.
 
 ## 5 · Fases y entregas
 
@@ -215,15 +240,15 @@ La versión de cada fase se decide al cerrarla (D-M06). El puerto a Windows apun
 
 | Id | Qué | Dónde | Fase | Estado |
 |---|---|---|---|---|
-| MOV-001 | Puente: proceso único, registro de salas, reenvío con `Host`/`Origin` reescritos, interfaz servida con cargador | `src/bridge/` (nuevo) | 1 | ABIERTO |
-| MOV-002 | Invitaciones, sesiones por dispositivo, HMAC en `~/.pulse/devices.json`, llave en `~/.pulse/credentials/` | `src/bridge/devices.mjs` (nuevo) | 1 | ABIERTO |
-| MOV-003 | Lista de rutas permitidas y política por modo (sección 4), tope de peticiones, cabeceras | `src/bridge/policy.mjs` (nuevo) | 1 | ABIERTO |
-| MOV-004 | Pantalla Salas: estado por sala, marca de «te espera», STOPALL global | `public/` | 1 | ABIERTO |
-| MOV-005 | Continuidad en ambos sentidos | `public/app.js`, puente | 1 | ABIERTO |
-| MOV-006 | Tecla Teléfono, QR, pantalla «Listo» y guía de «Añadir a inicio» | `public/` | 1 | ABIERTO |
-| MOV-007 | Teléfonos emparejados y «Olvidar» | Ajustes › Privacidad | 1 | ABIERTO |
-| MOV-008 | `x-madre-device` → «desde iPhone» en el registro | `src/room.mjs` | 1 | ABIERTO |
-| MOV-009 | Pruebas de puente, política, emparejamiento y continuidad | `test/` | 1 | ABIERTO |
+| MOV-001 | Puente dentro de la primera sala que toma el puerto, registro de salas, reenvío con `Host`/`Origin` reescritos y sala elegida por cookie | `src/bridge/server.mjs`, `host.mjs` | 1 | HECHO · 2026-10-07 |
+| MOV-002 | Invitaciones, sesiones por dispositivo, HMAC en `~/.pulse/devices.json`, llave en `~/.pulse/credentials/`, redes por la dirección del router, QR propio | `src/bridge/devices.mjs`, `network.mjs`, `qr.mjs` | 1 | HECHO · 2026-10-07 |
+| MOV-003 | Lista de rutas permitidas y política por modo (sección 4), tope de peticiones, cabeceras | `src/bridge/policy.mjs` | 1 | HECHO · 2026-10-07 |
+| MOV-004 | Pantalla Salas: estado por sala, quién trabaja, Detener todo (con segundo toque). La marca de «te espera» queda pendiente: la sala todavía no expone qué espera respuesta | `public/salas.*`, `/api/glance` | 1 | HECHO · 2026-10-07 |
+| MOV-005 | Continuidad en ambos sentidos | `public/app.js`, puente | 1 | HECHO · 2026-10-07 |
+| MOV-006 | Tecla Teléfono, QR, pantalla «Listo» y guía de «Añadir a inicio» | `public/` | 1 | HECHO · 2026-10-07 |
+| MOV-007 | Teléfonos emparejados y «Olvidar» | Ajustes › Privacidad | 1 | HECHO · 2026-10-07 |
+| MOV-008 | `x-madre-device` → «desde iPhone» en el registro | `src/room.mjs` | 1 | HECHO · 2026-10-07 |
+| MOV-009 | Pruebas de puente, política, emparejamiento, red, continuidad y QR | `test/phone-bridge.test.mjs`, `test/qr.test.mjs` | 1 | HECHO · 2026-10-07 |
 | MOV-010 | Relevo en Cloudflare | sitio de `madre.run` | 2 | ABIERTO |
 | MOV-011 | Cifrado de extremo a extremo y RPC sobre WebSocket | puente + `app.madre.run` | 2 | ABIERTO |
 | MOV-012 | PWA instalable | `app.madre.run` | 2 | ABIERTO |
@@ -250,7 +275,7 @@ patrones, reescritos sin dependencias:
 |---|---|---|---|
 | **D-M01** | La regla decía que MADRE no guarda credenciales propias (`src/credentials.mjs:3-6`). Emparejar exige al menos una llave propia. Se enmienda: MADRE no guarda credenciales de proveedores; la llave de sus teléfonos vive solo en `~/.pulse/credentials/`, solo para el dueño, y de cada teléfono se guarda la huella, nunca el token (`AGENTS.md`). En Windows `0o600` no protege nada (WIN-014): la función no se ofrece allí hasta que ese id se cierre. | Fase 1 | **RESUELTA · 2026-10-07** |
 | **D-M02** | La fase 1 sale como avance, limitada a las redes que la persona marca como de confianza. | Fase 1 | **RESUELTA · 2026-10-07** |
-| **D-M03** | La política de la sección 4, tal cual. #3 desde el teléfono pide la frase, que se comprueba con `crypto.subtle`; en la fase 1 (`http`) el navegador no lo ofrece, así que #3 desde el teléfono llega con la fase 2. | Fase 1 | **RESUELTA · 2026-10-07** |
+| **D-M03** | La política de la sección 4. El 2026-10-07, ya con el teléfono en la mano, se abrieron Ajustes (salvo permisos), los módulos de MADRE, conceder un modo hasta #2 y UNDO. #3 desde el teléfono pide la frase, que se comprueba con `crypto.subtle`; en la fase 1 (`http`) el navegador no lo ofrece, así que #3 desde el teléfono llega con la fase 2. | Fase 1 | **RESUELTA · 2026-10-07** |
 | **D-M04** | Costos y límites del relevo: plan de Cloudflare, tope por buzón, caducidad. | Fase 2 | **ABIERTA** |
 | **D-M05** | ¿`app.madre.run` como subdominio del sitio actual, o proyecto aparte en Cloudflare? | Fase 2 | **ABIERTA** |
 | **D-M06** | Número de versión de cada fase. | Cierre de cada fase | **ABIERTA** |
@@ -261,3 +286,14 @@ patrones, reescritos sin dependencias:
 - `2026-10-07` · Plan escrito. Revisión de Apex OS para reutilizar patrones. Fases 1 y 2 sin
   empezar.
 - `2026-10-07` · D-M01, D-M02 y D-M03 resueltas. Empieza la fase 1.
+- `2026-10-07` · Fase 1 construida (MOV-001..009). Decisiones de construcción: el puente vive
+  dentro de una sala y el puerto hace de candado, en vez de un proceso aparte; la sala se elige por
+  cookie para no tocar la página. Hallazgo: en macOS, Node no ve la tabla `arp`; la red se reconoce
+  por `ipconfig getsummary` (IPv6). El QR propio coincide con la librería `qrcode` en 2,360
+  entradas. Un iPhone real se emparejó con el QR en pantalla; el resto se probó con el navegador
+  en tamaño teléfono, por la IP de la red: emparejar, Salas, abrir sala, #3/#4 bloqueados,
+  continuidad en los dos sentidos, olvidar.
+  Pendiente de la fase 1: la marca «te espera» en Salas.
+- `2026-10-07` · Primera ronda con un iPhone real: logo de Salas, scroll de página para que
+  Safari esconda sus barras, campos a 16 px (sin zoom al tocar), barra sin desbordes, ventanas
+  como hojas, NOSTROMO fijo, Ajustes y módulos abiertos al teléfono (D-M03 ampliada).
