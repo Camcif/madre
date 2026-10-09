@@ -558,3 +558,17 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   firma BISHOP, por 7 días como máximo», «Los firmas tú») y arma su estado en el idioma de la sala
   («encendido · @claude · órdenes manuales · BISHOP firma los de lectura»); las notas se acortan
   porque las opciones ya se explican. `docs/SDK.md` lo documenta. Verificado en la ficha.
+- `2026-10-08` · Tercera corrección de UX: el ruido y los pies. Un plan con un enlace y una orden dejaba
+  en Salas seis piezas seguidas; ahora deja tres (la respuesta de BISHOP, su tarjeta y la tarjeta
+  de respuesta). Lo que le pasa a un plan se dice en su tarjeta: «salió sola · espera respuesta» en
+  la fila, la propuesta llevada a su sala en la fila, el cierre en la cabecera («CERRADO ·
+  respondidas: 1», solo los conteos que no son cero) y el alto del envío automático como un aviso
+  dentro de la tarjeta más un aviso de MU/TH/UR; una línea suelta solo si la tarjeta no está en esa
+  conversación. La línea de enlace firmado o revocado no se repite en Salas cuando una fila del
+  plan ya lo dice (`quietLinkLine`, `markRevokedLinks`). Los pies: la tarjeta del plan ya no tiene
+  pie (el modo explica en su título qué deja salir), la propuesta `#3`/`#4` dice «Solo corre si la
+  envías tú, con tu llave.», y la respuesta de `/bishop`, «Solo para ti; los agentes de esta sala no
+  la leen.». «Leyó / recordó N de …» pasa al pie de su respuesta, junto a la memoria usada, en su
+  propio renglón (`.link-reads`; el primer nombre, `.mem-cross`, ya era de otra gráfica y la dejaba
+  de un píxel de ancho). Verificado en pantalla con las conversaciones de 4c, de D-S13 y de 3e. No
+  verificado en pantalla: el aviso de alto dentro de la tarjeta (solo en pruebas del servidor).

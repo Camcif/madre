@@ -2093,8 +2093,15 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .bishop-proposal > .bishop-act { margin-top: 10px; }
 .bishop-answer .bishop-answer-text { padding: 10px 14px 4px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .bishop-answer .choice-foot { margin: 6px 14px 12px; }
-.cross-reads { margin: 6px 4px 0; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: var(--text-3); }
-.cross-reads .lead { margin-right: 6px; color: var(--text-2); }
+.link-reads { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); }
+.bubble-foot .link-reads { font-size: .68em; }
+/* Its own line in the foot: the bubble breaks words anywhere, and squeezed into the row beside the
+   stamp the mark shrank to one letter a line. */
+.bubble-foot .link-reads { flex: 1 1 100%; order: -1; min-width: 0; flex-wrap: wrap; overflow-wrap: normal; word-break: normal; }
+.link-reads .lead { color: var(--text-3); }
+.bishop-plan.closed .choice-list { opacity: .72; }
+.bishop-plan .bishop-state { color: var(--text-3); }
+.bishop-plan .bishop-halt { margin: 0 2px 10px; color: var(--warn); }
 
 /* What the room still has no answer to. Quieter than the free-turn offer above it: that one is
    about to save money, this one is only wondering. */

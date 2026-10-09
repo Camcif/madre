@@ -29,7 +29,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `78bbd2d` | Claude | D-S13 (BISHOP firma enlaces de lectura, 7 días) y S-032 (Salas no delega) |
 | `d453015` | Claude | S-021 completo (cada lectura con su agente y su turno vivo) y 3e (recordar en cada turno, con casilla) |
 | `cf453ca` | Claude | UX · autor y encabezado de los mensajes traídos por BISHOP |
-| *este commit* | Claude | UX · ajustes de BISHOP en palabras (`choices` en el SDK) |
+| `e450832` | Claude | UX · ajustes de BISHOP en palabras (`choices` en el SDK) |
+| *este commit* | Claude | UX · menos líneas por plan, pies cortos, «leyó / recordó» en el pie de su respuesta |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -161,6 +162,8 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   tener un turno corriendo en la sala que pide (un agente falso que espera) y mandar su agente y su id.
 - **Un mensaje traído por BISHOP empieza con un encabezado para el agente**: todo lo que se le
   muestra al humano pasa por `relayedOf` (página) o `withoutRelayHeader` (lista de conversaciones).
+- **Nombres de clase CSS**: antes de inventar uno, buscarlo en `public/styles.css`; `.mem-cross` ya era
+  de otra gráfica (posición absoluta, 1 px) y la marca nueva salía letra por letra.
 - **Fusiones en paralelo**: conflictos en la bitácora y tablas de `docs/MACROVERSO.md`; se
   conservan los dos lados y la bitácora solo se añade al final.
 

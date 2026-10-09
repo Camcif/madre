@@ -4240,23 +4240,26 @@ function noteCrossRead({ turn, from, count = 0, auto = false }) {
 function attachCrossReads(turn, root = document) {
   const list = crossReads.get(turn);
   if (!list?.length) return;
-  const col = (root.id === `msg-${turn}` ? root : root.querySelector?.(`#msg-${CSS.escape(String(turn))}`))?.querySelector?.('.col');
-  if (!col) return;
-  col.querySelector('.cross-reads')?.remove();
-  const line = el('div', 'cross-reads');
-  const said = new Map();
+  const row = root.id === `msg-${turn}` ? root : root.querySelector?.(`#msg-${CSS.escape(String(turn))}`);
+  // In the reply's own foot, beside the memory it used: what it took from other rooms is the same
+  // kind of fact about the reply, and it reads there, not under the bubble.
+  const foot = row?.querySelector?.('.bubble-foot');
+  if (!foot) return;
+  foot.querySelector('.link-reads')?.remove();
+  const rooms = new Map();
   for (const one of list) {
-    const key = `${one.auto ? 'auto' : 'tool'}|${one.from}`;
-    const seen = said.get(key) ?? { ...one, count: 0 };
-    seen.count += one.count;
-    said.set(key, seen);
+    const seen = rooms.get(one.from) ?? { read: 0, recalled: 0 };
+    if (one.auto) seen.recalled += one.count; else seen.read += one.count;
+    rooms.set(one.from, seen);
   }
-  line.append(el('span', 'lead', '⇄'), [...said.values()].map((one) => (one.auto
-    ? t('recalled {n} notes from {room}', { n: one.count, room: one.from })
-    : t('read {n} notes from {room}', { n: one.count, room: one.from }))).join(' · '));
+  const line = el('span', 'link-reads');
+  line.append(el('span', 'lead', '⇄'), [...rooms.entries()].map(([room, seen]) => [
+    seen.recalled ? t('recalled {n} from {room}', { n: seen.recalled, room }) : null,
+    seen.read ? t('read {n} from {room}', { n: seen.read, room }) : null,
+  ].filter(Boolean).join(' · ')).join(' · '));
   line.title = t('Through a link you signed: read-only, counted in both rooms.');
-  const bubble = col.querySelector('.bubble');
-  if (bubble) bubble.after(line); else col.append(line);
+  const used = foot.querySelector('.mem-used');
+  if (used) used.after(line); else foot.prepend(line);
 }
 
 // MOTHER speaking to the crew: the room sees the code, the agents get the words in their prompt.
@@ -4410,6 +4413,7 @@ function renderEnlace(event) {
     if (event.payload.contract?.signed?.by === 'bishop') node.append(t(' · signed by BISHOP'));
   }
   node.title = contract?.id ?? (typeof contract === 'string' ? contract : '');
+  if (contract?.id) node.dataset.contract = contract.id;
   return node;
 }
 
@@ -4896,6 +4900,7 @@ function markRun({ responseMessageId, index }, status, where = null) {
 // sends is what the server recorded: the press names the plan and the row, never the order.
 const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL', delivered: 'IN ITS ROOM · WAITING FOR YOUR KEY' };
 const BISHOP_MODE_WORDS = { manual: 'MANUAL', hybrid: 'HYBRID', auto: 'AUTOMATIC' };
+const BISHOP_MODE_NOTES = { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
 async function bishopPress(path, body, buttons) {
   for (const one of buttons) one.disabled = true;
   try {
@@ -4920,7 +4925,8 @@ function renderBishopPlan(event) {
   tint(node, agent);
   const head = el('div', 'choice-head');
   head.append(el('span', 'choice-kicker', t('BISHOP proposes a plan · {plan}', { plan })));
-  if (orders.length) head.append(el('span', 'choice-kicker bishop-mode', t(BISHOP_MODE_WORDS[mode] ?? mode)));
+  // The mode says, in its title, what it means; the card has no footer repeating the rules.
+  if (orders.length) { const badge = el('span', 'choice-kicker bishop-mode', t(BISHOP_MODE_WORDS[mode] ?? mode)); badge.title = t(BISHOP_MODE_NOTES[mode] ?? ''); head.append(badge); }
   node.append(head, el('p', 'choice-q', reason));
   const list = el('div', 'choice-list');
   list.setAttribute('role', 'group');
@@ -4961,11 +4967,11 @@ function renderBishopPlan(event) {
     list.append(row);
     markBishopOrder({ plan, step: order.step }, order.status, { row });
   }
-  node.append(list, el('p', 'choice-foot', t('Each order leaves only when you send it, or on its own within the link if you chose so · a link with orders is signed only by you · the answer comes back here as a card · #3 and #4 wait for your key in their room')));
+  node.append(list);
   state.lastSender = null;
   return node;
 }
-function markBishopOrder({ plan, step }, status, { row = null, why = undefined } = {}) {
+function markBishopOrder({ plan, step }, status, { row = null, why = undefined, auto = false } = {}) {
   const target = row ?? document.querySelector(`.bishop-plan[data-plan="${CSS.escape(String(plan))}"] .bishop-order[data-step="${Number(step)}"]`);
   if (!target) return;
   if (status) target.dataset.status = status;
@@ -4981,7 +4987,8 @@ function markBishopOrder({ plan, step }, status, { row = null, why = undefined }
   }
   const body = { plan, step: Number(step) };
   if (current === 'sent') {
-    side.append(el('span', 'choice-tag', t(BISHOP_STATES.sent)));
+    if (auto) target.dataset.auto = '1';
+    side.append(el('span', 'choice-tag', target.dataset.auto ? t('LEFT ON ITS OWN · WAITING FOR THE ANSWER') : t(BISHOP_STATES.sent)));
     const stop = bishopButton(t('STOP'), true);
     stop.addEventListener('click', () => bishopPress('/api/x/bishop/stop', body, [stop]));
     side.append(stop);
@@ -5039,21 +5046,50 @@ function markBishopLink({ plan, index, by = null, contract = null, expires = nul
 }
 // A link revoked from anywhere (a row, Salas, its sheet): every row that showed it signed says so.
 function markRevokedLinks(contract) {
-  for (const row of document.querySelectorAll(`.bishop-link[data-contract="${CSS.escape(String(contract ?? ''))}"]`)) {
+  const rows = [...document.querySelectorAll(`.bishop-link[data-contract="${CSS.escape(String(contract ?? ''))}"]`)];
+  for (const row of rows) {
     const plan = row.closest('.bishop-plan')?.dataset.plan;
     markBishopLink({ plan, index: row.dataset.link }, 'revoked', row);
   }
+  // A row of a plan says it here already; the line would say it twice.
+  return rows.length;
 }
-// One line when a plan closes, stops leaving on its own, or sends an order on its own; and one when
-// BISHOP's block could not be read. None of them starts a turn.
+// The line «link signed» this room wrote for a link a plan's row now shows signed: one is enough.
+function quietLinkLine(contract) {
+  if (!contract) return;
+  for (const line of document.querySelectorAll(`.system.enlace[data-contract="${CSS.escape(String(contract))}"]`)) line.remove();
+}
+// A plan's close, or the moment it stops leaving on its own, said in its card's head. Returns
+// whether the card was here to say it; a halt is also said once out loud, since it changes what
+// happens next.
+function markBishopPlan(event) {
+  const card = document.querySelector(`.bishop-plan[data-plan="${CSS.escape(String(event.payload.plan ?? ''))}"]`);
+  if (!card) return false;
+  const head = card.querySelector('.choice-head');
+  const said = event.payload;
+  if (event.type === 'bishop.plan.closed') {
+    card.classList.add('closed');
+    head.querySelector('.bishop-state')?.remove();
+    // Only what happened: «closed · answered: 1», not three counters with two zeros.
+    const counts = [[said.done, 'answered: {n}'], [said.failed, 'failed: {n}'], [said.skipped, 'skipped: {n}']].filter(([n]) => n > 0).map(([n, words]) => t(words, { n }));
+    head.append(el('span', 'choice-kicker bishop-state', [t('CLOSED'), ...counts].join(' · ')));
+    card.querySelector('.bishop-halt')?.remove();
+  } else {
+    card.querySelector('.bishop-halt')?.remove();
+    const note = el('p', 'run-why bishop-halt', t('Stopped leaving on its own ({why}). What is left waits for your press.', { why: t(said.why) }));
+    card.querySelector('.choice-list')?.before(note);
+    if (!replaying) toast(t('MU/TH/UR › BISHOP stopped sending on its own ({why}).', { why: t(said.why) }));
+  }
+  return true;
+}
+// One line when BISHOP's block could not be read, or when a plan closes or stops leaving on its own
+// in a conversation that does not hold its card. None of them starts a turn.
 function renderBishopLine(event) {
   const node = el('div', 'system note bishop');
   node.append(el('b', null, 'BISHOP'));
   const said = event.payload;
   if (event.type === 'bishop.plan.closed') node.append(t(' · plan {plan} closed · {done} answered · {failed} failed · {skipped} skipped', { plan: said.plan, done: said.done ?? 0, failed: said.failed ?? 0, skipped: said.skipped ?? 0 }));
   else if (event.type === 'bishop.plan.halted') node.append(t(' · plan {plan} stops leaving on its own ({why}); what is left waits for your press', { plan: said.plan, why: t(said.why) }));
-  else if (event.type === 'bishop.order.sent') node.append(t(' · sent on its own to @{agent} in {room} (#{n}): {text}', { agent: said.agent, room: said.name, n: said.mode, text: said.text ?? '' }));
-  else if (event.type === 'bishop.order.delivered') node.append(t(' · took #{n} for @{agent} to {room}; it waits there for your key', { n: said.mode, agent: said.agent, room: said.name }));
   else node.append(t(' · the block of orders could not be read: {why}', { why: (said.reasons ?? []).map((why) => t(why)).join('; ') }));
   return node;
 }
@@ -5076,7 +5112,7 @@ function renderBishopProposal(event) {
     });
     node.append(arm);
   }
-  node.append(el('p', 'choice-foot', t('Nothing runs until you send it from this room with your key · BISHOP never arms #3 or #4')));
+  node.append(el('p', 'choice-foot', t('It runs only if you send it, with your key.')));
   state.lastSender = null;
   return node;
 }
@@ -5089,7 +5125,7 @@ function renderBishopAnswer(event) {
   head.append(el('b', null, 'BISHOP'), el('span', null, t('answers through @{agent} · from the room of Salas', { agent })), el('span', 'args', question ?? ''));
   const body = el('div', 'bishop-answer-text');
   body.append(renderMarkdown(text ?? ''));
-  node.append(head, body, el('p', 'choice-foot', t('For you only: the agents of this room do not read it without a link.')));
+  node.append(head, body, el('p', 'choice-foot', t('For you only; the agents of this room do not read it.')));
   state.lastSender = null;
   return node;
 }
@@ -5519,17 +5555,19 @@ void renderOpenQuestions(); return;
     case 'control.started': node = renderControlStarted(event); break;
     case 'create.reverted': node = renderCreateReverted(event); break;
     case 'enlace.signed':
-    case 'enlace.revoked': if (event.type === 'enlace.revoked') markRevokedLinks(event.payload.contract?.id); node = renderEnlace(event); break;
+    case 'enlace.revoked': if (event.type === 'enlace.revoked' && markRevokedLinks(event.payload.contract?.id)) return; node = renderEnlace(event); break;
     case 'bishop.plan.proposed': node = renderBishopPlan(event); break;
-    case 'bishop.order.sent': markBishopOrder(event.payload, 'sent', { why: null }); if (!event.payload.auto) return; node = renderBishopLine(event); break;
+    // What happens to a plan is said in its card, row by row, not as a line after it each time.
+    // A line is written only when the card is not in this conversation to say it.
+    case 'bishop.order.sent': markBishopOrder(event.payload, 'sent', { why: null, auto: Boolean(event.payload.auto) }); return;
     case 'bishop.order.skipped': markBishopOrder(event.payload, 'skipped'); return;
     case 'bishop.order.held': markBishopOrder(event.payload, null, { why: event.payload.why }); return;
-    case 'bishop.order.delivered': markBishopOrder(event.payload, 'delivered', { why: null }); node = renderBishopLine(event); break;
-    case 'bishop.link.signed': markBishopLink(event.payload, 'signed'); return;
+    case 'bishop.order.delivered': markBishopOrder(event.payload, 'delivered', { why: null }); return;
+    case 'bishop.link.signed': markBishopLink(event.payload, 'signed'); quietLinkLine(event.payload.contract); return;
     case 'bishop.link.held': markBishopLink(event.payload, 'ready'); return;
     case 'bishop.plan.updated': for (const order of event.payload.orders ?? []) markBishopOrder({ plan: event.payload.plan, step: order.step }, order.status, { why: null }); return;
     case 'bishop.plan.closed':
-    case 'bishop.plan.halted':
+    case 'bishop.plan.halted': if (markBishopPlan(event)) return; node = renderBishopLine(event); break;
     case 'bishop.plan.ignored': node = renderBishopLine(event); break;
     case 'bishop.order.proposed': node = renderBishopProposal(event); break;
     case 'bishop.answer': node = renderBishopAnswer(event); break;
