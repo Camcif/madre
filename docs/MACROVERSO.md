@@ -638,3 +638,7 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   relleno más claro (`--lq-*`) y desenfoque del fondo, permitido aquí porque están sobre la caja y
   no dentro de la conversación que se desplaza. Verificado en pantalla en claro; en oscuro no se
   alcanzó a ver la captura.
+- `2026-10-09` · «Sigue abierto aquí», a pedido: sin bisel, brillo ni sombra; el mismo material
+  que la fila de modo · modelo · esfuerzo (fondo de la sala al 62 % en claro y 45 % en oscuro,
+  desenfoque 18 px y saturación 1.6, filo de medio píxel solo en claro). Verificado en pantalla en
+  oscuro: las píldoras y esa fila calculan el mismo fondo, desenfoque y sombra.
