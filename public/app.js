@@ -3524,6 +3524,7 @@ const ICON_GOOD = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 7.5
 const ICON_BAD = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 8.5V3H12.8a.7.7 0 0 1 .7.7v4.1a.7.7 0 0 1-.7.7h-2.3Zm0 0-2.6 4.6a1.3 1.3 0 0 1-2.4-.8L6 9.2H3.4a1.3 1.3 0 0 1-1.3-1.5l.8-3.9A1.3 1.3 0 0 1 4.2 3h6.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
 const ICON_PREFER = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7.45 2.7c.22-.45.88-.45 1.1 0l1.3 2.65 2.92.43c.5.07.7.69.34 1.04l-2.12 2.06.5 2.9c.09.5-.44.88-.89.65L8 11.06l-2.6 1.37c-.45.23-.98-.15-.89-.65l.5-2.9-2.12-2.06c-.36-.35-.16-.97.34-1.04l2.92-.43z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // A small ×, in the same round line, for an aside that can be put away.
+const ICON_STOP = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="6" height="6" rx="1.3" fill="currentColor"/></svg>';
 const ICON_CLOSE_SMALL = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 // An open question: a circle and its question mark, in the same round line as the rest.
 const ICON_ASK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.3 6.4a1.75 1.75 0 1 1 2.55 1.55c-.5.27-.85.62-.85 1.2v.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 11.2v.05" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
@@ -4515,7 +4516,8 @@ function renderLeaseMissing(event) {
   node.append(el('b', null, t('MU/TH/UR › ')));
   node.append(message);
   const actions = el('span', 'actions');
-  const resend = el('button', 'resend', t('RESEND TO @{agent} WITH CREATE', { agent: agent.toUpperCase() }));
+  // Its keys speak in sentences, as the room's keys do now; the agent as the room writes it.
+  const resend = el('button', 'resend', askWords(t('RESEND TO @{agent} WITH CREATE', { agent })));
   resend.type = 'button';
   resend.title = t('Send this same request from you, with a creation lease.');
   resend.addEventListener('click', async () => {
@@ -4523,10 +4525,10 @@ function renderLeaseMissing(event) {
     try {
       const response = await fetch('/api/messages', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, target: agent, model: state.chosenModel[agent] ?? null, effort: state.chosenEffort[agent] ?? null, attachments: [], create: true }) });
       if (!response.ok) { const result = await response.json().catch(() => ({})); throw new Error(result.error ?? `HTTP ${response.status}`); }
-      resend.textContent = t('RESENT WITH CREATE');
+      resend.textContent = askWords(t('RESENT WITH CREATE'));
     } catch (error) { toast(t('It could not be resent: {error}', { error: error.message })); resend.disabled = false; }
   });
-  const standing = el('button', 'standing', t('ALWAYS FOR THIS AGENT'));
+  const standing = el('button', 'standing', askWords(t('ALWAYS FOR THIS AGENT')));
   standing.type = 'button';
   standing.title = t('Give @{agent} a standing lease in SETTINGS → AGENTS: every turn may create files.', { agent });
   standing.addEventListener('click', () => openSettingsOn('agents', { agent }));
@@ -5325,7 +5327,8 @@ function renderPlanEvent(event) {
   updateStopAll();
   const node = el('div', `system plan${event.type === 'plan.stopped' ? ' failed' : ''}`);
   tint(node, orchestrator);
-  node.append(el('b', null, t('plan · ')));
+  const title = el('b', null, t('plan · '));
+  node.append(title);
   if (event.type === 'plan.created') {
     node.id = `plan-${planId}`;
     // One sentence for the catalogue, not three fragments: the agents are chips and cannot travel
@@ -5342,15 +5345,14 @@ function renderPlanEvent(event) {
       if (Number.isInteger(step.mode)) node.append(el('span', `step-mode m${step.mode}`, `#${step.mode}`));
     });
     node.append(after ?? '');
-    const stop = el('button', 'stop', t('STOP'));
-    stop.type = 'button';
-    stop.title = t('Stop the remaining steps of this plan');
+    // A round key beside the title, the way a reply's actions are: a stop square in a circle.
+    const stop = iconButton(ICON_STOP, t('Stop the remaining steps of this plan'), 'stop');
     stop.addEventListener('click', async () => {
       stop.disabled = true;
       const response = await fetch(`/api/plans/${planId}/stop`, { method: 'POST' });
       if (!response.ok) toast(t('That plan is no longer running.'));
     });
-    node.append(stop);
+    title.append(stop);
   } else {
     document.getElementById(`plan-${planId}`)?.querySelector('.stop')?.remove();
     const howMany = stepsRun === 1 ? t('{n} step', { n: stepsRun }) : t('{n} steps', { n: stepsRun });

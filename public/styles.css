@@ -7350,7 +7350,6 @@ dialog.room-ask:not(.console) .room-ask-code { width: 100%; margin: 2px 0 0; pad
 /* A try from Intenciones: its badge reads like "From your use", and the effort chip that carries a
    rung for this one message only is underlined in the accent, dotted, until the message leaves. */
 .intent-offer .intent-basis.trial { background: color-mix(in srgb, var(--phosphor) 10%, transparent); }
-.picker .effort-chip.once .word { text-decoration: underline dotted color-mix(in srgb, var(--phosphor) 80%, transparent); text-underline-offset: 3px; }
 
 /* Tradicion and Urbania, wired like the others. */
 :root { --wp-tradicion: linear-gradient(rgb(16 11 13 / min(.96, calc(.68 * var(--veil-k, 1)))), rgb(16 11 13 / min(.97, calc(.78 * var(--veil-k, 1))))), url("/assets/wallpapers/tradicion.webp?v=3") 50% 50% / cover no-repeat, #100b0d; }
@@ -8116,3 +8115,27 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
 #composer#composer .openq-lead { padding: 3px 11px; }
 #composer#composer .openq-close { opacity: 1; color: var(--text-2); }
 #composer#composer .openq-close:is(:hover, :focus-visible) { background-color: var(--lq-fill-over); color: var(--text); }
+
+/* The reply being answered, inside the box (2026-10-09): it sat 12 px to the left of the box's
+   padding (written for a padding of 18 px the box no longer has) and stuck out past its rounded
+   edge. Now it stands inside: no negative margin, its corner concentric with the box's
+   (20 px − 8 px of padding = 12 px), its × centred on its line. */
+#composer .field > .reply-quote { margin: 0 0 4px; padding: 7px 8px 7px 12px; border-radius: 12px; align-items: center; }
+
+/* A plan's stop (2026-10-09): a round key beside the PLAN title, as a reply's own actions are, in
+   the colour of a stop; it fills a little under the pointer. */
+#messages .system.plan > b:first-child { display: flex; align-items: center; justify-content: center; gap: 6px; }
+#messages .system.plan .act.stop { width: 22px; height: 22px; display: inline-grid; place-items: center; padding: 0; margin: -3px 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--crit) 12%, transparent); color: var(--crit); letter-spacing: 0; cursor: pointer; transition: background-color calc(150ms * var(--motion-scale, 1)) var(--ease-out); }
+#messages .system.plan .act.stop svg { width: 14px; height: 14px; }
+#messages .system.plan .act.stop:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--crit) 24%, transparent); outline: 0; }
+#messages .system.plan .act.stop:disabled { opacity: .45; cursor: default; }
+
+/* MU/TH/UR's question when CREATE is missing (2026-10-09): its two keys in the room's new way —
+   capsules in the room's type, sentence case; the first (resend) in the line's own tone, the second
+   quiet. No outline. */
+#messages .system.lease.missing .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+#messages .system.lease.missing .actions button { height: 28px; padding: 0 14px; border: 0 !important; border-radius: 999px; font-family: var(--read); font-size: 12.5px; font-weight: 550; letter-spacing: 0; text-transform: none; color: currentColor; background: color-mix(in srgb, currentColor 16%, transparent) !important; box-shadow: none !important; cursor: pointer; transition: background-color calc(150ms * var(--motion-scale, 1)) var(--ease-out); }
+#messages .system.lease.missing .actions button.standing { color: var(--text-2); background: color-mix(in srgb, var(--text) 8%, transparent) !important; }
+#messages .system.lease.missing .actions button:is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 26%, transparent) !important; outline: 0; }
+#messages .system.lease.missing .actions button.standing:is(:hover, :focus-visible) { color: var(--text); background: color-mix(in srgb, var(--text) 14%, transparent) !important; }
+#messages .system.lease.missing .actions button:disabled { opacity: .5; cursor: default; }

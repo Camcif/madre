@@ -68,6 +68,10 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **Los indicadores de sesión, en tres colores de la marca:** verde con sesión, ámbar mientras inicia o si no se sabe, rojo sin sesión. Ya no siguen el color de acento.
 - **«Sigue abierto aquí» ya no corta preguntas.** La fila avanza de pregunta en pregunta, así que la del inicio siempre queda completa, y el lado donde hay más se desvanece en vez de cortar.
 - **«Sigue abierto aquí» del mismo vidrio que modo, modelo y esfuerzo.** Las preguntas, su etiqueta y su × son cápsulas del material de esa fila: el fondo de la sala translúcido, con el paisaje desenfocado detrás, sin bisel, brillo ni sombra; al pasar el puntero se vuelven un poco más densas.
+- **Detener un plan es un botón redondo** junto al título PLAN, como las acciones de una respuesta, en lugar de la palabra DETENER al final.
+- **Los botones del aviso de permiso CREATE**, en el estilo nuevo: cápsulas en la letra de la sala, en oración («Reenviar a @codex con CREATE», «Siempre para este agente»), sin contorno.
+- **El esfuerzo elegido solo para un mensaje ya no se subraya.**
+- **La respuesta citada dentro de la caja** queda dentro de su borde, con la esquina concéntrica; antes se salía por la izquierda.
 - **NOSTROMO abre varias memorias a la vez.** Cada memoria se abre en su propia ficha, que se mueve por su encabezado, pasa al frente al tocarla y se cierra con su ×; caben cuatro, y al abrir una quinta se cierra la más vieja. En el teléfono sigue siendo una.
 - **NOSTROMO más amplio.** MADRE es un 10 % más grande, las memorias se separan más y la constelación ocupa más del lienzo.
 - **El núcleo, en el lenguaje de la sala.** Deja la terminal verde: es una ventana como Ajustes y MU/TH/UR, con sus pestañas como selector, cifras en fichas, filas en tarjetas, textos en oración y letra mono solo para lo literal. Abre sin la animación de arranque. Se ve igual de bien en tema claro y oscuro.

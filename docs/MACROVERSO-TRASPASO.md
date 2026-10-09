@@ -39,7 +39,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `dc50ec9` | Claude | UX · las barras y las esferas de agente quedan fuera del gesto del escritorio (`NOT_DESK`) |
 | `c3b91f7` | Claude | UX · la conversación en planos de profundidad (`--depth-*`, una fórmula de elevación; sustituye la escalera de capas de la conversación) |
 | `dbac08f` | Claude | UX · «sigue abierto aquí» en vidrio líquido (el de la barra, más claro) |
-| *este commit* | Claude | UX · «sigue abierto aquí» sin bisel, con el vidrio de modo · modelo · esfuerzo |
+| `925e63c` | Claude | UX · «sigue abierto aquí» sin bisel, con el vidrio de modo · modelo · esfuerzo |
+| *este commit* | Claude | UX · detener plan redondo, botones del aviso CREATE, sin subrayado en el esfuerzo, cita dentro de la caja |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en

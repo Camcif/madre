@@ -642,3 +642,9 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   que la fila de modo · modelo · esfuerzo (fondo de la sala al 62 % en claro y 45 % en oscuro,
   desenfoque 18 px y saturación 1.6, filo de medio píxel solo en claro). Verificado en pantalla en
   oscuro: las píldoras y esa fila calculan el mismo fondo, desenfoque y sombra.
+- `2026-10-09` · Cuatro ajustes con capturas: el plan se detiene con un botón redondo (`ICON_STOP`,
+  `.act.stop`) junto a su título; los botones del aviso de CREATE que falta son cápsulas en oración
+  (`askWords`, el agente en minúsculas); se quita el subrayado punteado del esfuerzo «solo este
+  mensaje»; la respuesta citada en la caja perdió su margen negativo (escrito para un padding de
+  18 px que la caja ya no tiene) y su esquina es concéntrica. Verificado en pantalla en oscuro (el
+  plan y el aviso con copias de tarjetas reales; la cita, mostrándola en la caja).
