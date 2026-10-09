@@ -7703,32 +7703,28 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
 .phone-server span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--text-2); }
 
 /* ==========================================================================================
-   THE CREW'S MARKS, SOLID AND LIFTED (2026-10-09)
+   THE CREW'S MARKS, SOLID AND FLAT, ON LAYER 3 (2026-10-09)
    ------------------------------------------------------------------------------------------
-   Asked for: the agents' marks solid, in livelier colours, standing a little off the canvas, in
-   the conversation, in the bar's crew and in the box's picker. Each disc is the brand's own vivid
-   colour (not the dimmed tint the ground used to need), lit from the top left and shaded at the
-   bottom, with a short shadow of its own colour under it. The glyph takes the brand's ink. An agent
-   that is not ready keeps its outline: it is not there to be lifted.
+   In the conversation, the bar's crew and the box's picker each mark is a disc of the brand's own
+   vivid colour, flat (no gloss, no inner shade), with the glyph in the brand's ink. It stands on
+   layer 3 of the room's depth (see THE ROOM IN LAYERS below): one short shadow under it. An agent
+   that is not ready keeps its outline. (The id twice outranks the light theme's pale discs.)
    ========================================================================================== */
-:is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick):not(.offline):not(.detected) {
-  background: radial-gradient(circle at 34% 26%, color-mix(in srgb, var(--agent-solid, var(--agent)) 58%, #ffffff) 0%, var(--agent-solid, var(--agent)) 46%, color-mix(in srgb, var(--agent-solid, var(--agent)) 74%, #000000) 100%) !important;
+#messages#messages .row > .avatar:not(.offline):not(.detected),
+:is(.agents .avatar, .crew-orb .avatar, .picker .avatar.pick):not(.offline):not(.detected) {
+  background: var(--agent-solid, var(--agent)) !important;
   color: var(--agent-on, #ffffff) !important;
-  box-shadow: inset 0 1px .5px rgba(255, 255, 255, .55), inset 0 -1.5px 2px rgba(0, 0, 0, .28), 0 1px 1.5px rgba(0, 0, 0, .35), 0 5px 12px -5px color-mix(in srgb, var(--agent-solid, var(--agent)) 60%, #000000) !important;
+  box-shadow: var(--rise-3-mark) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
 }
-:is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick).gradient:not(.offline):not(.detected) {
-  background: radial-gradient(circle at 34% 26%, rgba(255, 255, 255, .42) 0%, transparent 55%), var(--agent-gradient, var(--agent-solid, var(--agent))) !important;
+#messages#messages .row > .avatar.gradient:not(.offline):not(.detected),
+:is(.agents .avatar, .crew-orb .avatar, .picker .avatar.pick).gradient:not(.offline):not(.detected) {
+  background: var(--agent-gradient, var(--agent-solid, var(--agent))) !important;
   color: #ffffff !important;
 }
-:root[data-scheme="light"] :is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick):not(.offline):not(.detected) {
-  box-shadow: inset 0 1px .5px rgba(255, 255, 255, .6), inset 0 -1.5px 2px rgba(0, 0, 0, .2), 0 1px 1.5px rgba(20, 30, 20, .22), 0 5px 12px -6px color-mix(in srgb, var(--agent-solid, var(--agent)) 55%, transparent) !important;
-}
-/* The glyph pressed into the disc: a hairline of shade under each stroke. */
-:is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick):not(.offline):not(.detected) svg { filter: drop-shadow(0 .6px 0 rgba(0, 0, 0, .22)); }
 /* What was said by a ring keeps its ring: the open agent in the bar, the chosen one in the picker. */
-.agents .avatar.open:not(.offline):not(.detected) { box-shadow: inset 0 1px .5px rgba(255, 255, 255, .55), inset 0 -1.5px 2px rgba(0, 0, 0, .28), 0 0 0 2px var(--bg), 0 0 0 3.5px var(--agent-solid, var(--agent)) !important; }
-.picker .avatar.pick[aria-checked="true"]:not(.offline):not(.detected) { box-shadow: inset 0 1px .5px rgba(255, 255, 255, .55), inset 0 -1.5px 2px rgba(0, 0, 0, .28), 0 0 0 2px var(--bg), 0 0 0 3.5px var(--agent-solid, var(--agent)) !important; }
+.agents .avatar.open:not(.offline):not(.detected),
+.picker .avatar.pick[aria-checked="true"]:not(.offline):not(.detected) { box-shadow: 0 0 0 2px var(--lay-4), 0 0 0 3.5px var(--agent-solid, var(--agent)) !important; }
 
 /* ==========================================================================================
    THE SECOND BAR (2026-10-09)
@@ -7757,3 +7753,80 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
   .bar.with-home .brand-icon { display: block; }
   .bar.with-home .connection-label { display: none; }
 }
+
+/* ==========================================================================================
+   THE ROOM IN LAYERS (2026-10-09)
+   ------------------------------------------------------------------------------------------
+   Asked for: no transparency in the conversation; depth told by tones of white and by shadow.
+     4 · the box you write in: pure white, the highest.
+     3 · the bubbles of agents and of the human, and the agents' marks; the cards of the room.
+     2 · the chips over a bubble (who, ↳ what it answers, the bill).
+     1 · a step a plan delegated: the dashed bubble, its dashes easier to see.
+     0 · the lines the room says (a relay, a link, memory): flat on the canvas, no shadow.
+   Each layer is its own tone, so they tell apart even without their shadows; the human's bubble
+   keeps its own colour and only takes layer 3's height. Dark: the same ladder, in greys.
+   The id is written twice on purpose: it outranks every wallpaper's rules for the bubbles.
+   ========================================================================================== */
+:root {
+  --lay-4: #ffffff; --lay-3: #fbfbfc; --lay-2: #f1f2f4; --lay-1: #e8eaed; --lay-0: #dfe2e6;
+  --rise-4: 0 1px 2px rgba(15, 20, 30, .07), 0 12px 30px -12px rgba(15, 20, 30, .26);
+  --rise-3: 0 1px 2px rgba(15, 20, 30, .06), 0 6px 18px -9px rgba(15, 20, 30, .2);
+  --rise-3-mark: 0 1px 2px rgba(15, 20, 30, .14), 0 4px 10px -5px rgba(15, 20, 30, .28);
+  --rise-2: 0 1px 1.5px rgba(15, 20, 30, .06), 0 3px 8px -4px rgba(15, 20, 30, .12);
+  --rise-1: 0 1px 1px rgba(15, 20, 30, .05);
+  --dash-1: rgba(15, 20, 30, .34);
+}
+:root:not([data-scheme="light"]) {
+  --lay-4: #2c2f34; --lay-3: #25282c; --lay-2: #202326; --lay-1: #1b1d20; --lay-0: #17191b;
+  --rise-4: 0 1px 2px rgba(0, 0, 0, .45), 0 14px 32px -12px rgba(0, 0, 0, .65);
+  --rise-3: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px -10px rgba(0, 0, 0, .55);
+  --rise-3-mark: 0 1px 2px rgba(0, 0, 0, .45), 0 4px 10px -5px rgba(0, 0, 0, .6);
+  --rise-2: 0 1px 1.5px rgba(0, 0, 0, .35), 0 3px 8px -4px rgba(0, 0, 0, .4);
+  --rise-1: 0 1px 1px rgba(0, 0, 0, .3);
+  --dash-1: rgba(255, 255, 255, .34);
+}
+/* 4 · the box */
+.shell .composer .field, .shell .composer .field:focus-within {
+  background: var(--lay-4) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: var(--ring, 0 0 0 0 transparent), var(--rise-4) !important;
+}
+/* 3 · the bubbles and the room's cards */
+#messages#messages .row:is(.assistant, .thinking):not(.delegated) .bubble,
+#messages#messages :is(.command-card, .choice) {
+  background: var(--lay-3) !important; color: var(--text);
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: var(--rise-3) !important;
+}
+#messages#messages .row.user .bubble { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: var(--rise-3) !important; }
+/* 2 · the chips over a bubble */
+#messages#messages .row > .col > .who {
+  width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px;
+  background: var(--lay-2) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: var(--rise-2) !important; text-shadow: none !important;
+}
+#messages#messages .row > .col > .who .badge { background: var(--lay-1) !important; }
+/* 1 · a delegated step */
+#messages#messages .row.delegated .bubble {
+  background: var(--lay-1) !important; border: 1.5px dashed var(--dash-1) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: var(--rise-1) !important;
+}
+/* 0 · what the room says */
+#messages#messages .thread-inner > .system:not(.mother-alert) {
+  background: var(--lay-0) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: none !important; text-shadow: none !important;
+}
+
+/* The second bar's keys move when the pointer is on them: the house shakes, the gear turns. When
+   AJUSTES is open the gear lights up; its hole is cut out of the same path (evenodd), so the
+   centre stays open instead of filling with it. */
+#home-button svg, #custom-button .gear-glyph { transform-origin: 50% 50%; transform-box: fill-box; }
+#home-button:hover svg { animation: home-shake calc(520ms * var(--motion-scale, 1)) ease-in-out; }
+@keyframes home-shake { 0%, 100% { transform: rotate(0); } 18% { transform: rotate(-11deg); } 38% { transform: rotate(9deg); } 58% { transform: rotate(-6deg); } 78% { transform: rotate(3deg); } }
+#custom-button .gear-glyph { transition: transform calc(520ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+#custom-button:hover .gear-glyph { transform: rotate(90deg); }
+#custom-button[aria-expanded="true"] .gear-glyph .ic-f, #custom-button[aria-pressed="true"] .gear-glyph .ic-f { fill: currentColor; }
+@media (prefers-reduced-motion: reduce) { #home-button:hover svg { animation: none; } #custom-button:hover .gear-glyph { transform: none; } }

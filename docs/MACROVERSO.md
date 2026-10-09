@@ -583,3 +583,14 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   una respuesta: «BISHOP», «↳ pregunta», «por @agente · desde Salas», «→ @agente». (4) Las marcas de
   los agentes, sólidas y en relieve (conversación, tripulación de la barra, selector de la caja),
   revirtiendo a pedido la decisión anterior de pintarlas planas. Pruebas de la barra actualizadas.
+- `2026-10-09` · Quinta ronda de UX, pedida por el humano con capturas: (1) las marcas de agente
+  vuelven a ser planas, de su color vivo y sin brillo, con una sombra corta de capa 3; (2) la sala en
+  capas sin transparencias (`--lay-0…4`, sombras `--rise-*`): caja de texto 4 en blanco puro,
+  burbujas de agente y humano 3 (la del humano conserva su color), chips de quién/↳ 2, pasos
+  delegados 1 con punteado más visible, líneas de la sala 0 planas; misma escalera en grises en el
+  tema oscuro; (3) la casa se sacude y el engrane gira al pasar el puntero, y el engrane es un solo
+  trazo con su hueco recortado (`evenodd`), así que al abrir Ajustes se ilumina y su centro queda
+  hueco; (4) Memoria en Ajustes lleva un chip dibujado para MADRE en lugar del foco. Verificado en
+  pantalla a 1280 px en la sala pulse, tema claro y oscuro (este, cambiando el atributo en la página,
+  sin tocar el ajuste guardado). No verificado: la animación en pantalla (el panel del navegador
+  estaba oculto) ni el teléfono.

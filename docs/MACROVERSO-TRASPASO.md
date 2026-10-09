@@ -31,7 +31,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `cf453ca` | Claude | UX · autor y encabezado de los mensajes traídos por BISHOP |
 | `e450832` | Claude | UX · ajustes de BISHOP en palabras (`choices` en el SDK) |
 | `d69ae55` | Claude | UX · menos líneas por plan, pies cortos, «leyó / recordó» en el pie de su respuesta |
-| *este commit* | Claude | UX · segunda barra (casa, recargar, engrane), burbuja de BISHOP con su robot, agentes en relieve |
+| `c3c7025` | Claude | UX · segunda barra (casa, recargar, engrane), burbuja de BISHOP con su robot, agentes en relieve |
+| *este commit* | Claude | UX · sala en capas (tonos de blanco y sombra, sin transparencias), agentes planos, casa y engrane con movimiento, chip de Memoria |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -167,6 +168,11 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   de otra gráfica (posición absoluta, 1 px) y la marca nueva salía letra por letra.
 - **Un `.bar` es contenedor de tamaño** (`container-type: inline-size`): un elemento con esa clase no
   toma el ancho de su contenido; la segunda barra lo anula (`container-type: normal`).
+- **Las reglas de las burbujas con fondo de paisaje** (`:root[data-scheme][data-wallpaper]…`) pesan más
+  que un selector `#messages …`: la escalera de capas escribe el id dos veces (`#messages#messages`)
+  para ganarles. Y `--lift-1…` ya eran fichas globales: las sombras de las capas se llaman `--rise-*`.
+- **En el panel oculto del navegador las transiciones no avanzan**: un color leído tras recargar puede
+  ser el de la transición congelada; `document.getAnimations().forEach(a => a.finish())` antes de medir.
 - **Fusiones en paralelo**: conflictos en la bitácora y tablas de `docs/MACROVERSO.md`; se
   conservan los dos lados y la bitácora solo se añade al final.
 
