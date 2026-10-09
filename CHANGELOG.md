@@ -67,6 +67,11 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **MU/TH/UR:** sus ajustes (ahora con el engrane), NOSTROMO y la ayuda están junto al riel macOS · Linux.
 - **El costo de Codex, Gemini y OpenCode.** Junto a sus tokens, cada respuesta dice cuánto costaría al precio de lista de la API de su modelo, con «≈» porque es un estimado (Claude ya decía el suyo). Solo se calcula para modelos cuyo precio se leyó en la página del proveedor; uno desconocido no muestra precio. Con una suscripción puede no costarte nada por turno, y la cifra lo dice al pasar el puntero.
 - **Los indicadores de sesión, en tres colores de la marca:** verde con sesión, ámbar mientras inicia o si no se sabe, rojo sin sesión. Ya no siguen el color de acento.
+- **«Sigue abierto aquí» ya no corta preguntas.** La fila avanza de pregunta en pregunta, así que la del inicio siempre queda completa, y el lado donde hay más se desvanece en vez de cortar.
+- **NOSTROMO abre varias memorias a la vez.** Cada memoria se abre en su propia ficha, que se mueve por su encabezado, pasa al frente al tocarla y se cierra con su ×; caben cuatro, y al abrir una quinta se cierra la más vieja. En el teléfono sigue siendo una.
+- **NOSTROMO más amplio.** MADRE es un 10 % más grande, las memorias se separan más y la constelación ocupa más del lienzo.
+- **El núcleo, en el lenguaje de la sala.** Deja la terminal verde: es una ventana como Ajustes y MU/TH/UR, con sus pestañas como selector, cifras en fichas, filas en tarjetas, textos en oración y letra mono solo para lo literal. Abre sin la animación de arranque. Se ve igual de bien en tema claro y oscuro.
+- **Instalar, actualizar y desinstalar un módulo** preguntan con la hoja de la sala, no con la consola heredada.
 - **Pedir correr un comando dentro de un plan ya no parece un plan nuevo.** Un paso delegado (o una orden de BISHOP) que terminaba con un bloque para correr un comando disparaba la alerta de «intentó abrir un plan dentro de un plan»; ahora solo la dispara un plan de verdad.
 - **Leer y ordenar ya no se gastan entre sí.** Cada enlace cuenta sus lecturas y sus órdenes por separado, cada una contra su tope por hora: preguntarle a BISHOP no agota las órdenes.
 

@@ -372,8 +372,6 @@ export const ES = {
   'FILES': 'ARCHIVOS',
 
   // ── EL CORE ───────────────────────────────────────────────────────────────
-  'INTERFACE 2037 · CORE ACCESS': 'INTERFAZ 2037 · ACCESO AL NÚCLEO',
-  'MU/TH/UR 6000 READY FOR INQUIRY.': 'MU/TH/UR 6000 LISTA PARA CONSULTA.',
   'TO': 'PARA',
   'AT': 'EN MODO',
   'IF YOU SENT': 'SI MANDARAS',
@@ -1159,9 +1157,6 @@ export const ES = {
     'Cambió en disco desde que lo abriste. Sobrescríbelo con tu versión, o carga la del disco y pierde tus cambios en el editor.',
   'LOAD FROM DISK': 'CARGAR LA DEL DISCO',
   'OVERWRITE': 'SOBRESCRIBIR',
-  'UNINSTALL {name}': 'DESINSTALAR {name}',
-  'KEEP IT': 'CONSERVARLO',
-  'UPDATE': 'ACTUALIZAR',
   'Every private term already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project designation to confirm.':
     'Cada término privado ya registrado se vuelve el marcador, en el registro, el índice y las memorias. No se puede deshacer. Escribe la designación del proyecto para confirmar.',
 
@@ -1453,11 +1448,7 @@ export const ES = {
 
   // ── EL MARCADO: diálogos, paneles y modales de index.html ─────────────────
   'STOP ALL': 'PARAR TODO',
-  'MU/TH/UR 6000 · WHAT THIS ROOM SAYS IN YOUR NAME': 'MU/TH/UR 6000 · LO QUE ESTA SALA DICE EN TU NOMBRE',
-  '⧉ COPY ALL': '⧉ COPIAR TODO',
   'CLOSE ×': 'CERRAR ×',
-  'BUILT NOW · STORED NOWHERE · SENT NOWHERE · READ, NEVER WRITTEN':
-    'ARMADO AHORA · GUARDADO EN NINGÚN LADO · MANDADO A NINGÚN LADO · SE LEE, NUNCA SE ESCRIBE',
   'EXPAND ALL': 'ABRIR TODO',
   // MEMORIA, emancipada de CONEXIONES: su propio botón en la barra de MU/TH/UR.
   'One conversation. Every agent.': 'Una conversación. Todos los agentes.',
@@ -1597,6 +1588,9 @@ export const ES = {
   'Project files': 'Archivos del proyecto',
   'Close files': 'Cerrar los archivos',
   'The core': 'El núcleo',
+  'What this room says in your name': 'Lo que esta sala dice en tu nombre',
+  'Copy all': 'Copiar todo',
+  'Built now · stored nowhere · sent nowhere · read, never written': 'Armado ahora · guardado en ningún lado · mandado a ningún lado · se lee, nunca se escribe',
   'Copy the whole briefing as the agent receives it': 'Copia el briefing completo, tal como lo recibe el agente',
   'Modules': 'Módulos',
   'Install a module somebody wrote. MADRE checks it before it runs.':
@@ -2584,6 +2578,9 @@ export const ES = {
     '{what} {latest} es la más nueva, y es la que tiene esta computadora.',
   'MADRE could not reach the place that knows about {what}.': 'MADRE no pudo alcanzar el lugar que sabe de {what}.',
   'Install {name}?': '¿Instalar {name}?',
+  'Uninstall {name}?': '¿Desinstalar {name}?',
+  'Keep it': 'Conservarlo',
+  'Uninstall': 'Desinstalar',
   'A module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and keeps to the house rules before installing it — it cannot check what it intends. Install it only if you trust where it came from.':
     'Un módulo corre dentro de MADRE, con tus permisos, en esta computadora. MADRE comprueba que cargue y que respete las reglas de la casa antes de instalarlo — lo que pretende hacer no lo puede comprobar. Instálalo solo si confías en de dónde viene.',
   'That file could not be read: {error}': 'Ese archivo no se pudo leer: {error}',
@@ -2694,7 +2691,6 @@ export const ES = {
   // Los cuatro lugares de la sala. Los nombres de la nave —MU/TH/UR, NOSTROMO, ASH, RIPLEY—
   // son nombres propios; estos cuatro no lo son: dicen qué hay detrás de la puerta.
   'MODULES': 'MÓDULOS',
-  'THE CORE': 'EL NÚCLEO',
   'GRANTED': 'CONCEDIDO',
   'just now': 'ahora mismo',
   '{n} min ago': 'hace {n} min',

@@ -4739,6 +4739,15 @@ async function renderOpenQuestions() {
   }
   box.append(rail);
   box.hidden = false;
+  // It moves a whole question at a time (CSS snap), so the one at its start is always whole; the
+  // side where more waits fades instead of cutting a question in half.
+  const edges = () => {
+    rail.classList.toggle('more-before', rail.scrollLeft > 2);
+    rail.classList.toggle('more-after', rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 2);
+  };
+  rail.addEventListener('scroll', edges, { passive: true });
+  window.addEventListener?.('resize', edges, { passive: true });
+  requestAnimationFrame(edges);
 }
 
 async function renderSettled() {
@@ -11419,11 +11428,11 @@ function removeModuleButton(item, { className = 'remove-module', text = t('UNINS
   remove.type = 'button';
   remove.title = t('Delete module file {file}', { file: item.file });
   remove.addEventListener('click', async () => {
+    // The room's own question sheet, as every other question in the room (no longer the console).
     const answer = await roomAsk({
-      console: true,
-      title: t('UNINSTALL {name}', { name: item.name }),
+      title: t('Uninstall {name}?', { name: item.name }),
       body: t("Remove {name}? Its file {file} is deleted. MADRE's own modules cannot be removed.", { name: item.name, file: item.file }),
-      choices: [{ value: 'keep', label: t('KEEP IT'), focus: true }, { value: 'remove', label: t('UNINSTALL'), tone: 'danger' }],
+      choices: [{ value: 'keep', label: t('Keep it'), focus: true }, { value: 'remove', label: t('Uninstall'), tone: 'danger' }],
     });
     if (answer !== 'remove') return;
     remove.disabled = true;
@@ -11650,10 +11659,9 @@ modules.file?.addEventListener('change', async () => {
   if (!file) return;
   if (!/\.m?js$/.test(file.name)) { toast(t('MU/TH/UR › a module is a .mjs file.')); return; }
   const install = await roomAsk({
-    console: true,
     title: t('Install {name}?', { name: file.name }),
     body: t('A module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and keeps to the house rules before installing it — it cannot check what it intends. Install it only if you trust where it came from.'),
-    choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'install', label: t('INSTALL'), tone: 'primary' }],
+    choices: [{ value: 'no', label: t('Cancel'), focus: true }, { value: 'install', label: t('Install'), tone: 'primary' }],
   });
   if (install !== 'install') return;
   let text;
@@ -11693,10 +11701,9 @@ async function refreshModuleFile(item, button) {
   const { origin, current, candidate, same } = looked.result;
   if (same) { toast(t('MU/TH/UR › {name} is already {version} · {from}', { name: item.name, version: current ?? t('what is published'), from: origin.from })); button.disabled = false; return; }
   const update = await roomAsk({
-    console: true,
     title: t('Update {name}?', { name: item.name }),
     body: `${current ?? t('unversioned')} → ${candidate ?? t('unversioned')}\n${t('From {from}', { from: origin.from })}\n\n${t('It loads and keeps to the house rules. What it intends, only you can judge.')}`,
-    choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'update', label: t('UPDATE'), tone: 'primary' }],
+    choices: [{ value: 'no', label: t('Cancel'), focus: true }, { value: 'update', label: t('Update'), tone: 'primary' }],
   });
   if (update !== 'update') { button.disabled = false; return; }
   const done = await ask(true);
@@ -13511,29 +13518,9 @@ const core = {
   tabs: null,
 };
 
-const CORE_BOOT = [
-  t('INTERFACE 2037 · CORE ACCESS'),
-  t('MU/TH/UR 6000 READY FOR INQUIRY.'),
-];
-
 // Which pane an inquiry is really asking for. The three that are already a screen open that
 // screen instead of printing it twice.
 const CORE_PANE_FOR = { blocks: 'document', launch: 'launch', egress: 'egress' };
-
-function typeLines(node, lines, done) {
-  node.textContent = '';
-  let line = 0;
-  let at = 0;
-  const tick = () => {
-    if (line >= lines.length) { done?.(); return; }
-    const text = lines[line];
-    node.textContent += text[at] ?? '';
-    at += 1;
-    if (at > text.length) { node.textContent += '\n'; line += 1; at = 0; }
-    setTimeout(tick, at === 0 ? 220 : 12);
-  };
-  tick();
-}
 
 // `==> TITLE        meta`, which is how the terminal this frame is dressed as says "a new thing
 // starts here". One rule for every section in every pane, so nothing needs a heading of its own.
@@ -13572,7 +13559,11 @@ async function openCore() {
   void fillCoreBoard();
   // On a phone the console is touched to be written in: focused for you, it would put the keyboard
   // up over the core the moment it opened.
-  typeLines(core.boot, CORE_BOOT, () => { core.body.hidden = false; if (!state.device) core.console?.field?.focus(); });
+  // No typed boot any more (2026-10-09): the core opens as a window of the room, its content at
+  // once. The console line stays, at the bottom, for whoever asks it something.
+  core.boot.hidden = true;
+  core.body.hidden = false;
+  if (!state.device) core.console?.field?.focus();
   // What has left this machine is about the room rather than about this turn, so it is read
   // once per visit.
   core.outbound = await fetch('/api/outbound').then((response) => response.json()).catch(() => null);
@@ -13604,6 +13595,41 @@ async function loadCore() {
 }
 
 const paneInto = (id, node) => { core.paneNodes[id]?.replaceChildren(node); };
+
+// The core speaks in sentences (2026-10-09). Its words were written for the terminal, in capitals;
+// the room now reads them the way the question sheet does (askWords): a line mostly in capitals is
+// lowered, its first letter raised, and what is a name stays as it is — MU/TH/UR, MADRE, a mode, a
+// figure («11.0M», «5h»), a path or a version. Unlike the sheet, an @agent is written as the room
+// writes it, in lower case. What is literal (pre, code, a select, the console's log) is not touched.
+const CORE_KEEP = /^(MADRE|MOTHER|MU\/TH\/UR|CONTROL|AIRLOCK|CREATE|GHOST|EXCHANGE|NOSTROMO|ASH|BISHOP|MCP|SDK|URL|API|CLI|CLIs|JSON|ID|#\d.*|.*[\/\d].*)$/;
+function coreWords(text) {
+  const words = String(text ?? '');
+  const letters = words.replace(/[^\p{L}]/gu, '');
+  if (!letters.length || letters.replace(/[^\p{Lu}]/gu, '').length / letters.length <= 0.5) return words;
+  // Only a word written all in capitals is lowered: «Claude Code» or «mié» were already written
+  // the way they are meant.
+  const lower = (word) => {
+    const bare = word.replace(/[.,:;?!¿¡…·()]+$/u, '').replace(/^[(¿¡]+/u, '');
+    return CORE_KEEP.test(bare) || /\p{Ll}/u.test(bare) ? word : word.toLowerCase();
+  };
+  // A sentence that starts after a full stop starts with its capital too.
+  const said = words.split(/(\s+)/).map(lower).join('').replace(/([.!?]\s+)(\p{Ll})/gu, (_, stop, letter) => stop + letter.toUpperCase());
+  // The first letter rises when the line starts with a word; «18 bloques» and «@codex» stay low.
+  const lead = said.match(/^[\s"'«(¿¡]*/u)[0].length;
+  return /\p{Ll}/u.test(said.charAt(lead)) ? said.slice(0, lead) + said.charAt(lead).toUpperCase() + said.slice(lead + 1) : said;
+}
+function coreSentences(root) {
+  if (!root || typeof document.createTreeWalker !== 'function') return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (node) => (node.parentElement?.closest('pre, code, kbd, textarea, select, option, .console-log') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const said = coreWords(node.nodeValue);
+    if (said !== node.nodeValue) node.nodeValue = said;
+  }
+  for (const field of root.querySelectorAll?.('input[placeholder], textarea[placeholder]') ?? []) field.placeholder = coreWords(field.placeholder);
+}
+// Whatever the core draws, whenever it draws it, is read in sentences. A lowered line is already
+// in sentences, so a second pass changes nothing and the watch never feeds itself.
+if (core.body && typeof MutationObserver === 'function') new MutationObserver(() => coreSentences(core.body)).observe(core.body, { childList: true, subtree: true });
 
 /* ---------- pane · your core ---------- */
 
@@ -15190,7 +15216,9 @@ const nostromo = {
 // how much of the map the open card covers, and what to shake when CODE000 lands.
 nostromo.words = { kind: (kind) => kindWord(kind), locked: (memory) => lockedLabel(memory) };
 nostromo.covered = () => {
-  const card = nostromo.card && !nostromo.card.hidden ? nostromo.card.getBoundingClientRect() : null;
+  // Only a card still docked at the right covers the map; one moved by hand is wherever it was put.
+  const front = frontCard();
+  const card = front && !front.classList.contains('placed') ? front.getBoundingClientRect() : null;
   const canvas = nostromo.canvas.getBoundingClientRect();
   return card && card.width ? Math.max(0, canvas.right - card.left) : 0;
 };
@@ -15360,8 +15388,7 @@ async function openNostromo() {
   nostromo.canvas?.focus?.({ preventScroll: true });
   paintLegend();
   nostromo.sub.textContent = t('MEMORY RESEARCH · LOADING…');
-  nostromo.card.hidden = true;
-  nostromo.selected = null;
+  closeNostromoCards();
   nostromo.cage = null;
   const status = await fetch('/api/mother').then((response) => response.json()).catch(() => null);
   nostromo.altered = Boolean(status?.mother?.altered);
@@ -15439,7 +15466,7 @@ nostromo.askButton?.addEventListener('click', () => {
   const open = nostromo.askPanel.hidden;
   nostromo.askPanel.hidden = !open;
   nostromo.askButton.setAttribute('aria-pressed', String(open));
-  if (open) { nostromo.card.hidden = true; nostromo.selected = null; stopTraffic(); renderAsks(); }
+  if (open) { closeNostromoCards(); renderAsks(); }
 });
 document.querySelector('#nostromo-asks-close')?.addEventListener('click', () => {
   nostromo.askPanel.hidden = true;
@@ -15453,7 +15480,6 @@ nostromo.coldButton?.addEventListener('click', () => {
 });
 document.querySelector('#nostromo-close')?.addEventListener('click', () => nostromo.dialog.close());
 nostromo.dialog?.addEventListener('close', stopNostromo);
-document.querySelector('#nostromo-card-close')?.addEventListener('click', () => { nostromo.card.hidden = true; nostromo.selected = null; nostromo.focusLink = null; stopTraffic(); flatPaint(); });
 
 function buildNostromo(data) {
   // The bodies are the engine's to build; what is said about them is the room's.
@@ -15751,7 +15777,7 @@ function flatFocus(node) {
   if (!cam || node.fx === undefined) { flatPaint(); return; }
   const { w, h } = nostromo.size;
   const canvas = nostromo.canvas.getBoundingClientRect();
-  const card = nostromo.card && !nostromo.card.hidden ? nostromo.card.getBoundingClientRect() : null;
+  const card = frontCard()?.getBoundingClientRect() ?? null;
   const free = card?.height ? Math.max(80, card.top - canvas.top) : h;
   const to = { x: node.fx, y: node.fy - (free / 2 - h / 2) / cam.scale };
   const from = { x: cam.x, y: cam.y };
@@ -15856,6 +15882,7 @@ function startNostromo() {
   nostromo.raf = requestAnimationFrame(frame);
 }
 function stopNostromo() {
+  closeNostromoCards();
   if (nostromo.raf) cancelAnimationFrame(nostromo.raf);
   nostromo.raf = null;
   window.removeEventListener('resize', sizeNostromo);
@@ -15918,7 +15945,8 @@ nostromo.canvas?.addEventListener('click', (event) => {
   // The core is the door. Touching it used to be treated as an attempt on the archive; what is
   // behind it is the document MADRE writes in your name, and reading that is nobody's trespass.
   if (at === 'core') { void openCore(); return; }
-  if (!at) { nostromo.selected = null; nostromo.card.hidden = true; return; }
+  // The empty map lets go of the memory in front; the cards stay open until closed.
+  if (!at) { nostromo.selected = null; for (const card of nostromo.cards) card.classList.remove('front'); return; }
   showNostromoCard(at);
 });
 document.querySelector('#nostromo-recenter')?.addEventListener('click', (event) => {
@@ -15974,8 +16002,7 @@ function nostromoAlert(lines, sub) {
   const alert = document.querySelector('#nostromo-alert');
   if (!alert) return false;
   nostromo.alarm = performance.now() / 1000;
-  nostromo.card.hidden = true;
-  nostromo.selected = null;
+  closeNostromoCards();
   alert.querySelectorAll('.line').forEach((node, index) => { node.textContent = lines[index] ?? ''; });
   alert.querySelector('.sub').textContent = sub;
   alert.hidden = false;
@@ -16082,20 +16109,91 @@ function wireRow(node, value, { link = null, title = '' } = {}) {
   return row;
 }
 
+// NOSTROMO's cards are windows (2026-10-09): each memory opened is a card of its own, so several
+// can be read side by side. A card is moved by its header, comes forward when touched and closes
+// with its ×; the one in front is the memory the map follows. At most four stand at once (the
+// oldest gives way); a phone keeps one, where it always was. They are built from the card in the
+// page (#nostromo-card), which stays as their pattern and is never shown itself.
+const CARD_MAX = 4;
+nostromo.cards = [];
+const cardPart = (card, name) => card?.querySelector(`[data-part="${name}"]`) ?? null;
+function frontCard() { return nostromo.cards.at(-1) ?? null; }
+function raiseCard(card) {
+  nostromo.cards = [...nostromo.cards.filter((one) => one !== card), card];
+  nostromo.cards.forEach((one, index) => { one.style.zIndex = String(20 + index); one.classList.toggle('front', one === card); });
+  nostromo.selected = card.node;
+}
+function closeCard(card) {
+  nostromo.cards = nostromo.cards.filter((one) => one !== card);
+  card.remove();
+  const front = frontCard();
+  if (front) raiseCard(front); else { nostromo.selected = null; stopTraffic(); }
+  nostromo.focusLink = null;
+  flatPaint();
+}
+function closeNostromoCards() {
+  for (const card of nostromo.cards) card.remove();
+  nostromo.cards = [];
+  nostromo.selected = null;
+  stopTraffic();
+}
+function newNostromoCard() {
+  const card = nostromo.card.cloneNode(true);
+  card.removeAttribute('id');
+  card.querySelectorAll('[id]').forEach((part) => part.removeAttribute('id'));
+  card.classList.add('card-window');
+  card.hidden = false;
+  // Each new one a step down and to the left of the last, so none hides another whole.
+  const step = nostromo.cards.length;
+  card.style.setProperty('--card-step', String(step));
+  nostromo.card.after(card);
+  cardPart(card, 'close')?.addEventListener('click', (event) => { event.stopPropagation(); closeCard(card); });
+  cardPart(card, 'forget')?.addEventListener('click', (event) => { event.stopPropagation(); void forgetFromCard(card, event.currentTarget); });
+  card.addEventListener('pointerdown', () => { if (frontCard() !== card) { raiseCard(card); nostromo.focusLink = null; } });
+  // Moved by its header, inside the map's frame. Not on a phone: there it is a sheet.
+  const head = card.querySelector('header');
+  head?.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || nostromo.flat || event.target.closest('button')) return;
+    event.preventDefault();
+    const frame = card.offsetParent?.getBoundingClientRect() ?? { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+    const box = card.getBoundingClientRect();
+    const dx = event.clientX - box.left, dy = event.clientY - box.top;
+    card.classList.add('moving');
+    try { head.setPointerCapture(event.pointerId); } catch { /* the pointer already left */ }
+    const move = (moving) => {
+      const left = Math.max(0, Math.min(frame.width - 60, moving.clientX - frame.left - dx));
+      const top = Math.max(0, Math.min(frame.height - 40, moving.clientY - frame.top - dy));
+      card.style.left = `${left}px`; card.style.top = `${top}px`; card.style.right = 'auto';
+      card.classList.add('placed');
+    };
+    const drop = () => { head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', drop); head.removeEventListener('pointercancel', drop); card.classList.remove('moving'); };
+    head.addEventListener('pointermove', move);
+    head.addEventListener('pointerup', drop);
+    head.addEventListener('pointercancel', drop);
+  });
+  return card;
+}
+
 function showNostromoCard(node) {
   const { memory } = node;
-  nostromo.selected = node;
+  let card = nostromo.cards.find((one) => one.node === node) ?? null;
+  if (!card) {
+    while (nostromo.cards.length >= (nostromo.flat ? 1 : CARD_MAX)) closeCard(nostromo.cards[0]);
+    card = newNostromoCard();
+    card.node = node;
+  }
+  raiseCard(card);
   nostromo.focusLink = null;
-  nostromo.card.style.setProperty('--kind', node.color);
-  document.querySelector('#nostromo-card-kind').textContent = askWords(kindWord(memory.kind));
-  document.querySelector('#nostromo-card-text').textContent = memory.text;
-  document.querySelector('#nostromo-card-span').textContent = memory.fromSequence === memory.throughSequence ? `#${memory.fromSequence}` : `#${memory.fromSequence}–#${memory.throughSequence}${memory.sources?.length ? ` · cites ${memory.sources.map((n) => `#${n}`).join(' ')}` : ''}`;
-  document.querySelector('#nostromo-card-agent').textContent = `@${memory.agent}${memory.origin === 'noted' ? t(" · on the human's request") : memory.origin === 'flagged' ? t(' · flagged by {who}', { who: memory.detector ?? t('the room') }) : t(' · distilled')}`;
-  document.querySelector('#nostromo-card-when').textContent = memory.created ? new Date(memory.created).toLocaleString() : '';
+  card.style.setProperty('--kind', node.color);
+  cardPart(card, 'kind').textContent = askWords(kindWord(memory.kind));
+  cardPart(card, 'text').textContent = memory.text;
+  cardPart(card, 'span').textContent = memory.fromSequence === memory.throughSequence ? `#${memory.fromSequence}` : `#${memory.fromSequence}–#${memory.throughSequence}${memory.sources?.length ? ` · cites ${memory.sources.map((n) => `#${n}`).join(' ')}` : ''}`;
+  cardPart(card, 'agent').textContent = `@${memory.agent}${memory.origin === 'noted' ? t(" · on the human's request") : memory.origin === 'flagged' ? t(' · flagged by {who}', { who: memory.detector ?? t('the room') }) : t(' · distilled')}`;
+  cardPart(card, 'when').textContent = memory.created ? new Date(memory.created).toLocaleString() : '';
   // Where it stands aboard, said where it can be seen: the word on a mark of its own and what it
   // means on the line under it. The meaning used to live only in a tooltip, which a finger never
   // opens, and the mark took the colour of every other line in the card.
-  const zone = document.querySelector('#nostromo-card-zone');
+  const zone = cardPart(card, 'zone');
   const standing = memory.zone ?? 'hold';
   zone.replaceChildren(el('b', 'zone-word', zoneWord(standing)), el('span', 'zone-note', ZONE_NOTE[standing] ?? ''));
   zone.className = `zone ${travels(memory) ? 'underway' : 'archived'} zone-${standing}`;
@@ -16103,8 +16201,8 @@ function showNostromoCard(node) {
 
   // The wires it has on the map, strongest first.
   const neighbours = neighboursOf(memory.id);
-  const links = document.querySelector('#nostromo-card-links');
-  document.querySelector('#nostromo-card-degree').textContent = String(neighbours.length);
+  const links = cardPart(card, 'links');
+  cardPart(card, 'degree').textContent = String(neighbours.length);
   links.replaceChildren();
   if (!neighbours.length) links.append(el('li', 'none', t('No theme shared with another memory yet.')));
   for (const { link, node: other } of neighbours) {
@@ -16112,23 +16210,22 @@ function showNostromoCard(node) {
   }
 
   // And what has actually passed between it and the room. Filled from the archive, then kept up.
-  document.querySelector('#nostromo-card-exchange').textContent = t('READING…');
-  document.querySelector('#nostromo-card-fired').replaceChildren();
-  const forget = document.querySelector('#nostromo-forget');
+  cardPart(card, 'exchange').textContent = t('READING…');
+  cardPart(card, 'fired').replaceChildren();
+  const forget = cardPart(card, 'forget');
   forget.textContent = memory.kind === 'aberration' ? t('CLEAR THIS ABERRATION') : t('FORGET THIS MEMORY');
   forget.classList.remove('confirm');
   forget.disabled = false;
-  nostromo.card.hidden = false;
-  void nostromoTraffic();
+  void nostromoTraffic(card);
   watchTraffic();
   if (nostromo.flat) flatFocus(node);
 }
 
 // The traffic of the open card, read from the archive. Every memory is supposed to be in
 // conversation with the rest; this is that conversation, counted.
-async function nostromoTraffic() {
-  const node = nostromo.selected;
-  if (!node || nostromo.card.hidden) return;
+async function nostromoTraffic(card = frontCard()) {
+  const node = card?.node;
+  if (!node || !card.isConnected) return;
   const id = node.memory.id;
   let traffic;
   try {
@@ -16136,10 +16233,10 @@ async function nostromoTraffic() {
     traffic = await response.json();
     if (!response.ok) throw new Error(traffic.error ?? `HTTP ${response.status}`);
   } catch (error) {
-    if (nostromo.selected?.memory.id === id) document.querySelector('#nostromo-card-exchange').textContent = String(error.message).toUpperCase();
+    if (card.isConnected) cardPart(card, 'exchange').textContent = String(error.message).toUpperCase();
     return;
   }
-  if (nostromo.selected?.memory.id !== id || nostromo.card.hidden) return;   // the human moved on
+  if (!card.isConnected || card.node?.memory.id !== id) return;   // the card was closed meanwhile
   // What the archive counted is the truth about this memory: the map's star follows it live.
   node.memory.recalled = traffic.recalled;
   node.memory.lastRecalled = traffic.lastRecalled;
@@ -16159,9 +16256,9 @@ async function nostromoTraffic() {
     // The counters are older than the trail. Saying nothing here would read as "always alone".
     said.push(t('company recorded since {when} · nothing since', { when: new Date(traffic.since).toLocaleDateString() }));
   }
-  document.querySelector('#nostromo-card-exchange').textContent = said.join('\n');
+  cardPart(card, 'exchange').textContent = said.join('\n');
 
-  const fired = document.querySelector('#nostromo-card-fired');
+  const fired = cardPart(card, 'fired');
   fired.replaceChildren();
   const byId = new Map(nostromo.nodes.map((item) => [item.memory.id, item]));
   // What it kept arriving with. Two memories that keep travelling into the same turn are in
@@ -16204,22 +16301,23 @@ async function nostromoTraffic() {
 // covers the quiet (a recall is counted as a turn begins, before it has anything to say).
 let trafficTimer = null;
 let trafficSoon = null;
+// Every open card follows the room, not only the one in front.
+const everyTraffic = () => { for (const card of nostromo.cards) void nostromoTraffic(card); };
 function watchTraffic() {
   clearInterval(trafficTimer);
-  trafficTimer = setInterval(() => { if (!nostromo.card.hidden && nostromo.selected) void nostromoTraffic(); else stopTraffic(); }, 6000);
+  trafficTimer = setInterval(() => { if (nostromo.cards.length) everyTraffic(); else stopTraffic(); }, 6000);
 }
 function stopTraffic() { clearInterval(trafficTimer); trafficTimer = null; clearTimeout(trafficSoon); trafficSoon = null; }
 function nudgeTraffic() {
-  if (nostromo.card.hidden || !nostromo.selected || trafficSoon) return;
-  trafficSoon = setTimeout(() => { trafficSoon = null; void nostromoTraffic(); }, 700);
+  if (!nostromo.cards.length || trafficSoon) return;
+  trafficSoon = setTimeout(() => { trafficSoon = null; everyTraffic(); }, 700);
 }
 liveWatcher = nudgeTraffic;
 
-// Forgetting takes two presses: the second within four seconds.
+// Forgetting takes two presses: the second within four seconds. Each card forgets its own memory.
 let forgetTimer = null;
-document.querySelector('#nostromo-forget')?.addEventListener('click', async (event) => {
-  const button = event.currentTarget;
-  const node = nostromo.selected;
+async function forgetFromCard(card, button) {
+  const node = card.node;
   if (!node) return;
   if (!button.classList.contains('confirm')) {
     button.classList.add('confirm');
@@ -16236,8 +16334,7 @@ document.querySelector('#nostromo-forget')?.addEventListener('click', async (eve
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
     beginImplosion(node, performance.now() / 1000);
-    nostromo.card.hidden = true;
-    nostromo.selected = null;
+    closeCard(card);
     const left = result.stats?.memories ?? Math.max(0, nostromo.nodes.length - 1);
     nostromo.sub.textContent = t('MEMORY RESEARCH · {n} MEMORIES · {links} LINKS · {entries} EXCHANGES BEHIND THEM', { n: left, links: nostromo.links.length, entries: result.stats?.entries ?? 0 });
     nostromo.empty.hidden = left > 0;
@@ -16248,7 +16345,7 @@ document.querySelector('#nostromo-forget')?.addEventListener('click', async (eve
     button.textContent = t('FORGET THIS MEMORY');
     toast(t('MU/TH/UR › it could not be forgotten: {error}', { error: error.message }));
   }
-});
+}
 
 
 /* ---------- First contact: the five-stop tour. Once on the first visit, again from ? in MU/TH/UR. ---------- */

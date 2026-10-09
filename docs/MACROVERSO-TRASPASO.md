@@ -34,7 +34,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `c3c7025` | Claude | UX · segunda barra (casa, recargar, engrane), burbuja de BISHOP con su robot, agentes en relieve |
 | `a38e095` | Claude | UX · sala en capas (tonos de blanco y sombra, sin transparencias), agentes planos, casa y engrane con movimiento, chip de Memoria |
 | `e611b5b` | Claude | UX · líneas de la sala (capa 0) con su forma también sin fondo de paisaje; los avisos conservan su color |
-| *este commit* | Claude | UX · doce ajustes (esfuerzo, foco, escritorio, editor, ventanas, ficha de agente, selector, tableros, tablas, MU/TH/UR, sesión) y precio de lista para Codex, Gemini y OpenCode (`src/prices.mjs`) |
+| `5edf35a` | Claude | UX · doce ajustes (esfuerzo, foco, escritorio, editor, ventanas, ficha de agente, selector, tableros, tablas, MU/TH/UR, sesión) y precio de lista para Codex, Gemini y OpenCode (`src/prices.mjs`) |
+| *este commit* | Claude | UX · «sigue abierto» sin cortes, fichas de NOSTROMO como ventanas, NOSTROMO más amplio, El núcleo en el lenguaje de la sala, preguntas de módulos en la hoja |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -173,6 +174,12 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
 - **Las reglas de las burbujas con fondo de paisaje** (`:root[data-scheme][data-wallpaper]…`) pesan más
   que un selector `#messages …`: la escalera de capas escribe el id dos veces (`#messages#messages`)
   para ganarles. Y `--lift-1…` ya eran fichas globales: las sombras de las capas se llaman `--rise-*`.
+- **El núcleo lee sus palabras en oración** (`coreWords`/`coreSentences` en app.js, con un
+  MutationObserver): las frases siguen en mayúsculas en el código y el catálogo. Una palabra con
+  cifras, barra, siglas de `CORE_KEEP` o ya en minúsculas no se toca. Si una frase nueva sale mal,
+  se arregla en `CORE_KEEP`, no con `text-transform`, que convertiría «11.0M» en «11.0m».
+- **Fichas de NOSTROMO**: `#nostromo-card` es la plantilla (siempre oculta); cada ficha es una copia
+  con sus piezas por `data-part`. `nostromo.selected` es la del frente.
 - **Precios (`src/prices.mjs`)**: solo modelos leídos dos veces en la página del proveedor
   (2026-10-09); uno que no está, sin precio. Cada CLI cuenta distinto (caché dentro o fuera de la
   entrada, razonamiento dentro o fuera de la salida): la tabla `COUNTING` lo dice por fuente. Las

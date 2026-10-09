@@ -100,16 +100,16 @@
       <dialog id="core" class="mother core" aria-label="The core">
         <div class="mother-frame">
           <header class="mother-head">
-            <span class="mother-title">THE CORE</span>
-            <span class="mother-sub">MU/TH/UR 6000 · WHAT THIS ROOM SAYS IN YOUR NAME</span>
+            <span class="mother-title">The core</span>
+            <span class="mother-sub">What this room says in your name</span>
             <span class="mother-actions">
-              <button id="core-copy" class="mother-close" type="button" title="Copy the whole briefing as the agent receives it">⧉ COPY ALL</button>
-              <button id="core-close" class="mother-close" type="button">CLOSE ×</button>
+              <button id="core-copy" class="mother-close" type="button" title="Copy the whole briefing as the agent receives it">Copy all</button>
+              <button id="core-close" class="mother-close" type="button" aria-label="Close">Close</button>
             </span>
           </header>
           <p id="core-boot" class="mother-boot"></p>
           <section id="core-body" class="mother-section core-body" hidden></section>
-          <footer class="mother-foot">BUILT NOW · STORED NOWHERE · SENT NOWHERE · READ, NEVER WRITTEN</footer>
+          <footer class="mother-foot">Built now · stored nowhere · sent nowhere · read, never written</footer>
         </div>
       </dialog>
 
@@ -300,26 +300,26 @@
           </aside>
           <aside id="nostromo-card" class="nostromo-card" hidden>
             <header>
-              <span id="nostromo-card-kind" class="kind">MEMORY</span>
-              <button id="nostromo-card-close" class="mother-close" type="button">×</button>
+              <span id="nostromo-card-kind" data-part="kind" class="kind">MEMORY</span>
+              <button id="nostromo-card-close" data-part="close" class="mother-close" type="button">×</button>
             </header>
-            <p id="nostromo-card-text" class="text"></p>
+            <p id="nostromo-card-text" data-part="text" class="text"></p>
             <dl class="meta">
-              <dt>SOURCE</dt><dd id="nostromo-card-span"></dd>
-              <dt>ARCHIVIST</dt><dd id="nostromo-card-agent"></dd>
-              <dt>DISTILLED</dt><dd id="nostromo-card-when"></dd>
-              <dt>ZONE</dt><dd id="nostromo-card-zone"></dd>
+              <dt>SOURCE</dt><dd id="nostromo-card-span" data-part="span"></dd>
+              <dt>ARCHIVIST</dt><dd id="nostromo-card-agent" data-part="agent"></dd>
+              <dt>DISTILLED</dt><dd id="nostromo-card-when" data-part="when"></dd>
+              <dt>ZONE</dt><dd id="nostromo-card-zone" data-part="zone"></dd>
             </dl>
             <section class="wire">
-              <h6>LINKS <span id="nostromo-card-degree" class="n"></span></h6>
-              <ul id="nostromo-card-links" class="wires"></ul>
+              <h6>LINKS <span id="nostromo-card-degree" data-part="degree" class="n"></span></h6>
+              <ul id="nostromo-card-links" data-part="links" class="wires"></ul>
             </section>
             <section class="wire">
-              <h6>EXCHANGE WITH MADRE <span id="nostromo-card-live" class="live" title="This reading follows the room while the card is open">◉</span></h6>
-              <p id="nostromo-card-exchange" class="exchange"></p>
-              <ul id="nostromo-card-fired" class="wires"></ul>
+              <h6>EXCHANGE WITH MADRE <span id="nostromo-card-live" data-part="live" class="live" title="This reading follows the room while the card is open">◉</span></h6>
+              <p id="nostromo-card-exchange" data-part="exchange" class="exchange"></p>
+              <ul id="nostromo-card-fired" data-part="fired" class="wires"></ul>
             </section>
-            <button id="nostromo-forget" class="forget" type="button">FORGET THIS MEMORY</button>
+            <button id="nostromo-forget" data-part="forget" class="forget" type="button">FORGET THIS MEMORY</button>
             <p class="foot">FORGETTING REMOVES THE NOTE FROM EVERY FUTURE TURN. THE LEDGER IT CAME FROM STAYS.</p>
           </aside>
           <p id="nostromo-empty" class="nostromo-empty" hidden>NO MEMORIES YET. THE ARCHIVIST WRITES THE FIRST ONES AFTER A FEW EXCHANGES.</p>

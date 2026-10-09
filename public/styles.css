@@ -7913,3 +7913,142 @@ dialog.viewer .viewer-seg .viewer-seg-btn:not([hidden]) + .viewer-open { margin-
 .session-lamp.wait::before { background: var(--session-wait) !important; }
 .session-lamp.bad::before { background: var(--session-bad) !important; }
 .sx-chip.session-lamp { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }
+
+/* SIGUE ABIERTO AQUÍ (2026-10-09): the row moves a whole question at a time, so the one at its start
+   is never cut; the end where more waits fades out over 40 px instead of slicing a pill. */
+.openq-rail { scroll-snap-type: x mandatory; scroll-padding-inline: 2px; overscroll-behavior-x: contain; }
+.openq-rail > * { scroll-snap-align: start; }
+.openq-rail > :last-child { scroll-snap-align: end; }
+.openq-rail.more-after { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent); }
+.openq-rail.more-before { -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px); mask-image: linear-gradient(90deg, transparent, #000 40px); }
+.openq-rail.more-before.more-after { -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+
+/* NOSTROMO's cards as windows (2026-10-09): each a step down and to the left of the one before,
+   moved by the header, the one in front a touch brighter and lifted. Never taller than the map. */
+#nostromo .nostromo-card.card-window { top: calc(84px + var(--card-step, 0) * 30px); right: calc(20px + var(--card-step, 0) * 30px); max-height: calc(100% - 104px - var(--card-step, 0) * 30px); overflow: auto; overscroll-behavior: contain; transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out), opacity calc(160ms * var(--motion-scale, 1)) var(--ease-out); }
+#nostromo .nostromo-card.card-window.placed { max-height: calc(100% - 20px); }
+#nostromo .nostromo-card.card-window header { cursor: grab; user-select: none; touch-action: none; }
+#nostromo .nostromo-card.card-window.moving header { cursor: grabbing; }
+#nostromo .nostromo-card.card-window:not(.front) { opacity: .88; }
+#nostromo .nostromo-card.card-window.front { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 1px color-mix(in srgb, var(--kind, #f2f1ee) 40%, transparent), 0 22px 48px -18px rgba(0, 0, 0, .85); }
+.via-phone #nostromo .nostromo-card.card-window { top: auto; right: 10px; max-height: 54%; opacity: 1; }
+
+/* ==========================================================================================
+   EL NÚCLEO in the room's own language (2026-10-09)
+   ------------------------------------------------------------------------------------------
+   It was the last screen still dressed as the terminal. Now it reads like AJUSTES and MU/TH/UR:
+   a sheet of the room's ground over the room, its name in the room's type, the panes as a
+   segmented control, figures on raised tiles, labels in sentences, mono only for what is literal
+   (a model, a flag, a path, the text the agent receives). Light and dark from the same tokens.
+   The words still come uppercase from the code; coreSentences() in app.js reads them in sentences.
+   ========================================================================================== */
+dialog#core { width: min(1120px, calc(100vw - 48px)); max-width: none; height: min(840px, calc(100dvh - 48px)); max-height: none; margin: auto; border-radius: 22px; overflow: hidden; color: var(--text); background: color-mix(in srgb, var(--bg-2) 97%, transparent); box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 34px 90px -30px rgba(0, 0, 0, .55), 0 8px 24px -8px rgba(0, 0, 0, .22); }
+dialog#core::backdrop { background: color-mix(in srgb, var(--bg) 46%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+dialog#core .core-body.mother-section { margin-top: 0; }
+dialog#core .mother-frame { --ph: var(--text); --ph-dim: var(--text-3); --ph-faint: var(--line); height: 100%; padding: 0; border: 0; border-radius: inherit; background: none; box-shadow: none; font-family: var(--read); letter-spacing: 0; color: var(--text); text-shadow: none; animation: none; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+dialog#core .mother-frame::before, dialog#core .mother-frame::after { content: none; }
+dialog#core :is(*, *::before, *::after) { text-shadow: none !important; }
+/* The head: name and line, the two keys at the right. */
+dialog#core .mother-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px 22px; border-bottom: 1px solid var(--line); }
+dialog#core .mother-title { font-family: var(--read); font-size: 17px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
+dialog#core .mother-sub { flex: 1; min-width: 0; font-family: var(--read); font-size: 12.5px; letter-spacing: 0; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+dialog#core .mother-actions { display: inline-flex; gap: 8px; }
+dialog#core .mother-close { height: 30px; padding: 0 13px; border: 0; border-radius: 9px; font-family: var(--read); font-size: 12.5px; font-weight: 550; letter-spacing: 0; text-transform: none; color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-rest); cursor: pointer; }
+dialog#core .mother-close:hover { box-shadow: var(--key-over, var(--key-rest)); color: var(--phosphor); }
+dialog#core .mother-close:active { box-shadow: var(--key-down, var(--key-rest)); }
+dialog#core .mother-boot { display: none; }
+dialog#core .mother-foot { padding: 9px 22px 11px; border-top: 1px solid var(--line); font-family: var(--read); font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--text-3); text-align: center; }
+/* The body: tabs, the strip that says for whom, the pane, and the question line. */
+dialog#core .core-body { min-height: 0; gap: 12px; padding: 14px 22px 14px; }
+dialog#core .core-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 3px; padding: 3px; border-radius: 13px; box-shadow: var(--key-track); }
+dialog#core .core-tab { gap: 2px; padding: 8px 12px; border: 0 !important; border-radius: 10px; background: transparent; color: var(--text-2); font-family: var(--read); letter-spacing: 0; text-align: left; cursor: pointer; transition: background-color var(--motion) var(--ease-out), box-shadow var(--motion) var(--ease-out); }
+dialog#core .core-tab b { display: block; font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: inherit; }
+dialog#core .core-tab .meta { display: block; font-family: var(--read); font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--text-3); opacity: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+dialog#core .core-tab:hover { color: var(--text); background: color-mix(in srgb, var(--text) 5%, transparent); }
+dialog#core .core-tab.on { color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+dialog#core .core-strip { gap: 10px; padding: 0 2px 12px; border-bottom: 1px solid var(--line); }
+dialog#core :is(.core-pick .k, .core-asking .k) { font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .core-pick .k, dialog#core .core-asking .k { display: inline-block; }
+dialog#core .core-agent { height: 28px; padding: 0 11px; border: 0; border-radius: 999px; font-family: var(--read); font-size: 12.5px; letter-spacing: 0; color: var(--text-2); background: color-mix(in srgb, var(--text) 6%, transparent); }
+dialog#core .core-agent:hover { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
+dialog#core .core-agent.on { color: var(--phosphor-ink, #fff); background: var(--phosphor); }
+dialog#core .core-pick select, dialog#core .core-field select { height: 30px; padding: 0 10px; border: 0; border-radius: 9px; font-family: var(--mono); font-size: 11.5px; letter-spacing: .02em; color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+dialog#core .core-ceiling { font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--warn); }
+dialog#core .core-asking textarea { padding: 9px 12px; border: 0; border-radius: 11px; font-family: var(--read); font-size: 13px; letter-spacing: 0; color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-track); }
+dialog#core .core-asking textarea::placeholder { color: var(--text-3); }
+dialog#core .core-asking .note { font-family: var(--read); font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .core-panes { padding: 2px 2px 8px; }
+/* Section heads: the terminal's `==>` gives way to a heading in sentence case. */
+dialog#core .brew-head { margin: 8px 0 0; gap: 10px; font-family: var(--read); font-size: 12px; letter-spacing: 0; color: var(--text-3); }
+dialog#core .brew-head > b { display: none; }
+dialog#core .brew-head .title { display: inline-block; font-size: 14px; font-weight: 650; letter-spacing: 0; text-transform: none; color: var(--text); }
+dialog#core .brew-head .meta, dialog#core .brew-head .brew-actions .when { font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .brew-head .brew-actions button, dialog#core .core-pane button:not(.core-tab):not(.core-agent):not(.core-copy-one) { height: 28px; padding: 0 12px; border: 0; border-radius: 8px; font-family: var(--read); font-size: 12px; font-weight: 550; letter-spacing: 0; text-transform: none; color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-rest); cursor: pointer; }
+dialog#core .brew-rows { gap: 0; padding: 4px 14px; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+dialog#core .brew-row { gap: 16px; padding: 8px 0; border-top: 1px solid var(--line); }
+dialog#core .brew-row:first-child { border-top: 0; }
+dialog#core .brew-row .k { display: block; font-family: var(--read); font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .brew-row .v { font-family: var(--read); font-size: 12.5px; line-height: 1.5; color: var(--text); }
+dialog#core .brew-row .v .where { color: var(--text-3); }
+/* Figures: raised tiles, label above, figure, a line under it. */
+dialog#core .mem-kpis { gap: 12px; }
+dialog#core .mem-tile, dialog#core .mem-card { border: 0; border-radius: 16px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+dialog#core .mem-tile { padding: 14px 16px; }
+dialog#core .mem-tile .label, dialog#core .mem-card > h4 { display: block; font-family: var(--read); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .mem-card > h4 { font-size: 13px; font-weight: 600; color: var(--text); }
+dialog#core .mem-tile .value { font-family: var(--read); font-size: clamp(24px, 3cqi, 32px); font-weight: 700; letter-spacing: -.015em; color: var(--text); }
+dialog#core .mem-tile.word .value { font-size: clamp(16px, 2cqi, 19px); letter-spacing: 0; }
+dialog#core :is(.mem-tile .sub, .mem-card .detail, .mem-card .note, .core-pane .note, .core-from, .core-fixed, .mem-legend, .mem-signal, .mem-bar) { font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+dialog#core .mem-signal .top b { font-family: var(--read); letter-spacing: 0; text-transform: none; color: var(--text); }
+dialog#core :is(.mem-meter, .core-block > summary .weigh) { height: 6px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+dialog#core .mem-meter > i, dialog#core .mem-tile .mem-meter > i { border-radius: inherit; background: var(--phosphor); box-shadow: none; }
+dialog#core .core-block > summary .weigh::after { border-radius: inherit; background: var(--phosphor); }
+dialog#core .mem-cols i.on, dialog#core .mem-meter > .mark { background: var(--text); }
+/* The document: one row per block, a card when open. */
+dialog#core .core-blocks { gap: 6px; }
+dialog#core .core-block { border: 0; border-radius: 13px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+dialog#core .core-block:hover { border: 0; }
+dialog#core .core-block[open] { background: var(--surface, var(--panel)); }
+dialog#core .core-block > summary { padding: 10px 14px; }
+dialog#core .core-block > summary .sign { color: var(--phosphor); }
+dialog#core .core-block > summary b { font-family: var(--read); font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text); }
+dialog#core .core-block > summary .n, dialog#core .core-block > summary .when { font-family: var(--read); font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .core-text { padding: 0 14px 14px; }
+dialog#core :is(.core-text pre, pre.core-egress-log, .core-launch .mother-cmd pre) { border: 0; border-radius: 11px; background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text); font-family: var(--mono); font-size: 11.5px; letter-spacing: 0; }
+dialog#core .core-copy-one { border: 0; border-radius: 7px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); color: var(--text-2); font-family: var(--read); font-size: 11.5px; letter-spacing: 0; text-transform: none; }
+dialog#core .core-fixed { border-left-color: var(--phosphor); }
+dialog#core .core-role { color: var(--text); }
+dialog#core .core-role-words b { font-family: var(--read); font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text); }
+dialog#core .core-field { font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .core-server .tools i { border: 0; border-radius: 6px; background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text-2); font-family: var(--mono); letter-spacing: 0; }
+/* The question line: a field like the composer's, its prompt the accent. */
+dialog#core .console-line { gap: 10px; padding: 6px 6px 6px 14px; border: 0; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--key-track); }
+dialog#core .console-line .prompt { color: var(--phosphor); }
+dialog#core .console-line input { font-family: var(--read); font-size: 13px; letter-spacing: 0; text-transform: none; color: var(--text); }
+dialog#core .console-line input::placeholder { color: var(--text-3); letter-spacing: 0; text-transform: none; }
+dialog#core .console-line button { height: 28px; padding: 0 12px; border: 0; border-radius: 8px; font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text); background: color-mix(in srgb, var(--text) 7%, transparent); }
+dialog#core .console-log { font-family: var(--mono); font-size: 11.5px; color: var(--text); }
+dialog#core .console-log .said { color: var(--text-3); }
+@media (max-width: 720px) { dialog#core { width: 100vw; height: 100dvh; border-radius: 0; } dialog#core .core-body { padding: 12px 14px; } }
+dialog#core .mem-signal .top { align-items: baseline; }
+dialog#core .mem-signal .top b { font-size: 12.5px; font-weight: 600; }
+dialog#core .mem-signal .top span { font-family: var(--read); font-size: 12.5px; font-weight: 600; letter-spacing: 0; color: var(--text-2); font-variant-numeric: tabular-nums; }
+dialog#core .mem-signal.hot .top span { color: var(--crit); }
+/* What left this machine: one row per address on a raised list, its state a small chip. */
+dialog#core .core-egress { gap: 0; padding: 4px 14px; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+dialog#core .egress { grid-template-columns: 44px minmax(120px, 1fr) auto; gap: 3px 12px; padding: 11px 0; border: 0; border-top: 1px solid var(--line); background: none; }
+dialog#core .egress:first-child { border-top: 0; }
+dialog#core .egress:hover { border-color: var(--line); background: none; }
+dialog#core .egress .state { justify-self: start; padding: 2px 7px; border-radius: 6px; font-family: var(--read); font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--phosphor); background: color-mix(in srgb, var(--phosphor) 14%, transparent); }
+dialog#core .egress.off .state { color: var(--text-3); background: color-mix(in srgb, var(--text) 7%, transparent); }
+dialog#core .egress.local .state { color: #3f7fb0; background: color-mix(in srgb, #3f7fb0 14%, transparent); }
+dialog#core .egress > b { font-family: var(--read); font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--text); }
+dialog#core .egress .n { font-family: var(--read); font-size: 11.5px; letter-spacing: 0; color: var(--text-3); }
+dialog#core .egress .what { font-family: var(--read); font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+dialog#core .egress .when { font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .egress .when .where { color: var(--text-3); }
+dialog#core .egress.off { opacity: .7; }
+/* The launch command, as the room shows any literal text: a quiet well, its copy key a small key. */
+dialog#core .mother-cmd { position: relative; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+dialog#core .mother-cmd pre { background: transparent !important; color: var(--text) !important; }
+dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; display: inline-grid; place-items: center; width: 28px; height: 26px; padding: 0; border: 0; border-radius: 7px; font-family: var(--read); font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--text-2); background: var(--surface, var(--panel)); box-shadow: var(--key-rest); cursor: pointer; }

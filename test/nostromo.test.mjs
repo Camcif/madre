@@ -233,7 +233,7 @@ test('nostromo: the skin is wrapped on a sphere, so it narrows toward the limb',
 test('nostromo: the star wears no halo, only darkness', async () => {
   const { run, calls } = await nostromoRenderer(fakeRoom());
   run(0.4);
-  const core = 104;   // CORE_R
+  const core = 114;   // CORE_R
 
   // A soft cloud around a star makes it look smaller, not bigger. Nothing additive may be laid
   // down far from the body: the light stops close to the limb and the rest is dark.
@@ -313,7 +313,8 @@ test('nostromo: reduced motion stills the molten surface without emptying the ro
   const face = (t) => {
     calls.length = 0;
     run(t);
-    return calls.filter((c) => c.name === 'drawImage').map((c) => `${c.args[1]}:${c.args[2]}`).join('|');
+    // To a thousandth of a pixel: what moves is the rock, not the last bits of a float.
+    return calls.filter((c) => c.name === 'drawImage').map((c) => `${Number(c.args[1]).toFixed(3)}:${Number(c.args[2]).toFixed(3)}`).join('|');
   };
   const first = face(0);
   assert.ok(first.length > 0, 'a still room still draws its surface');

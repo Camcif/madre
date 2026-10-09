@@ -610,3 +610,13 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   (`src/prices.mjs`, `test/prices.test.mjs`), verificado en las páginas de OpenAI y Google. No
   verificado: un turno real con precio (gastaría tokens; el servidor de la sala pulse sigue con el
   código anterior hasta reiniciarse), el giro de las teclas al pasar el puntero, el teléfono.
+- `2026-10-09` · Séptima ronda de UX, cinco puntos con capturas: «sigue abierto aquí» encaja por
+  pregunta y desvanece el borde con más; las fichas de memoria de NOSTROMO son ventanas (hasta
+  cuatro, se mueven por el encabezado, la del frente es la seleccionada; el teléfono conserva una);
+  NOSTROMO con `CORE_R` 114 (era 104), `NOSTROMO_ORBIT` 360 (300), más empuje entre memorias y un
+  encuadre más ceñido; El núcleo deja la terminal y toma el lenguaje de Ajustes y MU/TH/UR (sin
+  arranque tecleado, palabras en oración vía `coreWords`); instalar, actualizar y desinstalar un
+  módulo preguntan con la hoja de la sala. La prueba de quietud de NOSTROMO compara posiciones a la
+  milésima de píxel (fallaba por ruido de punto flotante al cambiar los radios). Verificado en
+  pantalla en claro y oscuro (El núcleo), a 1280 y 820 px. No verificado: el modal de desinstalar con
+  un módulo propio instalado (no hay uno en esta sala; usa la misma hoja que las demás preguntas).

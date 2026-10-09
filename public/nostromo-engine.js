@@ -66,7 +66,9 @@ export function activityOf(raw, top) {
 // World space: MOTHER's core sits at (0, 0); planets orbit in world units and a
 // camera maps the world to the canvas. The camera follows the whole system
 // until the human takes the wheel (drag, wheel), and RECENTER hands it back.
-export const NOSTROMO_ORBIT = 300;
+// 360 (was 300): the memories stand further out, so each one reads on its own and the
+// constellation takes the canvas it has.
+export const NOSTROMO_ORBIT = 360;
 
 // The archive is not a ball. It is the shape of the thing that holds it, seen from the side:
 // a brain, facing left. One function says how far the shell is at a given bearing, and BOTH the
@@ -179,7 +181,8 @@ const HEART_PERIOD = 1.15;   // seconds per beat: slow, deliberate, alive
 const WAVE_SPEED = 260;      // world units per second a beat travels outward
 
 // The core's radius in world units: constant so the layout does not depend on the window.
-export const CORE_R = 104;
+// 114: ten per cent larger than the 104 it was (2026-10-09), asked for so MOTHER reads first.
+export const CORE_R = 114;
 
 // ---- The shape of MOTHER's body.
 // The axis leans, so we look a little down on the planet rather than straight at its equator:
@@ -1232,7 +1235,7 @@ export function createNostromo(nostromo) {
         const ox = node.wx - other.wx;
         const oy = node.wy - other.wy;
         const oz = node.wz - other.wz;
-        const reach = (own + (other.r3 ?? other.r) + 30) * 2.2;
+        const reach = (own + (other.r3 ?? other.r) + 46) * 2.2;
         const square = ox * ox + oy * oy + oz * oz;
         if (square >= reach * reach) continue;
         const d = Math.sqrt(square) || 1;
@@ -1256,7 +1259,7 @@ export function createNostromo(nostromo) {
       const dy = b.wy - a.wy;
       const dz = b.wz - a.wz;
       const d = Math.hypot(dx, dy, dz) || 1;
-      const rest = (a.r3 ?? a.r) + (b.r3 ?? b.r) + 70;
+      const rest = (a.r3 ?? a.r) + (b.r3 ?? b.r) + 96;
       const k = (d - rest) * 0.0035 * link.weight;
       a.fx += (dx / d) * k; a.fy += (dy / d) * k; a.fz += (dz / d) * k;
       b.fx -= (dx / d) * k; b.fy -= (dy / d) * k; b.fz -= (dz / d) * k;
@@ -1364,8 +1367,9 @@ export function createNostromo(nostromo) {
       minX = Math.min(minX, -reach); maxX = Math.max(maxX, reach);
       minY = Math.min(minY, node.y - node.r * 3); maxY = Math.max(maxY, node.y + node.r * 3);
     }
-    const pad = 70;
-    const scale = Math.min(1.4, Math.max(0.3, Math.min((w - pad * 2) / (maxX - minX || 1), (h - pad * 2 - 40) / (maxY - minY || 1))));
+    // A narrow margin: the constellation is the content of this window, so it takes most of it.
+    const pad = 36;
+    const scale = Math.min(1.4, Math.max(0.3, Math.min((w - pad * 2) / (maxX - minX || 1), (h - pad * 2 - 24) / (maxY - minY || 1))));
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2 - 20 / scale;
     if (!held) { cam.x += (cx - cam.x) * 0.05; cam.y += (cy - cam.y) * 0.05; }
