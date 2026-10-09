@@ -32,7 +32,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `e450832` | Claude | UX · ajustes de BISHOP en palabras (`choices` en el SDK) |
 | `d69ae55` | Claude | UX · menos líneas por plan, pies cortos, «leyó / recordó» en el pie de su respuesta |
 | `c3c7025` | Claude | UX · segunda barra (casa, recargar, engrane), burbuja de BISHOP con su robot, agentes en relieve |
-| *este commit* | Claude | UX · sala en capas (tonos de blanco y sombra, sin transparencias), agentes planos, casa y engrane con movimiento, chip de Memoria |
+| `a38e095` | Claude | UX · sala en capas (tonos de blanco y sombra, sin transparencias), agentes planos, casa y engrane con movimiento, chip de Memoria |
+| *este commit* | Claude | UX · líneas de la sala (capa 0) con su forma también sin fondo de paisaje; los avisos conservan su color |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -171,6 +172,8 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
 - **Las reglas de las burbujas con fondo de paisaje** (`:root[data-scheme][data-wallpaper]…`) pesan más
   que un selector `#messages …`: la escalera de capas escribe el id dos veces (`#messages#messages`)
   para ganarles. Y `--lift-1…` ya eran fichas globales: las sombras de las capas se llaman `--rise-*`.
+- **Sin fondo de paisaje la página borra `data-wallpaper`** (el primer valor de cada apariencia no se
+  escribe): una forma que solo vive bajo `:root[data-wallpaper]` desaparece con el fondo liso.
 - **En el panel oculto del navegador las transiciones no avanzan**: un color leído tras recargar puede
   ser el de la transición congelada; `document.getAnimations().forEach(a => a.finish())` antes de medir.
 - **Fusiones en paralelo**: conflictos en la bitácora y tablas de `docs/MACROVERSO.md`; se

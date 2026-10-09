@@ -7813,8 +7813,13 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   box-shadow: var(--rise-1) !important;
 }
-/* 0 · what the room says */
-#messages#messages .thread-inner > .system:not(.mother-alert) {
+/* 0 · what the room says (a relay, a link, memory). Always its rounded shape, with or without a
+   wallpaper (without one the page drops data-wallpaper, and the shape used to live only under it):
+   a flat tone, the same corner and air as a chip, as wide as its words. The lines that warn or ask
+   (a plan, a change of permissions, an escalation, an alert) keep their own colour and frame. */
+#messages#messages .thread-inner > .system:not(.mother-alert, .control, .escalation, .plan, .alert, .fail) {
+  width: fit-content; max-width: min(92%, 560px); margin-inline: auto;
+  padding: 8px 16px 9px; border: 0; border-radius: 18px;
   background: var(--lay-0) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   box-shadow: none !important; text-shadow: none !important;

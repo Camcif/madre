@@ -594,3 +594,8 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   pantalla a 1280 px en la sala pulse, tema claro y oscuro (este, cambiando el atributo en la página,
   sin tocar el ajuste guardado). No verificado: la animación en pantalla (el panel del navegador
   estaba oculto) ni el teléfono.
+- `2026-10-09` · Las líneas de la sala (capa 0), a pedido con captura: con el fondo liso salían como
+  bloques rectos, porque su esquina y su aire solo existían bajo `:root[data-wallpaper]` y la página
+  borra ese atributo sin fondo de paisaje. Ahora la capa 0 les da su forma siempre (esquina de 18 px,
+  centradas, del ancho de su texto) y deja fuera los avisos con color propio (plan, control,
+  escalada, alerta, falla), que la escalera aplanaba. El texto bajo «ENLACE» ya no empieza con «·».
