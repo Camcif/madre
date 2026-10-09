@@ -1359,6 +1359,9 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .who .badge.mode.m0 { color: var(--mode-0); border-color: color-mix(in srgb, var(--mode-0) 50%, transparent); } .who .badge.mode.m1 { color: var(--mode-1); border-color: color-mix(in srgb, var(--mode-1) 45%, transparent); } .who .badge.mode.m2 { color: var(--mode-2); border-color: color-mix(in srgb, var(--mode-2) 50%, transparent); } .who .badge.mode.m3 { color: var(--mode-3); border-color: var(--mode-3); } .who .badge.mode.m4 { color: var(--mode-4); border-color: var(--mode-4); }
 .row.ghost .bubble { border: 1px dashed var(--line-2); background: transparent; opacity: .85; }
 .row.ghost.user .bubble { background: transparent; color: var(--text); border-color: var(--text-3); }
+/* An order BISHOP brought (via 'bishop'): not the human's words, so not the human's bubble. */
+.row.user.relayed .bubble { background: color-mix(in srgb, var(--panel) 90%, var(--user) 10%); color: var(--text); border: 1px solid color-mix(in srgb, var(--user) 40%, var(--line-2)); }
+.row.user.relayed .bubble th, .row.user.relayed .bubble td { border-color: var(--line-2); }
 .row.ghost .stamp::after { content: ' · not recorded'; color: var(--text-3); }
 .system.plan .step-mode { margin-left: 3px; font-weight: 700; }
 .system.plan .step-mode.m1 { color: var(--mode-1); } .system.plan .step-mode.m2 { color: var(--mode-2); }

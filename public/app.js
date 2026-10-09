@@ -3371,31 +3371,56 @@ function row(kind, agentId, { compact = false } = {}) {
   return node;
 }
 
+// A message BISHOP's channel brought (via 'bishop'): its first line is the header its agent reads.
+// The person reads who it is from instead. An order into this room (BISHOP wrote it; the human
+// pressed «Send», or the mode they chose let it leave on its own), or a question the human asked
+// from another room (their words, from there). Both header formats are read: before 4b's wording
+// changed and after.
+export function relayedOf(payload) {
+  if (payload?.via !== 'bishop') return null;
+  const text = String(payload.text ?? '');
+  const order = text.match(/^BISHOP › (?:(\d+)\/(\d+)|order (\d+) of (\d+)) · plan (p-[0-9a-f]+)([^\n]*)\n*/);
+  if (order) return { kind: 'order', step: order[1] ?? order[3], total: order[2] ?? order[4], plan: order[5], auto: /sent on its own/.test(order[6]), body: text.slice(order[0].length) };
+  const question = text.match(/^BISHOP › question from room (.+?), asked by the human there\.[^\n]*\n*/);
+  if (question) return { kind: 'question', room: question[1], body: text.slice(question[0].length) };
+  const other = text.match(/^BISHOP › [^\n]*\n*/);
+  return { kind: 'other', body: other ? text.slice(other[0].length) : text };
+}
+
 function renderUserMessage(event) {
-  const { messageId, target, text, ash, model, effort, attachments = [], create, mode } = event.payload;
+  const { messageId, target, text: said, ash, model, effort, attachments = [], create, mode } = event.payload;
+  const relayed = relayedOf(event.payload);
+  // What every later use of this message reads (the quote above its answer, a retry, the phrases
+  // while it works) is the task, never the header.
+  const text = relayed ? relayed.body : said;
   state.userMessages.set(messageId, { text, target, model, mode: event.payload.mode ?? 1 });
   settleModeAsksFor(target, event.payload.mode ?? 1);
   const reviewed = state.expendable;
   const node = row('user');
   if (event.ghost || mode === 0) node.classList.add('ghost');
   if (reviewed) node.classList.add('expendable');
+  // BISHOP's order is not the human's words: it does not wear the human's bubble.
+  if (relayed && relayed.kind !== 'question') node.classList.add('relayed');
   node.id = `msg-${messageId}`;
   const col = el('div', 'col');
   const who = el('div', 'who');
-  who.append(el('b', null, reviewed ? t('YOU · CREW (EXPENDABLE)') : t('YOU · CREW')));
-  // An order of BISHOP: its first line is the header the agent reads; the person reads a badge.
-  // A message BISHOP's channel brought: its first line is the header the agent reads; the person
-  // reads a badge. An order into this room, or a question another room raised.
-  const relayedOrder = event.payload.via === 'bishop' ? String(text ?? '').match(/^BISHOP › (\d+)\/(\d+) · plan (p-[0-9a-f]+)[^\n]*\n*/) : null;
-  const relayedQuestion = event.payload.via === 'bishop' && !relayedOrder ? String(text ?? '').match(/^BISHOP › question from room (.+?), asked by the human there\.[^\n]*\n*/) : null;
-  const order = relayedOrder ?? relayedQuestion;
-  if (event.payload.via === 'bishop') who.append(el('span', 'badge via', relayedOrder ? t('from BISHOP · order {step} of {total}', { step: relayedOrder[1], total: relayedOrder[2] }) : relayedQuestion ? t('asked from {room}', { room: relayedQuestion[1] }) : t('from BISHOP')));
-  else if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
+  if (relayed?.kind === 'order') {
+    who.append(el('b', null, 'BISHOP'), el('span', 'badge via', relayed.auto
+      ? t('order {step} of {total} · sent on its own from Salas, in the mode you chose', { step: relayed.step, total: relayed.total })
+      : t('order {step} of {total} · you sent it from Salas', { step: relayed.step, total: relayed.total })));
+  } else if (relayed?.kind === 'question') {
+    who.append(el('b', null, t('YOU · FROM {room}', { room: relayed.room })));
+  } else if (relayed) {
+    who.append(el('b', null, 'BISHOP'));
+  } else {
+    who.append(el('b', null, reviewed ? t('YOU · CREW (EXPENDABLE)') : t('YOU · CREW')));
+    if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
+  }
   const shownMode = Number.isInteger(mode) ? mode : create ? 2 : null;
   if (shownMode !== null && shownMode !== 1) who.append(el('span', `badge mode m${shownMode}`, `#${shownMode} ${MODES[shownMode].label}`));
   if (ash?.active) who.append(el('span', 'badge ash', t('ASH')));
   col.append(who);
-  const bubble = el('div', 'bubble', order ? String(text).slice(order[0].length) : text);
+  const bubble = el('div', 'bubble', text);
   if (attachments.length) bubble.append(fileTiles(attachments));
   col.append(bubble);
   const stamp = paint(el('div', 'stamp'), target);
@@ -3404,7 +3429,7 @@ function renderUserMessage(event) {
   if (reviewed) stamp.append(el('span', null, t('acknowledged, human')));
   col.append(stamp);
   node.append(col);
-  state.lastSender = 'you';
+  state.lastSender = relayed && relayed.kind !== 'question' ? 'bishop' : 'you';
   if (reviewed) disarmExpendable();
   return node;
 }

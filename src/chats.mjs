@@ -55,14 +55,22 @@ export async function chatIndex(roomDir) {
   return index;
 }
 
+// A conversation named or previewed by a message BISHOP's channel brought, before the room learned
+// to leave out the header its agent reads: shown without it (docs/MACROVERSO.md, fase 4c).
+const withoutRelayHeader = (line) => {
+  if (typeof line !== 'string' || !line.startsWith('BISHOP › ')) return line;
+  const task = line.replace(/^BISHOP › .*?(?:other rooms(?: in this turn)?\.|ends with the answer\.)\s*/, '');
+  // Cut short inside the header (titles and previews are kept short): only the sender is left.
+  return task && !task.startsWith('BISHOP › ') ? task : 'BISHOP';
+};
 const shape = (id, entry, active) => ({
   id,
-  title: entry.title || (id === MAIN_CHAT ? 'First conversation' : 'Untitled'),
+  title: withoutRelayHeader(entry.title) || (id === MAIN_CHAT ? 'First conversation' : 'Untitled'),
   named: Boolean(entry.title),
   createdAt: entry.createdAt ?? null,
   updatedAt: entry.updatedAt ?? entry.createdAt ?? null,
   messages: Number(entry.messages ?? 0),
-  preview: entry.preview ?? null,
+  preview: withoutRelayHeader(entry.preview) ?? null,
   active: id === active,
 });
 

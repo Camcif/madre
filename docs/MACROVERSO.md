@@ -535,3 +535,16 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   reescrita para leer desde un turno vivo de verdad (sin turno, con otro agente, con un turno que
   no corre, y después de que el turno termina: 409). Una mutación que quita la comprobación de
   turno hace fallar la prueba. Todas las fases del encargo quedan hechas.
+- `2026-10-08` · Primera corrección de la ronda de UX que pidió el humano: el autor y el encabezado.
+  En la sala que recibe una orden, el mensaje decía «TÚ · TRIPULACIÓN» con una marca «de BISHOP» y
+  la burbuja verde del humano; ahora dice **BISHOP** con «orden n de m · la enviaste tú desde
+  Salas» o «salió sola desde Salas, en el modo que elegiste», en una burbuja propia. Una pregunta
+  de `/bishop` en Salas dice «TÚ · DESDE pulse». El encabezado que lee el agente decía «sent by the
+  human» también cuando la orden salió sola; ahora lo dice solo si se pulsó (`orderHeader({ auto })`,
+  y la sala que recibe lo arma con lo que Salas le dice). La cita sobre cada respuesta, el reintento
+  y las frases de espera leen la tarea sin el encabezado (`relayedOf` en `public/app.js`, ambos
+  formatos); la lista de conversaciones ya no lo muestra en nombres ni vistas previas, tampoco en
+  las guardadas antes (`src/chats.mjs`, que muestra «BISHOP» cuando quedaron cortadas dentro del
+  encabezado). Pruebas en `test/ui-smoke.test.mjs`, `test/bishop-orders.test.mjs` y
+  `test/bishop-4c.test.mjs`. Verificado en la sala `pulse`: tres órdenes, incluida una del formato
+  viejo, sin ningún «BISHOP ›» visible.

@@ -117,7 +117,7 @@ async function sendOrder(ctx, planId, step, { auto = false } = {}) {
   if (!target?.open) return back(409, t('That room is asleep. Wake it from Salas to send it orders.'));
   const key = await channelKey(ctx.stateRoot).catch(() => null);
   if (!key) return back(500, t('The channel has no key.'));
-  const sent = await post(target.open.port, '/api/x/bishop/order', { contract: contract.id, plan: plan.id, step: order.step, total: plan.orders.length, agent: order.agent, mode: order.mode, text: order.text, from: salas }, key);
+  const sent = await post(target.open.port, '/api/x/bishop/order', { contract: contract.id, plan: plan.id, step: order.step, total: plan.orders.length, agent: order.agent, mode: order.mode, text: order.text, from: salas, auto: Boolean(auto) }, key);
   if (!sent.ok) { const why = refusal(sent, t('That room runs an older MADRE. Update it to send it orders.')); return back(why.status, why.error); }
   await changePlans(ctx.stateRoot, (data) => { const one = data.plans[plan.id]?.orders.find((item) => item.step === order.step); if (one) { one.status = 'sent'; one.sentAt = new Date().toISOString(); one.held = null; } });
   await ctx.services.recordIn(plan.chat, 'bishop.order.sent', { plan: plan.id, step: order.step, room: order.room, name: target.name, agent: order.agent, mode: order.mode, ...(auto ? { auto: true, text: order.text.slice(0, 200) } : {}) });
@@ -383,7 +383,7 @@ const base = defineModule({
       void (async () => {
         let outcome;
         try {
-          outcome = await room.order({ text: `${orderHeader({ step, total, plan })}\n\n${text}`, target: agent.id, mode });
+          outcome = await room.order({ text: `${orderHeader({ step, total, plan, auto: payload?.auto === true })}\n\n${text}`, target: agent.id, mode });
         } catch (error) { outcome = { text: null, error: error.message }; }
         finally { runningOrders.delete(here); orderTurns.delete(`${here}|${plan}|${step}`); }
         const answer = outcome.text ?? '';

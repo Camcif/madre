@@ -207,6 +207,14 @@ test('the room UI boots against a real transcript without throwing', async () =>
     const cells = [];
     (function walk(node) { for (const child of node.children ?? []) { if (typeof child === 'string') continue; if (/^(td|th)$/i.test(child.tagName)) cells.push(child.textContent); walk(child); } })(tableNode);
     assert.deepEqual(cells, ['Claim', 'State', 'a | b', 'ok', 'c', 'd']);
+    // A message BISHOP's channel brought reads as BISHOP's (or as the human's, from another room),
+    // never with the header its agent reads; both header formats, and the order that left on its own.
+    const pressed = app.relayedOf({ via: 'bishop', text: 'BISHOP › 1/2 · plan p-abcdef · from Salas, sent by the human. Answer in this room only; this turn cannot pass anything on to other rooms.\n\nResume el README.' });
+    assert.deepEqual(pressed, { kind: 'order', step: '1', total: '2', plan: 'p-abcdef', auto: false, body: 'Resume el README.' });
+    assert.equal(app.relayedOf({ via: 'bishop', text: 'BISHOP › 2/2 · plan p-abcdef · from Salas, sent on its own within the mode the human chose. Answer in this room only; this turn cannot pass anything on to other rooms.\n\nOtro.' }).auto, true);
+    assert.equal(app.relayedOf({ via: 'bishop', text: 'BISHOP › order 1 of 1 · plan p-099492 · sent by the human from Salas. Answer in this room. You cannot delegate or give orders to other rooms in this turn.\n\nViejo.' }).body, 'Viejo.');
+    assert.deepEqual(app.relayedOf({ via: 'bishop', text: 'BISHOP › question from room pulse, asked by the human there. Answer from what you know of the linked rooms; this turn ends with the answer.\n\n¿Qué decidió?' }), { kind: 'question', room: 'pulse', body: '¿Qué decidió?' });
+    assert.equal(app.relayedOf({ via: 'iphone', text: 'hola' }), null);
   } finally {
     console.error = originalError;
   }

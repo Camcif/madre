@@ -47,6 +47,9 @@ test('bishop · the header of an order is not read by @madre as a request to act
   const header = orderHeader({ step: 1, total: 2, plan: 'p-abcdef' });
   assert.equal(localReply(`${header}\n\nResume en tres líneas lo que la sala recuerda del Macroverso.`), null, 'a question that comes as an order is answered, not refused');
   assert.notEqual(localReply(`${header}\n\nDespliega el sitio.`), null, 'an order to act is still refused by @madre, as from the human');
+  const onItsOwn = orderHeader({ step: 1, total: 2, plan: 'p-abcdef', auto: true });
+  assert.match(onItsOwn, /sent on its own within the mode the human chose/, 'an order nobody pressed never says the human sent it');
+  assert.equal(localReply(`${onItsOwn}\n\nResume en tres líneas lo que la sala recuerda del Macroverso.`), null);
 });
 
 test('bishop · each order is checked: room, agent, link, ceiling; #3 and #4 only as a proposal', () => {
@@ -75,7 +78,7 @@ test('bishop · an order goes out from Salas, runs at depth 1 in the room it is 
   const invokers = {
     'codex-readonly': async ({ prompt }) => {
       seen.push(prompt);
-      if (prompt.includes('from Salas, sent by the human')) return { text: `${long}\n\n\`\`\`pulse\n@claude: sigue tú\n\`\`\`` };
+      if (prompt.includes('from Salas, sent ')) return { text: `${long}\n\n\`\`\`pulse\n@claude: sigue tú\n\`\`\`` };
       return { text: `Propongo esto.\n\n\`\`\`pulse-salas\nRevisar el proyecto A\n@${nameA}/codex #1: resume el README\n@${nameA}/codex #2: crea un borrador\n@${nameA}/claude #3: arma el despliegue\n@nowhere/codex #1: nada\n\`\`\`` };
     },
     'claude-readonly': async () => ({ text: 'claude here' }),

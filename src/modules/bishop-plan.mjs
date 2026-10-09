@@ -22,7 +22,9 @@ export const clean = (value, max = 60) => String(value ?? '').replace(/[\r\n\t<>
 // What a turn reads first when BISHOP's channel brings it a message. English, like everything a
 // turn reads, and with no word of @madre's list of actions (src/adapters/madre.mjs, ACTION_EN):
 // «order» or «delegate» made @madre answer every order with its fixed refusal (S-031).
-export const orderHeader = ({ step, total, plan }) => `BISHOP › ${step}/${total} · plan ${plan} · from Salas, sent by the human. Answer in this room only; this turn cannot pass anything on to other rooms.`;
+// Who sent it is said as it happened: pressed by the human, or on its own within the mode the human
+// chose. Never «sent by the human» for an order nobody pressed.
+export const orderHeader = ({ step, total, plan, auto = false }) => `BISHOP › ${step}/${total} · plan ${plan} · from Salas, ${auto ? 'sent on its own within the mode the human chose' : 'sent by the human'}. Answer in this room only; this turn cannot pass anything on to other rooms.`;
 export const consultHeader = ({ room }) => `BISHOP › question from room ${clean(room, 60)}, asked by the human there. Answer from what you know of the linked rooms; this turn ends with the answer.`;
 export const ORDER_HEADER = /^BISHOP › (\d+)\/(\d+) · plan (p-[0-9a-f]{6})\b/;
 export const CONSULT_HEADER = /^BISHOP › question from room (.+?), asked by the human there\./;

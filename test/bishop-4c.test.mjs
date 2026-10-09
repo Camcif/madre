@@ -7,6 +7,7 @@ import bishop, { formatBishop, onlyAnswers, parsePlan, resolveLinks } from '../s
 import { BISHOP_SIGN_DAYS, activeContracts, channelKey, normalizeContract, signContract } from '../src/enlaces.mjs';
 import { loadConfig, updateConfig } from '../src/config.mjs';
 import { ensureSalasProject, knownRooms, projectRoomId, salasRoomId } from '../src/salas.mjs';
+import { createChat, listChats, touchChat } from '../src/chats.mjs';
 import { createPulseServer } from '../src/server.mjs';
 
 // BISHOP, fase 4c (docs/MACROVERSO.md): S-030 (@madre only answers), the link wizard, the modes,
@@ -68,6 +69,26 @@ test('bishop · D-S13: BISHOP signs only a link to read, with no orders, that ex
   assert.equal(BISHOP_SIGN_DAYS, 7);
 });
 
+test('bishop · a conversation named or previewed by an old relayed message shows the task, or BISHOP, never the header', async () => {
+  const roomDir = await scratch('madre-bishop-chats-');
+  try {
+    const whole = await createChat(roomDir, { title: null, activate: false });
+    await touchChat(roomDir, whole.id, { text: 'BISHOP › order 1 of 1 · plan p-099492 · sent by the human from Salas. Answer in this room. You cannot delegate or give orders to other rooms in this turn. Resume el README.' });
+    const cut = await createChat(roomDir, { title: 'prueba', activate: false });
+    await touchChat(roomDir, cut.id, { text: 'BISHOP › 1/1 · plan p-8312cf · from Salas, sent by the human. Answer in this room only; this turn cannot pass anything on to other rooms. Resume en tres líneas lo que recuerdas' });
+    const chats = (await listChats(roomDir)).chats;
+    const one = chats.find((chat) => chat.id === whole.id);
+    // The header is longer than what a title or a preview keeps, so an old one was always cut inside it.
+    assert.equal(one.title, 'BISHOP', JSON.stringify(one));
+    assert.equal(one.preview, 'BISHOP');
+    const two = chats.find((chat) => chat.id === cut.id);
+    assert.equal(two.title, 'prueba');
+    assert.equal(two.preview, 'BISHOP', 'a preview cut inside the header shows only the sender');
+  } finally {
+    await rm(roomDir, { recursive: true, force: true });
+  }
+});
+
 test('bishop · the link wizard reads links and checks them like the sheet of Salas', () => {
   const parsed = parsePlan('Propuesta.\n\n```pulse-salas\nEnlazar para responder\nenlace boreal → salas: decisiones, hechos; 30 días; órdenes #1\nenlace salas → boreal: decision\nenlace boreal ↔ aurora: preferencia\nenlace aurora → boreal: secretos\n```');
   assert.equal(parsed.links.length, 2, 'two links at most');
@@ -101,7 +122,7 @@ test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, sign
   const invokers = {
     'codex-readonly': async ({ prompt }) => {
       // An order in a room: it answers and asks for a command (S-029: that is not a nested plan).
-      if (prompt.includes('from Salas, sent by the human')) return { text: 'Hecho en la sala.\n\n```pulse-run\nVer las pruebas\n$ npm test\n```' };
+      if (prompt.includes('from Salas, sent ')) return { text: 'Hecho en la sala.\n\n```pulse-run\nVer las pruebas\n$ npm test\n```' };
       // A question raised from a room: it answers, and even a block it writes is never a plan.
       if (prompt.includes('question from room')) { prompts.consult.push(prompt); return { text: `En ${nameA}, la firma se verifica primero.\n\n\`\`\`pulse-salas\nNo\n@${nameA}/codex #1: nada\n\`\`\`` }; }
       turnInSalas += 1;
@@ -159,6 +180,9 @@ test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, sign
     await until(async () => (await find(salas, 'command.output', (said) => said.name === 'bishop' && said.bishop.step === 1)).length, 'the answer to #1');
     assert.equal((await find(salas, 'bishop.order.sent', (said) => said.step === 1 && said.auto)).length, 1, 'said as sent on its own');
     assert.equal((await find(salas, 'bishop.order.sent', (said) => said.step === 2)).length, 0, '#2 waits in hybrid');
+    const relayedToA = await find(a, 'message.created', (said) => said.via === 'bishop' && said.role === 'user');
+    assert.match(relayedToA[0].payload.text, /sent on its own within the mode the human chose/, 'the order that left on its own says so');
+    assert.doesNotMatch(relayedToA[0].payload.text, /sent by the human/);
     const delivered = await until(async () => { const found = await find(a, 'bishop.order.proposed'); return found.length ? found : null; }, 'the proposal in A');
     assert.deepEqual({ agent: delivered[0].payload.agent, mode: delivered[0].payload.mode }, { agent: 'claude', mode: 3 });
     const glance = await fetch(`${A}/api/glance`).then((response) => response.json());
@@ -178,6 +202,8 @@ test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, sign
 
     // #2 by the human's press; then the plan closes once.
     assert.equal((await post(`${S}/api/x/bishop/send`, { plan, step: 2 })).status, 202);
+    await until(async () => (await find(a, 'message.created', (said) => said.via === 'bishop' && /^BISHOP › 2\//.test(said.text ?? ''))).length, 'the pressed order in A');
+    assert.match((await find(a, 'message.created', (said) => said.via === 'bishop' && /^BISHOP › 2\//.test(said.text ?? '')))[0].payload.text, /sent by the human/, 'the pressed order says the human sent it');
     await until(async () => (await find(salas, 'bishop.plan.closed')).length, 'the close');
     assert.equal((await find(salas, 'bishop.plan.closed')).length, 1);
 
