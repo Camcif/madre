@@ -214,11 +214,16 @@ Cada proyecto es una sala, y **Salas** las junta: la tecla de los tres círculos
 
 **Enlaces.** Un enlace es un contrato entre dos salas que firmas en Salas (**Enlazar salas**, o arrastrando un universo sobre otro en el Macroverso): quién lee de quién (o las dos), qué tipos cruzan y hasta cuándo. Cruzan solo notas destiladas que viajan a los turnos (bodega y puente), limpias por el guardia de privacidad de la sala que entrega; nunca el registro, archivos, llaves, enfermería ni esclusa; y solo de lectura. En la sala que puede leer, cada turno lleva el servidor MCP `pulse-enlaces` (`enlace_rooms`, `enlace_search`); sin contrato no existe. Firmar y revocar dejan una línea en las dos salas; cada lectura queda contada (`enlace.read` en la que entrega, `enlace.received` en la que lee) y se ve en Salas y como pulsos en la vena del Macroverso.
 
+**Quién leyó.** Cada lectura pertenece a un turno: la herramienta dice su agente y su turno, y la sala que lee comprueba que ese turno está corriendo ahí, para ese agente y arriba de GHOST; si no, no lee nada (ni dice si el enlace existe). La lectura queda con su agente y su turno en la sala que lee, con el agente en la que entrega, y bajo la respuesta de ese turno una línea dice «leyó 3 notas de gumball». En Salas, cada enlace dice quién leyó al último.
+
+**Recordar en cada turno.** Una casilla por enlace, apagada por defecto, en la hoja de firma y en cada enlace de Salas. Marcada, cada turno de la sala que lee recibe, sin pedirlas, hasta 3 notas de la otra sala que casan con la pregunta (en un bloque del prompt, «recordó 3 notas de gumball» bajo la respuesta). Cada turno así es una lectura del tope por hora del enlace; pasado el tope, el turno sigue sin notas. Nunca en GHOST, nunca para `@madre`, nunca en la sala de Salas. Solo tú la marcas o la quitas, desde Salas; BISHOP nunca la marca en los enlaces que firma.
+
 | Ruta | Qué | Quién |
 |---|---|---|
 | `POST /api/salas/enlaces` · `POST /api/salas/enlaces/revoke` | Firmar y revocar | La página de Salas, nunca el teléfono |
 | `GET /api/enlace/memories` | Lo que esta sala entrega por un contrato: solo `travels()` y los tipos del contrato, redactado; 404 si el contrato no sirve a quien pide, 423 sellada, 429 sobre el tope | Otro proceso de MADRE con la llave del canal (`~/.pulse/credentials/enlaces.json`), sin `Origin` |
-| `POST /api/enlace/ask` | Lo que esta sala pide a otra; registra `enlace.received` | El servidor `pulse-enlaces` de un turno, con la llave |
+| `POST /api/enlace/ask` | Lo que esta sala pide a otra; solo para un turno que corre aquí (409 si no); registra `enlace.received` con agente y turno | El servidor `pulse-enlaces` de un turno, con la llave |
+| `POST /api/salas/enlaces/recall` | Marcar o quitar «Recordar en cada turno» de un enlace | La página de Salas, nunca un proceso ni el teléfono |
 | `POST /api/enlace/notice` | La línea de MU/TH/UR al firmar o revocar | La sala que sirve Salas, con la llave |
 
 Los contratos viven en `~/.pulse/config.json` bajo `enlaces` y los cruces en `enlaces.jsonl` junto al registro de cada sala. Todo esto es de la Mac: el teléfono no enlaza ni lee enlaces.

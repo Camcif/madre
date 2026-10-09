@@ -597,7 +597,7 @@ export function formatBishop({ rooms, glances = new Map(), contracts = [], links
   return [...kept, ...(omitted ? [`… ${omitted} líneas omitidas por el límite.`] : []), end].join('\n');
 }
 
-export async function bishopBlock(ctx, { agent, text = '', mode = 1, preview = false } = {}) {
+export async function bishopBlock(ctx, { agent, text = '', mode = 1, preview = false, turn = null } = {}) {
   if (!inSalas(ctx) || !enabled(ctx) || !agent || agent !== chosen(ctx)) return null;
   const rooms = await knownRooms(ctx.stateRoot);
   const glances = new Map(await Promise.all(rooms.filter((room) => room.open).map(async (room) => [room.id, await askRoom(room.open.port, '/api/glance?census=1').catch(() => null)])));
@@ -615,7 +615,7 @@ export async function bishopBlock(ctx, { agent, text = '', mode = 1, preview = f
       if (!source) { unread.push({ room: rooms.find((room) => room.id === from)?.name ?? from, why: 'dormida' }); continue; }
       if (notes.length >= MAX_NOTES) break;
       const answer = await askEnlace({ port: source.open.port, contract, asking: salas, q: clean(asked, 500), limit: MAX_NOTES - notes.length, key,
-        record: ctx.record, roomDir: join(ctx.stateRoot, 'rooms', salas) });
+        record: ctx.record, roomDir: join(ctx.stateRoot, 'rooms', salas), turn, agent });
       // A reading refused (its hourly limit, a sealed archive) is said, so the model does not take
       // the silence of a room for the room never having discussed it.
       if (answer.notes) for (const note of answer.notes) notes.push({ room: source.name, kind: note.kind, text: note.text });

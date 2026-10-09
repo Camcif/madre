@@ -129,6 +129,8 @@ test('bishop · an order goes out from Salas, runs at depth 1 in the room it is 
     assert.ok(!ledgerA.some((event) => event.type === 'plan.created'), 'the room that received the order did not open a plan');
     assert.ok(ledgerA.some((event) => event.type === 'room.alert' && event.payload.code === 'nested-delegation'), 'the turn ran at depth 1: its attempt at a plan was refused as nested');
     assert.equal(pairsFromEvents(ledgerA).length, 0, 'an order and its answer are not the human\'s words');
+    const chatsA = (await fetch(`${A}/api/chats`).then((response) => response.json())).chats;
+    assert.ok(chatsA.every((chat) => !/^BISHOP ›/.test(chat.preview ?? '') && !/^BISHOP ›/.test(chat.title ?? '')), 'the list of conversations shows the header, not the task');
     assert.equal(await countRecent(join(state, 'rooms', idA), contract.id, 'order'), 1);
     const closed = await until(async () => (await salas.store.readAll()).find((event) => event.type === 'bishop.plan.closed'), 'the close of the plan');
     assert.deepEqual({ done: closed.payload.done, failed: closed.payload.failed, skipped: closed.payload.skipped }, { done: 1, failed: 0, skipped: 0 });

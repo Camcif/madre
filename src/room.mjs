@@ -142,6 +142,10 @@ export class Room {
   #privacy = null;
   #toolsForTurn = null;
   #bishopForTurn = null;
+  #linkedForTurn = null;
+  // The turns running now, by the id of the answer they will write: which agent, at which mode.
+  // What a tool of a turn says it is (S-021) is checked against this, never taken on its word.
+  #liveTurns = new Map();
   #maxPlanSteps;
   #maxConcurrentTurns;
   #planMaxAgeMs;
@@ -165,7 +169,8 @@ export class Room {
     mother = null,
     privacy = null,
     toolsForTurn = null,   // async ({ agent, mode, lease, scratchDir }) => MCP server specs from the modules
-    bishopForTurn = null,  // async ({ agent, mode, text, preview }) => bounded BISHOP context in Salas
+    bishopForTurn = null,  // async ({ agent, mode, text, preview, turn }) => bounded BISHOP context in Salas
+    linkedForTurn = null,  // async ({ agent, mode, text, preview, turn }) => { text, dynamic } notes a link recalls (3e)
     historicalEvents = [],
     invokers = defaultInvokers,
     agentTimeouts = {},
@@ -197,6 +202,7 @@ export class Room {
     this.#privacy = privacy;
     this.#toolsForTurn = toolsForTurn;
     this.#bishopForTurn = bishopForTurn;
+    this.#linkedForTurn = linkedForTurn;
     this.#invokers = invokers;
     this.#agentTimeouts = agentTimeouts;
     this.#maxMessageChars = maxMessageChars;
@@ -449,6 +455,12 @@ export class Room {
   // at work at all — a plan between two of its steps has no turn running and is not finished.
   turnsRunning() { return this.#turns.size; }
   busy() { return this.#turns.size > 0 || this.#inflight.size > 0 || this.#plans.size > 0; }
+  // A turn running now, by the id of the answer it will write (S-021): its agent and its mode, or
+  // null. What a tool of that turn reports about itself is checked against this.
+  runningTurn(responseMessageId) {
+    const turn = this.#liveTurns.get(String(responseMessageId ?? ''));
+    return turn ? { agent: turn.agent, mode: turn.mode } : null;
+  }
   // A command the human ran is still alive here (a server, say). Not «working», but a reason to
   // keep this room open rather than close it under the process.
   hasLiveRuns() { return this.#runDesk.busy || this.#runDesk.serving().length > 0; }
@@ -1352,6 +1364,8 @@ export class Room {
       ? await this.#toolsForTurn({ agent: agent.id, mode, lease: null, scratchDir: null }).catch(() => [])
       : [];
     const bishop = this.#bishopForTurn ? await this.#bishopForTurn({ agent: agent.id, mode, text, preview: true }).catch(() => null) : null;
+    // Recall from links reads the other room when the turn runs; the preview only says it will.
+    const linkedPreview = this.#linkedForTurn && agent.adapter !== 'madre-local' && mode !== 0 ? await this.#linkedForTurn({ agent: agent.id, mode, text, preview: true }).catch(() => null) : null;
     const scopes = this.scopesFor(agent.id);
     // The lease a turn at this mode would be given, shaped exactly as the turn shapes it but
     // creating nothing: no folder is made, no checkpoint is taken. Without it the preview would
@@ -1391,7 +1405,7 @@ export class Room {
       window: { from: built.context?.firstSequence ?? null, through: built.context?.throughSequence ?? null, omitted: built.context?.omittedMessages ?? 0, carried: built.context?.messages?.length ?? 0 },
       recalled: built.memories?.length ?? 0,
       quoted: built.recall?.entries?.length ?? 0,
-      dynamic: Boolean(bishop && agent.adapter === 'madre-local'),
+      dynamic: Boolean(bishop && agent.adapter === 'madre-local') || Boolean(linkedPreview?.dynamic),
     };
   }
 
@@ -1563,17 +1577,23 @@ export class Room {
       if (!invoke) throw new Error(`${agent.label} does not have a supported MADRE adapter.`);
       const before = lease && !lease.control && !lease.create ? await snapshot(lease.outDir) : null;
       responseMessageId = randomUUID();
+      this.#liveTurns.set(responseMessageId, { agent: agent.id, mode: turnMode });
       const notesBefore = this.#memory ? this.#memory.maxMemoryId() : 0;
       const others = this.delegatesFor(agent.id);
       const mayDelegate = allowDelegation && this.#delegation && depth === 0;
       // Tools the modules hand to this turn (a browser, say), attached to the CLI for this run only.
       const mcpServers = this.#toolsForTurn && agent.adapter !== 'madre-local'
-        ? await this.#toolsForTurn({ agent: agent.id, mode: turnMode, text, lease, scratchDir: lease?.scratchDir ? joinPath(this.#projectRoot, lease.scratchDir) : null, servers: this.#runDesk.serving().filter((one) => !one.network).map((one) => one.port) }).catch(() => [])
+        ? await this.#toolsForTurn({ agent: agent.id, mode: turnMode, text, turn: responseMessageId, lease, scratchDir: lease?.scratchDir ? joinPath(this.#projectRoot, lease.scratchDir) : null, servers: this.#runDesk.serving().filter((one) => !one.network).map((one) => one.port) }).catch(() => [])
         : [];
-      const bishop = this.#bishopForTurn ? await this.#bishopForTurn({ agent: agent.id, mode: turnMode, text }).catch(() => null) : null;
+      const bishop = this.#bishopForTurn ? await this.#bishopForTurn({ agent: agent.id, mode: turnMode, text, turn: responseMessageId }).catch(() => null) : null;
+      // Notes a link with automatic recall brings to this turn (fase 3e): never in GHOST, never for
+      // @madre (its briefing is its own), bounded by the module and counted as readings.
+      const linked = this.#linkedForTurn && agent.adapter !== 'madre-local' && turnMode !== 0
+        ? (await this.#linkedForTurn({ agent: agent.id, mode: turnMode, text, turn: responseMessageId }).catch(() => null))?.text ?? null
+        : null;
       // The prompt and the shape it was built from: one is sent, the other is kept until the CLI
       // says what it cost, so the bill can be attributed to the blocks that caused it.
-      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, bishop, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
+      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, bishop, linked, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
       this.#promptShape.set(responseMessageId, { parts: shaped.parts, spared: shaped.spared, servers: [this.#memoryServer?.name, ...mcpServers.map((server) => server.name)].filter(Boolean) });
       // What this turn is about to read, said while it is still reading it. The size is exact;
       // only the conversion to tokens is an estimate, and it is made at this room's own rate.
@@ -1723,9 +1743,11 @@ export class Room {
       if (controlChanges) await this.#emit('control.changed', { ...controlChanges, responseMessageId });
       await this.#recordUsage(agent.id, result.usage, { messageId, responseMessageId });
       await this.#recordCost(agent.id, responseMessageId, result.usage, turnMode);
+      this.#liveTurns.delete(responseMessageId);
       await this.#emit('agent.completed', { messageId, agent: agent.id, handoffId, planId });
       return { responseMessageId, directives };
     } catch (error) {
+      if (responseMessageId) this.#liveTurns.delete(responseMessageId);
       if (responseMessageId && this.#promptShape.has(responseMessageId)) {
         const shape = this.#promptShape.get(responseMessageId);
         this.#promptShape.delete(responseMessageId);

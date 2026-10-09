@@ -4200,6 +4200,40 @@ function attachMemoryHint(event) {
   if (bubble && typeof bubble.after === 'function') bubble.after(hint); else col.append(hint);
 }
 
+// What a turn read from other rooms by a link (S-021): the reading names the turn, so it sits under
+// the answer it was for. A tool reading says «read»; automatic recall (3e) says «recalled». The
+// reading arrives before the answer; it waits here until that answer is drawn.
+const crossReads = new Map();   // response message id -> [{ from, count, auto }]
+const roomWord = (id) => String(id ?? '').replace(/-[0-9a-f]{16}$/, '');
+function noteCrossRead({ turn, from, count = 0, auto = false }) {
+  if (!turn) return;
+  const list = crossReads.get(turn) ?? [];
+  list.push({ from: roomWord(from), count, auto: Boolean(auto) });
+  crossReads.set(turn, list);
+  attachCrossReads(turn);
+}
+function attachCrossReads(turn, root = document) {
+  const list = crossReads.get(turn);
+  if (!list?.length) return;
+  const col = (root.id === `msg-${turn}` ? root : root.querySelector?.(`#msg-${CSS.escape(String(turn))}`))?.querySelector?.('.col');
+  if (!col) return;
+  col.querySelector('.cross-reads')?.remove();
+  const line = el('div', 'cross-reads');
+  const said = new Map();
+  for (const one of list) {
+    const key = `${one.auto ? 'auto' : 'tool'}|${one.from}`;
+    const seen = said.get(key) ?? { ...one, count: 0 };
+    seen.count += one.count;
+    said.set(key, seen);
+  }
+  line.append(el('span', 'lead', '⇄'), [...said.values()].map((one) => (one.auto
+    ? t('recalled {n} notes from {room}', { n: one.count, room: one.from })
+    : t('read {n} notes from {room}', { n: one.count, room: one.from }))).join(' · '));
+  line.title = t('Through a link you signed: read-only, counted in both rooms.');
+  const bubble = col.querySelector('.bubble');
+  if (bubble) bubble.after(line); else col.append(line);
+}
+
 // MOTHER speaking to the crew: the room sees the code, the agents get the words in their prompt.
 function renderMotherAlert(event) {
   const { kind, code, strikes, lockedForMs, message, n } = event.payload;
@@ -5346,6 +5380,7 @@ function renderEventNode(event) {
       return;
     case 'message.created':
       node = event.payload.role === 'user' ? renderUserMessage(event) : renderAssistantMessage(event);
+      if (event.payload.role !== 'user') attachCrossReads(event.payload.messageId, node);
       if (event.payload.role !== 'user') removeThinking(event.payload.parentMessageId);
       // The first thing said names a conversation; the tab and the list learn the name from the room.
       if (event.payload.role === 'user' && !replaying) setTimeout(() => void loadChats(), 600);
@@ -5384,6 +5419,7 @@ function renderEventNode(event) {
     case 'privacy.warning': if (!replaying) toast(t('MU/TH/UR › your message carries {n} private {term}. Agents will read it as you wrote it; their replies are guarded.', { n: event.payload.hits, term: event.payload.hits === 1 ? t('term') : t('terms') })); return;
     case 'memory.forgotten': node = renderForgotten(event); break;
     // A new decision changes what the head of the conversation should say.
+    case 'enlace.received': noteCrossRead(event.payload); return;
     case 'memory.noted': attachMemoryHint(event); if (!replaying && (event.payload.notes ?? []).some((note) => note.kind === 'decision')) void renderSettled();
 void renderOpenQuestions(); return;
     case 'dataset.exported': return;

@@ -210,7 +210,22 @@ function linkRow(enlace) {
   if (enlace.signed?.by === 'bishop') what.push(t('signed by BISHOP'));
   node.append(el('p', 'what', what.join(' · ')));
   const traffic = enlace.traffic ?? {};
-  node.append(el('p', 'traffic', [t('{n} reads in 24 h', { n: traffic.reads24h ?? 0 }), traffic.lastAt ? t('last {when}', { when: ago(traffic.lastAt) }) : t('none yet')].join(' · ')));
+  // S-021: the last reading says who read, as the room that asked said it.
+  const last = traffic.lastAt ? (traffic.lastAgent ? t('last by @{agent} of {room}, {when}', { agent: traffic.lastAgent, room: roomName(traffic.lastRoom), when: ago(traffic.lastAt) }) : t('last {when}', { when: ago(traffic.lastAt) })) : t('none yet');
+  node.append(el('p', 'traffic', [t('{n} reads in 24 h', { n: traffic.reads24h ?? 0 }), last].join(' · ')));
+  // Fase 3e: recall on every turn, ticked or cleared here by the human.
+  const recall = el('label', 'row sm-recall');
+  const recallBox = el('input'); recallBox.type = 'checkbox'; recallBox.checked = Boolean(enlace.recall);
+  recallBox.addEventListener('change', async () => {
+    recallBox.disabled = true;
+    const answer = await fetch('/api/salas/enlaces/recall', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: enlace.id, recall: recallBox.checked }) })
+      .then((response) => response.ok).catch(() => false);
+    if (!answer) recallBox.checked = !recallBox.checked;
+    recallBox.disabled = false;
+    await refresh();
+  });
+  recall.append(recallBox, document.createTextNode(t('Recall on every turn (up to 3 notes)')));
+  node.append(recall);
   const actions = el('div', 'sm-actions');
   if (revoking.has(enlace.id)) actions.append(el('span', 'sm-ask', t('Nothing crosses from then on.')), button('sm-btn danger', t('Revoke it'), () => revokeLink(enlace.id)), button('sm-btn ghost', t('Cancel'), () => { revoking.delete(enlace.id); draw(); }));
   else actions.append(button('sm-btn ghost', t('Revoke'), () => { revoking.add(enlace.id); draw(); }));
@@ -276,6 +291,12 @@ function openLinkSheet({ reader = null, source = null } = {}) {
   for (const [value, words] of [['1', t('In a day')], ['7', t('In a week')], ['30', t('In 30 days')], ['', t('Never')]]) { const option = el('option', null, words); option.value = value; if (value === '30') option.selected = true; expiresPick.append(option); }
   expires.append(expiresPick);
   form.append(expires);
+  // Fase 3e: off unless ticked. The room that reads gets, on every turn, up to 3 of these notes
+  // without asking for them; each turn that does is one reading of the hourly limit.
+  const recall = el('label', 'row');
+  const recallBox = el('input'); recallBox.type = 'checkbox';
+  recall.append(recallBox, document.createTextNode(t('Recall on every turn')));
+  form.append(recall, el('p', 'hint', t('The room that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.')));
   // Orders: only with the room of SALAS on one side, and never automatic above #2.
   const orders = el('div', 'orders');
   const allow = el('label', 'row');
@@ -336,6 +357,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       expires: days ? new Date(Date.now() + days * 86400000).toISOString() : null,
       orders: allowBox.checked && !orders.hidden ? { allowed: true, maxMode: Number(modePick.value), perHour: Number(perHourPick.value) } : { allowed: false, maxMode: 0, perHour: Number(perHourPick.value) },
       designation: allowBox.checked && !orders.hidden ? designationInput.value.trim() : undefined,
+      recall: recallBox.checked,
     };
     sign.disabled = true;
     sign.textContent = t('Signing…');

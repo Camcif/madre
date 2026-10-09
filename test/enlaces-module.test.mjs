@@ -30,7 +30,16 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
   const state = await scratch('madre-enlaces-3c-');
   const projectA = await realpath(await scratch('madre-enlaces-3c-a-'));
   const projectB = await realpath(await scratch('madre-enlaces-3c-b-'));
-  const invokers = { 'codex-readonly': async () => ({ text: 'done' }) };
+  // S-021: a reading belongs to a turn running in the room that reads. A turn of B that says
+  // «HOLD THE TURN» waits here, with the agent and the turn its pulse-enlaces server was given, as a
+  // CLI holding the tool would; the test reads through it and lets it go.
+  let held = null;
+  const invokers = { 'codex-readonly': async ({ prompt, mcpServers = [] }) => {
+    if (!prompt.includes('HOLD THE TURN')) return { text: 'done' };
+    const server = mcpServers.find((one) => one.name === 'pulse-enlaces');
+    await new Promise((release) => { held = { env: server?.env ?? {}, release }; });
+    return { text: 'done' };
+  } };
   const a = await createPulseServer({ projectRoot: projectA, stateRoot: state, agents: roster, invokers });
   const b = await createPulseServer({ projectRoot: projectB, stateRoot: state, agents: roster, invokers });
   const portA = await listen(a.server);
@@ -48,11 +57,12 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
   const page = (port) => ({ origin: `http://127.0.0.1:${port}` });
   const channel = { [CHANNEL_HEADER]: key };
   const phone = { 'x-madre-device': 'd1', 'x-madre-device-kind': 'iphone' };
-  const ask = (payload, headers = channel, port = portB) => post(port, '/api/enlace/ask', payload, headers);
+  let live = null;   // { agent, turn } of the held turn of B
+  const ask = (payload, headers = channel, port = portB) => post(port, '/api/enlace/ask', { ...(live ?? {}), ...payload }, headers);
   const toolsOf = async (port, mode = 1) => (await (await fetch(`http://127.0.0.1:${port}/api/briefing?agent=codex&mode=${mode}`)).json()).launch.mcpServers;
   const turnB = { agent: 'codex', mode: 1, port: portB, roomDir: join(state, 'rooms', idB) };
   const ctxB = async () => ({ stateRoot: state, projectRoot: projectB, config: await loadConfig(state), env: {} });
-  const env = { PULSE_HOME: state, PULSE_ENLACES_ROOM: idB, PULSE_ENLACES_PORT: String(portB) };
+  const env = { PULSE_HOME: state, PULSE_ENLACES_ROOM: idB, PULSE_ENLACES_PORT: String(portB), PULSE_ENLACES_AGENT: 'codex' };
   try {
     // A's archive: what travels and what does not.
     const memory = await new RoomMemory(join(state, 'rooms', idA, 'memory.sqlite')).initialize();
@@ -110,7 +120,8 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     const signed = await post(portA, '/api/salas/enlaces', { a: idA, b: idB, direction: 'a→b', kinds: ['decision', 'fact'], expires: null, orders: { allowed: false, maxMode: 0, perHour: 50 } }, page(portA));
     assert.equal(signed.status, 200);
     const { contract } = await signed.json();
-    assert.deepEqual(Object.keys(contract), ['id', 'rooms', 'direction', 'kinds', 'zones', 'expires', 'revoked', 'orders', 'signed']);
+    assert.deepEqual(Object.keys(contract), ['id', 'rooms', 'direction', 'kinds', 'zones', 'expires', 'revoked', 'orders', 'signed', 'recall']);
+    assert.equal(contract.recall, false, '3e: recall is off unless ticked');
     assert.deepEqual(contract.orders, { allowed: false, maxMode: 0, perHour: 50 });
     assert.deepEqual((await events(a, 'enlace.signed')).map((event) => event.payload), [{ contract, other: nameB, otherId: idB, role: 'serves', kinds: ['decision', 'fact'], expires: null, orders: contract.orders }]);
     assert.deepEqual((await events(b, 'enlace.signed')).at(-1).payload, { contract, other: nameA, otherId: idA, role: 'reads', kinds: ['decision', 'fact'], expires: null, orders: contract.orders });
@@ -119,7 +130,7 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     const list = await (await fetch(`http://127.0.0.1:${portA}/api/salas`)).json();
     assert.equal(list.salas, salas);
     assert.deepEqual(list.enlaces.map((one) => one.id).sort(), [contract.id, orderedContract.id, plain.id].sort());
-    assert.deepEqual(list.enlaces.find((one) => one.id === contract.id), { ...contract, traffic: { reads24h: 0, reads1h: 0, lastAt: null } });
+    assert.deepEqual(list.enlaces.find((one) => one.id === contract.id), { ...contract, traffic: { reads24h: 0, reads1h: 0, lastAt: null, lastAgent: null, lastRoom: null } });
 
     // ---- The module now hands the server to B, and only to B, and only above #0.
     const [server] = await enlaces.toolsForTurn(await ctxB(), turnB);
@@ -141,16 +152,28 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     const launched = (await toolsOf(portB)).find((one) => one.name === SERVER_NAME);
     assert.ok(launched, 'THE LAUNCH of B does not show pulse-enlaces');
     assert.deepEqual(launched.tools, ENLACE_TOOLS);
-    assert.deepEqual(launched.env, ['PULSE_ENLACES_PORT', 'PULSE_ENLACES_ROOM', 'PULSE_HOME']);
+    assert.deepEqual(launched.env, ['PULSE_ENLACES_PORT', 'PULSE_ENLACES_ROOM', 'PULSE_HOME', 'PULSE_ENLACES_AGENT']);
     assert.ok(!(await toolsOf(portB, 0)).some((one) => one.name === SERVER_NAME), 'offered in #0');
     assert.ok(!(await toolsOf(portA)).some((one) => one.name === SERVER_NAME), 'offered to the room that only serves');
 
-    // ---- The asking side: B asks itself, with the key, and it asks A.
+    // ---- The asking side: B asks itself, with the key, and it asks A — from a turn it is running.
+    assert.equal((await post(portB, '/api/messages', { text: 'HOLD THE TURN', target: 'codex', mode: 1 })).status, 202);
+    for (let attempt = 0; attempt < 250 && !held; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(held, 'the turn of B never started');
+    assert.equal(held.env.PULSE_ENLACES_AGENT, 'codex', 'the tool was not told its agent');
+    assert.match(held.env.PULSE_ENLACES_TURN ?? '', /^[0-9a-f-]{36}$/, 'the tool was not told its turn');
+    assert.equal((await ask({ room: idA })).status, 409, 'read with no turn');
+    assert.equal((await ask({ room: idA, agent: 'claude', turn: held.env.PULSE_ENLACES_TURN })).status, 409, 'read in the name of another agent');
+    assert.equal((await ask({ room: idA, agent: 'codex', turn: '00000000-0000-0000-0000-000000000000' })).status, 409, 'read for a turn that is not running');
+    live = { agent: 'codex', turn: held.env.PULSE_ENLACES_TURN };
+    env.PULSE_ENLACES_TURN = live.turn;
     assert.equal((await ask({ room: idA }, { ...channel, ...phone })).status, 403, 'asked from a phone');
     assert.equal((await ask({ room: idA }, { ...channel, ...page(portB) })).status, 403, 'asked from a page');
     assert.equal((await ask({ room: idA }, {})).status, 403, 'asked without the key');
     assert.equal((await ask({ room: 'nowhere' })).status, 404);
-    assert.deepEqual(await (await ask({ room: idB }, channel, portA)).json(), { error: NO_SUCH_LINK }, 'A read from B against the arrow');
+    // A runs no turn: it learns nothing, not even whether a link exists (the arrow itself is held by
+    // the serving side, test/enlaces.test.mjs).
+    assert.equal((await ask({ room: idB }, channel, portA)).status, 409, 'A read with no turn of its own');
     const first = await ask({ room: idA, query: 'webhook signatures', limit: 1 });
     assert.equal(first.status, 200);
     const got = await first.json();
@@ -169,21 +192,22 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     // What each room kept: counters, never words. The query is a hash in both.
     const received = await events(b, 'enlace.received');
     assert.deepEqual(received.map((event) => event.payload), [
-      { contract: contract.id, from: idA, count: 1, turn: null, query: hash('webhook signatures') },
-      { contract: contract.id, from: idA, count: 2, turn: null, query: null },
-      { contract: contract.id, from: idA, count: 1, turn: null, query: null },
+      { contract: contract.id, from: idA, count: 1, turn: live.turn, agent: 'codex', query: hash('webhook signatures') },
+      { contract: contract.id, from: idA, count: 2, turn: live.turn, agent: 'codex', query: null },
+      { contract: contract.id, from: idA, count: 1, turn: live.turn, agent: 'codex', query: null },
     ]);
     const reads = await events(a, 'enlace.read');
-    assert.deepEqual(reads.map((event) => [event.payload.to, event.payload.count, event.payload.kinds, event.payload.query]), [[idB, 1, ['decision', 'fact'], hash('webhook signatures')], [idB, 2, ['decision', 'fact'], null], [idB, 1, ['decision'], null]]);
+    assert.deepEqual(reads.map((event) => [event.payload.to, event.payload.count, event.payload.kinds, event.payload.query, event.payload.agent]), [[idB, 1, ['decision', 'fact'], hash('webhook signatures'), 'codex'], [idB, 2, ['decision', 'fact'], null, 'codex'], [idB, 1, ['decision'], null, 'codex']]);
     assert.ok(!JSON.stringify([received, reads]).includes('Webhook') && !JSON.stringify([received, reads]).includes('Globex'), 'a note or a query reached a ledger');
     const crossings = (await readFile(join(state, 'rooms', idB, 'enlaces.jsonl'), 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
-    assert.deepEqual(crossings.map((line) => [line.kind, line.contract, line.other, line.count]), [['received', contract.id, idA, 1], ['received', contract.id, idA, 2], ['received', contract.id, idA, 1]]);
+    assert.deepEqual(crossings.map((line) => [line.kind, line.contract, line.other, line.count, line.agent, line.turn]), [['received', contract.id, idA, 1, 'codex', live.turn], ['received', contract.id, idA, 2, 'codex', live.turn], ['received', contract.id, idA, 1, 'codex', live.turn]]);
     assert.equal(await countRecent(join(state, 'rooms', idA), contract.id, 'read'), 3);
     // Salas counts the readings from the serving room's lines; the card of B says what it read.
     const traffic = (await (await fetch(`http://127.0.0.1:${portA}/api/salas`)).json()).enlaces.find((one) => one.id === contract.id).traffic;
     assert.equal(traffic.reads24h, 3);
     assert.equal(traffic.reads1h, 3);
     assert.ok(Number.isFinite(Date.parse(traffic.lastAt)));
+    assert.deepEqual([traffic.lastAgent, traffic.lastRoom], ['codex', idB], 'Salas says who read last, and from which room');
     const cardB = (await (await fetch(`http://127.0.0.1:${portB}/api/extensions`)).json()).extensions.find((one) => one.id === 'enlaces');
     assert.deepEqual(cardB.status, { installed: true, detail: 'on · one link lets this room read · 3 readings in 24 h' });
     assert.equal(cardB.summary, 'What other rooms know, when a signed link lets this room read it. Read-only; nothing leaves this Mac.');
@@ -241,6 +265,14 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.deepEqual(await (await ask({ room: nameA })).json(), { error: NO_SUCH_LINK });
     assert.equal(await callTool('enlace_search', { room: nameA }, { env }), `Nothing was read: ${NO_SUCH_LINK}`);
     assert.equal(await callTool('enlace_rooms', {}, { env }), 'No signed link lets this room read from another room right now.');
+    // The turn ends: its tool, had it outlived it, reads nothing more: a
+    // refusal for the turn, not for the link.
+    held.release();
+    for (let attempt = 0; attempt < 250 && (await ask({ room: nameA, limit: 1 })).status !== 409; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+    const ended = await ask({ room: nameA, limit: 1 });
+    assert.equal(ended.status, 409, 'a reading after its turn ended');
+    assert.match((await ended.json()).error, /turn running/);
+    live = null;
     assert.deepEqual(await enlaces.toolsForTurn(await ctxB(), turnB), [], 'the tool outlived its link');
     const after = await (await fetch(`http://127.0.0.1:${portA}/api/salas`)).json();
     assert.deepEqual(after.enlaces.map((one) => one.id).sort(), [orderedContract.id, plain.id].sort());
@@ -253,6 +285,7 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.deepEqual((await (await fetch(`http://127.0.0.1:${portA}/api/salas`)).json()).enlaces.map((one) => one.id), [plain.id]);
     assert.equal((await fetch(`http://127.0.0.1:${portB}/api/enlace/memories?${new URLSearchParams({ contract: orderedContract.id, asking: salas })}`, { headers: channel })).status, 404);
   } finally {
+    held?.release();
     await close(b.server);
     await close(a.server);
   }

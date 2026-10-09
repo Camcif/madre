@@ -40,7 +40,10 @@ test('enlaces · a contract is whole or it is nothing: two rooms, a direction, s
   assert.deepEqual(contract.signed, { at: now.toISOString(), by: 'you' });
   assert.equal(contract.expires, '2026-11-30T00:00:00.000Z');
   assert.equal(contract.revoked, null);
-  assert.deepEqual(Object.keys(contract), ['id', 'rooms', 'direction', 'kinds', 'zones', 'expires', 'revoked', 'orders', 'signed']);
+  assert.deepEqual(Object.keys(contract), ['id', 'rooms', 'direction', 'kinds', 'zones', 'expires', 'revoked', 'orders', 'signed', 'recall']);
+  assert.equal(contract.recall, false, '3e: off unless ticked');
+  assert.equal(normalizeContract({ rooms, direction: 'both', kinds: ['fact'], recall: true }).recall, true);
+  assert.throws(() => normalizeContract({ rooms, direction: 'both', kinds: ['fact'], recall: 'yes' }), /recall is on or off/);
   // Defaults: orders off, #1, six an hour. The zones may be stated only as they are.
   const plain = normalizeContract({ rooms, direction: 'both', kinds: ['question'], zones: ['bridge', 'hold'] });
   assert.deepEqual(plain.orders, { allowed: false, maxMode: 1, perHour: 6 });
@@ -176,10 +179,13 @@ test('enlaces · the traffic of a link is read from the lines beside the serving
   await noteCrossing(dirA, { kind: 'received', contract: id, other: 'b', count: 1, now });                                  // not a reading
   await noteCrossing(dirA, { kind: 'read', contract: 'bbbbbbbbbbbb-000001', other: 'c', count: 1, now });                   // another link
   await noteCrossing(dirB, { kind: 'read', contract: id, other: 'a', count: 3, now: new Date('2026-10-08T11:45:00Z') });   // the other end of a link both ways
-  assert.deepEqual(await linkTraffic([dirA], id, { now }), { reads24h: 2, reads1h: 1, lastAt: '2026-10-08T11:30:00.000Z' });
-  assert.deepEqual(await linkTraffic([dirA, dirB], { id }, { now }), { reads24h: 3, reads1h: 2, lastAt: '2026-10-08T11:45:00.000Z' });
-  assert.deepEqual(await linkTraffic([join(dirA, 'nowhere')], id, { now }), { reads24h: 0, reads1h: 0, lastAt: null });
-  assert.deepEqual(await linkTraffic([], id, { now }), { reads24h: 0, reads1h: 0, lastAt: null });
+  // S-021: the latest reading also says who read it, when the asking room said so, and from where.
+  assert.deepEqual(await linkTraffic([dirA], id, { now }), { reads24h: 2, reads1h: 1, lastAt: '2026-10-08T11:30:00.000Z', lastAgent: null, lastRoom: 'b' });
+  assert.deepEqual(await linkTraffic([dirA, dirB], { id }, { now }), { reads24h: 3, reads1h: 2, lastAt: '2026-10-08T11:45:00.000Z', lastAgent: null, lastRoom: 'a' });
+  assert.deepEqual(await linkTraffic([join(dirA, 'nowhere')], id, { now }), { reads24h: 0, reads1h: 0, lastAt: null, lastAgent: null, lastRoom: null });
+  await noteCrossing(dirB, { kind: 'read', contract: id, other: 'a', count: 1, agent: 'claude', turn: 't-9', now: new Date('2026-10-08T11:50:00Z') });
+  assert.deepEqual(await linkTraffic([dirB], id, { now }), { reads24h: 2, reads1h: 2, lastAt: '2026-10-08T11:50:00.000Z', lastAgent: 'claude', lastRoom: 'a' });
+  assert.deepEqual(await linkTraffic([], id, { now }), { reads24h: 0, reads1h: 0, lastAt: null, lastAgent: null, lastRoom: null });
 });
 
 test('enlaces · signing writes one key of config.json: two rooms signing at once keep both; revoking stamps and never deletes (S-001, S-007)', async () => {
@@ -421,10 +427,10 @@ test('enlaces · the room that serves holds every lock, and hands over only what
     // The side that asks: no Origin, no device, the key in its header; what comes back is recorded
     // as a count in the asking room, beside its record.
     const recorded = [];
-    const answer = await askEnlace({ port: portA, contract: fresh, asking: idB, q: 'webhook', key, record: async (type, payload) => { recorded.push([type, payload]); }, roomDir: join(state, 'rooms', idB), turn: 'turn-1' });
+    const answer = await askEnlace({ port: portA, contract: fresh, asking: idB, q: 'webhook', key, record: async (type, payload) => { recorded.push([type, payload]); }, roomDir: join(state, 'rooms', idB), turn: 'turn-1', agent: 'codex' });
     assert.deepEqual(answer, { contract: fresh.id, from: idA, notes: answer.notes });
     assert.deepEqual(answer.notes.map((note) => note.text), ['Webhook signatures are verified before parsing.']);
-    assert.deepEqual(recorded, [['enlace.received', { contract: fresh.id, from: idA, count: 1, turn: 'turn-1' }]]);
+    assert.deepEqual(recorded, [['enlace.received', { contract: fresh.id, from: idA, count: 1, turn: 'turn-1', agent: 'codex' }]]);
     assert.equal(await countRecent(join(state, 'rooms', idB), fresh.id, 'received'), 1);
     assert.deepEqual(await askEnlace({ port: portA, contract: contract.id, asking: idB, key }), { refused: NO_SUCH_LINK, status: 404 });
     assert.deepEqual(await askEnlace({ port: portA, contract: fresh, asking: idB, key: 'not-the-key' }), { refused: 'That is not the key of this Mac.', status: 403 });

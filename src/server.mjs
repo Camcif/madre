@@ -19,6 +19,7 @@ import { memoryServerFor } from './memory-tools.mjs';
 import { MotherChannel, CODE000_STRIKES } from './mother.mjs';
 import { ErrorSentinel } from './sentinel-errors.mjs';
 import { probeOllama, ollamaEmbedder, ollamaInvoker, pullModel, ollamaVersions, ownOllamaServers } from './ollama.mjs';
+import { recallForTurn } from './modules/enlaces.mjs';
 import { MODULES, moduleById, describeModules, findModuleRoute, toolsForTurn as modulesToolsForTurn, loadExternalModules, loadFailures, moduleFolders, moduleCommands, installModuleFile, installModuleText, verifyModuleText, moduleOrigin, removeExternalModule } from './modules/index.mjs';
 import { madreAgent, madreInvoker, MADRE_AGENT_ID, MADRE_ADAPTER } from './adapters/madre.mjs';
 import { exportDataset, readiness as datasetReadiness } from './dataset.mjs';
@@ -402,7 +403,12 @@ export async function createPulseServer({
     privacy,
     // Modules may hand tools to a turn; the room asks once per turn, the server knows the port.
     toolsForTurn: async (turn) => modulesToolsForTurn(await moduleContext(), { ...turn, port: listeningPort(), roomDir }),
-    bishopForTurn: salasRoom ? async (turn) => moduleById('bishop').promptForTurn(await moduleContext(), turn) : null,
+    // What BISHOP reads for a turn is recorded in that turn's conversation, not the open one.
+    bishopForTurn: salasRoom ? async (turn) => moduleById('bishop').promptForTurn({ ...(await moduleContext()), record: (type, payload) => ((turn.turn && liveRooms().find((one) => one.runningTurn?.(turn.turn))) || room).record(type, payload) }, turn) : null,
+    // Fase 3e: notes a link with automatic recall brings to a turn. Never in the room of Salas
+    // (BISHOP has its own); recorded in the conversation of the turn that read them.
+    linkedForTurn: salasRoom ? null : async (turn) => recallForTurn(await moduleContext(), { ...turn, port: listeningPort(), roomDir,
+      record: (type, payload) => ((turn.turn && liveRooms().find((one) => one.runningTurn?.(turn.turn))) || room).record(type, payload) }),
     softTokenBudget,
     contextMaxChars,
     recallShare: Number(process.env.PULSE_RECALL_SHARE ?? memorySettings.recallShare),
@@ -803,6 +809,9 @@ export async function createPulseServer({
     return [...modes, ...kept];
   }
   let unsubscribeAsks = () => {};
+  // What a conversation's name and preview show of a message. One BISHOP's channel brought starts
+  // with the header its agent reads; the person sees the task, as the page shows it.
+  const saidText = (payload) => (payload?.via === 'bishop' ? String(payload.text ?? '').replace(/^BISHOP › [^\n]*\n+/, '') : payload?.text);
   // What a module hears of the ledger (`onEvent`, docs/SDK.md; S-027 in docs/MACROVERSO.md): each
   // event of each conversation alive in this room, once, with that conversation's room and id.
   // A module hears only while it is on, gets the same context as everywhere else, and can only
@@ -837,7 +846,7 @@ export async function createPulseServer({
     unsubscribeChats = room.subscribe((event) => {
       if (event?.type !== 'message.created' || event.ghost) return;
       const human = event.payload?.role === 'user';
-      chatWrites = chatWrites.then(() => touchChat(roomDir, chatId, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
+      chatWrites = chatWrites.then(() => touchChat(roomDir, chatId, { text: human ? saidText(event.payload) : null, counts: human })).catch(() => null);
     });
     unsubscribeActivity = watchActivity(room, chatId);
     sentinel.seed(historicalEvents);
@@ -929,7 +938,7 @@ export async function createPulseServer({
     const offTouch = target.subscribe((event) => {
       if (event?.type !== 'message.created' || event.ghost) return;
       const human = event.payload?.role === 'user';
-      chatWrites = chatWrites.then(() => touchChat(roomDir, id, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
+      chatWrites = chatWrites.then(() => touchChat(roomDir, id, { text: human ? saidText(event.payload) : null, counts: human })).catch(() => null);
     });
     const offActivity = watchActivity(target, id);
     const offModules = wireModules(target, id);
@@ -1576,8 +1585,11 @@ export async function createPulseServer({
           .filter((row) => memoryTravels(row) && kinds.includes(row.kind))
           .slice(0, limit)
           .map((row) => ({ id: row.id, kind: row.kind, zone: row.zone, text: privacy.redact(row.text).text, fromSequence: row.fromSequence, throughSequence: row.throughSequence, created: row.created }));
-        await room.record('enlace.read', { contract: contract.id, to: asking, count: notes.length, kinds, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null });
-        await noteCrossing(roomDir, { kind: 'read', contract: contract.id, other: asking, count: notes.length });
+        // Which agent of the asking room read (S-021): that room's word, checked there against a turn
+        // it is running; here it is only kept, shaped like an agent id or not at all.
+        const reader = /^[a-z][a-z0-9_-]{0,30}$/.test(String(url.searchParams.get('agent') ?? '')) ? url.searchParams.get('agent') : null;
+        await room.record('enlace.read', { contract: contract.id, to: asking, count: notes.length, kinds, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null, ...(reader ? { agent: reader } : {}) });
+        await noteCrossing(roomDir, { kind: 'read', contract: contract.id, other: asking, count: notes.length, agent: reader });
         return sendJson(response, 200, { contract: contract.id, from: here, notes });
       }
       // The side that asks (fase 3c): a tool of this room's own turn asks this room, and this room
@@ -1593,6 +1605,13 @@ export async function createPulseServer({
         if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
         const payload = await body(request).catch(() => ({}));
         const here = basename(roomDir);
+        // S-021: a reading belongs to a turn. The tool says which turn and which agent; this room
+        // checks that this very turn is running here now, for that agent, above GHOST, and records
+        // the reading in that turn's conversation. A tool that outlived its turn reads nothing.
+        const turnId = String(payload.turn ?? '');
+        const host = turnId ? liveRooms().find((one) => one.runningTurn?.(turnId)) : null;
+        const running = host?.runningTurn(turnId) ?? null;
+        if (!running || running.agent !== payload.agent || !(running.mode >= 1)) return sendJson(response, 409, { error: t('That reading does not belong to a turn running in this room.') });
         const wanted = String(payload.room ?? '').trim();
         const rooms = await knownRooms(root);
         const named = rooms.filter((one) => one.id === wanted);
@@ -1608,8 +1627,8 @@ export async function createPulseServer({
         if (!source.open) return sendJson(response, 409, { error: t('That room is asleep. Wake it from Salas to read from it.') });
         const q = String(payload.query ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
         const answer = await askEnlace({
-          port: source.open.port, contract, asking: here, q, kinds: asked.length ? kinds : null, limit: payload.limit, key,
-          record: (type, event) => room.record(type, { ...event, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null }),
+          port: source.open.port, contract, asking: here, q, kinds: asked.length ? kinds : null, limit: payload.limit, key, turn: turnId, agent: running.agent,
+          record: (type, event) => host.record(type, { ...event, query: q ? createHash('sha256').update(q).digest('hex').slice(0, 16) : null }),
           roomDir,
         });
         if (answer.notes) return sendJson(response, 200, { from: source.name, contract: contract.id, notes: answer.notes });
@@ -1656,13 +1675,26 @@ export async function createPulseServer({
           // BISHOP signs only from the room's own process (no Origin: never a page), and the contract
           // itself holds it to a link to read that expires within a week (D-S13, src/enlaces.mjs).
           const signed = payload.by === 'bishop' && request.headers.origin === undefined ? { by: 'bishop' } : undefined;
-          contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, signed }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
+          contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, signed, recall: payload.recall === true && !signed }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
         } catch (error) {
           if (error.code === 'DESIGNATION') return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
           return sendJson(response, error.code === 'UNKNOWN_ROOM' ? 404 : 422, { error: t(error.message) });
         }
         await tellRooms('enlace.signed', contract, rooms);
         return sendJson(response, 200, { contract });
+      }
+      // Fase 3e: the box «recall on every turn» of a link, ticked or cleared by the human from Salas
+      // (never a phone, never a process: the page asks). It changes what each turn of the room that
+      // reads is handed, not what that room may read; the contract is otherwise untouched.
+      if (request.method === 'POST' && url.pathname === '/api/salas/enlaces/recall') {
+        const payload = await body(request).catch(() => ({}));
+        if (request.headers.origin === undefined) return sendJson(response, 403, { error: t('This is changed by you, from Salas.') });
+        if (typeof payload.recall !== 'boolean') return sendJson(response, 422, { error: t('recall is on or off.') });
+        const id = String(payload.id ?? '');
+        const contract = activeContracts(await readConfig(root), { salas: salasRoomId(root) }).find((one) => one.id === id);
+        if (!contract) return sendJson(response, 404, { error: NO_SUCH_LINK });
+        await updateConfig(root, { enlaces: { [id]: { ...contract, recall: payload.recall } } });
+        return sendJson(response, 200, { contract: { ...contract, recall: payload.recall } });
       }
       if (request.method === 'POST' && url.pathname === '/api/salas/enlaces/revoke') {
         const payload = await body(request).catch(() => ({}));

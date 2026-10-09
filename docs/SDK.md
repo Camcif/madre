@@ -72,7 +72,7 @@ la suite compara esta tabla contra el código, así que si alguna vez se separan
 | `toggle(ctx, payload)` | Sustituye el interruptor por defecto; `confirm: 'texto'` pide confirmación antes de encender |
 | `onToggle(ctx, enabled)` | Reacciona al interruptor |
 | `slash` | Comandos `/nombre` que corren en el servidor con tu `ctx` y devuelven `{ ok, title, text }`. La sala los muestra como tarjeta y los agentes los leen |
-| `toolsForTurn(ctx, turn)` | Servidores MCP para el turno de un agente: `[{ name, command, args, env, tools, sends, brief }]`. MADRE los adjunta a la CLI en su corrida aislada y describe `brief` al agente |
+| `toolsForTurn(ctx, turn)` | Servidores MCP para el turno de un agente: `[{ name, command, args, env, tools, sends, brief }]`. MADRE los adjunta a la CLI en su corrida aislada y describe `brief` al agente. `turn` trae el agente, el modo, el arriendo, la carpeta, el puerto y `turn.turn`: el id de la respuesta que ese turno escribirá. Si tu servidor llama de vuelta a la sala en nombre del turno, manda ese id; `ctx.room.runningTurn(id)` dice si sigue corriendo y para qué agente |
 | `toolsForTurn` → `sends` | Cuáles de tus herramientas **mandan algo fuera**. El núcleo las retira por debajo de `#4` AIRLOCK: ni se le cuenta al modelo que existen. Ver abajo |
 | `reaches` | A dónde llega tu módulo, en las mismas cuatro respuestas que da MADRE de las suyas. Ver abajo |
 | `secrets` | Las llaves que necesitas, declaradas en vez de dibujadas: `[{ name, label, note, where }]`. MADRE pinta el campo, la guarda en su bodega bajo tu id y te la devuelve por `ctx.vault`. Ver abajo |

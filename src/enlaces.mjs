@@ -45,6 +45,8 @@ export const NOTICES = ['enlace.signed', 'enlace.revoked'];
 export const DAY_MS = 24 * HOUR_MS;
 // The longest link BISHOP may sign on its own (D-S13).
 export const BISHOP_SIGN_DAYS = 7;
+// The most notes a link with automatic recall brings to one turn, across every such link (3e).
+export const RECALL_NOTES = 3;
 
 const OWNER_ONLY = 0o600;
 const OWNER_DIR = 0o700;
@@ -120,6 +122,10 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
 
   const expires = isoOrNull(raw.expires, 'expires');
   const revoked = isoOrNull(raw.revoked, 'revoked');
+  // Fase 3e: the room that reads also gets, on each turn, up to RECALL_NOTES of these notes without
+  // asking. Off unless the human ticks it; a reading like any other, counted against `perHour`.
+  if (raw.recall !== undefined && raw.recall !== null && typeof raw.recall !== 'boolean') fail('recall is on or off.');
+  const recall = raw.recall === true;
 
   const orders = raw.orders && typeof raw.orders === 'object' ? raw.orders : {};
   const maxMode = orders.maxMode === undefined ? 1 : Number(orders.maxMode);
@@ -156,6 +162,7 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
     revoked,
     orders: { allowed, maxMode, perHour },
     signed: { at, by },
+    recall,
   };
 }
 
@@ -305,13 +312,15 @@ export async function channelKeySummary(stateRoot) {
 // key, sealed, over its hourly limit); or `unreachable`. A received batch is recorded through
 // `record` when the caller hands one in, and counted beside the room's record when it hands in
 // the room's folder.
-export async function askEnlace({ port, contract, asking, q = '', kinds = null, limit = MAX_LIMIT, key, fetchImpl = globalThis.fetch, timeoutMs = 4000, record = null, roomDir = null, turn = null, now = new Date() }) {
+export async function askEnlace({ port, contract, asking, q = '', kinds = null, limit = MAX_LIMIT, key, fetchImpl = globalThis.fetch, timeoutMs = 4000, record = null, roomDir = null, turn = null, agent = null, auto = false, now = new Date() }) {
   const id = typeof contract === 'string' ? contract : contract?.id;
   if (!id || !asking) return { refused: NO_SUCH_LINK, status: 404 };
   const params = new URLSearchParams({ contract: id, asking, limit: String(Math.min(MAX_LIMIT, Math.max(1, Math.trunc(Number(limit)) || MAX_LIMIT))) });
   if (q) params.set('q', String(q));
   // Fewer kinds than the contract names, never more: the serving room intersects again.
   if (Array.isArray(kinds) && kinds.length) params.set('kinds', kinds.map(String).join(','));
+  // Which agent of the asking room reads (S-021): the serving room keeps it as that room's word.
+  if (agent) params.set('agent', String(agent));
   let response;
   try {
     response = await fetchImpl(`http://127.0.0.1:${port}/api/enlace/memories?${params}`, {
@@ -327,8 +336,8 @@ export async function askEnlace({ port, contract, asking, q = '', kinds = null, 
   if (!response.ok) return { refused: typeof answer?.error === 'string' ? answer.error : `HTTP ${response.status}`, status: response.status };
   const notes = Array.isArray(answer?.notes) ? answer.notes : [];
   const from = typeof answer?.from === 'string' ? answer.from : null;
-  if (record) await record('enlace.received', { contract: id, from, count: notes.length, turn });
-  if (roomDir) await noteCrossing(roomDir, { kind: 'received', contract: id, other: from, count: notes.length, now });
+  if (record) await record('enlace.received', { contract: id, from, count: notes.length, turn, agent, ...(auto ? { auto: true } : {}) });
+  if (roomDir) await noteCrossing(roomDir, { kind: 'received', contract: id, other: from, count: notes.length, agent, turn, now });
   return { contract: id, from, notes };
 }
 
@@ -363,12 +372,12 @@ export async function noticeEnlace({ port, type, payload, key, fetchImpl = globa
 // opening every ledger on every refresh: `{ at, kind: 'read' | 'received', contract, other, count }`.
 export const crossingsFile = (roomDir) => join(roomDir, 'enlaces.jsonl');
 
-export async function noteCrossing(roomDir, { kind, contract, other = null, count = 0, now = new Date() }) {
+export async function noteCrossing(roomDir, { kind, contract, other = null, count = 0, agent = null, turn = null, now = new Date() }) {
   if (!CROSSINGS.includes(kind)) fail(`A crossing is one of ${CROSSINGS.join(', ')}.`);
   const id = typeof contract === 'string' ? contract : contract?.id;
   if (!id) fail('A crossing names its contract.');
   await mkdir(roomDir, { recursive: true });
-  const line = { at: new Date(now).toISOString(), kind, contract: id, other, count: Number.isInteger(count) ? count : 0 };
+  const line = { at: new Date(now).toISOString(), kind, contract: id, other, count: Number.isInteger(count) ? count : 0, ...(agent ? { agent: String(agent) } : {}), ...(turn ? { turn: String(turn) } : {}) };
   await appendFile(crossingsFile(roomDir), `${JSON.stringify(line)}\n`);
   return line;
 }
@@ -400,12 +409,12 @@ export async function countRecent(roomDir, contract, kind, { sinceMs = HOUR_MS, 
 // goes both ways) handed over in the last day and the last hour, and when the latest was. Summed
 // across the folders given, with `countRecent`; `lastAt` is the newest line or `null`.
 export async function linkTraffic(roomDirs, contract, { now = new Date() } = {}) {
-  const traffic = { reads24h: 0, reads1h: 0, lastAt: null };
+  const traffic = { reads24h: 0, reads1h: 0, lastAt: null, lastAgent: null, lastRoom: null };
   for (const roomDir of roomDirs) {
     traffic.reads24h += await countRecent(roomDir, contract, 'read', { sinceMs: DAY_MS, now });
     traffic.reads1h += await countRecent(roomDir, contract, 'read', { sinceMs: HOUR_MS, now });
     for (const line of await crossings(roomDir, contract, 'read')) {
-      if (traffic.lastAt === null || Date.parse(line.at) > Date.parse(traffic.lastAt)) traffic.lastAt = line.at;
+      if (traffic.lastAt === null || Date.parse(line.at) > Date.parse(traffic.lastAt)) Object.assign(traffic, { lastAt: line.at, lastAgent: line.agent ?? null, lastRoom: line.other ?? null });
     }
   }
   return traffic;

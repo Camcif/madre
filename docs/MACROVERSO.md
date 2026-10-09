@@ -6,7 +6,7 @@ se anota aquí. Lo que toca procesos o rutas sigue además las reglas de `docs/W
 
 | | |
 |---|---|
-| Estado | **Fases 1, 2, 3a–3d y 4a–4c · hechas**, con D-S13 y S-032 aplicadas. Queda 3e (se pregunta) y S-021. D-S01..06 y D-S11..13 cerradas por el humano; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
+| Estado | **Todas las fases hechas**: 1, 2, 3a–3e y 4a–4c, con D-S13, S-021 y S-032 aplicadas. Lo que queda son decisiones menores (`docs/MACROVERSO-TRASPASO.md` §4). D-S01..06 y D-S11..14 cerradas por el humano; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
 | Origen | Pedido del 2026-10-08, después de probar Salas en el teléfono; ampliado el mismo día (§1, puntos 6-8) |
 | Regla en vigor | Nada aquí cambia el núcleo de una sala (registro, memoria, modos). Un enlace lee; nunca escribe en otra sala. Una orden entra a una sala solo por la puerta que esa sala ya tiene para el humano |
 | Encargo | `docs/MACROVERSO-ENCARGO.md`: hechos verificados con `ruta:línea`, diseño, compuertas, pruebas y presupuestos de las fases 3 y 4. Este documento sigue siendo el único lugar de hallazgos (`S-0xx`), decisiones (`D-Sxx`) y bitácora |
@@ -89,7 +89,7 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-018** | `docs/INTERNALS.md:83` dice que varios turnos `#2` corren a la vez; el código deja un solo escritor por proyecto | `src/room/control.mjs:12-16` | — | ANOTADO |
 | **S-019** | La purga reinsertaba notas sin zona, refutación, contradicción ni historial de recall: un hecho refutado volvía a circular, incluso tras reabrir. Con la excepción autorizada por el humano, la reinserción conserva todas las columnas de la nota y solo redacta el contenido privado. Prueba de hecho expulsado, aberración en enfermería e historial de recall antes y después de reabrir | `src/memory.mjs` (`purge`), `test/memory.test.mjs` | — | ARREGLADO |
 | **S-020** | La llave del canal (`~/.pulse/credentials/enlaces.json`) prueba «un proceso de MADRE en esta Mac», no qué sala pide: el `asking` de la petición es la palabra de quien llama. Es el límite [I] que el encargo pedía anotar (§4B); una sala que mienta sobre su id solo obtiene lo que un contrato ya deja leer a esa otra sala | `src/enlaces.mjs`, `src/server.mjs` (sección ENLACES) | 3b | ANOTADO |
-| **S-021** | `enlace.received` no dice qué agente ni qué turno pidió la lectura (`turn: null`): el servidor MCP `pulse-enlaces` no recibe el id del mensaje (solo `pulse-memory` lo recibe, y se lo pone el núcleo en `memoryServerForTurn`), y el `env` que fija el contrato de 3c no lleva `turn.agent`. D-S04 pedía ver «quién lo pidió y para qué turno»; hoy lo más cercano es `turn.cost.servers` de la sala, que dice qué servidores viajaron en cada turno. Falta decidir si el módulo añade `PULSE_ENLACES_AGENT` y un campo `agent` al cuerpo de `/api/enlace/ask`, o si el núcleo expone el id del turno a los módulos | `src/modules/enlaces.mjs`, `src/server.mjs` (`/api/enlace/ask`) | 3c | ABIERTO |
+| **S-021** | `enlace.received` no decía qué agente ni qué turno pidió la lectura. Con la autorización del humano («completo, priorizando lógica, permisos y coherencia»): la sala registra sus turnos vivos (`Room.runningTurn(id)`: agente y modo, por el id de la respuesta que escribirán); `toolsForTurn` y `bishopForTurn` reciben ese id; `pulse-enlaces` lleva `PULSE_ENLACES_AGENT` y `PULSE_ENLACES_TURN` y los manda en cada lectura; `POST /api/enlace/ask` **no lee** si ese turno no está corriendo en la sala, para ese agente y arriba de GHOST (409, antes de decir si el enlace existe), y anota la lectura en la conversación de ese turno. `enlace.received` y la línea de `enlaces.jsonl` llevan `agent` y `turn`; la sala que entrega guarda el agente como palabra de la otra (S-020) en `enlace.read`; Salas dice quién leyó al último; bajo cada respuesta, «leyó N notas de gumball». Una mutación que quita la comprobación hace fallar la prueba | `src/room.mjs`, `src/server.mjs`, `src/enlaces.mjs`, `src/modules/enlaces.mjs`, `src/modules/bishop.mjs`, `public/app.js`, `public/salas-mac.js` | 3e | ARREGLADO |
 | **S-022** | `--help` después de un comando se ignoraba: `madre start --help` abría la sala, y `madre salas --help` la habría abierto también. Ahora `parseArgs` toma `--help` o `-h` en cualquier posición como la ayuda; un valor nunca empieza por `-`, así que ninguna opción pierde el suyo | `src/cli-args.mjs` | 3d | ARREGLADO |
 | **S-023** | Abrir la sala de Salas deja `.pulse/mother.env` dentro del cuaderno, como en cualquier proyecto: es el sello del canal de MU/TH/UR, que el núcleo escribe en `<proyecto>/.pulse/`. El CLI crea el cuaderno vacío y no escribe nada; lo que sí escribe es la sala, igual que en toda sala, y el checkpoint ya excluye `.pulse/` (`FORBIDDEN`). Las pruebas fijan que eso es lo único que aparece dentro | `src/server.mjs` (`MotherChannel`), `src/checkpoint.mjs:21` | 3d | ANOTADO · SIN CAMBIO |
 | **S-024** | Faltaba un conducto del módulo al bloque `bishop`, también para `@madre`, porque `toolsForTurn` no viaja al agente local. Con la excepción autorizada, el callback en `src/server.mjs`/`src/room.mjs` prepara el bloque solo en Salas y para el agente elegido; `promptParts` lo identifica y mide (≤ 1500 caracteres). El fixture dorado añade solo la forma BISHOP | `src/modules/bishop.mjs`, `src/server.mjs`, `src/room.mjs`, `src/room/prompt.mjs`, `test/prompt.test.mjs` | 4a | ARREGLADO |
@@ -218,6 +218,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | **D-S11** | Gobernanza contra los bucles: el humano hace lo macro hacia todos sus proyectos y lo micro dentro de cada sala; nada se retroalimenta | «La gobernanza los rige para que no haya bucles.» Lectura operativa para 4b/4c: **solo BISHOP ordena**, y solo dentro de un plan que arrancó un mensaje del humano; una sala que recibe una orden no puede ordenar ni delegar hacia fuera (su turno corre con `depth: 1`); el resultado vuelve a la sala de Salas como tarjeta y **no arranca ningún turno**; un plan tiene a lo sumo 4 órdenes y un cierre, y el cierre no abre otro plan; una orden a una sala que ya corre una orden espera o falla, nunca se encola sin tope; el modo automático cuenta contra `perHour` y se detiene con STOP ALL. Lo que no esté aquí no se asume | 4b, 4c | **CERRADA 2026-10-08** |
 | **D-S12** | BISHOP como centro del Macroverso | «Sí a S-030 pero me gustaría que el usuario elija quién quiere ser su super agente, pero la gobernanza, contexto y memorias de todas las salas enlazadas viven en el macroverso; levantando bishop en las salas puede consultar cualquiera que sea el proyecto que esté enlazado; y algo muy importante, bishop como wizard de enlaces automático y manual por el humano.» Lectura operativa (4c): el humano elige el agente de BISHOP; con `@madre` solo responde. Contratos, censo y notas enlazadas viven en la sala de Salas. Desde cualquier sala, `/bishop <pregunta>` la despierta si duerme, la pregunta corre allí y la respuesta vuelve solo para el humano (`bishop.answer`, que ningún agente lee sin contrato). BISHOP propone enlaces en su bloque, por su cuenta cuando una pregunta necesita una sala sin enlace (automático) o cuando se le pide (manual); **los firma el humano** con un toque (D-S13) | 4c | **CERRADA 2026-10-08** |
 | **D-S13** | ¿BISHOP puede firmar un enlace sin el humano? | «S13 sí puede, modo lectura, pero edición previa autorización humana.» Lectura operativa: BISHOP firma él mismo los enlaces que propone y solo leen, sin órdenes, que caducan en 7 días como máximo (`BISHOP_SIGN_DAYS`); un enlace con órdenes, que deja editar, lo firma siempre el humano con la designación. El contrato lo impone (`signed.by: 'bishop'` solo así; uno guardado que lo rompa no existe), la ruta de firma solo acepta esa firma de un proceso, nunca de una página, la tarjeta y Salas dicen «lo firmó BISHOP» con **Revocar** a mano, y el ajuste «Enlaces de lectura» de la ficha deja al humano firmarlos todos | — | **CERRADA 2026-10-08** |
+| **D-S14** | 3e · ¿recuerdo automático de notas enlazadas? | «3e con casillas, es muy buena idea.» Una casilla «Recordar en cada turno» por enlace, apagada por defecto, que solo el humano marca o quita desde Salas (nunca un proceso, nunca el teléfono; BISHOP nunca la marca). Con ella, cada turno de la sala que lee (arriba de GHOST, no `@madre`, no la sala de Salas) recibe hasta 3 notas de los tipos del contrato que viajan, limpias por el guardia de la sala que entrega, en un bloque `linked` del prompt; cada turno así es una lectura del tope por hora y queda con su agente y su turno | 3e | **CERRADA 2026-10-08** |
 
 ---
 
@@ -234,7 +235,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | HECHA |
 | 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | HECHA |
 | 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje; y D-S12: `/bishop` desde cualquier sala y el asistente de enlaces | HECHA |
-| 3e | Recall automático de notas enlazadas | Se pregunta antes de empezar |
+| 3e | Recall automático de notas enlazadas, con una casilla por enlace (D-S14) | HECHA |
 
 ---
 
@@ -515,3 +516,22 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   procesos ajenos fallaron pruebas de tiempos que pasan solas) y `pack:check`. Verificado en vivo:
   Claude como BISHOP propuso un enlace de lectura de `pulse`, lo firmó él mismo por 7 días, el
   turno no llevó el bloque `delegation`, y Revocar desde la tarjeta lo selló en `config.json`.
+- `2026-10-08` · El humano pidió S-021 completo («priorizando lógica, permisos y coherencia») y 3e
+  con casillas (D-S14). S-021: `Room.runningTurn()` y `#liveTurns` (agente y modo de cada turno
+  vivo, por el id de su respuesta); el id viaja a `toolsForTurn`, `bishopForTurn` y el nuevo
+  `linkedForTurn`; `pulse-enlaces` manda agente y turno en cada lectura y la sala que pide no lee
+  si ese turno no corre ahí para ese agente arriba de GHOST, ni dice si el enlace existe; la lectura
+  queda en la conversación de su turno. `enlace.received`, `enlace.read` y `enlaces.jsonl` llevan el
+  agente (y el turno del lado que pide); `linkTraffic` da el último agente y su sala; la página pone
+  bajo cada respuesta qué leyó de otra sala. 3e: el contrato gana `recall` (apagado por defecto);
+  la hoja de firma y cada fila de Enlaces en Salas tienen la casilla (`POST
+  /api/salas/enlaces/recall`, solo desde la página); `recallForTurn` en `src/modules/enlaces.mjs`
+  trae hasta `RECALL_NOTES` (3) notas por turno en el bloque nuevo `linked` de
+  `src/room/prompt.mjs` (después de `recall`; la referencia dorada suma la forma `linked` y las otras
+  ocho quedan idénticas byte por byte), cada lectura con `auto: true`, contada contra `perHour`;
+  la vista previa no lee y se marca dinámica. Pruebas: `test/enlaces-recall.test.mjs` (casilla
+  apagada por defecto, 3 notas, lectura con su turno y agente, nada en GHOST, tope por hora, vista
+  previa sin lectura, la casilla solo desde la página, BISHOP no la marca) y la prueba de 3c
+  reescrita para leer desde un turno vivo de verdad (sin turno, con otro agente, con un turno que
+  no corre, y después de que el turno termina: 409). Una mutación que quita la comprobación de
+  turno hace fallar la prueba. Todas las fases del encargo quedan hechas.
