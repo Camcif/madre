@@ -4348,8 +4348,9 @@ function renderEnlace(event) {
       : role === 'serves' ? t(" · with {room} · it reads this room's {kinds}, read-only", { room: other, kinds: what })
       : t(" · with {room} · both read each other's {kinds}, read-only", { room: other, kinds: what }));
     if (expires) node.append(t(' · until {date}', { date: new Date(expires).toLocaleDateString(language(), { day: 'numeric', month: 'short' }) }));
+    if (event.payload.contract?.signed?.by === 'bishop') node.append(t(' · signed by BISHOP'));
   }
-  node.title = contract ?? '';
+  node.title = contract?.id ?? (typeof contract === 'string' ? contract : '');
   return node;
 }
 
@@ -4876,7 +4877,10 @@ function renderBishopPlan(event) {
     if (link.days) terms.push(t('{n} days', { n: link.days }));
     if (link.orders) terms.push(t('orders up to #{n}', { n: link.orders.maxMode }));
     what.append(where, el('div', 'bishop-task', terms.join(' · ')));
-    if (link.why) what.append(el('p', 'run-why', t(link.why)));
+    const why = el('p', 'run-why');
+    why.hidden = !link.why;
+    if (link.why) why.textContent = t(link.why);
+    what.append(why);
     row.append(what, el('div', 'choice-tags'));
     list.append(row);
     markBishopLink({ plan, index: link.index }, link.status, row, link);
@@ -4898,7 +4902,7 @@ function renderBishopPlan(event) {
     list.append(row);
     markBishopOrder({ plan, step: order.step }, order.status, { row });
   }
-  node.append(list, el('p', 'choice-foot', t('Each order leaves only when you send it, or on its own within the link if you chose so · links are signed only by you · the answer comes back here as a card · #3 and #4 wait for your key in their room')));
+  node.append(list, el('p', 'choice-foot', t('Each order leaves only when you send it, or on its own within the link if you chose so · a link with orders is signed only by you · the answer comes back here as a card · #3 and #4 wait for your key in their room')));
   state.lastSender = null;
   return node;
 }
@@ -4930,15 +4934,32 @@ function markBishopOrder({ plan, step }, status, { row = null, why = undefined }
   skip.addEventListener('click', () => bishopPress('/api/x/bishop/skip', body, [go, skip]));
   side.append(go, skip);
 }
-// A link BISHOP proposed: signed only by the human. With orders, the designation of the room that
-// would receive them is typed here, the way the sheet of Salas asks for it.
-function markBishopLink({ plan, index }, status, row = null, link = null) {
+// A link BISHOP proposed. One that only reads BISHOP may sign itself (D-S13), for a week at most,
+// and the row says so with a «Revoke» at hand; one with orders is signed only by the human, with
+// the designation of the room that would receive them, the way the sheet of Salas asks for it.
+function markBishopLink({ plan, index, by = null, contract = null, expires = null, why = null }, status, row = null, link = null) {
   const target = row ?? document.querySelector(`.bishop-plan[data-plan="${CSS.escape(String(plan))}"] .bishop-link[data-link="${Number(index)}"]`);
   if (!target) return;
   target.dataset.status = status;
+  if (contract) target.dataset.contract = contract;
+  const note = target.querySelector('.run-why');
+  if (why && note) { note.textContent = t('BISHOP did not sign it: {why}', { why }); note.hidden = false; }
   const side = target.querySelector('.choice-tags');
   side.replaceChildren();
-  const words = { signed: 'SIGNED', exists: 'ALREADY IN FORCE', blocked: 'WILL NOT BE SIGNED' };
+  const words = { exists: 'ALREADY IN FORCE', blocked: 'WILL NOT BE SIGNED', revoked: 'REVOKED' };
+  if (status === 'signed') {
+    const until = expires ? new Date(expires).toLocaleDateString(language(), { day: 'numeric', month: 'short' }) : null;
+    side.append(el('span', 'choice-tag', by === 'bishop' ? (until ? t('SIGNED BY BISHOP · UNTIL {date}', { date: until }) : t('SIGNED BY BISHOP')) : t('SIGNED')));
+    if (contract && !state.device) {
+      const revoke = bishopButton(t('Revoke'), true);
+      revoke.addEventListener('click', async () => {
+        await bishopPress('/api/salas/enlaces/revoke', { id: contract }, [revoke]);
+        if (revoke.disabled) markBishopLink({ plan, index }, 'revoked', target);
+      });
+      side.append(revoke);
+    }
+    return;
+  }
   if (status !== 'ready' || state.device) {
     side.append(el('span', 'choice-tag', status === 'ready' ? t('FROM THE MAC') : t(words[status] ?? status)));
     return;
@@ -4956,6 +4977,13 @@ function markBishopLink({ plan, index }, status, row = null, link = null) {
   }
   sign.addEventListener('click', () => bishopPress('/api/x/bishop/link', { plan, index: Number(index), designation: designation?.value ?? null }, parts));
   side.append(sign);
+}
+// A link revoked from anywhere (a row, Salas, its sheet): every row that showed it signed says so.
+function markRevokedLinks(contract) {
+  for (const row of document.querySelectorAll(`.bishop-link[data-contract="${CSS.escape(String(contract ?? ''))}"]`)) {
+    const plan = row.closest('.bishop-plan')?.dataset.plan;
+    markBishopLink({ plan, index: row.dataset.link }, 'revoked', row);
+  }
 }
 // One line when a plan closes, stops leaving on its own, or sends an order on its own; and one when
 // BISHOP's block could not be read. None of them starts a turn.
@@ -5430,13 +5458,14 @@ void renderOpenQuestions(); return;
     case 'control.started': node = renderControlStarted(event); break;
     case 'create.reverted': node = renderCreateReverted(event); break;
     case 'enlace.signed':
-    case 'enlace.revoked': node = renderEnlace(event); break;
+    case 'enlace.revoked': if (event.type === 'enlace.revoked') markRevokedLinks(event.payload.contract?.id); node = renderEnlace(event); break;
     case 'bishop.plan.proposed': node = renderBishopPlan(event); break;
     case 'bishop.order.sent': markBishopOrder(event.payload, 'sent', { why: null }); if (!event.payload.auto) return; node = renderBishopLine(event); break;
     case 'bishop.order.skipped': markBishopOrder(event.payload, 'skipped'); return;
     case 'bishop.order.held': markBishopOrder(event.payload, null, { why: event.payload.why }); return;
     case 'bishop.order.delivered': markBishopOrder(event.payload, 'delivered', { why: null }); node = renderBishopLine(event); break;
     case 'bishop.link.signed': markBishopLink(event.payload, 'signed'); return;
+    case 'bishop.link.held': markBishopLink(event.payload, 'ready'); return;
     case 'bishop.plan.updated': for (const order of event.payload.orders ?? []) markBishopOrder({ plan: event.payload.plan, step: order.step }, order.status, { why: null }); return;
     case 'bishop.plan.closed':
     case 'bishop.plan.halted':

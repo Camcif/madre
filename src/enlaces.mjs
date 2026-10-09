@@ -43,6 +43,8 @@ export const CROSSINGS = ['read', 'received', 'order'];
 // Each lands in the other room's ledger as a line, never as a message (phase 3c).
 export const NOTICES = ['enlace.signed', 'enlace.revoked'];
 export const DAY_MS = 24 * HOUR_MS;
+// The longest link BISHOP may sign on its own (D-S13).
+export const BISHOP_SIGN_DAYS = 7;
 
 const OWNER_ONLY = 0o600;
 const OWNER_DIR = 0o700;
@@ -132,9 +134,17 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
     if (allowed && a !== salas && b !== salas) fail('Orders need the room of Salas at one end of the link.');
   }
 
+  // Who signed it (D-S13): the human always may; BISHOP only a link to read, with no orders, that
+  // expires within BISHOP_SIGN_DAYS of its signature. A stored contract that breaks this is not a
+  // contract: `activeContracts` skips it.
   const signed = raw.signed && typeof raw.signed === 'object' ? raw.signed : {};
-  if (signed.by !== undefined && signed.by !== 'you') fail('Only you sign a link.');
+  const by = signed.by === undefined || signed.by === null ? 'you' : signed.by;
+  if (by !== 'you' && by !== 'bishop') fail('Only you or BISHOP sign a link.');
   const at = signed.at === undefined || signed.at === null ? new Date(now).toISOString() : isoOrNull(signed.at, 'signed.at');
+  if (by === 'bishop') {
+    if (allowed) fail('BISHOP signs only links to read; a link with orders is signed by you.');
+    if (expires === null || Date.parse(expires) - Date.parse(at) > BISHOP_SIGN_DAYS * DAY_MS + 60000) fail('BISHOP signs only links that expire within 7 days.'); // BISHOP_SIGN_DAYS, said literally for the catalogue
+  }
 
   return {
     id,
@@ -145,7 +155,7 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
     expires,
     revoked,
     orders: { allowed, maxMode, perHour },
-    signed: { at, by: 'you' },
+    signed: { at, by },
   };
 }
 

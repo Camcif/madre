@@ -113,7 +113,8 @@ test('bishop · two signed rooms supply notes to @madre, and a turn cites both w
 
     const response = await fetch(`${url}/api/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'webhook invoices', target: 'madre', mode: 1 }) });
     assert.equal(response.status, 202);
-    for (let attempt = 0; attempt < 50 && !captured.length; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+    // Up to 5 s: under a parallel suite the turn takes longer than the 1 s this waited before.
+    for (let attempt = 0; attempt < 250 && !captured.length; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(captured.length, 1);
     assert.match(captured[0].messages[0].content, /BISHOP in the MADRE room of Salas/);
     assert.match(captured[0].messages[1].content, /require signed headers/);

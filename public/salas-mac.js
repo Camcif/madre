@@ -206,6 +206,8 @@ function linkRow(enlace) {
   node.append(el('p', 'who', enlace.direction === 'both' ? t('{a} and {b} read each other', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) }) : t('{reader} reads from {source}', { reader: roomName(reader), source: roomName(source) })));
   const what = [kindsWords(enlace.kinds), enlace.expires ? t('until {date}', { date: new Date(enlace.expires).toLocaleDateString(language, { day: 'numeric', month: 'short' }) }) : t('no expiry')];
   if (enlace.orders?.allowed) what.push(t('orders up to #{n}', { n: enlace.orders.maxMode }));
+  // D-S13: a link BISHOP signed on its own says so, so it is never mistaken for one you signed.
+  if (enlace.signed?.by === 'bishop') what.push(t('signed by BISHOP'));
   node.append(el('p', 'what', what.join(' · ')));
   const traffic = enlace.traffic ?? {};
   node.append(el('p', 'traffic', [t('{n} reads in 24 h', { n: traffic.reads24h ?? 0 }), traffic.lastAt ? t('last {when}', { when: ago(traffic.lastAt) }) : t('none yet')].join(' · ')));

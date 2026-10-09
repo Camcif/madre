@@ -421,7 +421,9 @@ export async function createPulseServer({
     invokers,
     agentTimeouts,
     maxMessageChars,
-    delegation,
+    // S-032: in the room of Salas nobody delegates. BISHOP speaks there, and what it sets in
+    // motion goes through its own plans, never through a ```pulse plan of that room.
+    delegation: salasRoom ? false : delegation,
     maxPlanSteps,
     ...own,
   });
@@ -493,7 +495,7 @@ export async function createPulseServer({
     }
     if (patch.room) {
       config.room = { ...((await readConfig(root)).room ?? {}) };
-      if (typeof patch.room.delegation === 'boolean') { config.room.delegation = patch.room.delegation; live.delegation = patch.room.delegation; }
+      if (typeof patch.room.delegation === 'boolean') { config.room.delegation = patch.room.delegation; live.delegation = salasRoom ? false : patch.room.delegation; }
       if (Number(patch.room.maxPlanSteps) > 0) { config.room.maxPlanSteps = Number(patch.room.maxPlanSteps); live.maxPlanSteps = Number(patch.room.maxPlanSteps); }
       if (Number(patch.room.softTokenBudget) > 0) { config.room.softTokenBudget = Number(patch.room.softTokenBudget); live.softTokenBudget = Number(patch.room.softTokenBudget); }
     }
@@ -1651,7 +1653,10 @@ export async function createPulseServer({
         for (const id of [payload.a, payload.b]) if (!rooms.some((one) => one.id === id)) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
         let contract;
         try {
-          contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 } }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
+          // BISHOP signs only from the room's own process (no Origin: never a page), and the contract
+          // itself holds it to a link to read that expires within a week (D-S13, src/enlaces.mjs).
+          const signed = payload.by === 'bishop' && request.headers.origin === undefined ? { by: 'bishop' } : undefined;
+          contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, signed }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
         } catch (error) {
           if (error.code === 'DESIGNATION') return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
           return sendJson(response, error.code === 'UNKNOWN_ROOM' ? 404 : 422, { error: t(error.message) });

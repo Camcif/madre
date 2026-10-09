@@ -231,14 +231,14 @@ Cada sala recuerda dónde está su proyecto (`project.json`, junto a su registro
 
 | Modo (ficha de BISHOP) | `#0`–`#1` | `#2` | `#3`–`#4` | Enlaces |
 |---|---|---|---|---|
-| **Manual** (por defecto) | Espera **Enviar** | Espera **Enviar** | Llega a su sala como propuesta | Los firmas tú |
-| **Híbrido** | Sale sola dentro del contrato | Espera **Enviar** | Llega a su sala como propuesta | Los firmas tú |
-| **Automático** | Sale sola dentro del contrato | Sale sola dentro del contrato | Llega a su sala como propuesta | Los firmas tú |
+| **Manual** (por defecto) | Espera **Enviar** | Espera **Enviar** | Llega a su sala como propuesta | Ver abajo |
+| **Híbrido** | Sale sola dentro del contrato | Espera **Enviar** | Llega a su sala como propuesta | Ver abajo |
+| **Automático** | Sale sola dentro del contrato | Sale sola dentro del contrato | Llega a su sala como propuesta | Ver abajo |
 
 | Regla | Dónde se cumple |
 |---|---|
 | Solo BISHOP ordena, y solo en respuesta a un mensaje que escribiste en Salas; nunca en respuesta a una pregunta traída de otra sala | El módulo, en la sala de Salas |
-| Un enlace lo firmas tú: **Firmar** en su fila, con la designación de la sala que recibiría órdenes. Firmado, las órdenes del plan que lo esperaban se liberan | La misma firma que la hoja de Salas |
+| Un enlace que solo lee, sin órdenes, lo firma BISHOP al proponerlo, por 7 días como máximo; la fila dice «Firmado por BISHOP» y trae **Revocar**. En la ficha, «Enlaces de lectura: you» te los deja todos a ti. Un enlace con órdenes, que deja editar, lo firmas siempre tú: **Firmar** en su fila, con la designación de la sala que recibiría órdenes. Firmado, las órdenes del plan que lo esperaban se liberan | El contrato (`src/enlaces.mjs`) y la misma firma que la hoja de Salas |
 | Una orden llega hasta el modo que firmó el contrato y nunca pasa de `#2`. `#3` y `#4` llegan a su sala como tarjeta **Armar y enviar**, que la escribe en la caja; al enviarla, la sala pide la llave de siempre. Salas la muestra como «te espera» | La sala que recibe |
 | Una orden a la vez por sala; nunca interrumpe a una sala que está trabajando; tope de órdenes por hora del contrato, contado aparte de las lecturas | La sala que recibe |
 | Lo que sale solo, sale una vez: si no puede, queda retenido con su motivo y espera tu botón. Una orden que falla o un STOP ALL en Salas detienen el envío automático del plan | El módulo, en la sala de Salas |

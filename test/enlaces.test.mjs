@@ -62,7 +62,9 @@ test('enlaces · a contract is whole or it is nothing: two rooms, a direction, s
     [{ rooms, direction: 'both', kinds: ['fact'], orders: { maxMode: -1 } }, /maxMode/],
     [{ rooms, direction: 'both', kinds: ['fact'], orders: { perHour: 0 } }, /perHour/],
     [{ rooms, direction: 'both', kinds: ['fact'], expires: 'someday' }, /not a date/],
-    [{ rooms, direction: 'both', kinds: ['fact'], signed: { by: 'bishop' } }, /Only you/],
+    [{ rooms, direction: 'both', kinds: ['fact'], signed: { by: 'codex' } }, /Only you or BISHOP/],
+    // D-S13: BISHOP signs only a link to read that expires within a week.
+    [{ rooms, direction: 'both', kinds: ['fact'], signed: { by: 'bishop' } }, /within 7 days/],
     [{ rooms, direction: 'both', kinds: ['fact'], id: 'nope' }, /not a link id/],
     [null, /object/],
   ]) assert.throws(() => normalizeContract(bad), why);

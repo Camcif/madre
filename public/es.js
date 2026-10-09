@@ -3787,7 +3787,7 @@ export const ES = {
   'Talk to BISHOP': 'Hablar con BISHOP',
   // BISHOP's orders (docs/MACROVERSO.md, fase 4b): the card, the channel's refusals, the answers.
   'BISHOP proposes a plan · {plan}': 'BISHOP propone un plan · {plan}',
-  'Each order leaves only when you send it, or on its own within the link if you chose so · links are signed only by you · the answer comes back here as a card · #3 and #4 wait for your key in their room': 'Cada orden sale cuando la envías, o sola dentro del enlace si así lo elegiste · los enlaces solo los firmas tú · la respuesta vuelve aquí como tarjeta · #3 y #4 esperan tu llave en su sala',
+  'Each order leaves only when you send it, or on its own within the link if you chose so · a link with orders is signed only by you · the answer comes back here as a card · #3 and #4 wait for your key in their room': 'Cada orden sale cuando la envías, o sola dentro del enlace si así lo elegiste · un enlace con órdenes solo lo firmas tú · la respuesta vuelve aquí como tarjeta · #3 y #4 esperan tu llave en su sala',
   'FROM THE MAC': 'DESDE LA MAC',
   // BISHOP, fase 4c: modes, links, proposals in their room, and /bishop from any room.
   'MANUAL': 'MANUAL',
@@ -3834,7 +3834,18 @@ export const ES = {
   'more than 2 links': 'más de 2 enlaces',
   'The guardian of your rooms, in Salas. It answers about every linked room, proposes orders and links, and you decide what leaves and what is signed. Any room can raise it with /bishop.': 'El guardián de tus salas, en Salas. Responde sobre cada sala enlazada, propone órdenes y enlaces, y tú decides qué sale y qué se firma. Cualquier sala lo levanta con /bishop.',
   'The ready agent BISHOP speaks through. With @madre, BISHOP only answers: it proposes neither orders nor links.': 'El agente listo por el que habla BISHOP. Con @madre, BISHOP solo responde: no propone órdenes ni enlaces.',
-  'manual: every order waits for your press · hybrid: #0-#1 leave on their own within the link · auto: up to #2 on their own within the link. Links are always signed by you; #3 and #4 always wait for your key in their room.': 'manual: cada orden espera tu botón · híbrido: #0-#1 salen solas dentro del enlace · auto: hasta #2 solas dentro del enlace. Los enlaces siempre los firmas tú; #3 y #4 siempre esperan tu llave en su sala.',
+  'manual: every order waits for your press · hybrid: #0-#1 leave on their own within the link · auto: up to #2 on their own within the link. #3 and #4 always wait for your key in their room.': 'manual: cada orden espera tu botón · híbrido: #0-#1 salen solas dentro del enlace · auto: hasta #2 solas dentro del enlace. #3 y #4 siempre esperan tu llave en su sala.',
+  // D-S13: BISHOP signs the links that only read; the human, every link with orders.
+  'bishop: BISHOP signs the links it proposes that only read, for 7 days at most; you revoke them with one press · you: you sign every link. A link with orders is always signed by you.': 'bishop: BISHOP firma los enlaces que propone y solo leen, por 7 días como máximo; los revocas con un toque · you: tú firmas todos. Un enlace con órdenes siempre lo firmas tú.',
+  'BISHOP did not sign it: {why}': 'BISHOP no lo firmó: {why}',
+  'SIGNED BY BISHOP · UNTIL {date}': 'FIRMADO POR BISHOP · HASTA {date}',
+  'SIGNED BY BISHOP': 'FIRMADO POR BISHOP',
+  'REVOKED': 'REVOCADO',
+  ' · signed by BISHOP': ' · lo firmó BISHOP',
+  'signed by BISHOP': 'lo firmó BISHOP',
+  'BISHOP signs only links to read; a link with orders is signed by you.': 'BISHOP solo firma enlaces de lectura; uno con órdenes lo firmas tú.',
+  'Only you or BISHOP sign a link.': 'Solo tú o BISHOP firman un enlace.',
+  'BISHOP signs only links that expire within 7 days.': 'BISHOP solo firma enlaces que caducan en 7 días o menos.',
   'Ask BISHOP, from this room, about any linked room. The answer is for you; the agents of this room do not read it without a link.': 'Pregúntale a BISHOP, desde esta sala, por cualquier sala enlazada. La respuesta es para ti; los agentes de esta sala no la leen sin un enlace.',
   'the room of Salas': 'la sala de Salas',
   'a setting in config.json; no project files': 'un ajuste en config.json; ningún archivo del proyecto',

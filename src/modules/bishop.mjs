@@ -21,7 +21,7 @@
 //     to /bishop as `bishop.answer`, which the agents of that room do not read. No card starts a
 //     turn; the close of a plan is one line, never another plan.
 import { join } from 'node:path';
-import { CHANNEL_HEADER, MAX_ORDER_MODE, NO_SUCH_LINK, activeContracts, askEnlace, channelKey, countRecent, noteCrossing, readsFrom, receivesOrders, sameKey } from '../enlaces.mjs';
+import { BISHOP_SIGN_DAYS, CHANNEL_HEADER, MAX_ORDER_MODE, NO_SUCH_LINK, activeContracts, askEnlace, channelKey, countRecent, noteCrossing, readsFrom, receivesOrders, sameKey } from '../enlaces.mjs';
 import { t } from '../i18n.mjs';
 import { askRoom, ensureSalasProject, isSalasRoom, knownRooms, projectRoomId, roomComesUp, salasRoomId, startRoom } from '../salas.mjs';
 import { defineModule } from './sdk.mjs';
@@ -45,6 +45,9 @@ const chosen = (ctx) => {
 };
 const enabled = (ctx) => ctx.config?.modules?.bishop?.enabled !== false;
 const modeOf = (ctx) => (BISHOP_MODES.includes(ctx.config?.modules?.bishop?.mode) ? ctx.config.modules.bishop.mode : 'manual');
+// D-S13: who signs a link that only reads. By default BISHOP; the human can keep them all.
+export const LINK_SIGNERS = ['bishop', 'you'];
+const signerOf = (ctx) => (ctx.config?.modules?.bishop?.links === 'you' ? 'you' : 'bishop');
 // S-030: @madre as BISHOP only answers. It is still the human's choice of who BISHOP is.
 export const onlyAnswers = (agent) => agent === 'madre';
 const reply = (status, body) => ({ status, body });
@@ -180,6 +183,45 @@ async function halt(ctx, planId, why) {
   if (plan) await ctx.services.recordIn(plan.chat, 'bishop.plan.halted', { plan: plan.id, why });
 }
 
+// Signs a link a plan proposed, through the same route as the sheet of Salas (its checks, its
+// notices to both rooms). By the human's press, or by BISHOP itself (D-S13) when the link only
+// reads: no orders, and it expires within BISHOP_SIGN_DAYS; the contract refuses anything else.
+// Signed, the orders of the plan that waited for it are resolved again and may leave.
+async function signLink(ctx, planId, index, { designation = null, by = 'you' } = {}) {
+  const plan = await planById(ctx.stateRoot, String(planId ?? ''));
+  const link = plan?.links?.find((one) => one.index === Number(index));
+  if (!link) return reply(404, { error: t('That link is not in this room.') });
+  if (link.status !== 'ready') return reply(409, { error: t('That link is not waiting to be signed.') });
+  if (by === 'bishop' && link.orders) return reply(403, { error: t('BISHOP signs only links to read; a link with orders is signed by you.') });
+  const salas = salasRoomId(ctx.stateRoot);
+  const home = (await knownRooms(ctx.stateRoot)).find((room) => room.id === salas && room.open);
+  if (!home) return reply(409, { error: t('The room of Salas did not open. Open it with madre salas and ask again.') });
+  const days = by === 'bishop' ? Math.min(link.days ?? BISHOP_SIGN_DAYS, BISHOP_SIGN_DAYS) : link.days;
+  const expires = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
+  const signed = await askRoom(home.open.port, '/api/salas/enlaces', { method: 'POST', timeoutMs: 6000, body: { a: link.from, b: link.to, direction: link.direction, kinds: link.kinds, expires, orders: link.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, designation, ...(by === 'bishop' ? { by: 'bishop' } : {}) } });
+  if (!signed?.contract?.id) return reply(signed?.status ?? 403, { error: signed?.error ?? t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
+  const config = await ctx.readConfig();
+  const contracts = activeContracts(config, { salas });
+  const rooms = await knownRooms(ctx.stateRoot);
+  const updated = await changePlans(ctx.stateRoot, (data) => {
+    const one = data.plans[plan.id];
+    const item = one?.links?.find((it) => it.index === link.index);
+    if (item) { item.status = 'signed'; item.contract = signed.contract.id; item.by = by; item.expires = signed.contract.expires; }
+    for (const order of one?.orders ?? []) {
+      if (order.status !== 'blocked') continue;
+      const asked = one.asked?.[order.step - 1];
+      if (!asked) continue;
+      const again = resolveOrder(asked, order.step, { rooms, contracts, salas, agents: ctx.agents });
+      if (again.status !== 'blocked') Object.assign(order, again);
+    }
+    return one ? one.orders.map(publicOrder) : [];
+  });
+  await ctx.services.recordIn(plan.chat, 'bishop.link.signed', { plan: plan.id, index: link.index, contract: signed.contract.id, by, expires: signed.contract.expires });
+  if (updated.length) await ctx.services.recordIn(plan.chat, 'bishop.plan.updated', { plan: plan.id, orders: updated });
+  await advance({ ...ctx, config }, plan.id);
+  return reply(202, { signed: signed.contract.id });
+}
+
 /* ---------- the module ---------- */
 
 const base = defineModule({
@@ -187,7 +229,7 @@ const base = defineModule({
   summary: 'The guardian of your rooms, in Salas. It answers about every linked room, proposes orders and links, and you decide what leaves and what is signed. Any room can raise it with /bishop.',
   creates: ['a setting in config.json; no project files'],
   requires: ['the room of Salas', 'a ready agent; @madre is selected by default when ready'],
-  settings: { enabled: true, agent: null, mode: 'manual' },
+  settings: { enabled: true, agent: null, mode: 'manual', links: 'bishop' },
   async status(ctx) {
     const agent = chosen(ctx);
     const detail = !ctx.settings.enabled ? 'off'
@@ -257,6 +299,13 @@ const base = defineModule({
     const plan = { id: newPlanId(), chat: ctx.chat ?? null, responseMessageId: said.messageId, agent: said.sender, reason: parsed.reason, mode: modeOf(ctx), createdAt: new Date().toISOString(), closed: false, halted: null, orders, links, asked: parsed.orders };
     await changePlans(ctx.stateRoot, (data) => { data.plans[plan.id] = plan; });
     await ctx.record('bishop.plan.proposed', { plan: plan.id, responseMessageId: said.messageId, agent: said.sender, reason: parsed.reason, mode: plan.mode, orders: orders.map(publicOrder), links: links.map(publicLink), ignored: parsed.ignored });
+    // D-S13: a link that only reads, BISHOP signs itself (unless the human keeps them); one with
+    // orders always waits for the human's signature and designation.
+    if (signerOf(ctx) === 'bishop') for (const link of links) {
+      if (link.status !== 'ready' || link.orders) continue;
+      const done = await signLink({ ...ctx, chat: plan.chat }, plan.id, link.index, { by: 'bishop' });
+      if (done.status !== 202) await ctx.record('bishop.link.held', { plan: plan.id, index: link.index, why: done.body.error });
+    }
     await advance(ctx, plan.id);
   },
   routes: [
@@ -300,37 +349,7 @@ const base = defineModule({
     { method: 'POST', path: '/api/x/bishop/link', handler: async (ctx, { payload, viaPhone }) => {
       const refused = pageDoor(ctx, viaPhone);
       if (refused) return refused;
-      const plan = await planById(ctx.stateRoot, String(payload?.plan ?? ''));
-      const link = plan?.links?.find((one) => one.index === Number(payload?.index));
-      if (!link) return reply(404, { error: t('That link is not in this room.') });
-      if (link.status !== 'ready') return reply(409, { error: t('That link is not waiting to be signed.') });
-      const salas = salasRoomId(ctx.stateRoot);
-      const home = (await knownRooms(ctx.stateRoot)).find((room) => room.id === salas && room.open);
-      if (!home) return reply(409, { error: t('The room of Salas did not open. Open it with madre salas and ask again.') });
-      const expires = link.days ? new Date(Date.now() + link.days * 86400000).toISOString() : null;
-      const signed = await askRoom(home.open.port, '/api/salas/enlaces', { method: 'POST', timeoutMs: 6000, body: { a: link.from, b: link.to, direction: link.direction, kinds: link.kinds, expires, orders: link.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, designation: typeof payload?.designation === 'string' ? payload.designation : null } });
-      if (!signed?.contract?.id) return reply(signed?.status ?? 403, { error: signed?.error ?? t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
-      // Signed: orders of this plan that were waiting for this very link may now leave.
-      const config = await ctx.readConfig();
-      const contracts = activeContracts(config, { salas });
-      const rooms = await knownRooms(ctx.stateRoot);
-      const updated = await changePlans(ctx.stateRoot, (data) => {
-        const one = data.plans[plan.id];
-        const item = one?.links?.find((it) => it.index === link.index);
-        if (item) { item.status = 'signed'; item.contract = signed.contract.id; }
-        for (const order of one?.orders ?? []) {
-          if (order.status !== 'blocked') continue;
-          const asked = one.asked?.[order.step - 1];
-          if (!asked) continue;
-          const again = resolveOrder(asked, order.step, { rooms, contracts, salas, agents: ctx.agents });
-          if (again.status !== 'blocked') Object.assign(order, again);
-        }
-        return one ? one.orders.map(publicOrder) : [];
-      });
-      await ctx.services.recordIn(plan.chat, 'bishop.link.signed', { plan: plan.id, index: link.index, contract: signed.contract.id });
-      await ctx.services.recordIn(plan.chat, 'bishop.plan.updated', { plan: plan.id, orders: updated });
-      await advance({ ...ctx, config }, plan.id);
-      return reply(202, { signed: signed.contract.id });
+      return signLink(ctx, payload?.plan, payload?.index, { designation: typeof payload?.designation === 'string' ? payload.designation : null });
     } },
     // An order arrives, by the channel, in the room it is for. This room checks it itself.
     { method: 'POST', path: '/api/x/bishop/order', handler: async (ctx, { request, payload, viaPhone }) => {
@@ -492,7 +511,10 @@ const bishop = Object.freeze({
     const agents = readyAgents(ctx);
     const agent = chosen(ctx);
     const controls = agents.length ? [{ key: 'agent', label: 'AGENT', type: 'select', options: agents.map((one) => one.id), value: agent, note: 'The ready agent BISHOP speaks through. With @madre, BISHOP only answers: it proposes neither orders nor links.' }] : [];
-    if (agent && !onlyAnswers(agent)) controls.push({ key: 'mode', label: 'ORDERS', type: 'select', options: BISHOP_MODES, value: modeOf(ctx), note: 'manual: every order waits for your press · hybrid: #0-#1 leave on their own within the link · auto: up to #2 on their own within the link. Links are always signed by you; #3 and #4 always wait for your key in their room.' });
+    if (agent && !onlyAnswers(agent)) {
+      controls.push({ key: 'mode', label: 'ORDERS', type: 'select', options: BISHOP_MODES, value: modeOf(ctx), note: 'manual: every order waits for your press · hybrid: #0-#1 leave on their own within the link · auto: up to #2 on their own within the link. #3 and #4 always wait for your key in their room.' });
+      controls.push({ key: 'links', label: 'LINKS TO READ', type: 'select', options: LINK_SIGNERS, value: signerOf(ctx), note: 'bishop: BISHOP signs the links it proposes that only read, for 7 days at most; you revoke them with one press · you: you sign every link. A link with orders is always signed by you.' });
+    }
     return { ...card, controls };
   },
   async setControl(ctx, { key, value } = {}) {
@@ -501,6 +523,8 @@ const bishop = Object.freeze({
       if (!readyAgents(ctx).some((agent) => agent.id === value)) return { status: 400, body: { error: 'Choose a ready agent.' } };
     } else if (key === 'mode') {
       if (!BISHOP_MODES.includes(value)) return { status: 400, body: { error: `ORDERS must be one of ${BISHOP_MODES.join(', ')}.` } };
+    } else if (key === 'links') {
+      if (!LINK_SIGNERS.includes(value)) return { status: 400, body: { error: `LINKS TO READ must be one of ${LINK_SIGNERS.join(', ')}.` } };
     } else return { status: 400, body: { error: `BISHOP has no setting "${key}".` } };
     await ctx.updateConfig({ modules: { bishop: { ...(ctx.config.modules?.bishop ?? {}), [key]: value } } });
     return { status: 200, body: { settings: { [key]: value } } };
@@ -517,7 +541,7 @@ const bishop = Object.freeze({
 export default bishop;
 
 // Pure formatting makes the 1500-character ceiling inspectable. Names are data, never orders.
-export function formatBishop({ rooms, glances = new Map(), contracts = [], links = [], notes = [], unread = [], local = false, salas = null, crew = [], answersOnly = false }) {
+export function formatBishop({ rooms, glances = new Map(), contracts = [], links = [], notes = [], unread = [], local = false, salas = null, crew = [], answersOnly = false, signer = 'bishop' }) {
   const names = new Map(rooms.map((room) => [room.id, clean(room.name, 40)]));
   const lead = 'BISHOP: guardián de las salas. Responde sobre proyectos, decisiones y movimientos; cita siempre la sala de cada hecho. Si una sala no se pudo leer, dilo. Nunca muevas un proyecto por dentro.';
   const ordering = contracts.filter((contract) => receivesOrders(contract, salas));
@@ -537,8 +561,8 @@ export function formatBishop({ rooms, glances = new Map(), contracts = [], links
       'Si el humano pide actuar o enlazar salas, cierra tu respuesta con este bloque, y nada después:',
       `\`\`\`${PLAN_FENCE}`, 'Motivo del plan en una línea',
       ...(sample ? [`@${sample}/${helper} #1: la tarea, en una frase`] : []),
-      `enlace ${wanting ?? 'otra'} → salas: decision, fact; 30 días`, '```',
-      `Órdenes: hasta 4, «@sala/agente #0-#2: tarea», solo a salas con órdenes${crew.length ? `; agentes: ${crew.join(', ')}` : ''}. Enlaces: hasta 2, «enlace A → B: tipos» (A entrega, B lee; ↔ las dos; «; órdenes #1» solo con salas). Si una pregunta necesita una sala sin enlace, propón el enlace. Cada línea es un botón: nada sale ni se firma sin el humano. #3/#4 solo como propuesta. ${never}`,
+      `enlace ${wanting ?? 'otra'} → salas: decision, fact; 7 días`, '```',
+      `Órdenes: hasta 4, «@sala/agente #0-#2: tarea», solo a salas con órdenes${crew.length ? `; agentes: ${crew.join(', ')}` : ''}. Enlaces: hasta 2, «enlace A → B: tipos» (A entrega, B lee; ↔ las dos; «; órdenes #1» solo con salas). Si una pregunta necesita una sala sin enlace, propón el enlace. ${signer === 'bishop' ? 'Un enlace de solo lectura lo firmas tú al proponerlo (7 días como máximo); uno con órdenes lo firma el humano.' : 'Todo enlace lo firma el humano.'} Las órdenes son botones del humano salvo lo que su modo deja salir. #3/#4 solo como propuesta. ${never}`,
     ].join('\n');
   }
   const lines = [lead, 'Contratos vigentes:'];
@@ -598,5 +622,5 @@ export async function bishopBlock(ctx, { agent, text = '', mode = 1, preview = f
       else unread.push({ room: source.name, why: answer.status === 429 ? 'tope de lecturas por hora' : answer.status === 423 ? 'archivo sellado' : 'no respondió' });
     }
   }
-  return formatBishop({ rooms, glances, contracts, links, notes: notes.slice(0, MAX_NOTES), unread, local: agent === 'madre', salas, crew: readyAgents(ctx).map((one) => one.id), answersOnly: onlyAnswers(agent) || CONSULT_HEADER.test(text) });
+  return formatBishop({ rooms, glances, contracts, links, notes: notes.slice(0, MAX_NOTES), unread, local: agent === 'madre', salas, crew: readyAgents(ctx).map((one) => one.id), answersOnly: onlyAnswers(agent) || CONSULT_HEADER.test(text), signer: signerOf(ctx) });
 }

@@ -25,9 +25,10 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `45a7af9` | Codex | 4a · módulo BISHOP, bloque `bishop` en el prompt, censo, notas enlazadas para `@madre` |
 | `aabeb5d` | Codex | Preflight de 4b; S-027 y S-028 (compuertas) |
 | `aaace0f` | Claude | 4b · órdenes de BISHOP; S-027, S-028 y S-031 arreglados; S-029 y S-030; desfase de documentos corregido |
-| *este commit* | Claude | 4c · modos, propuestas `#3`/`#4` en su sala, `/bishop` desde cualquier sala, asistente de enlaces; S-029 arreglado, S-030 cerrado, D-S12; S-032 y S-033 |
+| `ea7b253` | Claude | 4c · modos, propuestas `#3`/`#4` en su sala, `/bishop` desde cualquier sala, asistente de enlaces; S-029 arreglado, S-030 cerrado, D-S12; S-032 y S-033 |
+| *este commit* | Claude | D-S13 (BISHOP firma enlaces de lectura, 7 días) y S-032 (Salas no delega) |
 
-Árbol limpio al cerrar 4c. Suite **644/644** y `npm run pack:check` en verde. Una prueba de
+Árbol limpio al cerrar D-S13 y S-032. Suite **645/645** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
 una corrida, verde al repetir); no es de BISHOP.
 
@@ -77,6 +78,8 @@ agente (por defecto `@madre` si Ollama está listo), bloque `bishop` ≤ 1500 ca
 - Asistente de enlaces: líneas `enlace A → B: tipos; N días; órdenes #n`; `/api/x/bishop/link`
   firma por la misma ruta que la hoja de Salas y libera las órdenes que esperaban ese enlace.
 - S-030: con `@madre`, solo responde (`onlyAnswers`); S-029: patrón de plan en `#runTurn`.
+- D-S13: `signed.by: 'bishop'` en el contrato (solo lectura, ≤ 7 días), `signLink(…, { by: 'bishop' })`,
+  ajuste `modules.bishop.links` (`bishop` | `you`). S-032: `delegation: false` en la sala de Salas.
 - Pruebas: `test/bishop-4c.test.mjs`.
 
 **Documentación al día:** `CHANGELOG.md` (*Sin publicar*), `docs/REFERENCE.md` (SALAS: Macroverso,
@@ -100,17 +103,17 @@ traída por el canal; un enlace lo firma el humano.
 
 | # | Qué | Recomendación | Bloquea |
 |---|---|---|---|
-| 1 | **D-S13** · ¿BISHOP puede firmar un enlace sin el humano? («wizard automático») | Hoy propone y el humano firma con un toque. Si se quiere más: solo enlaces de lectura, sin órdenes, con caducidad de 7 días como máximo, revocables con un toque y avisados en las dos salas | — |
-| 2 | **S-032** · la sala de Salas carga el bloque `delegation` en el prompt de BISHOP | Apagar la delegación solo en la sala de Salas (`room.delegation` al abrirla); toca `src/server.mjs`: necesita permiso | — |
-| 3 | **S-021** · `enlace.received` no sabe qué agente ni qué turno leyó | `PULSE_ENLACES_AGENT` en el `env` del servidor MCP y `agent` en el cuerpo de `/api/enlace/ask`; aditivo | — |
-| 4 | **D-S08** · la carpeta de la sala de Salas no se cambia en Ajustes | Dejarlo, o nunca | — |
-| 5 | `madre doctor` desde `$HOME` reporta el cuaderno de Salas (consecuencia de D-S09) | Mantener | — |
-| 6 | `enlaces.jsonl` y `bishop-plans.json` no rotan por tamaño (los planes guardan los últimos 40); ENLACES y BISHOP sin ícono propio; el aviso de firma no llega a salas dormidas | Rotar si crece; dibujar los íconos (sin Zappicon en `public/`); mantener el aviso | — |
-| 7 | **3e** | Preguntar | 3e |
-| 8 | `package.json` en `0.7.2` con `CHANGELOG.md` en `1.0.0 · Sin publicar` | Decidir al publicar | — |
+| 1 | **S-021** · `enlace.received` no sabe qué agente ni qué turno leyó | `PULSE_ENLACES_AGENT` en el `env` del servidor MCP y `agent` en el cuerpo de `/api/enlace/ask`; aditivo | — |
+| 2 | **D-S08** · la carpeta de la sala de Salas no se cambia en Ajustes | Dejarlo, o nunca | — |
+| 3 | `madre doctor` desde `$HOME` reporta el cuaderno de Salas (consecuencia de D-S09) | Mantener | — |
+| 4 | `enlaces.jsonl` y `bishop-plans.json` no rotan por tamaño (los planes guardan los últimos 40); ENLACES y BISHOP sin ícono propio; el aviso de firma no llega a salas dormidas | Rotar si crece; dibujar los íconos (sin Zappicon en `public/`); mantener el aviso | — |
+| 5 | **3e** | Preguntar | 3e |
+| 6 | `package.json` en `0.7.2` con `CHANGELOG.md` en `1.0.0 · Sin publicar` | Decidir al publicar | — |
 
 Resueltas en 4b y 4c: S-019 (Codex), D-S10 (asumida), el `perHour` único (contadores separados por
-tipo), S-029 (autorizado y arreglado), S-030 (cerrado: con `@madre`, BISHOP solo responde), D-S12.
+tipo), S-029 (autorizado y arreglado), S-030 (cerrado: con `@madre`, BISHOP solo responde), D-S12,
+D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el humano) y S-032
+(la sala de Salas no delega).
 
 ## 5 · Problemas encontrados y cómo se resolvieron
 
@@ -148,7 +151,7 @@ tipo), S-029 (autorizado y arreglado), S-030 (cerrado: con `@madre`, BISHOP solo
 - **Nada de push, nada de deploy, nada publicado.** Commits locales a criterio, por higiene.
 - No inventar: lo que se afirma se cita con `ruta:línea`; una cita rota es una parada.
 - No cambiar el núcleo fuera de las excepciones de §6 del encargo y de las que el humano autorizó
-  por nombre (S-019, S-024, S-026, S-027, S-028, S-029).
+  por nombre (S-019, S-024, S-026, S-027, S-028, S-029, S-032).
 - Español neutro mexicano, conciso; cada clave nueva de la interfaz con su español a mano en
   `public/es.js`; lo que lee un agente, en inglés.
 - Credenciales nunca en `config.json`, ledger ni logs.
@@ -158,15 +161,16 @@ tipo), S-029 (autorizado y arreglado), S-030 (cerrado: con `@madre`, BISHOP solo
 - **Antes de empezar, comprobar que nadie más trabaja en el árbol** (`git status`, sesiones de
   Codex con `cwd` en este repo) y, al cerrar, reescribir este archivo.
 
-## 7 · Entorno de esta Mac al cerrar 4c
+## 7 · Entorno de esta Mac al cerrar D-S13
 
 - Salas abiertas por la sesión de Claude: la sala de Salas en el puerto 4318
   (`~/.pulse/salas`, id `salas-68dee27f3c55f1a3`) y la de este repo en el 4401
   (`pulse-3c377cb62303118e`). La sala del humano `gumball` (4317) no es de pruebas.
-- En `~/.pulse/config.json` hay cuatro contratos de prueba **revocados** (nunca se borran, por
-  diseño) y ninguno vigente. BISHOP quedó en su agente por defecto (`agent: null`) y en `manual`.
+- En `~/.pulse/config.json` hay cinco contratos de prueba **revocados** (nunca se borran, por
+  diseño; uno firmado por BISHOP) y ninguno vigente. BISHOP quedó en su agente por defecto
+  (`agent: null`), en `manual` y con «Enlaces de lectura: bishop».
 - La sala de Salas tiene conversaciones de prueba de 4b y 4c («BISHOP prueba 1…5», «BISHOP en
-  pantalla», «BISHOP con Claude», «BISHOP 4c») y sus planes en `bishop-plans.json`; la sala `pulse`
+  pantalla», «BISHOP con Claude», «BISHOP 4c», «BISHOP firma») y sus planes en `bishop-plans.json`; la sala `pulse`
   tiene en «prueba de multitarea» las órdenes recibidas y una respuesta de `/bishop`. No se borró
   nada: borrar es del humano.
 - Cómo probar sin navegador:

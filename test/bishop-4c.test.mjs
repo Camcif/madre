@@ -4,7 +4,7 @@ import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import bishop, { formatBishop, onlyAnswers, parsePlan, resolveLinks } from '../src/modules/bishop.mjs';
-import { activeContracts, channelKey, signContract } from '../src/enlaces.mjs';
+import { BISHOP_SIGN_DAYS, activeContracts, channelKey, normalizeContract, signContract } from '../src/enlaces.mjs';
 import { loadConfig, updateConfig } from '../src/config.mjs';
 import { ensureSalasProject, knownRooms, projectRoomId, salasRoomId } from '../src/salas.mjs';
 import { createPulseServer } from '../src/server.mjs';
@@ -54,6 +54,20 @@ test('bishop · @madre only answers (S-030): no block is taught and none is read
   }
 });
 
+test('bishop · D-S13: BISHOP signs only a link to read, with no orders, that expires within a week', () => {
+  const now = new Date('2026-10-08T12:00:00Z');
+  const day = 24 * 60 * 60 * 1000;
+  const base = { rooms: { a: 'aurora-1111111111111111', b: 'boreal-2222222222222222' }, direction: 'a→b', kinds: ['fact'] };
+  const at = (days) => new Date(now.getTime() + days * day).toISOString();
+  assert.equal(normalizeContract({ ...base, expires: at(7), signed: { by: 'bishop' } }, { now }).signed.by, 'bishop');
+  assert.equal(normalizeContract({ ...base, expires: at(30) }, { now }).signed.by, 'you', 'the human signs any link');
+  assert.throws(() => normalizeContract({ ...base, expires: at(8), signed: { by: 'bishop' } }, { now }), /within 7 days/);
+  assert.throws(() => normalizeContract({ ...base, expires: null, signed: { by: 'bishop' } }, { now }), /within 7 days/);
+  assert.throws(() => normalizeContract({ ...base, rooms: { a: 'aurora-1111111111111111', b: 'salas-0000000000000000' }, expires: at(3), orders: { allowed: true, maxMode: 1, perHour: 6 }, signed: { by: 'bishop' } }, { now, salas: 'salas-0000000000000000' }), /orders is signed by you/);
+  assert.throws(() => normalizeContract({ ...base, expires: at(3), signed: { by: 'codex' } }, { now }), /Only you or BISHOP/);
+  assert.equal(BISHOP_SIGN_DAYS, 7);
+});
+
 test('bishop · the link wizard reads links and checks them like the sheet of Salas', () => {
   const parsed = parsePlan('Propuesta.\n\n```pulse-salas\nEnlazar para responder\nenlace boreal → salas: decisiones, hechos; 30 días; órdenes #1\nenlace salas → boreal: decision\nenlace boreal ↔ aurora: preferencia\nenlace aurora → boreal: secretos\n```');
   assert.equal(parsed.links.length, 2, 'two links at most');
@@ -91,7 +105,8 @@ test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, sign
       // A question raised from a room: it answers, and even a block it writes is never a plan.
       if (prompt.includes('question from room')) { prompts.consult.push(prompt); return { text: `En ${nameA}, la firma se verifica primero.\n\n\`\`\`pulse-salas\nNo\n@${nameA}/codex #1: nada\n\`\`\`` }; }
       turnInSalas += 1;
-      if (turnInSalas === 1) return { text: `Propongo esto.\n\n\`\`\`pulse-salas\nRevisar A y enlazar B\n@${nameA}/codex #1: resume el README\n@${nameA}/codex #2: crea un borrador\n@${nameA}/claude #3: arma el despliegue\n@${nameB}/codex #1: resume lo de B\nenlace ${nameB} → salas: decision; 30 días; órdenes #1\n\`\`\`` };
+      prompts.bishop = prompts.bishop ?? prompt;
+      if (turnInSalas === 1) return { text: `Propongo esto.\n\n\`\`\`pulse-salas\nRevisar A y enlazar B\n@${nameA}/codex #1: resume el README\n@${nameA}/codex #2: crea un borrador\n@${nameA}/claude #3: arma el despliegue\n@${nameB}/codex #1: resume lo de B\nenlace ${nameB} → salas: decision; 30 días; órdenes #1\nenlace ${nameA} → ${nameB}: fact; 30 días\n\`\`\`` };
       return { text: `Otra vez.\n\n\`\`\`pulse-salas\nSegundo plan\n@${nameA}/codex #2: otro borrador\n\`\`\`` };
     },
     'claude-readonly': async () => ({ text: 'claude here' }),
@@ -121,7 +136,24 @@ test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, sign
     const plan = proposed.payload.plan;
     assert.equal(proposed.payload.mode, 'hybrid');
     assert.deepEqual(proposed.payload.orders.map((order) => order.status), ['ready', 'ready', 'proposal', 'blocked']);
-    assert.deepEqual(proposed.payload.links.map((link) => link.status), ['ready']);
+    assert.deepEqual(proposed.payload.links.map((link) => link.status), ['ready', 'ready']);
+    assert.doesNotMatch(prompts.bishop, /You may put other agents to work/, 'S-032: BISHOP is not taught to delegate in Salas');
+    assert.match(prompts.bishop, /Un enlace de solo lectura lo firmas tú/, 'BISHOP knows which links it signs');
+
+    // D-S13: the link that only reads, BISHOP signed itself, for a week at most; the one with
+    // orders still waits for the human.
+    const auto = await until(async () => { const found = await find(salas, 'bishop.link.signed', (said) => said.index === 1); return found.length ? found[0] : null; }, 'BISHOP signing the link to read');
+    assert.equal(auto.payload.by, 'bishop');
+    const readOnly = activeContracts(await loadConfig(state), { salas: salasId }).find((contract) => contract.id === auto.payload.contract);
+    assert.equal(readOnly.signed.by, 'bishop');
+    assert.equal(readOnly.orders.allowed, false);
+    assert.ok(Date.parse(readOnly.expires) - Date.now() <= 7 * 24 * 60 * 60 * 1000 + 5000, 'clamped to a week although 30 days were asked');
+    assert.equal((await find(salas, 'bishop.link.signed', (said) => said.index === 0)).length, 0, 'a link with orders is never signed by BISHOP');
+    const settings = await post(`${S}/api/settings`, { room: { delegation: true } });
+    assert.equal(settings.status, 200);
+    assert.equal((await fetch(`${S}/api/settings`).then((response) => response.json())).settings.delegation, false, 'S-032: delegation stays off in Salas');
+    const page = await fetch(`${S}/api/salas/enlaces`, { method: 'POST', headers: { 'content-type': 'application/json', origin: S }, body: JSON.stringify({ a: idB, b: idA, direction: 'a→b', kinds: ['fact'], expires: new Date(Date.now() + 86400000).toISOString(), by: 'bishop' }) });
+    assert.equal((await page.json()).contract.signed.by, 'you', 'a page cannot sign as BISHOP');
 
     // Hybrid: #1 leaves on its own and comes back; #2 waits for the press; #3 goes to its room.
     await until(async () => (await find(salas, 'command.output', (said) => said.name === 'bishop' && said.bishop.step === 1)).length, 'the answer to #1');
@@ -138,7 +170,7 @@ test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, sign
     // waited for it leaves on its own (hybrid, #1).
     assert.equal((await post(`${S}/api/x/bishop/link`, { plan, index: 0, designation: 'otra' })).status, 403);
     assert.equal((await post(`${S}/api/x/bishop/link`, { plan, index: 0, designation: nameB })).status, 202);
-    const linked = activeContracts(await loadConfig(state), { salas: salasId }).find((contract) => contract.rooms.a === idB);
+    const linked = activeContracts(await loadConfig(state), { salas: salasId }).find((contract) => contract.rooms.a === idB && contract.rooms.b === salasId);
     assert.ok(linked && linked.orders.allowed && linked.orders.maxMode === 1, 'the contract is the one proposed');
     assert.equal((await post(`${S}/api/x/bishop/link`, { plan, index: 0, designation: nameB })).status, 409, 'signed once');
     await until(async () => (await find(salas, 'command.output', (said) => said.name === 'bishop' && said.bishop.step === 4)).length, 'the answer from B');
