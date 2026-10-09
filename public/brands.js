@@ -66,6 +66,16 @@ BRANDS.ollama = {
   mark: () => glyph('<circle cx="16" cy="16" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12.5" cy="15" r="1.6" fill="currentColor"/><circle cx="19.5" cy="15" r="1.6" fill="currentColor"/>'),
 };
 
+// BISHOP, the guardian of the rooms (docs/MACROVERSO.md): MADRE's own robot, not a vendor's.
+BRANDS.bishop = {
+  label: 'BISHOP',
+  vendor: 'the room of Salas',
+  color: '#4FC3F7',
+  colorLight: '#0277BD',
+  ink: '#04131C',
+  mark: () => glyph('<path d="M16 9.6V6.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="5.2" r="1.9" fill="currentColor"/><rect x="7" y="9.6" width="18" height="14.4" rx="4.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12.3" cy="16" r="2.1" fill="currentColor"/><circle cx="19.7" cy="16" r="2.1" fill="currentColor"/><path d="M12.6 20.6h6.8M4.4 14.6v4.6M27.6 14.6v4.6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>'),
+};
+
 export const fallbackBrand = (id) => ({
   label: id,
   vendor: '',

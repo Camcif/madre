@@ -30,7 +30,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `d453015` | Claude | S-021 completo (cada lectura con su agente y su turno vivo) y 3e (recordar en cada turno, con casilla) |
 | `cf453ca` | Claude | UX · autor y encabezado de los mensajes traídos por BISHOP |
 | `e450832` | Claude | UX · ajustes de BISHOP en palabras (`choices` en el SDK) |
-| *este commit* | Claude | UX · menos líneas por plan, pies cortos, «leyó / recordó» en el pie de su respuesta |
+| `d69ae55` | Claude | UX · menos líneas por plan, pies cortos, «leyó / recordó» en el pie de su respuesta |
+| *este commit* | Claude | UX · segunda barra (casa, recargar, engrane), burbuja de BISHOP con su robot, agentes en relieve |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -164,6 +165,8 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   muestra al humano pasa por `relayedOf` (página) o `withoutRelayHeader` (lista de conversaciones).
 - **Nombres de clase CSS**: antes de inventar uno, buscarlo en `public/styles.css`; `.mem-cross` ya era
   de otra gráfica (posición absoluta, 1 px) y la marca nueva salía letra por letra.
+- **Un `.bar` es contenedor de tamaño** (`container-type: inline-size`): un elemento con esa clase no
+  toma el ancho de su contenido; la segunda barra lo anula (`container-type: normal`).
 - **Fusiones en paralelo**: conflictos en la bitácora y tablas de `docs/MACROVERSO.md`; se
   conservan los dos lados y la bitácora solo se añade al final.
 

@@ -7701,3 +7701,59 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
 .phone-server { display: flex; align-items: baseline; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--panel); box-shadow: var(--raise, none); }
 .phone-server b { font-family: var(--mono); font-size: 14px; color: color-mix(in srgb, var(--acc, var(--phosphor)) 70%, var(--text)); }
 .phone-server span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--text-2); }
+
+/* ==========================================================================================
+   THE CREW'S MARKS, SOLID AND LIFTED (2026-10-09)
+   ------------------------------------------------------------------------------------------
+   Asked for: the agents' marks solid, in livelier colours, standing a little off the canvas, in
+   the conversation, in the bar's crew and in the box's picker. Each disc is the brand's own vivid
+   colour (not the dimmed tint the ground used to need), lit from the top left and shaded at the
+   bottom, with a short shadow of its own colour under it. The glyph takes the brand's ink. An agent
+   that is not ready keeps its outline: it is not there to be lifted.
+   ========================================================================================== */
+:is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick):not(.offline):not(.detected) {
+  background: radial-gradient(circle at 34% 26%, color-mix(in srgb, var(--agent-solid, var(--agent)) 58%, #ffffff) 0%, var(--agent-solid, var(--agent)) 46%, color-mix(in srgb, var(--agent-solid, var(--agent)) 74%, #000000) 100%) !important;
+  color: var(--agent-on, #ffffff) !important;
+  box-shadow: inset 0 1px .5px rgba(255, 255, 255, .55), inset 0 -1.5px 2px rgba(0, 0, 0, .28), 0 1px 1.5px rgba(0, 0, 0, .35), 0 5px 12px -5px color-mix(in srgb, var(--agent-solid, var(--agent)) 60%, #000000) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+:is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick).gradient:not(.offline):not(.detected) {
+  background: radial-gradient(circle at 34% 26%, rgba(255, 255, 255, .42) 0%, transparent 55%), var(--agent-gradient, var(--agent-solid, var(--agent))) !important;
+  color: #ffffff !important;
+}
+:root[data-scheme="light"] :is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick):not(.offline):not(.detected) {
+  box-shadow: inset 0 1px .5px rgba(255, 255, 255, .6), inset 0 -1.5px 2px rgba(0, 0, 0, .2), 0 1px 1.5px rgba(20, 30, 20, .22), 0 5px 12px -6px color-mix(in srgb, var(--agent-solid, var(--agent)) 55%, transparent) !important;
+}
+/* The glyph pressed into the disc: a hairline of shade under each stroke. */
+:is(#messages .row > .avatar, .agents .avatar, .crew-orb .avatar, .picker .avatar.pick):not(.offline):not(.detected) svg { filter: drop-shadow(0 .6px 0 rgba(0, 0, 0, .22)); }
+/* What was said by a ring keeps its ring: the open agent in the bar, the chosen one in the picker. */
+.agents .avatar.open:not(.offline):not(.detected) { box-shadow: inset 0 1px .5px rgba(255, 255, 255, .55), inset 0 -1.5px 2px rgba(0, 0, 0, .28), 0 0 0 2px var(--bg), 0 0 0 3.5px var(--agent-solid, var(--agent)) !important; }
+.picker .avatar.pick[aria-checked="true"]:not(.offline):not(.detected) { box-shadow: inset 0 1px .5px rgba(255, 255, 255, .55), inset 0 -1.5px 2px rgba(0, 0, 0, .28), 0 0 0 2px var(--bg), 0 0 0 3.5px var(--agent-solid, var(--agent)) !important; }
+
+/* ==========================================================================================
+   THE SECOND BAR (2026-10-09)
+   ------------------------------------------------------------------------------------------
+   Salas (a house), reload and AJUSTES (a gear), in a small bar of their own at the right of the
+   room's bar, on the same row and of the same glass (it is a .bar too). The room's bar gives up
+   exactly its width. On a phone (.via-phone) it is never shown: the phone keeps one bar.
+   ========================================================================================== */
+.shell > .bar.bar-home {
+  grid-row: 1; grid-column: 1; justify-self: end; align-self: stretch;
+  width: auto; gap: 6px; padding: 9px 10px;
+  margin: 10px max(20px, calc((100% - 1440px) / 2)) 0 0;
+  /* A .bar is a size container (its keys fold by its width); this one is as wide as its three keys. */
+  container-type: normal;
+}
+.shell > .bar.bar-home[hidden], .via-phone .shell > .bar.bar-home { display: none !important; }
+:root:not(.via-phone) .shell > .bar.with-home {
+  width: auto; justify-self: stretch;
+  margin-left: max(20px, calc((100% - 1440px) / 2));
+  margin-right: calc(max(20px, calc((100% - 1440px) / 2)) + var(--home-w, 150px) + 10px);
+}
+/* With the second bar beside it the room's bar is ~120px narrower, so the pulse alone takes the
+   wordmark's place a little earlier: before the brand is cut instead of folded. */
+@container bar (max-width: 1160px) {
+  .bar.with-home .brand-logo { display: none; }
+  .bar.with-home .brand-icon { display: block; }
+  .bar.with-home .connection-label { display: none; }
+}

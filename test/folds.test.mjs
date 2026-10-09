@@ -482,7 +482,8 @@ test('bar: on a narrow screen what does not fit waits behind «more», and setti
   // A key that only crosses into the bar's padding spills too: Safari counts that as no overflow.
   assert.match(app, /function barSpills\(bar\) \{\n  if \(bar\.scrollWidth > bar\.clientWidth \+ 1\) return true;/);
   assert.match(app, /if \(node\.getBoundingClientRect\(\)\.right > end \+ 0\.5\) return true;/);
-  assert.match(app, /if \(barKit\.more\) want\.push\(barKit\.more\);\n  want\.push\(\.\.\.barNodes\(BAR_FIXED\)\);/, '«more» is not right before settings');
+  // «more» closes the bar; AJUSTES follows it only where it has no second bar to live in (a phone).
+  assert.match(app, /if \(barKit\.more\) want\.push\(barKit\.more\);\n  \/\/ AJUSTES closes this bar unless it lives in the second one\.\n  if \(!homeOn\(\)\) want\.push\(\.\.\.barNodes\(BAR_FIXED\)\);/, '«more» is not right before settings');
   assert.match(css, /\.bar \.bar-overflow \{ display: none !important; \}/);
   assert.match(css, /\.bar > \.bar-left \{ min-width: 58px; flex-shrink: 1; \}/, 'the brand can be squeezed out again');
 });

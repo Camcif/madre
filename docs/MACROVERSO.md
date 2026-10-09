@@ -572,3 +572,14 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   propio renglón (`.link-reads`; el primer nombre, `.mem-cross`, ya era de otra gráfica y la dejaba
   de un píxel de ancho). Verificado en pantalla con las conversaciones de 4c, de D-S13 y de 3e. No
   verificado en pantalla: el aviso de alto dentro de la tarjeta (solo en pruebas del servidor).
+- `2026-10-09` · Cuarta ronda de UX, pedida por el humano con capturas: (1) una segunda barra en la
+  sala, en la Mac (`#bar-home`, `homeBar()`): Salas con ícono de casa, Recargar y Ajustes con un
+  engrane dibujado para MADRE; esas tres teclas salen de la barra que se acomoda y su catálogo, y la
+  barra de la sala cede el ancho medido de la segunda (`--home-w`); con ella, el pulso compacto toma
+  el lugar de la palabra MADRE a 1160 px en vez de 1040; el teléfono conserva una barra. (2) BISHOP en
+  la sala de un proyecto habla con su burbuja: `BRANDS.bishop` (un robot celeste), `renderBishopOrder`
+  y `renderBishopAnswer` como filas de agente; `/bishop` se pinta como el mensaje del humano a
+  BISHOP (`renderBishopAsk`) y su acuse ya no se ve. (3) Los chips sobre esas burbujas son los de
+  una respuesta: «BISHOP», «↳ pregunta», «por @agente · desde Salas», «→ @agente». (4) Las marcas de
+  los agentes, sólidas y en relieve (conversación, tripulación de la barra, selector de la caja),
+  revirtiendo a pedido la decisión anterior de pintarlas planas. Pruebas de la barra actualizadas.

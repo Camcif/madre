@@ -402,11 +402,16 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   const store = globalThis.localStorage.store;
   // The MACROVERSO key ships in the default order but belongs to the room of SALAS alone: an
   // ordinary room does not offer it, so it never reaches its bar.
-  const shipped = ['salas', 'crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'finder', 'phone'];
+  // On the Mac, Salas (a house), reload and AJUSTES live in the second bar (2026-10-09): they are not
+  // keys of this one, and the card never offers them.
+  const shipped = ['crew', 'modules', 'mother', 'nostromo', 'servers', 'finder', 'phone'];
   const onBar = () => bar.children.filter((node) => node instanceof FakeElement && node.dataset.barItem && !node.classList.contains('bar-off')).map((node) => node.dataset.barItem);
   assert.deepEqual(kit.order, shipped, 'the bar does not ship as it was');
   assert.ok(!kit.catalogue().includes('macroverso'), 'an ordinary room offers the MACROVERSO key');
-  assert.equal(onBar().at(-1), 'settings', 'AJUSTES is not the last key');
+  const home = registry.get('bar-home');
+  assert.equal(home.hidden, false, 'the second bar is not shown on the Mac');
+  assert.deepEqual(home.children.filter((node) => node instanceof FakeElement).map((node) => node.id), ['home-button', 'reload-button', 'custom-button'], 'the second bar does not hold the house, reload and AJUSTES, in that order');
+  assert.ok(!onBar().includes('settings') && !onBar().includes('reload') && !onBar().includes('salas'), 'a key of the second bar is still on this one');
   assert.ok(kit.catalogue().includes('memory') && ['ash', 'intents', 'ollama'].every((id) => kit.catalogue().includes(id)), 'Memory and the modules with a window are not offered');
 
   // Whatever the browser kept that is not a list is the bar as it ships.
@@ -417,7 +422,7 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   store['pulse.barItems'] = JSON.stringify(['finder', 'settings', 'a-module-that-was-deleted', 'memory']);
   kit.layout();
   assert.deepEqual(kit.order, ['finder', 'memory']);
-  assert.deepEqual(onBar(), ['finder', 'memory', 'settings']);
+  assert.deepEqual(onBar(), ['finder', 'memory']);
   assert.ok(registry.get('modules-button').classList.contains('bar-off'), 'a key that is off is still on the bar');
   assert.ok(registry.get('agents').classList.contains('bar-off') && registry.get('agents-compact').classList.contains('bar-off'), 'the crew is one key: both of its forms go');
   const memoryKey = bar.children.find((node) => node.dataset?.barItem === 'memory');
@@ -436,7 +441,8 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   assert.equal(card.hidden, false);
   assert.equal(card.getAttribute('aria-label'), 'Agregar a la barra');
   const tiles = () => card.querySelectorAll('.bar-tile').map((tile) => tile.dataset.barItem);
-  assert.ok(['crew', 'modules', 'mother', 'nostromo', 'reload', 'servers', 'ash', 'intents', 'ollama'].every((id) => tiles().includes(id)), `the card does not offer what is off the bar: ${tiles()}`);
+  assert.ok(['crew', 'modules', 'mother', 'nostromo', 'servers', 'ash', 'intents', 'ollama'].every((id) => tiles().includes(id)), `the card does not offer what is off the bar: ${tiles()}`);
+  assert.ok(!tiles().some((id) => ['reload', 'salas'].includes(id)), 'the card offers a key of the second bar');
   assert.ok(!tiles().some((id) => ['finder', 'memory', 'settings'].includes(id)), 'the card offers what is already on the bar, or AJUSTES');
   assert.equal(card.querySelectorAll('.bar-tile').find((tile) => tile.dataset.barItem === 'nostromo').getAttribute('aria-label'), 'Agregar NOSTROMO');
   assert.match(card.textContent, /Listo/);
@@ -451,7 +457,7 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   // A tile puts its key at the end, before AJUSTES.
   card.querySelectorAll('.bar-tile').find((tile) => tile.dataset.barItem === 'nostromo').listeners.click[0]();
   assert.deepEqual(kit.order, ['memory', 'nostromo']);
-  assert.deepEqual(onBar(), ['memory', 'nostromo', 'settings']);
+  assert.deepEqual(onBar(), ['memory', 'nostromo']);
   assert.deepEqual(JSON.parse(store['pulse.barItems']).slice(0, 2), ['memory', 'nostromo']);
   assert.ok(kit.badges.has('nostromo') && !tiles().includes('nostromo'));
 

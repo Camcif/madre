@@ -391,6 +391,9 @@ function paint(node, id) {
   node.dataset.agent = id;
   node.style.setProperty('--agent', agentColor(id));
   const brand = brandOf(id);
+  // The solid mark (avatars): the brand's own vivid colour on either ground, and the ink it takes.
+  node.style.setProperty('--agent-solid', brand.color);
+  node.style.setProperty('--agent-on', brand.ink ?? '#ffffff');
   if (brand.gradient) node.style.setProperty('--agent-gradient', brand.gradient);
   return node;
 }
@@ -3390,6 +3393,8 @@ export function relayedOf(payload) {
 function renderUserMessage(event) {
   const { messageId, target, text: said, ash, model, effort, attachments = [], create, mode } = event.payload;
   const relayed = relayedOf(event.payload);
+  // An order BISHOP brought speaks as BISHOP: its own bubble, on the side of those who answer.
+  if (relayed && relayed.kind !== 'question') return renderBishopOrder(event, relayed);
   // What every later use of this message reads (the quote above its answer, a retry, the phrases
   // while it works) is the task, never the header.
   const text = relayed ? relayed.body : said;
@@ -5116,17 +5121,88 @@ function renderBishopProposal(event) {
   state.lastSender = null;
   return node;
 }
+// BISHOP in a project room (2026-10-09): a bubble like an agent's, with its robot, on the side of
+// those who answer. The chips above it are the same as a reply's: who, what it answers (↳) and how.
+function bishopRow(id) {
+  const node = row('assistant', 'bishop');
+  node.classList.add('bishop-says');
+  node.id = id;
+  return node;
+}
+function bishopFoot(bubble, timestamp, note = null) {
+  const foot = el('div', 'bubble-foot');
+  const stamp = el('div', 'stamp');
+  stamp.append(el('span', null, formatTime(timestamp)));
+  if (note) { const said = el('span', null, note.short); said.title = note.long; stamp.append(said); }
+  foot.append(stamp);
+  bubble.append(foot);
+}
+// An order BISHOP brought into this room, to one of its agents.
+function renderBishopOrder(event, relayed) {
+  const { messageId, target, model, mode } = event.payload;
+  state.userMessages.set(messageId, { text: relayed.body, target, model, mode: mode ?? 1 });
+  settleModeAsksFor(target, mode ?? 1);
+  const node = bishopRow(`msg-${messageId}`);
+  const col = el('div', 'col');
+  const who = el('div', 'who');
+  who.append(el('span', null, 'BISHOP'));
+  const to = paint(el('span', 'to-agent'), target);
+  to.append(`→ @${target}`);
+  who.append(to);
+  if (relayed.kind === 'order') who.append(el('span', 'badge', relayed.auto
+    ? t('order {step} of {total} · sent on its own from Salas, in the mode you chose', { step: relayed.step, total: relayed.total })
+    : t('order {step} of {total} · you sent it from Salas', { step: relayed.step, total: relayed.total })));
+  if (Number.isInteger(mode) && mode !== 1) who.append(el('span', `badge mode m${mode}`, `#${mode} ${MODES[mode].label}`));
+  col.append(who);
+  const bubble = el('div', 'bubble');
+  bubble.append(renderMarkdown(relayed.body));
+  bishopFoot(bubble, event.timestamp);
+  col.append(bubble);
+  node.append(col);
+  state.lastSender = 'bishop';
+  return node;
+}
 // In a room that raised BISHOP with /bishop: its answer, for the human. The agents of this room do
 // not read it; a link is what lets them read another room.
 function renderBishopAnswer(event) {
   const { agent, question, text, ok } = event.payload;
-  const node = el('div', `command-card bishop-answer${ok === false ? ' failed' : ''}`);
-  const head = el('div', 'head');
-  head.append(el('b', null, 'BISHOP'), el('span', null, t('answers through @{agent} · from the room of Salas', { agent })), el('span', 'args', question ?? ''));
-  const body = el('div', 'bishop-answer-text');
-  body.append(renderMarkdown(text ?? ''));
-  node.append(head, body, el('p', 'choice-foot', t('For you only; the agents of this room do not read it.')));
-  state.lastSender = null;
+  const node = bishopRow(`bishop-${event.id ?? event.sequence ?? ''}`);
+  if (ok === false) node.classList.add('failed');
+  const col = el('div', 'col');
+  const who = el('div', 'who');
+  who.append(el('span', null, 'BISHOP'));
+  if (question) {
+    const reply = el('span', 'reply', `↳ ${question.length > 90 ? `${question.slice(0, 90)}…` : question}`);
+    reply.title = question;
+    who.append(reply);
+  }
+  who.append(el('span', 'badge', t('through @{agent} · from Salas', { agent })));
+  col.append(who);
+  const bubble = el('div', 'bubble');
+  bubble.append(renderMarkdown(text ?? ''));
+  bishopFoot(bubble, event.timestamp, { short: t('only for you'), long: t('For you only; the agents of this room do not read it.') });
+  col.append(bubble);
+  node.append(col);
+  state.lastSender = 'bishop';
+  return node;
+}
+// The human's /bishop: their question, as their message to BISHOP; the receipt the command wrote
+// («asked BISHOP…») is not shown, the answer that follows says it was asked.
+function renderBishopAsk(event) {
+  const { args = [], text, timestamp } = { ...event.payload, timestamp: event.timestamp };
+  const node = row('user');
+  const col = el('div', 'col');
+  const who = el('div', 'who');
+  who.append(el('b', null, t('YOU · CREW')));
+  col.append(who);
+  const bubble = el('div', 'bubble', args.join(' '));
+  bubble.title = text ?? '';
+  col.append(bubble);
+  const stamp = paint(el('div', 'stamp'), 'bishop');
+  stamp.append(el('span', 'to', '→ BISHOP'), el('span', null, formatTime(timestamp)));
+  col.append(stamp);
+  node.append(col);
+  state.lastSender = 'you';
   return node;
 }
 
@@ -11017,6 +11093,7 @@ function runOutput(text, run) {
 
 function renderCommandCard(event) {
   const { name, title, text, ok, args = [], run = null, bishop = null } = event.payload;
+  if (name === 'bishop' && !bishop && ok !== false && args.length) return renderBishopAsk(event);
   const node = el('div', `command-card${ok === false ? ' failed' : ''}`);
   const head = el('div', 'head');
   // The answer to an order of BISHOP: who answered, where, and which order; the card starts no turn.
@@ -16844,13 +16921,16 @@ function barStored() {
 function barCatalogue() {
   const out = new Map();
   for (const [id, spec] of Object.entries(BAR_BUILT)) {
+    // Reload lives in the second bar on the Mac; it is not a key of this one there.
+    if (id === 'reload' && homeOn()) continue;
     const nodes = spec.nodes.map((query) => document.querySelector(query)).filter(Boolean);
     if (nodes.length) out.set(id, { id, name: spec.name(), nodes });
   }
   out.set('memory', { id: 'memory', name: t('Memory'), icon: SETTINGS_CATS.memory.icon, open: () => openSettingsOn('memory') });
   // SALAS, every room on this Mac (docs/MACROVERSO.md). On a phone the way back to them is already
   // at the start of the bar.
-  if (!state.device) out.set('salas', { id: 'salas', name: t('Rooms'), icon: SALAS_ICON, open: () => { globalThis.location.href = '/salas'; } });
+  // On the Mac the way out is the house in the second bar; a key here would say it twice.
+  if (!state.device && !homeOn()) out.set('salas', { id: 'salas', name: t('Rooms'), icon: SALAS_ICON, open: () => { globalThis.location.href = '/salas'; } });
   // The MACROVERSO, from the room of SALAS only (phase 3d): SALAS opens straight into it.
   if (!state.device && state.salas) out.set('macroverso', { id: 'macroverso', name: t('Macroverse'), icon: MACROVERSO_ICON, open: () => { globalThis.location.href = '/salas#macroverso'; } });
   // Every module that opens as a window: MADRE's own that have something to read, and yours. One
@@ -16937,7 +17017,8 @@ function barPlace() {
     if (id === 'crew') want.push(...contextual);
   }
   if (barKit.more) want.push(barKit.more);
-  want.push(...barNodes(BAR_FIXED));
+  // AJUSTES closes this bar unless it lives in the second one.
+  if (!homeOn()) want.push(...barNodes(BAR_FIXED));
   if (typeof bar.insertBefore !== 'function') {
     for (const node of [...want, barKit.layer].filter(Boolean)) { node.remove(); bar.append(node); }
     return;
@@ -16949,9 +17030,52 @@ function barPlace() {
     next = node;
   }
 }
+// The second bar (2026-10-09): the way out to Salas (a house), reload and AJUSTES (a gear), in a
+// small bar of their own beside the keys you arrange. On the Mac only: a phone keeps one bar, with
+// «‹ Salas» at its start. The three are not keys you place, so the bar's card never offers them.
+const HOME_ICON = '<path d="M3.4 9.2 10 3.6l6.6 5.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-f" d="M5.2 7.9v7.5a1.2 1.2 0 0 0 1.2 1.2h2.3v-4a1.3 1.3 0 0 1 2.6 0v4h2.3a1.2 1.2 0 0 0 1.2-1.2V7.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>';
+const homeOn = () => !state.device && Boolean(document.querySelector('#bar-home'));
+function homeBar() {
+  const home = document.querySelector('#bar-home');
+  const bar = document.querySelector('#bar');
+  if (!home || !bar) return;
+  const keys = ['#reload-button', '#custom-button'].map((query) => document.querySelector(query)).filter(Boolean);
+  if (state.device) {
+    // A phone: the keys go back to the one bar, where barPlace puts them.
+    home.hidden = true;
+    bar.classList.remove('with-home');
+    for (const key of keys) if (key.parentNode === home) bar.append(key);
+    return;
+  }
+  let go = home.querySelector('#home-button');
+  if (!go) {
+    go = el('button', 'tree-button home-button');
+    go.id = 'home-button';
+    go.type = 'button';
+    go.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${HOME_ICON}</svg>`; // trusted: our own SVG string
+    go.addEventListener('click', () => { globalThis.location.href = '/salas'; });
+    home.append(go);
+  }
+  go.title = t('Rooms');
+  go.setAttribute('aria-label', t('Rooms'));
+  home.setAttribute('aria-label', t('Rooms, reload and settings'));
+  for (const key of keys) {
+    key.classList.remove('bar-off', 'bar-overflow');
+    if (key.parentNode !== home) home.append(key);
+  }
+  home.hidden = false;
+  bar.classList.add('with-home');
+  // The bar beside it leaves exactly its width free, measured whenever it changes (fonts, language).
+  if (!home.dataset.measured && typeof ResizeObserver === 'function') {
+    home.dataset.measured = '1';
+    new ResizeObserver(() => { if (home.offsetWidth) document.documentElement.style.setProperty('--home-w', `${home.offsetWidth}px`); }).observe(home);
+  }
+}
+
 // Reads the order, builds what it needs and hides what is off. An id nobody knows — a module that
 // was deleted — is skipped, and AJUSTES is never in the list because it is never anywhere but last.
 function barLayout() {
+  homeBar();
   const catalogue = barCatalogue();
   barKit.order = barStored().filter((id) => id !== BAR_FIXED && catalogue.has(id));
   for (const [id, entry] of catalogue) {
