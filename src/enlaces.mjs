@@ -35,7 +35,10 @@ export const HOUR_MS = 60 * 60 * 1000;
 // that asks is never told whether the link is missing, revoked, expired or facing the other way.
 export const CHANNEL_HEADER = 'x-madre-enlace';
 export const NO_SUCH_LINK = 'No such link.';
-export const CROSSINGS = ['read', 'received'];
+// `order` is one of BISHOP's orders that reached this room (fase 4b). It is counted apart from the
+// readings, each kind against the contract's own `perHour`: asking BISHOP a question, which reads,
+// never uses up the orders, and an order never uses up a reading.
+export const CROSSINGS = ['read', 'received', 'order'];
 // What one room may tell another about a link, by the channel: that it was signed or revoked.
 // Each lands in the other room's ledger as a line, never as a message (phase 3c).
 export const NOTICES = ['enlace.signed', 'enlace.revoked'];

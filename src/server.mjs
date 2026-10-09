@@ -19,7 +19,7 @@ import { memoryServerFor } from './memory-tools.mjs';
 import { MotherChannel, CODE000_STRIKES } from './mother.mjs';
 import { ErrorSentinel } from './sentinel-errors.mjs';
 import { probeOllama, ollamaEmbedder, ollamaInvoker, pullModel, ollamaVersions, ownOllamaServers } from './ollama.mjs';
-import { moduleById, describeModules, findModuleRoute, toolsForTurn as modulesToolsForTurn, loadExternalModules, loadFailures, moduleFolders, moduleCommands, installModuleFile, installModuleText, verifyModuleText, moduleOrigin, removeExternalModule } from './modules/index.mjs';
+import { MODULES, moduleById, describeModules, findModuleRoute, toolsForTurn as modulesToolsForTurn, loadExternalModules, loadFailures, moduleFolders, moduleCommands, installModuleFile, installModuleText, verifyModuleText, moduleOrigin, removeExternalModule } from './modules/index.mjs';
 import { madreAgent, madreInvoker, MADRE_AGENT_ID, MADRE_ADAPTER } from './adapters/madre.mjs';
 import { exportDataset, readiness as datasetReadiness } from './dataset.mjs';
 import { OutboundLog, outboundView, DEFAULT_REPORT_URL } from './outbound.mjs';
@@ -795,8 +795,30 @@ export async function createPulseServer({
     return [...modes, ...kept];
   }
   let unsubscribeAsks = () => {};
+  // What a module hears of the ledger (`onEvent`, docs/SDK.md; S-027 in docs/MACROVERSO.md): each
+  // event of each conversation alive in this room, once, with that conversation's room and id.
+  // A module hears only while it is on, gets the same context as everywhere else, and can only
+  // record what `record()` already allows (never a message, never a turn). What it does with an
+  // event is its own business and never holds up the room: a failure is logged and dropped.
+  function wireModules(target, id) {
+    return target.subscribe((event) => {
+      const listening = MODULES.filter((module) => typeof module.onEvent === 'function');
+      if (!listening.length) return;
+      void (async () => {
+        const ctx = await moduleContext();
+        for (const module of listening) {
+          const settings = module.settingsFrom(ctx.config);
+          if (module.kind === 'builtin' && !settings.enabled) continue;
+          await Promise.resolve(module.onEvent({ ...ctx, settings, room: target, chat: id, record: (type, payload) => target.record(type, payload) }, event))
+            .catch((error) => console.error(`MADRE module ${module.id}: onEvent failed: ${error.message}`));
+        }
+      })().catch((error) => console.error(`MADRE: a module could not hear an event: ${error.message}`));
+    });
+  }
+  let unsubscribeModules = () => {};
   function wireRoom() {
     unsubscribe = room.subscribe(() => { void broadcastPending(); });
+    unsubscribeModules = wireModules(room, chatId);
     unsubscribeAsks = trackAsks(room, historicalEvents);
     unsubscribeSentinel = room.subscribe((event) => { void sentinel.observe(event).catch(() => null); });
     unsubscribeEyecat = room.subscribe((event) => { void eyecat.observe(event).catch(() => null); });
@@ -817,8 +839,8 @@ export async function createPulseServer({
       .map((event) => ({ ...event.payload, path: join(attachmentsRoot, event.payload.fileName), dir: attachmentsRoot })));
   }
   function unwireRoom() {
-    for (const off of [unsubscribe, unsubscribeSentinel, unsubscribeEyecat, unsubscribeGhost, unsubscribeLive, unsubscribeChats, unsubscribeActivity, unsubscribeAsks]) { try { off(); } catch { /* already gone */ } }
-    unsubscribe = unsubscribeSentinel = unsubscribeEyecat = unsubscribeGhost = unsubscribeLive = unsubscribeChats = unsubscribeActivity = () => {};
+    for (const off of [unsubscribe, unsubscribeSentinel, unsubscribeEyecat, unsubscribeGhost, unsubscribeLive, unsubscribeChats, unsubscribeActivity, unsubscribeAsks, unsubscribeModules]) { try { off(); } catch { /* already gone */ } }
+    unsubscribe = unsubscribeSentinel = unsubscribeEyecat = unsubscribeGhost = unsubscribeLive = unsubscribeChats = unsubscribeActivity = unsubscribeModules = () => {};
   }
 
   // TURNS: how much the room may do at once. On by default. Several conversations may be at work
@@ -902,9 +924,10 @@ export async function createPulseServer({
       chatWrites = chatWrites.then(() => touchChat(roomDir, id, { text: human ? event.payload.text : null, counts: human })).catch(() => null);
     });
     const offActivity = watchActivity(target, id);
+    const offModules = wireModules(target, id);
     let offAsks = () => {};
     void source?.readAll?.().then((history) => { offAsks = trackAsks(target, history); }).catch(() => null);
-    const entry = { room: target, store: source, feed: null, off: () => { offTouch(); offActivity(); offAsks(); } };
+    const entry = { room: target, store: source, feed: null, off: () => { offTouch(); offActivity(); offAsks(); offModules(); } };
     parked.set(id, entry);
     return entry;
   }
@@ -1048,6 +1071,12 @@ export async function createPulseServer({
       updateConfig: (patch) => updateConfig(root, patch),
       record: (type, payload) => room.record(type, payload),
       services: {
+        // Into one named conversation of this room, opened beside if it is not alive; the open one
+        // when the name is missing or no longer exists. The same `record()` and the same refusals.
+        recordIn: async (id, type, payload) => {
+          const here = typeof id === 'string' && id ? await scopeOf(new URL(`http://room/?chat=${encodeURIComponent(id)}`)) : { room };
+          return (here.error ? room : here.room).record(type, payload);
+        },
         imageKey,
         setImageModule,
         // Intenciones keeps its measurements beside the project's room, reads the open
@@ -1910,7 +1939,8 @@ export async function createPulseServer({
       const moduleRoute = findModuleRoute(request.method, url.pathname);
       if (moduleRoute) {
         const payload = request.method === 'POST' ? await body(request).catch(() => ({})) : {};
-        const result = await moduleRoute.route.handler(await moduleContext(), { request, url, params: moduleRoute.params, payload });
+        // `viaPhone` (encargo §6, excepción 4): a module can refuse the phone by its own hand.
+        const result = await moduleRoute.route.handler(await moduleContext(), { request, url, params: moduleRoute.params, payload, viaPhone });
         return sendJson(response, result.status ?? 200, result.body ?? {});
       }
       // Where this room's tokens go: what each block of the briefing has cost, how much came back

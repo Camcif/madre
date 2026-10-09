@@ -225,7 +225,26 @@ Los contratos viven en `~/.pulse/config.json` bajo `enlaces` y los cruces en `en
 
 Cada sala recuerda dónde está su proyecto (`project.json`, junto a su registro); una sala abierta por última vez con una MADRE anterior aparece cuando se vuelve a abrir. Salas es de la Mac: el teléfono tiene la suya.
 
-**La sala de Salas.** `madre salas` abre una sala cuyo proyecto es una carpeta de MADRE (`~/.pulse/salas`, creada la primera vez): la puerta de entrada cuando no estás en ningún proyecto, y también lo que abre `madre` a secas desde tu carpeta personal. Es una sala como las demás —su conversación, su memoria, sus modos— y en Salas va primero, con su marca. Su barra lleva la tecla **Macroverso**. Nunca entrega notas por un enlace, y es la única que puede recibir permiso para dar órdenes a otra (la hoja de firma lo pide con la designación de esa sala). Es donde vivirá el super agente.
+**La sala de Salas.** `madre salas` abre una sala cuyo proyecto es una carpeta de MADRE (`~/.pulse/salas`, creada la primera vez): la puerta de entrada cuando no estás en ningún proyecto, y también lo que abre `madre` a secas desde tu carpeta personal. Es una sala como las demás —su conversación, su memoria, sus modos— y en Salas va primero, con su marca. Su barra lleva la tecla **Macroverso**. Nunca entrega notas por un enlace, y es la única que puede recibir permiso para dar órdenes a otra (la hoja de firma lo pide con la designación de esa sala).
+
+**BISHOP**, el guardián de tus salas, vive en la sala de Salas: en su ficha de MÓDULOS eliges qué agente listo habla por él (`@madre` por defecto si Ollama está listo). Sabe qué salas hay, cuáles están abiertas, quién trabaja y cuántas notas guarda cada una; con enlaces firmados lee notas de otras salas y cita de cuál viene cada dato. Si le pides actuar y un enlace permite órdenes, cierra su respuesta con un bloque `pulse-salas` (el motivo y hasta 4 líneas `@sala/agente #modo: tarea`) y la sala lo convierte en una tarjeta: una fila por orden con la sala, el agente y el modo a la vista, y **Enviar** o **Saltar**. Nada sale hasta que lo pulsas.
+
+| Regla | Dónde se cumple |
+|---|---|
+| Solo BISHOP ordena, y solo en respuesta a un mensaje tuyo | El módulo, en la sala de Salas |
+| Una orden llega hasta el modo que firmó el contrato, y nunca pasa de `#2`. `#3` y `#4` son propuesta: se arman en esa sala, con la llave de siempre | La sala que recibe |
+| Una orden a la vez por sala; nunca interrumpe a una sala que está trabajando; tope de órdenes por hora del contrato, contado aparte de las lecturas | La sala que recibe |
+| La sala ordenada responde en su conversación (el mensaje dice «de BISHOP · orden n de m») y no puede delegar ni dar órdenes | El núcleo: la orden corre a profundidad 1 y sin delegación |
+| La respuesta vuelve a la conversación del plan como tarjeta (≤ 1200 caracteres, el resto en la sala) y no arranca ningún turno; cuando no queda ninguna orden pendiente, una línea cierra el plan | La sala de Salas |
+| Una orden no es palabra tuya: no entra al dataset de entrenamiento | `src/dataset.mjs` |
+
+| Ruta | Qué | Quién |
+|---|---|---|
+| `POST /api/x/bishop/send` · `POST /api/x/bishop/skip` | Enviar o saltar una orden de un plan; el servidor manda lo que registró, nunca lo que dice la página | La página de la sala de Salas, nunca el teléfono |
+| `POST /api/x/bishop/order` | Una orden que llega a la sala a la que va; la sala la revisa ella misma: 403 sin llave, desde una página, desde el teléfono o sobre el techo; 404 sin contrato; 409 ocupada; 429 sobre el tope | La sala de Salas, con la llave del canal |
+| `POST /api/x/bishop/result` | La respuesta de vuelta, como tarjeta en la conversación del plan | La sala que obedeció, con la llave |
+
+Los planes viven en `bishop-plans.json` junto al registro de la sala de Salas (los últimos 40) y cada orden recibida se cuenta en `enlaces.jsonl` de la sala que la recibió.
 
 ---
 

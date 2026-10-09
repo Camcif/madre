@@ -2068,6 +2068,18 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .run-request .run-live button:disabled { opacity: .5; cursor: default; }
 .run-request .run-live button:focus-visible { outline: 0; box-shadow: var(--ring-soft); }
 .run-request .run-why { margin: -2px 2px 4px 34px; font-size: 11.5px; line-height: 1.45; color: var(--text-3); }
+.bishop-plan .bishop-order { cursor: default; }
+.bishop-plan .bishop-order:active { transform: none; }
+.bishop-plan .bishop-where { font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: var(--text-2); }
+.bishop-plan .bishop-where b { color: var(--text); font-weight: 600; }
+.bishop-plan .bishop-task { margin-top: 3px; overflow-wrap: anywhere; }
+.bishop-plan .bishop-order .run-why { margin: 4px 0 0; }
+.bishop-plan .bishop-order[data-status="blocked"], .bishop-plan .bishop-order[data-status="skipped"] { opacity: .62; }
+.bishop-plan .bishop-act { border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; padding: 5px 10px; border-radius: 7px; cursor: pointer; transition: color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out); }
+.bishop-plan .bishop-act.primary { border-color: color-mix(in srgb, var(--agent, var(--phosphor)) 55%, transparent); color: var(--agent, var(--phosphor)); }
+.bishop-plan .bishop-act.primary:hover { background: color-mix(in srgb, var(--agent, var(--phosphor)) 12%, transparent); }
+.bishop-plan .bishop-act:disabled { opacity: .5; cursor: default; }
+.bishop-plan .bishop-act:focus-visible { outline: 0; box-shadow: var(--ring-soft); }
 
 /* What the room still has no answer to. Quieter than the free-turn offer above it: that one is
    about to save money, this one is only wondering. */

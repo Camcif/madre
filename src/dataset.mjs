@@ -48,7 +48,9 @@ export function pairsFromEvents(events, { project = 'project', home, user, priva
     if (event.type !== 'message.created' || event.ghost || !Number.isInteger(event.sequence)) continue;
     const p = event.payload ?? {};
     if (typeof p.text !== 'string' || !p.text.trim()) continue;
-    if (p.role === 'user') { asks.set(p.messageId, { text: p.originalText ?? p.text, mode: p.mode ?? 1, from: 'you' }); continue; }
+    // An order of BISHOP (via 'bishop', docs/MACROVERSO.md D-S10) is a user message the human did
+    // not write: it is not their words, so neither it nor its answer becomes a pair.
+    if (p.role === 'user') { if (p.via !== 'bishop') asks.set(p.messageId, { text: p.originalText ?? p.text, mode: p.mode ?? 1, from: 'you' }); continue; }
     if (p.role !== 'assistant') continue;
     if (p.status === 'delegated') {
       // An orchestrator's step is a question for the agent it names; its closing turn is not.

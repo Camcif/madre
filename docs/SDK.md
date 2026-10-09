@@ -76,8 +76,8 @@ la suite compara esta tabla contra el código, así que si alguna vez se separan
 | `toolsForTurn` → `sends` | Cuáles de tus herramientas **mandan algo fuera**. El núcleo las retira por debajo de `#4` AIRLOCK: ni se le cuenta al modelo que existen. Ver abajo |
 | `reaches` | A dónde llega tu módulo, en las mismas cuatro respuestas que da MADRE de las suyas. Ver abajo |
 | `secrets` | Las llaves que necesitas, declaradas en vez de dibujadas: `[{ name, label, note, where }]`. MADRE pinta el campo, la guarda en su bodega bajo tu id y te la devuelve por `ctx.vault`. Ver abajo |
-| `routes` | Rutas HTTP propias: `{ method, path, handler(ctx, { payload, params, url }) }` → `{ status, body }` |
-| `onEvent(ctx, event)` | Cada evento del ledger |
+| `routes` | Rutas HTTP propias: `{ method, path, handler(ctx, { payload, params, url, request, viaPhone }) }` → `{ status, body }`. `viaPhone` es `true` cuando la petición llega desde un teléfono emparejado: niégalo tú si tu ruta es de la Mac |
+| `onEvent(ctx, event)` | Cada evento del ledger de cada conversación viva de la sala, mientras tu módulo está encendido. `ctx.room` y `ctx.chat` son los de esa conversación y `ctx.record` escribe en ella. Corre aparte: lo que tarde o falle no detiene a la sala. Como siempre, un módulo no fabrica mensajes ni turnos |
 | `controls` | Los ajustes de tu módulo, declarados en vez de dibujados: `[{ key, label, type: 'select' \| 'switch' \| 'text', options, note, invert }]`. MADRE los pinta en la ficha y los guarda en tu bloque de `config.json` |
 | `onSettings(ctx, settings)` | Te avisa cuando la humana cambió uno de tus `controls`, por si algo vivo tiene que enterarse |
 | `conditions` | Entradas para el catálogo de MU/TH/UR, con remedio por plataforma |

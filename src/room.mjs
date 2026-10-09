@@ -960,7 +960,27 @@ export class Room {
     this.#vectors.stop();
   }
 
-  async send({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false, via = null }) {
+  async send(options = {}) {
+    await this.#accept(options, null);
+  }
+
+  // An order from BISHOP (docs/MACROVERSO.md, S-028, D-S11). The same door as the human's message
+  // — the mode gate, the lease, the guard and the limits all run as they do for a message — with
+  // three things fixed here and never read from a request: the origin is `bishop`, the turn runs at
+  // depth 1 and it may not delegate, so a room that receives an order cannot open a plan or pass
+  // anything on. Only #0–#2 come in this way; #3 and #4 are armed by the human in this room. The
+  // caller (the BISHOP module, after it checked the contract) gets back the reply or the failure.
+  async order({ text, target, mode = 1 } = {}) {
+    const wanted = Number(mode);
+    if (!Number.isInteger(wanted) || wanted < 0 || wanted > 2) throw new Error('An order comes in at #2 at most; #3 and #4 are armed by the human in this room.');
+    const accepted = await this.#accept({ text, target, mode: wanted }, { via: 'bishop', depth: 1 });
+    const events = await this.#store.readAll();
+    const reply = accepted?.responseMessageId ? events.find((event) => event.type === 'message.created' && event.payload?.messageId === accepted.responseMessageId)?.payload : null;
+    const failed = accepted?.messageId ? events.findLast((event) => event.type === 'message.failed' && event.payload?.messageId === accepted.messageId)?.payload : null;
+    return { messageId: accepted?.messageId ?? null, responseMessageId: accepted?.responseMessageId ?? null, text: reply?.text ?? null, error: reply ? null : failed?.error ?? 'The turn ended without a reply.' };
+  }
+
+  async #accept({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false, via = null }, order) {
     const parsed = parseMessage(text, target);
     const requestedMode = normalizeMode(mode, create === true ? 2 : 1);
     // This is the decision the human made when pressing Send. Capture it before modeCheck() —
@@ -1007,8 +1027,9 @@ export class Room {
       mode: ghost ? 0 : control ? requestedMode : (standing || create ? 2 : 1),
       role: 'user',
       sender: 'you',
-      // Written from a paired phone: which kind, said by the bridge (docs/MOBILE.md, MOV-008).
-      via: VIA_KINDS.has(via) ? via : undefined,
+      // Written from a paired phone: which kind, said by the bridge (docs/MOBILE.md, MOV-008). An
+      // order says `bishop`, set by `order()` in this process and never taken from a request.
+      via: order ? order.via : VIA_KINDS.has(via) ? via : undefined,
       target: parsed.target,
       text: text2,
       ash: ashRequested ? { requested: true, active: ashActive } : undefined,
@@ -1079,14 +1100,16 @@ export class Room {
         target: parsed.target,
         error: `Message is too long (${parsed.text.length} characters); the limit is ${this.#maxMessageChars}.`,
       });
-      return;
+      return { messageId, responseMessageId: null };
     }
-    let allowDelegation = true;
-    if (this.#plans.size > 0) {
+    // An order never delegates, so a plan already running here has nothing to warn about.
+    let allowDelegation = !order;
+    if (!order && this.#plans.size > 0) {
       allowDelegation = false;
       await this.#alert('plan-active', `A plan by @${[...this.#plans.values()][0].orchestrator} is still running. Your message will be answered, but no second plan will start. Type STOPALL to halt every agent.`, `plan-active:${messageId}`);
     }
-    await this.#track(this.#dispatch({ messageId, targetId: parsed.target, text: text2, requester: 'you', depth: 0, allowDelegation: allowDelegation && !ghost, model: chosenModel, effort: chosenEffort, attachments: files, references, lease, ash: ashActive, mode: ghost ? 0 : control ? requestedMode : (lease ? 2 : 1) }));
+    const responseMessageId = await this.#track(this.#dispatch({ messageId, targetId: parsed.target, text: text2, requester: 'you', depth: order ? order.depth : 0, allowDelegation: allowDelegation && !ghost, model: chosenModel, effort: chosenEffort, attachments: files, references, lease, ash: ashActive, mode: ghost ? 0 : control ? requestedMode : (lease ? 2 : 1) }));
+    return { messageId, responseMessageId };
   }
 
   // A #2 lease: the project itself is where new files go, and MADRE keeps a scratch folder

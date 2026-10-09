@@ -2167,6 +2167,8 @@ export function renderMarkdown(text) {
       index += 1;
       while (index < lines.length && !/^\s*```\s*$/.test(lines[index])) body.push(lines[index++]);
       index += 1;
+      // In the room of Salas, BISHOP's block of orders becomes its own card under the reply.
+      if (fence[1]?.toLowerCase() === 'pulse-salas' && state.salas) continue;
       fragment.append(fence[1]?.toLowerCase() === 'pulse' ? planCard(body) : codeBlock(body, fence[1]));
       continue;
     }
@@ -3381,12 +3383,15 @@ function renderUserMessage(event) {
   const col = el('div', 'col');
   const who = el('div', 'who');
   who.append(el('b', null, reviewed ? t('YOU · CREW (EXPENDABLE)') : t('YOU · CREW')));
-  if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
+  // An order of BISHOP: its first line is the header the agent reads; the person reads a badge.
+  const order = event.payload.via === 'bishop' ? String(text ?? '').match(/^BISHOP › (\d+)\/(\d+) · plan (p-[0-9a-f]+)[^\n]*\n*/) : null;
+  if (event.payload.via === 'bishop') who.append(el('span', 'badge via', order ? t('from BISHOP · order {step} of {total}', { step: order[1], total: order[2] }) : t('from BISHOP')));
+  else if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
   const shownMode = Number.isInteger(mode) ? mode : create ? 2 : null;
   if (shownMode !== null && shownMode !== 1) who.append(el('span', `badge mode m${shownMode}`, `#${shownMode} ${MODES[shownMode].label}`));
   if (ash?.active) who.append(el('span', 'badge ash', t('ASH')));
   col.append(who);
-  const bubble = el('div', 'bubble', text);
+  const bubble = el('div', 'bubble', order ? String(text).slice(order[0].length) : text);
   if (attachments.length) bubble.append(fileTiles(attachments));
   col.append(bubble);
   const stamp = paint(el('div', 'stamp'), target);
@@ -4822,6 +4827,81 @@ function markRun({ responseMessageId, index }, status, where = null) {
   live.append(stop);
 }
 
+// BISHOP proposed a plan in the room of Salas (docs/MACROVERSO.md, fase 4b). One row per order with
+// the room, the agent and the mode in sight; nothing leaves until the human presses «Send» on it.
+// The press names the plan and the step, never the order: the server sends what it recorded.
+const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL' };
+function renderBishopPlan(event) {
+  const { plan, reason, orders = [], agent } = event.payload;
+  if (!orders.length) return null;
+  const node = el('div', 'choice run-request bishop-plan');
+  node.dataset.plan = plan;
+  tint(node, agent);
+  const head = el('div', 'choice-head');
+  head.append(el('span', 'choice-kicker', t('BISHOP proposes a plan · {plan}', { plan })));
+  node.append(head, el('p', 'choice-q', reason));
+  const list = el('div', 'choice-list');
+  list.setAttribute('role', 'group');
+  list.setAttribute('aria-label', reason);
+  for (const order of orders) {
+    const row = el('div', 'choice-option bishop-order');
+    row.dataset.step = String(order.step);
+    row.append(el('span', 'choice-key', String(order.step)));
+    const what = el('div', 'choice-text');
+    const where = el('div', 'bishop-where');
+    where.append(el('b', null, order.name), el('span', null, ` · @${order.agent} · #${order.mode} ${MODES[order.mode]?.label ?? ''}`));
+    what.append(where, el('div', 'bishop-task', order.text));
+    if (order.why) what.append(el('p', 'run-why', t(order.why, order.whyArgs ?? null)));
+    const side = el('div', 'choice-tags');
+    row.append(what, side);
+    list.append(row);
+    markBishopOrder({ plan, step: order.step }, order.status, row);
+  }
+  node.append(list, el('p', 'choice-foot', t('Each order leaves only when you send it · the room checks it against its link · the answer comes back here as a card · #3 and #4 are armed in their room')));
+  state.lastSender = null;
+  return node;
+}
+function markBishopOrder({ plan, step }, status, row = null) {
+  const target = row ?? document.querySelector(`.bishop-plan[data-plan="${CSS.escape(String(plan))}"] .bishop-order[data-step="${Number(step)}"]`);
+  if (!target) return;
+  target.dataset.status = status;
+  const side = target.querySelector('.choice-tags');
+  side.replaceChildren();
+  if (status !== 'ready' || state.device) {
+    side.append(el('span', 'choice-tag', status === 'ready' ? t('SEND IT FROM THE MAC') : t(BISHOP_STATES[status] ?? status)));
+    return;
+  }
+  const act = (label, path, ghost = false) => {
+    const button = el('button', `sm-btn ${ghost ? 'ghost' : 'primary'} bishop-act`, label);
+    button.type = 'button';
+    button.addEventListener('click', async () => {
+      for (const one of side.querySelectorAll('button')) one.disabled = true;
+      try {
+        const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan, step: Number(step) }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+      } catch (error) {
+        toast(`MU/TH/UR › ${error.message}`);
+        for (const one of side.querySelectorAll('button')) one.disabled = false;
+      }
+    });
+    return button;
+  };
+  side.append(act(t('Send'), '/api/x/bishop/send'), act(t('Skip'), '/api/x/bishop/skip', true));
+}
+// One line when a plan closes, and one when BISHOP's block could not be read. Neither starts a turn.
+function renderBishopLine(event) {
+  const node = el('div', 'system note bishop');
+  node.append(el('b', null, 'BISHOP'));
+  if (event.type === 'bishop.plan.closed') {
+    const { plan, done = 0, failed = 0, skipped = 0 } = event.payload;
+    node.append(t(' · plan {plan} closed · {done} answered · {failed} failed · {skipped} skipped', { plan, done, failed, skipped }));
+  } else {
+    node.append(t(' · the block of orders could not be read: {why}', { why: (event.payload.reasons ?? []).map((why) => t(why)).join('; ') }));
+  }
+  return node;
+}
+
 function renderAlert(event) {
   const { message } = event.payload;
   if (!replaying) { state.brakeArmed = true; updateStopAll(); }
@@ -5246,6 +5326,11 @@ void renderOpenQuestions(); return;
     case 'create.reverted': node = renderCreateReverted(event); break;
     case 'enlace.signed':
     case 'enlace.revoked': node = renderEnlace(event); break;
+    case 'bishop.plan.proposed': node = renderBishopPlan(event); break;
+    case 'bishop.order.sent': markBishopOrder(event.payload, 'sent'); return;
+    case 'bishop.order.skipped': markBishopOrder(event.payload, 'skipped'); return;
+    case 'bishop.plan.closed':
+    case 'bishop.plan.ignored': node = renderBishopLine(event); break;
     case 'create.missing': node = renderCreateMissing(event); break;
     case 'control.changed': markTouched(event.payload.agent, event.payload.files); node = renderControlChanged(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } break;
     case 'control.reverted': node = renderControlReverted(event); if (!replaying) treeFollowWrites(); break;
@@ -10691,10 +10776,22 @@ function runOutput(text, run) {
 }
 
 function renderCommandCard(event) {
-  const { name, title, text, ok, args = [], run = null } = event.payload;
+  const { name, title, text, ok, args = [], run = null, bishop = null } = event.payload;
   const node = el('div', `command-card${ok === false ? ' failed' : ''}`);
   const head = el('div', 'head');
-  head.append(el('b', null, `/${name}`), el('span', null, run?.line ? runTitle(run) : title ?? name), el('span', 'args', args.join(' ')));
+  // The answer to an order of BISHOP: who answered, where, and which order; the card starts no turn.
+  const said = bishop ? t('@{agent} in {room} · order {step} of {total} · plan {plan}', { agent: bishop.agent, room: bishop.name, step: bishop.step, total: bishop.total, plan: bishop.plan }) : null;
+  head.append(el('b', null, bishop ? 'BISHOP' : `/${name}`), el('span', null, said ?? (run?.line ? runTitle(run) : title ?? name)), el('span', 'args', args.join(' ')));
+  if (bishop) {
+    markBishopOrder(bishop, ok === false ? 'failed' : 'done');
+    if (bishop.link) {
+      const go = el('a', 'args', bishop.cut ? t('the rest, in the room') : t('see it in the room'));
+      go.href = bishop.link;
+      go.target = '_blank';
+      go.rel = 'noopener';
+      head.append(go);
+    }
+  }
   const pre = el('pre');
   for (const line of String(run?.line ? runOutput(text, run) : text ?? '').split('\n')) {
     if (line.startsWith('## ')) pre.append(el('span', 'h', line.slice(3)), '\n');
