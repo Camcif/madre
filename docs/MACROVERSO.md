@@ -624,3 +624,12 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   el gesto la tomaba por fondo (aparecían o se iban las ventanas al tocarla). `NOT_DESK` deja fuera
   las barras, las esferas, el selector y las filas de preguntas y decisiones. Verificado en pantalla:
   la esfera no mueve las ventanas, ni apartadas ni en su lugar; el fondo sigue haciéndolo.
+- `2026-10-09` · Profundidad de la conversación por planos, según la especificación del humano
+  (referencia «Jerarquía de mensajes»): tokens lógicos `--depth-user` 60, `--depth-critical` 50,
+  `--depth-system` 40, `--depth-agent` 30, `--depth-metadata` 20, `--depth-canvas` 0; material por
+  plano (sólido el del humano y el crítico, blanco casi opaco el del agente, translúcido el de la
+  sala y el de los metadatos) y una sola fórmula de borde y elevación que crece con el plano. Sin
+  glow, halo, desenfoque ni cambios de tamaño, letra o color. Sustituye, para la conversación, la
+  escalera de tonos de blanco de la quinta ronda (la caja de texto conserva su capa). Verificado en
+  pantalla a 1280 px: claro y oscuro, con paisaje y fondo liso, error, relevo, respuesta, mensaje de
+  varias líneas, chips y sellos.

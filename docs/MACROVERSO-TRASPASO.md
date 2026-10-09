@@ -36,7 +36,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `e611b5b` | Claude | UX · líneas de la sala (capa 0) con su forma también sin fondo de paisaje; los avisos conservan su color |
 | `5edf35a` | Claude | UX · doce ajustes (esfuerzo, foco, escritorio, editor, ventanas, ficha de agente, selector, tableros, tablas, MU/TH/UR, sesión) y precio de lista para Codex, Gemini y OpenCode (`src/prices.mjs`) |
 | `a7e5867` | Claude | UX · «sigue abierto» sin cortes, fichas de NOSTROMO como ventanas, NOSTROMO más amplio, El núcleo en el lenguaje de la sala, preguntas de módulos en la hoja |
-| *este commit* | Claude | UX · las barras y las esferas de agente quedan fuera del gesto del escritorio (`NOT_DESK`) |
+| `dc50ec9` | Claude | UX · las barras y las esferas de agente quedan fuera del gesto del escritorio (`NOT_DESK`) |
+| *este commit* | Claude | UX · la conversación en planos de profundidad (`--depth-*`, una fórmula de elevación; sustituye la escalera de capas de la conversación) |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -175,6 +176,9 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
 - **Las reglas de las burbujas con fondo de paisaje** (`:root[data-scheme][data-wallpaper]…`) pesan más
   que un selector `#messages …`: la escalera de capas escribe el id dos veces (`#messages#messages`)
   para ganarles. Y `--lift-1…` ya eran fichas globales: las sombras de las capas se llaman `--rise-*`.
+- **Planos de la conversación** (THE CANVAS IN PLANES, final de styles.css): un mensaje nuevo se
+  clasifica asignándole `--plane: var(--depth-…)`; la sombra sale sola de la fórmula. Nada de
+  `backdrop-filter` dentro de `#messages` (dibujaba bloques vacíos al desplazar).
 - **El núcleo lee sus palabras en oración** (`coreWords`/`coreSentences` en app.js, con un
   MutationObserver): las frases siguen en mayúsculas en el código y el catálogo. Una palabra con
   cifras, barra, siglas de `CORE_KEEP` o ya en minúsculas no se toca. Si una frase nueva sale mal,

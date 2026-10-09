@@ -7755,32 +7755,21 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
 /* ==========================================================================================
    THE ROOM IN LAYERS (2026-10-09)
    ------------------------------------------------------------------------------------------
-   Asked for: no transparency in the conversation; depth told by tones of white and by shadow.
-     4 · the box you write in: pure white, the highest.
-     3 · the bubbles of agents and of the human, and the agents' marks; the cards of the room.
-     2 · the chips over a bubble (who, ↳ what it answers, the bill).
-     1 · a step a plan delegated: the dashed bubble, its dashes easier to see.
-     0 · the lines the room says (a relay, a link, memory): flat on the canvas, no shadow.
-   Each layer is its own tone, so they tell apart even without their shadows; the human's bubble
-   keeps its own colour and only takes layer 3's height. Dark: the same ladder, in greys.
-   The id is written twice on purpose: it outranks every wallpaper's rules for the bubbles.
+   What is left of it: the box you write in, pure white and the highest, with its own press and
+   bevel; the agents' marks; the dash of a delegated step. The conversation itself moved to THE
+   CANVAS IN PLANES (same day), which asked for depth by planes and a controlled translucency.
+   The id is written twice on purpose there: it outranks every wallpaper's rules for the bubbles.
    ========================================================================================== */
 :root {
-  --lay-4: #ffffff; --lay-3: #fbfbfc; --lay-2: #f1f2f4; --lay-1: #e8eaed; --lay-0: #dfe2e6;
+  --lay-4: #ffffff;
   --rise-4: 0 1px 2px rgba(15, 20, 30, .07), 0 12px 30px -12px rgba(15, 20, 30, .26);
-  --rise-3: 0 1px 2px rgba(15, 20, 30, .06), 0 6px 18px -9px rgba(15, 20, 30, .2);
   --rise-3-mark: 0 1px 2px rgba(15, 20, 30, .14), 0 4px 10px -5px rgba(15, 20, 30, .28);
-  --rise-2: 0 1px 1.5px rgba(15, 20, 30, .06), 0 3px 8px -4px rgba(15, 20, 30, .12);
-  --rise-1: 0 1px 1px rgba(15, 20, 30, .05);
   --dash-1: rgba(15, 20, 30, .34);
 }
 :root:not([data-scheme="light"]) {
-  --lay-4: #2c2f34; --lay-3: #25282c; --lay-2: #202326; --lay-1: #1b1d20; --lay-0: #17191b;
+  --lay-4: #2c2f34;
   --rise-4: 0 1px 2px rgba(0, 0, 0, .45), 0 14px 32px -12px rgba(0, 0, 0, .65);
-  --rise-3: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 20px -10px rgba(0, 0, 0, .55);
   --rise-3-mark: 0 1px 2px rgba(0, 0, 0, .45), 0 4px 10px -5px rgba(0, 0, 0, .6);
-  --rise-2: 0 1px 1.5px rgba(0, 0, 0, .35), 0 3px 8px -4px rgba(0, 0, 0, .4);
-  --rise-1: 0 1px 1px rgba(0, 0, 0, .3);
   --dash-1: rgba(255, 255, 255, .34);
 }
 /* 4 · the box */
@@ -7790,39 +7779,7 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
   /* The press when you click into it (--press) and its bevel stay: only the lift is the ladder's. */
   box-shadow: var(--ring, 0 0 0 0 transparent), var(--press, 0 0 0 0 transparent), var(--bevel, 0 0 0 0 transparent), var(--rise-4) !important;
 }
-/* 3 · the bubbles and the room's cards */
-#messages#messages .row:is(.assistant, .thinking):not(.delegated) .bubble,
-#messages#messages :is(.command-card, .choice) {
-  background: var(--lay-3) !important; color: var(--text);
-  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  box-shadow: var(--rise-3) !important;
-}
-#messages#messages .row.user .bubble { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: var(--rise-3) !important; }
-/* 2 · the chips over a bubble */
-#messages#messages .row > .col > .who {
-  width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px;
-  background: var(--lay-2) !important;
-  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  box-shadow: var(--rise-2) !important; text-shadow: none !important;
-}
-#messages#messages .row > .col > .who .badge { background: var(--lay-1) !important; }
-/* 1 · a delegated step */
-#messages#messages .row.delegated .bubble {
-  background: var(--lay-1) !important; border: 1.5px dashed var(--dash-1) !important;
-  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  box-shadow: var(--rise-1) !important;
-}
-/* 0 · what the room says (a relay, a link, memory). Always its rounded shape, with or without a
-   wallpaper (without one the page drops data-wallpaper, and the shape used to live only under it):
-   a flat tone, the same corner and air as a chip, as wide as its words. The lines that warn or ask
-   (a plan, a change of permissions, an escalation, an alert) keep their own colour and frame. */
-#messages#messages .thread-inner > .system:not(.mother-alert, .control, .escalation, .plan, .alert, .fail) {
-  width: fit-content; max-width: min(92%, 560px); margin-inline: auto;
-  padding: 8px 16px 9px; border: 0; border-radius: 18px;
-  background: var(--lay-0) !important;
-  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  box-shadow: none !important; text-shadow: none !important;
-}
+/* The conversation's own planes (3 to 0 here before) are THE CANVAS IN PLANES, below. */
 
 /* The second bar's keys move when the pointer is on them: the house shakes, the gear turns. When
    AJUSTES is open the gear lights up; its hole is cut out of the same path (evenodd), so the
@@ -8052,3 +8009,76 @@ dialog#core .egress.off { opacity: .7; }
 dialog#core .mother-cmd { position: relative; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent); }
 dialog#core .mother-cmd pre { background: transparent !important; color: var(--text) !important; }
 dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; display: inline-grid; place-items: center; width: 28px; height: 26px; padding: 0; border: 0; border-radius: 7px; font-family: var(--read); font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--text-2); background: var(--surface, var(--panel)); box-shadow: var(--key-rest); cursor: pointer; }
+
+/* ==========================================================================================
+   THE CANVAS IN PLANES (2026-10-09) — replaces the conversation's part of THE ROOM IN LAYERS
+   ------------------------------------------------------------------------------------------
+   The messages hang at different distances between the reader and the wallpaper. Each kind has a
+   logical depth (the --depth-* tokens), and depth is built from three things at once, never from a
+   bigger shadow alone:
+     · the material: the nearer, the more solid (yours and the critical ones opaque; an agent's
+       answer white, almost opaque; the room's own lines a controlled translucency the wallpaper
+       shows through; the small print the most translucent);
+     · the edge: one contact line under the surface, sharper the nearer it is;
+     · the lift: one short ambient shadow whose offset, blur and strength all grow with the depth,
+       from one formula, so the planes are a scale and not a collection of shadows.
+   No glow, no halo, no bright border, no blur on any text, no backdrop-filter in the thread (it
+   drew empty blocks while scrolling; see the note on blurring the wallpaper). Sizes, type, colours
+   and layout are untouched. The depth numbers are levels, not z-index: nothing here overlaps.
+     60 · yours      50 · a failure, a critical alert      40 · the room: relays, memory, links,
+     plans, records, delegated steps      30 · an agent's answer      20 · labels and stamps
+     0 · the wallpaper, as it is.
+   ========================================================================================== */
+:root {
+  --depth-user: 60; --depth-critical: 50; --depth-system: 40; --depth-agent: 30; --depth-metadata: 20; --depth-canvas: 0;
+  --plane-ink: 20 28 38;   /* the colour shadows are mixed from */
+  --plane-k: 1;            /* how strong a shadow reads on this ground */
+  --plane-solid: #ffffff;
+  --plane-agent: rgb(253 253 254 / .95);
+  --plane-system: rgb(246 247 249 / .8);
+  --plane-meta: rgb(255 255 255 / .58);
+}
+:root:not([data-scheme="light"]) {
+  --plane-ink: 0 0 0;
+  --plane-k: 2.1;
+  --plane-solid: #2a2d31;
+  --plane-agent: rgb(40 43 47 / .94);
+  --plane-system: rgb(33 36 39 / .76);
+  --plane-meta: rgb(28 30 33 / .56);
+}
+/* Who stands at which depth. */
+#messages#messages .row.user .bubble { --plane: var(--depth-user); }
+#messages#messages .thread-inner > .system:is(.fail, .crit, .alert, .mother-alert, .escalation, .lease.missing) { --plane: var(--depth-critical); }
+#messages#messages .thread-inner > .system:not(.fail, .crit, .alert, .mother-alert, .escalation, .lease.missing),
+#messages#messages .row.delegated .bubble { --plane: var(--depth-system); }
+#messages#messages .row:is(.assistant, .thinking):not(.delegated) .bubble,
+#messages#messages :is(.command-card, .choice) { --plane: var(--depth-agent); }
+#messages#messages .row > .col > :is(.who, .stamp) { --plane: var(--depth-metadata); }
+/* The edge and the lift, one formula for every plane: at 60 a 1 px edge and a 10 px lift; at 30
+   half of it; at 20 nothing beyond the material. */
+#messages#messages :is(.row .bubble, .thread-inner > .system, .command-card, .choice) {
+  box-shadow:
+    0 1px 1px rgb(var(--plane-ink) / min(.4, calc(var(--plane, 0) * .0017 * var(--plane-k)))),
+    0 calc(var(--plane, 0) * .16px) calc(var(--plane, 0) * .38px) calc(var(--plane, 0) * -.2px) rgb(var(--plane-ink) / min(.55, calc(var(--plane, 0) * .0042 * var(--plane-k)))) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  text-shadow: none !important;
+}
+#messages#messages .row > .col > :is(.who, .stamp) { box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; text-shadow: none !important; }
+/* The materials. Yours keeps its own colour, solid. */
+#messages#messages .row:is(.assistant, .thinking):not(.delegated) .bubble,
+#messages#messages :is(.command-card, .choice) { background: var(--plane-agent) !important; color: var(--text); }
+#messages#messages .thread-inner > .system:is(.fail, .crit, .alert, .mother-alert, .escalation, .lease.missing) {
+  /* Its own semantic colour, as a tint in a solid surface: it rises out of the canvas without
+     becoming a modal. */
+  background: color-mix(in srgb, currentColor 7%, var(--plane-solid)) !important;
+}
+#messages#messages .thread-inner > .system:not(.fail, .crit, .alert, .mother-alert, .escalation, .lease.missing) { background: var(--plane-system) !important; }
+#messages#messages .row.delegated .bubble { background: var(--plane-system) !important; border: 1.5px dashed var(--dash-1) !important; }
+#messages#messages .row > .col > :is(.who, .stamp) { background: var(--plane-meta) !important; }
+#messages#messages .row > .col > .who .badge { background: color-mix(in srgb, var(--text) 7%, transparent) !important; }
+/* The room's lines keep the shape they were given: the chip's corner and air, as wide as their
+   words. The ones that warn or ask keep their own frame. */
+#messages#messages .thread-inner > .system:not(.mother-alert, .control, .escalation, .plan, .alert, .fail) {
+  width: fit-content; max-width: min(92%, 560px); margin-inline: auto; padding: 8px 16px 9px; border: 0; border-radius: 18px;
+}
+#messages#messages .row > .col > .who { width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px; }
