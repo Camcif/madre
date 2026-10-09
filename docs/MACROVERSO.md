@@ -633,3 +633,8 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   escalera de tonos de blanco de la quinta ronda (la caja de texto conserva su capa). Verificado en
   pantalla a 1280 px: claro y oscuro, con paisaje y fondo liso, error, relevo, respuesta, mensaje de
   varias líneas, chips y sellos.
+- `2026-10-09` · «Sigue abierto aquí» en vidrio líquido, pedido con captura: las píldoras, su
+  etiqueta y su × toman el vidrio de la barra (`--sheen`, `--bevel`, borde de medio píxel) con un
+  relleno más claro (`--lq-*`) y desenfoque del fondo, permitido aquí porque están sobre la caja y
+  no dentro de la conversación que se desplaza. Verificado en pantalla en claro; en oscuro no se
+  alcanzó a ver la captura.

@@ -8082,3 +8082,46 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
   width: fit-content; max-width: min(92%, 560px); margin-inline: auto; padding: 8px 16px 9px; border: 0; border-radius: 18px;
 }
 #messages#messages .row > .col > .who { width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px; }
+
+/* ==========================================================================================
+   SIGUE ABIERTO AQUÍ AS LIQUID GLASS (2026-10-09)
+   ------------------------------------------------------------------------------------------
+   The open questions (and their label and ×) are the bar's own glass, made clear: a thin fill the
+   wallpaper shows through, blurred and saturated behind it (they sit over the box, outside the
+   scrolling thread, so the backdrop is safe here), the bar's diagonal sheen and turned bevel with
+   its faint split of colour at the sides, a half-pixel rim, a capsule's corner. They brighten and
+   lift a little under the pointer and give under the press. Text and icon keep their colours.
+   (`#composer#composer` only outranks CHIPS IN FLAT TONE, which had flattened them into tags.)
+   ========================================================================================== */
+:root {
+  --lq-fill: rgb(255 255 255 / .07);
+  --lq-fill-over: rgb(255 255 255 / .12);
+  --lq-rim: rgb(255 255 255 / .16);
+  --lq-drop: 0 1px 1px rgb(0 0 0 / .18), 0 8px 18px -10px rgb(0 0 0 / .5);
+  --lq-drop-over: 0 1px 2px rgb(0 0 0 / .2), 0 12px 24px -12px rgb(0 0 0 / .55);
+}
+:root[data-scheme="light"] {
+  --lq-fill: rgb(255 255 255 / .34);
+  --lq-fill-over: rgb(255 255 255 / .5);
+  --lq-rim: rgb(255 255 255 / .75);
+  --lq-drop: 0 1px 1px rgb(20 30 40 / .08), 0 8px 18px -10px rgb(20 30 40 / .28);
+  --lq-drop-over: 0 1px 2px rgb(20 30 40 / .1), 0 12px 24px -12px rgb(20 30 40 / .32);
+}
+#composer#composer :is(.openq-ask, .openq-lead, .openq-close) {
+  border: 0;
+  border-radius: 999px;
+  background-color: var(--lq-fill);
+  background-image: var(--sheen);
+  -webkit-backdrop-filter: blur(14px) saturate(1.8) brightness(1.04); backdrop-filter: blur(14px) saturate(1.8) brightness(1.04);
+  box-shadow: 0 0 0 .5px var(--lq-rim), var(--bevel), var(--lq-drop);
+  text-shadow: none;
+  transition: background-color calc(160ms * var(--motion-scale, 1)) var(--ease-out), box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out), transform calc(160ms * var(--motion-scale, 1)) var(--ease-out);
+}
+#composer#composer .openq-ask:is(:hover, :focus-visible) { background-color: var(--lq-fill-over); box-shadow: 0 0 0 .5px var(--lq-rim), var(--bevel), var(--lq-drop-over); transform: translateY(-1px); outline: 0; }
+#composer#composer .openq-ask:active { transform: translateY(0) scale(.985); box-shadow: 0 0 0 .5px var(--lq-rim), var(--bevel), var(--lq-drop); }
+#composer#composer .openq-lead { padding: 3px 11px; }
+#composer#composer .openq-close { opacity: 1; color: var(--text-2); }
+#composer#composer .openq-close:is(:hover, :focus-visible) { background-color: var(--lq-fill-over); color: var(--text); }
+/* Air round the row, so its scroll does not clip the glass's shadow. */
+#composer#composer .openq-rail { padding: 4px 6px 12px; margin: -4px -6px -12px; }
+@media (prefers-reduced-motion: reduce) { #composer#composer .openq-ask:is(:hover, :focus-visible, :active) { transform: none; } }
