@@ -648,3 +648,8 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   mensaje»; la respuesta citada en la caja perdió su margen negativo (escrito para un padding de
   18 px que la caja ya no tiene) y su esquina es concéntrica. Verificado en pantalla en oscuro (el
   plan y el aviso con copias de tarjetas reales; la cita, mostrándola en la caja).
+- `2026-10-09` · «Se perdió el efecto glass»: la máscara de desvanecido estaba en la fila
+  (`.openq-rail.more-after`), y una máscara en el contenedor lo vuelve la raíz del fondo de sus hijos:
+  el desenfoque de las píldoras dejaba de ver el paisaje y quedaba solo su relleno. Ahora el
+  desvanecido va en la píldora que el borde corta, medido al dibujar la fila y con un
+  ResizeObserver. Verificado: la fila sin máscara, la tercera píldora con su desvanecido.

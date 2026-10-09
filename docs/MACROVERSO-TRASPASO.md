@@ -40,7 +40,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `c3b91f7` | Claude | UX · la conversación en planos de profundidad (`--depth-*`, una fórmula de elevación; sustituye la escalera de capas de la conversación) |
 | `dbac08f` | Claude | UX · «sigue abierto aquí» en vidrio líquido (el de la barra, más claro) |
 | `925e63c` | Claude | UX · «sigue abierto aquí» sin bisel, con el vidrio de modo · modelo · esfuerzo |
-| *este commit* | Claude | UX · detener plan redondo, botones del aviso CREATE, sin subrayado en el esfuerzo, cita dentro de la caja |
+| `abee3ff` | Claude | UX · detener plan redondo, botones del aviso CREATE, sin subrayado en el esfuerzo, cita dentro de la caja |
+| *este commit* | Claude | UX · el vidrio de «sigue abierto» vuelve: el desvanecido pasa de la fila a la píldora cortada |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -179,6 +180,9 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
 - **Las reglas de las burbujas con fondo de paisaje** (`:root[data-scheme][data-wallpaper]…`) pesan más
   que un selector `#messages …`: la escalera de capas escribe el id dos veces (`#messages#messages`)
   para ganarles. Y `--lift-1…` ya eran fichas globales: las sombras de las capas se llaman `--rise-*`.
+- **Una máscara, filtro u opacidad en un contenedor lo vuelve la raíz del fondo de sus hijos**: un
+  `backdrop-filter` dentro ya no ve el paisaje. Por eso el desvanecido de «sigue abierto» va en la
+  píldora cortada (`.cut-end`, `--fade-end`) y no en `.openq-rail`.
 - **Planos de la conversación** (THE CANVAS IN PLANES, final de styles.css): un mensaje nuevo se
   clasifica asignándole `--plane: var(--depth-…)`; la sombra sale sola de la fórmula. Nada de
   `backdrop-filter` dentro de `#messages` (dibujaba bloques vacíos al desplazar).

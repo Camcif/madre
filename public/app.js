@@ -4742,14 +4742,28 @@ async function renderOpenQuestions() {
   box.append(rail);
   box.hidden = false;
   // It moves a whole question at a time (CSS snap), so the one at its start is always whole; the
-  // side where more waits fades instead of cutting a question in half.
+  // one the edge cuts fades out over its last 40 px instead of being sliced. The fade is put on
+  // that pill, never on the row: a mask on the row would make it the pills' backdrop root, and
+  // their glass would blur nothing (the wallpaper behind would be gone from it).
+  const FADE = 40;
   const edges = () => {
-    rail.classList.toggle('more-before', rail.scrollLeft > 2);
-    rail.classList.toggle('more-after', rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 2);
+    const box = rail.getBoundingClientRect();
+    for (const pill of rail.children) {
+      const at = pill.getBoundingClientRect();
+      const cutEnd = at.left < box.right - 1 && at.right > box.right + 1;
+      const cutStart = at.right > box.left + 1 && at.left < box.left - 1;
+      pill.classList.toggle('cut-end', cutEnd);
+      pill.classList.toggle('cut-start', cutStart);
+      if (cutEnd) pill.style.setProperty('--fade-end', `${Math.round(box.right - at.left)}px`); else pill.style.removeProperty('--fade-end');
+      if (cutStart) pill.style.setProperty('--fade-start', `${Math.round(box.left - at.left)}px`); else pill.style.removeProperty('--fade-start');
+    }
   };
   rail.addEventListener('scroll', edges, { passive: true });
-  window.addEventListener?.('resize', edges, { passive: true });
-  requestAnimationFrame(edges);
+  // Measured at once (the row is in the page and laid out on asking), and again whenever its
+  // width changes.
+  edges();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(edges).observe(rail);
+  else { window.addEventListener?.('resize', edges, { passive: true }); requestAnimationFrame(edges); }
 }
 
 async function renderSettled() {
