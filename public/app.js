@@ -1088,7 +1088,8 @@ async function leaveEditor({ ask = true } = {}) {
   syncEditButton();
   return true;
 }
-// READ and EDIT, one control with two positions: which one you are in is the lit one.
+// READ, EDIT and OPEN RAW, one chip: READ and EDIT are its two positions (the lit one is where you
+// are), and OPEN RAW sits at its end. A file that cannot be edited keeps only OPEN RAW in it.
 const editingSeg = (() => {
   if (!editing.button || typeof editing.button.before !== 'function') return null;
   const seg = el('span', 'viewer-seg');
@@ -1097,14 +1098,15 @@ const editingSeg = (() => {
   editing.button.before(seg);
   editing.button.className = 'viewer-seg-btn';
   seg.append(read, editing.button);
+  if (viewer.open) { viewer.open.classList.add('viewer-seg-btn'); seg.append(viewer.open); }
   read.addEventListener('click', async () => { if (editing.editor && await leaveEditor()) showViewerSource(); });
   return { seg, read };
 })();
 function syncEditButton() {
   if (!editing.button) return;
   const hidden = !viewerMode.editable || viewerMode.preview;
-  if (editingSeg) editingSeg.seg.hidden = hidden; else editing.button.hidden = hidden;
-  editing.button.hidden = false;
+  if (editingSeg) { editingSeg.seg.hidden = hidden && !viewer.open; editingSeg.read.hidden = hidden; editing.button.hidden = hidden; }
+  else editing.button.hidden = hidden;
   editing.button.textContent = t('EDIT');
   editing.button.setAttribute('aria-pressed', String(Boolean(editing.editor)));
   editingSeg?.read.setAttribute('aria-pressed', String(!editing.editor));
@@ -2193,20 +2195,30 @@ export function renderMarkdown(text) {
       flushParagraph();
       const splitRow = (row) => row.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, '|'));
       const aligns = splitRow(lines[index + 1]).map((cell) => (/^:-+:$/.test(cell) ? 'center' : /-+:$/.test(cell) ? 'right' : null));
+      const headCells = splitRow(line);
+      index += 2;
+      const bodyRows = [];
+      while (index < lines.length && /^\s*\|.*\|\s*$/.test(lines[index])) { bodyRows.push(splitRow(lines[index])); index += 1; }
+      // A column the table did not align and that holds only figures (amounts, counts, percentages,
+      // times) is set to the right, its header with it, so the digits line up under each other.
+      const FIGURE = /^[-+~≈±]?\s*[$€£]?\s*\d[\d.,\s]*\s*(%|[kKMB]|ms|s|h|min|tok|x|×)?$/;
+      headCells.forEach((_, column) => {
+        if (aligns[column]) return;
+        const cells = bodyRows.map((row) => (row[column] ?? '').replace(/[*_`]/g, '').trim()).filter((cell) => cell && cell !== '—' && cell !== '-');
+        if (cells.length && cells.every((cell) => FIGURE.test(cell))) aligns[column] = 'right';
+      });
       const wrap = el('div', 'table-wrap');
       const table = el('table');
       const thead = el('thead');
       const headRow = el('tr');
-      splitRow(line).forEach((cell, column) => { const th = el('th'); if (aligns[column]) th.style.textAlign = aligns[column]; renderInline(cell, th); headRow.append(th); });
+      headCells.forEach((cell, column) => { const th = el('th'); if (aligns[column]) th.style.textAlign = aligns[column]; renderInline(cell, th); headRow.append(th); });
       thead.append(headRow);
       table.append(thead);
       const tbody = el('tbody');
-      index += 2;
-      while (index < lines.length && /^\s*\|.*\|\s*$/.test(lines[index])) {
+      for (const row of bodyRows) {
         const tr = el('tr');
-        splitRow(lines[index]).forEach((cell, column) => { const td = el('td'); if (aligns[column]) td.style.textAlign = aligns[column]; renderInline(cell, td); tr.append(td); });
+        row.forEach((cell, column) => { const td = el('td'); if (aligns[column]) td.style.textAlign = aligns[column]; renderInline(cell, td); tr.append(td); });
         tbody.append(tr);
-        index += 1;
       }
       table.append(tbody);
       wrap.append(table);
@@ -2700,9 +2712,8 @@ function toggleEffortMenu(id, anchor) {
       name.dataset.level = level;
       name.textContent = effortLabel(level);
       hint.textContent = t(EFFORT_WORDS[level]?.hint ?? '');
-      readout.classList.remove('turn');
-      void readout.offsetWidth;
-      readout.classList.add('turn');
+      // The words change in place: passing over each point of the rail does not replay the box
+      // (it flashed once per point); only the gauges glide.
     }
     speed.style.width = `${Math.round((1 - effortScore(levels, level) + 1 / levels.length) * 100)}%`;
     cost.style.width = `${Math.round(effortScore(levels, level) * 100)}%`;
@@ -5421,7 +5432,13 @@ function applyUsage(event) {
   const stamp = responseMessageId ? document.getElementById(`usage-${responseMessageId}`) : null;
   if (stamp && usage) {
     stamp.append(el('span', null, `${formatTokens(usage.totalTokens)} tok`));
-    if (Number.isFinite(usage.costUsd) && usage.costUsd > 0) stamp.append(el('span', null, `$${usage.costUsd.toFixed(2)}`));
+    if (Number.isFinite(usage.costUsd) && usage.costUsd > 0) {
+      // A figure the CLI gave is shown as it is; one the room priced at the list price says ≈ and,
+      // under the pointer, which model and which day's prices.
+      const price = el('span', usage.costEstimated ? 'stamp-cost estimated' : 'stamp-cost', `${usage.costEstimated ? '≈ ' : ''}${fmtUsd(usage.costUsd)}`);
+      if (usage.costEstimated) price.title = t('Estimated at the API list price of {model} ({date}). Not a bill: a subscription may cost you nothing per turn.', { model: usage.pricedModel ?? '—', date: usage.pricedAt ?? '' });
+      stamp.append(price);
+    }
     // The room's running total is not this answer's bill: it rides in the tooltip, not the line.
     stamp.append(el('span', 'stamp-sum', `Σ ${formatTokens(roomTotalTokens)}`));
     stamp.title = t('This answer: {tokens} tokens. The room so far: {total}.', { tokens: formatTokens(usage.totalTokens), total: formatTokens(roomTotalTokens) });
@@ -6245,7 +6262,7 @@ function settingsQuick(id) {
     for (const agent of settingsUI.data.agents.filter((one) => one.detected)) {
       const session = settingsUI.data.sessions?.[agent.id]?.state;
       const row = el('div', 'settings-quick-row agent');
-      row.append(paint(el('span', 'who'), agent.id), el('span', `state ${session === 'signed-in' ? 'on' : session === 'signed-out' ? 'off' : ''}`, session === 'signed-in' ? t('signed in') : session === 'signed-out' ? t('no session') : t('unknown')));
+      row.append(paint(el('span', 'who'), agent.id), el('span', `state session-lamp ${session === 'signed-in' ? 'on ok' : session === 'signed-out' ? 'off bad' : 'wait'}`, session === 'signed-in' ? t('signed in') : session === 'signed-out' ? t('no session') : t('unknown')));
       row.firstChild.textContent = agent.label;
       rows.append(row);
     }
@@ -7774,7 +7791,7 @@ function setWindowsAside(on, { always = false } = {}) {
       const box = node.getBoundingClientRect();
       const toLeft = box.left + box.width / 2 < window.innerWidth / 2;
       node.style.setProperty('--aside-x', `${Math.round(toLeft ? ASIDE_PEEK - box.right : window.innerWidth - ASIDE_PEEK - box.left)}px`);
-      node.style.setProperty('--aside-delay', `${index * 40}ms`);
+      node.style.setProperty('--aside-delay', `${index * 24}ms`);
       node.dataset.aside = toLeft ? 'left' : 'right';
       node.classList.add('aside-moving', 'aside');
     });
@@ -7820,7 +7837,21 @@ if (!SPLIT_CHAT) {
     if (target?.closest?.('.shell') && !target.closest(WINDOW_SELECTOR) && !target.closest(DESK_ACTIVE)) return;
     setWindowsAside(false);
   }, true);
-  document.addEventListener?.('click', (event) => { if (deskPress(event)) setWindowsAside(!windowsAside, { always: true }); });
+  // On the bare ground there is nothing to select, so the desktop answers on the press itself, not
+  // on the release (that wait read as a delay). On words — a bubble, a line of the room — it still
+  // decides on release, where a drag that selected text is told apart from a click.
+  const DESK_WORDS = '.bubble, .system, .who, .meta, p, li, pre, td, th, h1, h2, h3, h4, b, strong, em, span, small, time, code';
+  let deskAnswered = false;
+  document.addEventListener?.('pointerdown', (event) => {
+    deskAnswered = false;
+    if (event.button !== 0 || event.target?.closest?.(DESK_WORDS) || !deskPress(event)) return;
+    deskAnswered = true;
+    setWindowsAside(!windowsAside, { always: true });
+  });
+  document.addEventListener?.('click', (event) => {
+    if (deskAnswered) { deskAnswered = false; return; }
+    if (deskPress(event)) setWindowsAside(!windowsAside, { always: true });
+  });
   document.addEventListener?.('focusin', (event) => { if (windowsAside && event.target?.closest?.('.aside')) setWindowsAside(false); });
   window.addEventListener?.('resize', () => { if (windowsAside) setWindowsAside(false); });
 }
@@ -12094,6 +12125,9 @@ async function paintIntents(box) {
     // human's own turns and how many turns say so, or how far it is from saying anything. A kind
     // the calibration settled says that instead: a measurement is the stronger word.
     const table = el('div', 'intents-table');
+    // Its columns say what they hold: the kind of request, the lowest level that was enough, how
+    // many turns, and how far it got.
+    table.append(el('span', 'intent-head', t('Kind of request')), el('span', 'intent-head', t('Level')), el('span', 'intent-head intent-n', t('Turns')), el('span', 'intent-head', t('State')));
     const measuredRows = new Map((agent.summary?.intents ?? []).map((row) => [row.intent, row]));
     const observed = agent.observed ?? { byIntent: [], minTurns: 8 };
     const ladder = agent.ladder ?? [];
@@ -13215,10 +13249,12 @@ function trackStats(event) {
   } else if (event.type === 'usage.recorded') {
     const stats = statsFor(event.payload.agent);
     stats.lastTurnTokens = event.payload.usage?.totalTokens ?? null;
-    if (Number.isFinite(event.payload.usage?.costUsd)) stats.cost += event.payload.usage.costUsd;
+    if (Number.isFinite(event.payload.usage?.costUsd)) { stats.cost += event.payload.usage.costUsd; if (event.payload.usage.costEstimated && event.payload.usage.costUsd > 0) stats.costEstimated = true; }
   }
 }
 
+// Dollars as a person reads them: cents, and «< $0.01» for less than one rather than «$0.00».
+function fmtUsd(value) { return value > 0 && value < 0.01 ? '< $0.01' : `$${value.toFixed(2)}`; }
 function fmtMs(ms) { return ms === null ? '—' : ms < 1000 ? `${ms}ms` : `${Math.round(ms / 1000)}s`; }
 
 function capabilityBadges(id) {
@@ -13302,34 +13338,47 @@ function openAgentPop(id, anchor, { back = null } = {}) {
   head.append(el('b', null, agent.label));
   head.append(el('span', 'vendor', vendorWord(id)));
   pop.append(head);
+  // The card reads top to bottom: how much is spent (one number, its gauge, when it comes back),
+  // then three short groups — the provider's limits, this room, the connection — each with its
+  // title, labels on the left and values on the right, then what the CLI can do.
+  const hero = el('div', 'pop-hero');
   const big = el('div', 'big', official === null ? (formatTokens(agent.tokens ?? 0) || '0') : `${Math.round(official)}%`);
-  big.append(el('small', null, official === null ? t('budget tokens · local 5h window') : t("of the provider's {window} limit", { window: fmtWindow(agent.officialWindows?.primary?.windowMinutes ?? 300) }) + (agent.officialResetAt ? t(' · resets {when}', { when: fmtReset(agent.officialResetAt) }) : t(' · window reset'))));
-  pop.append(big);
+  big.append(el('small', null, official === null ? t('budget tokens · local 5h window') : t("of the provider's {window} limit", { window: fmtWindow(agent.officialWindows?.primary?.windowMinutes ?? 300) })));
+  hero.append(big);
   const gauge = el('div', `gauge${shown >= 80 ? ' hot' : ''}`);
   const fill = el('i'); fill.style.width = `${shown}%`; gauge.append(fill);
-  pop.append(gauge);
-  const dl = el('dl');
-  const row = (k, v, cls) => { dl.append(el('dt', null, k)); dl.append(el('dd', cls, v)); };
+  hero.append(gauge);
+  if (official !== null) hero.append(el('div', 'pop-reset', (agent.officialResetAt ? t(' · resets {when}', { when: fmtReset(agent.officialResetAt) }) : t(' · window reset')).replace(/^\s*·\s*/, '')));
+  pop.append(hero);
+  const group = (title) => {
+    const box = el('section', 'pop-group');
+    const dl = el('dl');
+    box.append(el('h4', null, title), dl);
+    pop.append(box);
+    return (k, v, cls) => { dl.append(el('dt', null, k)); dl.append(el('dd', cls, v)); };
+  };
+  const limits = group(t('Provider limits'));
   if (agent.officialWindows) {
     const { primary, secondary } = agent.officialWindows;
-    if (primary) row(t('{window} limit', { window: fmtWindow(primary.windowMinutes) }), primary.resetAt ? t('{pct}% · resets {when}', { pct: Math.round(primary.usedPercent), when: fmtReset(primary.resetAt) }) : t('{pct}% · reset, awaiting fresh data', { pct: Math.round(primary.usedPercent) }), primary.usedPercent >= 80 ? 'off' : null);
-    if (secondary) row(t('{window} limit', { window: fmtWindow(secondary.windowMinutes) }), `${Math.round(secondary.usedPercent)}%${secondary.resetAt ? t(' · resets {when}', { when: fmtReset(secondary.resetAt) }) : ''}`, secondary.usedPercent >= 80 ? 'off' : null);
-    if (agent.officialObservedAt) row(t('reported'), t('{when} by {who}', { when: fmtReset(agent.officialObservedAt), who: agent.officialSource?.replace('official:', '') ?? t('the CLI') }));
+    if (primary) limits(t('{window} limit', { window: fmtWindow(primary.windowMinutes) }), primary.resetAt ? t('{pct}% · resets {when}', { pct: Math.round(primary.usedPercent), when: fmtReset(primary.resetAt) }) : t('{pct}% · reset, awaiting fresh data', { pct: Math.round(primary.usedPercent) }), primary.usedPercent >= 80 ? 'off' : null);
+    if (secondary) limits(t('{window} limit', { window: fmtWindow(secondary.windowMinutes) }), `${Math.round(secondary.usedPercent)}%${secondary.resetAt ? t(' · resets {when}', { when: fmtReset(secondary.resetAt) }) : ''}`, secondary.usedPercent >= 80 ? 'off' : null);
+    if (agent.officialObservedAt) limits(t('reported'), t('{when} by {who}', { when: fmtReset(agent.officialObservedAt), who: agent.officialSource?.replace('official:', '') ?? t('the CLI') }));
   } else if (Number.isFinite(agent.officialPercent)) {
-    row(t('provider limit'), t('{pct}% used', { pct: Math.round(official ?? 0) }));
+    limits(t('provider limit'), t('{pct}% used', { pct: Math.round(official ?? 0) }));
   } else {
-    row(t('provider limit'), t('not published by this CLI · ring shows the local window'));
+    limits(t('provider limit'), t('not published by this CLI · ring shows the local window'));
   }
-  row(t('local window'), state.budget ? t('{pct}% of {total} · 5h rolling', { pct: Math.round(percent), total: formatTokens(state.budget) }) + (agent.rollsOverAt ? t(' · oldest turn drops {when}', { when: fmtReset(agent.rollsOverAt) }) : '') : t('unbounded'));
-  if (agent.rawTokens) row(t('all-time in room'), `${formatTokens(agent.rawTokens)} tok`);
-  row(t('turns'), String(stats.turns));
-  row(t('last turn'), `${fmtMs(stats.lastTurnMs)}${stats.lastTurnTokens ? ` · ${formatTokens(stats.lastTurnTokens)} tok` : ''}`);
-  if (stats.cost > 0) row(t('cost (reported)'), `$${stats.cost.toFixed(2)}`);
-  row(t('session'), session ? ({ 'signed-in': t('signed in'), 'signed-out': t('signed out') }[session.state] ?? t('unknown')) : agent.ready ? t('unknown') : t('not ready'), session?.state === 'signed-in' ? 'on' : session?.state === 'signed-out' ? 'off' : null);
-  if (session?.detail) row(t('via'), session.detail);
-  row(t('timeout'), `${Math.round((state.timeouts[id] ?? 180000) / 1000)}s`);
-  if (agent.version) row(t('version'), agent.version);
-  pop.append(dl);
+  const room = group(t('This room'));
+  room(t('local window'), state.budget ? t('{pct}% of {total} · 5h rolling', { pct: Math.round(percent), total: formatTokens(state.budget) }) + (agent.rollsOverAt ? t(' · oldest turn drops {when}', { when: fmtReset(agent.rollsOverAt) }) : '') : t('unbounded'));
+  if (agent.rawTokens) room(t('all-time in room'), `${formatTokens(agent.rawTokens)} tok`);
+  room(t('turns'), String(stats.turns));
+  room(t('last turn'), `${fmtMs(stats.lastTurnMs)}${stats.lastTurnTokens ? ` · ${formatTokens(stats.lastTurnTokens)} tok` : ''}`);
+  if (stats.cost > 0) room(stats.costEstimated ? t('cost (estimated)') : t('cost (reported)'), `${stats.costEstimated ? '≈ ' : ''}${fmtUsd(stats.cost)}`);
+  const link = group(t('Connection'));
+  link(t('session'), session ? ({ 'signed-in': t('signed in'), 'signed-out': t('signed out') }[session.state] ?? t('unknown')) : agent.ready ? t('unknown') : t('not ready'), `session-lamp ${session?.state === 'signed-in' ? 'ok' : session?.state === 'signed-out' || !agent.ready ? 'bad' : 'wait'}`);
+  if (session?.detail) link(t('via'), session.detail);
+  link(t('timeout'), `${Math.round((state.timeouts[id] ?? 180000) / 1000)}s`);
+  if (agent.version) link(t('version'), agent.version);
   pop.append(capabilityBadges(id));
   pop.append(el('div', 'foot', official === null ? t("local window, not the provider's bill · ⚙ connections in MU/TH/UR") : t('provider limit as the CLI reports it · ⚙ connections in MU/TH/UR')));
   pop.dataset.for = id;
@@ -14581,7 +14630,9 @@ function connectionCard(agent) {
   head.append(avatar(agent.id, { size: 32, status: agent.ready ? 'ready' : agent.detected ? 'detected' : 'offline' }));
   const words = el('div', 'sx-words');
   words.append(el('h3', null, agent.label), el('p', null, vendorWord(agent.id)));
-  head.append(words, sxChip(said, lamp));
+  const chip = sxChip(said, lamp);
+  if (lamp !== 'absent') chip.classList.add('session-lamp', lamp === 'on' ? 'ok' : lamp === 'off' ? 'bad' : 'wait');
+  head.append(words, chip);
   card.append(head);
   // Where it lives, quietly: what is literal is in mono, what is said is not.
   const meta = el('div', 'sx-meta');

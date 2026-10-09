@@ -1,3 +1,4 @@
+import { priceTokens, PRICES_CHECKED } from '../prices.mjs';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { t } from '../i18n.mjs';
 import { homedir, tmpdir } from 'node:os';
@@ -179,8 +180,17 @@ export async function prepareGeminiHome({ runtimeRoot, sourceHome = join(homedir
 }
 
 function usageFromStats(stats) {
-  const models = Object.values(stats?.models ?? {});
+  const named = Object.entries(stats?.models ?? {});
+  const models = named.map(([, model]) => model);
   if (!models.length) return null;
+  // Each model the turn used, at its own list price; one the table does not know leaves the turn
+  // unpriced rather than half-priced (src/prices.mjs).
+  let cost = 0;
+  for (const [name, model] of named) {
+    const tokens = model?.tokens ?? model ?? {};
+    const one = priceTokens(name, { inputTokens: tokens.prompt ?? tokens.input_tokens ?? tokens.input ?? 0, cachedInputTokens: tokens.cached ?? 0, outputTokens: tokens.candidates ?? tokens.output_tokens ?? 0, reasoningTokens: tokens.thoughts ?? 0 }, 'gemini-json');
+    cost = cost === null || one === null ? null : cost + one;
+  }
   const totals = models.reduce((usage, model) => {
     // Two shapes exist: the older { tokens: { prompt, candidates, total, cached, thoughts } }
     // and stream-json's flat { input_tokens, output_tokens, total_tokens, cached }.
@@ -194,6 +204,7 @@ function usageFromStats(stats) {
     usage.totalTokens += tokens.total ?? tokens.total_tokens ?? (input + output);
     return usage;
   }, { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0, source: 'gemini-json' });
+  if (cost !== null && cost > 0) Object.assign(totals, { costUsd: Math.round(cost * 1e6) / 1e6, costEstimated: true, pricedModel: named.map(([name]) => name).join(' + '), pricedAt: PRICES_CHECKED });
   return totals;
 }
 

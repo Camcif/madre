@@ -29,7 +29,8 @@ import { OLLAMA_ARCHIVIST } from './distiller.mjs';
 import { memoryServerForTurn } from './memory-tools.mjs';
 import { CODE000_STRIKES } from './mother.mjs';
 import { parseDirectives } from './directives.mjs';
-import { isValidModelName, isValidEffort, belongsElsewhere, MODEL_NOT_FOUND, codexTakes } from './models.mjs';
+import { isValidModelName, isValidEffort, belongsElsewhere, MODEL_NOT_FOUND, codexTakes, readCodexEfforts } from './models.mjs';
+import { withListPrice } from './prices.mjs';
 import { MODES, SCOPES, SCOPE_LABELS, capabilitySummary, normalizeMode, resolveScopes } from './capabilities.mjs';
 import { createLease, diffSnapshots, namedPaths, snapshot } from './lease.mjs';
 import { stat as statFile, readdir, copyFile, readFile as readFileBytes } from 'node:fs/promises';
@@ -777,6 +778,15 @@ export class Room {
     } catch (error) {
       console.error(`MADRE could not weigh a turn: ${error.message}`);
     }
+  }
+
+  // The model a turn ran on, for its price: the one chosen for it, or the CLI's own default when
+  // MADRE can read it (Codex's config; OpenCode's PULSE_OPENCODE_MODEL). Unknown is null: no price.
+  async #pricedModel(agentId, model) {
+    if (model) return model;
+    if (agentId === 'codex') return (await readCodexEfforts({ home: this.#codexHome }).catch(() => null))?.model ?? null;
+    if (agentId === 'opencode') return process.env.PULSE_OPENCODE_MODEL || null;
+    return null;
   }
 
   async #recordUsage(agent, usage, { messageId = null, responseMessageId = null } = {}) {
@@ -1741,6 +1751,10 @@ export class Room {
         }
       }
       if (controlChanges) await this.#emit('control.changed', { ...controlChanges, responseMessageId });
+      // Codex and OpenCode give tokens, not dollars: the turn is priced at the list price of the
+      // model it ran on (src/prices.mjs), an estimate that says it is one. Gemini prices itself in
+      // its adapter, where its report names each model it used.
+      if (result.usage) result.usage = withListPrice(result.usage, await this.#pricedModel(agent.id, model));
       await this.#recordUsage(agent.id, result.usage, { messageId, responseMessageId });
       await this.#recordCost(agent.id, responseMessageId, result.usage, turnMode);
       this.#liveTurns.delete(responseMessageId);

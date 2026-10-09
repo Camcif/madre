@@ -33,7 +33,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `d69ae55` | Claude | UX · menos líneas por plan, pies cortos, «leyó / recordó» en el pie de su respuesta |
 | `c3c7025` | Claude | UX · segunda barra (casa, recargar, engrane), burbuja de BISHOP con su robot, agentes en relieve |
 | `a38e095` | Claude | UX · sala en capas (tonos de blanco y sombra, sin transparencias), agentes planos, casa y engrane con movimiento, chip de Memoria |
-| *este commit* | Claude | UX · líneas de la sala (capa 0) con su forma también sin fondo de paisaje; los avisos conservan su color |
+| `e611b5b` | Claude | UX · líneas de la sala (capa 0) con su forma también sin fondo de paisaje; los avisos conservan su color |
+| *este commit* | Claude | UX · doce ajustes (esfuerzo, foco, escritorio, editor, ventanas, ficha de agente, selector, tableros, tablas, MU/TH/UR, sesión) y precio de lista para Codex, Gemini y OpenCode (`src/prices.mjs`) |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
@@ -172,6 +173,10 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
 - **Las reglas de las burbujas con fondo de paisaje** (`:root[data-scheme][data-wallpaper]…`) pesan más
   que un selector `#messages …`: la escalera de capas escribe el id dos veces (`#messages#messages`)
   para ganarles. Y `--lift-1…` ya eran fichas globales: las sombras de las capas se llaman `--rise-*`.
+- **Precios (`src/prices.mjs`)**: solo modelos leídos dos veces en la página del proveedor
+  (2026-10-09); uno que no está, sin precio. Cada CLI cuenta distinto (caché dentro o fuera de la
+  entrada, razonamiento dentro o fuera de la salida): la tabla `COUNTING` lo dice por fuente. Las
+  direcciones de las fuentes van sin esquema para que la guarda de salidas no las tome por destinos.
 - **Sin fondo de paisaje la página borra `data-wallpaper`** (el primer valor de cada apariencia no se
   escribe): una forma que solo vive bajo `:root[data-wallpaper]` desaparece con el fondo liso.
 - **En el panel oculto del navegador las transiciones no avanzan**: un color leído tras recargar puede

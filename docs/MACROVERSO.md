@@ -599,3 +599,14 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   borra ese atributo sin fondo de paisaje. Ahora la capa 0 les da su forma siempre (esquina de 18 px,
   centradas, del ancho de su texto) y deja fuera los avisos con color propio (plan, control,
   escalada, alerta, falla), que la escalera aplanaba. El texto bajo «ENLACE» ya no empieza con «·».
+- `2026-10-09` · Sexta ronda de UX, doce puntos pedidos con capturas: el cuadro de esfuerzo deja de
+  repetir su animación en cada punto del riel; la caja de texto recupera su hundido al enfocarla
+  (la capa 4 lo había quitado); el escritorio aparta las ventanas al presionar sobre el fondo vacío;
+  barra del editor con el tipo junto al nombre y Leer · Editar · Abrir en crudo en un chip; teclas
+  de tamaño con acento; ficha del agente en tres grupos; selector con los no elegidos atenuados;
+  tableros de módulos alineados y con cifras que caben; tablas con encabezados y cifras a la
+  derecha; MU/TH/UR con sus herramientas junto al riel y el engrane; indicadores de sesión en verde,
+  ámbar y rojo de la marca. Y precio de lista estimado para Codex, Gemini y OpenCode
+  (`src/prices.mjs`, `test/prices.test.mjs`), verificado en las páginas de OpenAI y Google. No
+  verificado: un turno real con precio (gastaría tokens; el servidor de la sala pulse sigue con el
+  código anterior hasta reiniciarse), el giro de las teclas al pasar el puntero, el teléfono.

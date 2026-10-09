@@ -55,6 +55,18 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **La casa y el engrane se mueven.** Al pasar el puntero, la casa se sacude y el engrane gira; con Ajustes abierto, el engrane se ilumina y su centro queda hueco. Con movimiento reducido, no se mueven.
 - **Memoria tiene un chip.** Su ícono en Ajustes es ahora un chip en lugar del foco.
 - **Las líneas de la sala, redondas siempre.** Los avisos de enlace y memoria tienen su esquina redonda, van centrados y miden lo que su texto, también sin fondo de paisaje (antes ahí se veían como bloques rectos). El texto bajo «ENLACE» ya no empieza con un punto suelto. Los avisos que advierten o piden algo (planes, cambios de permisos, escaladas, alertas) conservan su color.
+- **El cuadro de esfuerzo ya no parpadea.** Al pasar por cada punto del riel, el texto cambia en su lugar; solo se deslizan las barras de velocidad y costo.
+- **La caja de texto vuelve a hundirse al hacer clic**, sobre su nueva capa blanca.
+- **El escritorio responde al presionar.** Un clic en el fondo vacío aparta o regresa las ventanas en el momento, sin esperar a soltar; sobre texto sigue esperando, para no romper una selección.
+- **La barra del editor, ordenada.** El tipo de archivo va junto al nombre, y Leer, Editar y Abrir en crudo están en un mismo chip.
+- **Los botones de tamaño de una ventana toman el acento** al pasar el puntero y cuando están activos, como las demás teclas.
+- **La ficha de cada agente, por grupos.** Arriba lo gastado, con su barra y cuándo se reinicia; debajo, Límites del proveedor, Esta sala y Conexión, cada uno con su título, en la letra de lectura.
+- **En el selector de agentes, los no elegidos se atenúan.**
+- **Los tableros de módulos, alineados.** Cada ficha se lee desde arriba (etiqueta, cifra, nota), la grande ocupa dos filas solo cuando hay con qué llenarlas, y la cifra se ajusta a su ficha en vez de cortarse.
+- **Tablas alineadas.** La tabla de Intenciones tiene encabezados (tipo de pedido, nivel, turnos, estado) y columnas fijas; en las tablas de los mensajes, una columna de cifras se alinea a la derecha; en la de economía, el encabezado de la primera columna va a la izquierda.
+- **MU/TH/UR:** sus ajustes (ahora con el engrane), NOSTROMO y la ayuda están junto al riel macOS · Linux.
+- **El costo de Codex, Gemini y OpenCode.** Junto a sus tokens, cada respuesta dice cuánto costaría al precio de lista de la API de su modelo, con «≈» porque es un estimado (Claude ya decía el suyo). Solo se calcula para modelos cuyo precio se leyó en la página del proveedor; uno desconocido no muestra precio. Con una suscripción puede no costarte nada por turno, y la cifra lo dice al pasar el puntero.
+- **Los indicadores de sesión, en tres colores de la marca:** verde con sesión, ámbar mientras inicia o si no se sabe, rojo sin sesión. Ya no siguen el color de acento.
 - **Pedir correr un comando dentro de un plan ya no parece un plan nuevo.** Un paso delegado (o una orden de BISHOP) que terminaba con un bloque para correr un comando disparaba la alerta de «intentó abrir un plan dentro de un plan»; ahora solo la dispara un plan de verdad.
 - **Leer y ordenar ya no se gastan entre sí.** Cada enlace cuenta sus lecturas y sus órdenes por separado, cada una contra su tope por hora: preguntarle a BISHOP no agota las órdenes.
 

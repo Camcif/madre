@@ -1270,8 +1270,6 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .effort-readout { display: grid; grid-template-columns: minmax(0, 1fr) 112px; grid-template-rows: auto auto; gap: 2px 18px; align-items: start; padding: 12px 14px; border-radius: 12px; background: var(--panel-2, color-mix(in srgb, var(--text) 4%, transparent)); }
 .effort-readout .name { grid-column: 1; font-family: var(--sans); font-size: 15px; font-weight: 600; letter-spacing: .01em; color: var(--tone); }
 .effort-readout .hint { grid-column: 1; font-family: var(--read); font-size: 12.5px; line-height: 1.45; color: var(--text-2); min-height: 2.9em; }
-.effort-readout.turn :is(.name, .hint) { animation: effort-turn calc(260ms * var(--motion-scale)) var(--ease-glide); }
-@keyframes effort-turn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .effort-readout .meters { grid-column: 2; grid-row: 1 / 3; align-self: center; display: grid; gap: 10px; }
 .effort-readout .effort-gauge { display: grid; gap: 4px; }
 .effort-readout .effort-gauge .what { font-family: var(--mono); font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
@@ -3635,7 +3633,7 @@ dialog.surface.no-intro .mother-frame { animation: none; }
 .mode-menu .mode-option .tag.raise { padding: 4px 9px; border-color: color-mix(in srgb, var(--mode) 55%, transparent); background: color-mix(in srgb, var(--mode) 6%, transparent); }
 .mode-menu .mode-option .tag.raise:hover { background: color-mix(in srgb, var(--mode) 14%, transparent); }
 .mode-menu .mode-option .tag .dot { box-shadow: none; }
-@media (prefers-reduced-motion: reduce) { .effort-slider .thumb, .effort-slider .fill, .effort-readout .effort-gauge-track i { transition: none; } .effort-readout.turn :is(.name, .hint) { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .effort-slider .thumb, .effort-slider .fill, .effort-readout .effort-gauge-track i { transition: none; } }
 .slash-menu .hint.keys { position: sticky; bottom: -6px; z-index: 1; margin: 4px -6px -6px; padding: 9px 16px 9px; background: var(--panel); border-radius: 0 0 16px 16px; }
 
 /* ================= window controls, one cluster everywhere =================
@@ -7789,7 +7787,8 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
 .shell .composer .field, .shell .composer .field:focus-within {
   background: var(--lay-4) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  box-shadow: var(--ring, 0 0 0 0 transparent), var(--rise-4) !important;
+  /* The press when you click into it (--press) and its bevel stay: only the lift is the ladder's. */
+  box-shadow: var(--ring, 0 0 0 0 transparent), var(--press, 0 0 0 0 transparent), var(--bevel, 0 0 0 0 transparent), var(--rise-4) !important;
 }
 /* 3 · the bubbles and the room's cards */
 #messages#messages .row:is(.assistant, .thinking):not(.delegated) .bubble,
@@ -7835,3 +7834,82 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
 #custom-button:hover .gear-glyph { transform: rotate(90deg); }
 #custom-button[aria-expanded="true"] .gear-glyph .ic-f, #custom-button[aria-pressed="true"] .gear-glyph .ic-f { fill: currentColor; }
 @media (prefers-reduced-motion: reduce) { #home-button:hover svg { animation: none; } #custom-button:hover .gear-glyph { transform: none; } }
+
+/* The editor's bar (2026-10-09): the file's type stands beside its name, and READ · EDIT · OPEN RAW
+   are one chip at the right. The name no longer stretches; a spacer after it does. */
+dialog.viewer .viewer-path { flex: 0 1 auto; }
+dialog.viewer .viewer-spacer { flex: 1 1 0; min-width: 0; }
+.viewer-seg-btn[hidden] { display: none; }
+dialog.viewer .viewer-seg .viewer-open { display: inline-flex; align-items: center; height: 24px; padding: 0 11px; border-radius: 6px; color: var(--text-3); font-size: 9.5px; font-weight: 600; letter-spacing: .14em; background: transparent; }
+dialog.viewer .viewer-seg .viewer-open:hover { color: var(--text); background: transparent; }
+dialog.viewer .viewer-seg .viewer-seg-btn:not([hidden]) + .viewer-open { margin-left: 2px; box-shadow: inset 1px 0 0 var(--line-2); border-radius: 0 6px 6px 0; }
+
+/* A window's size keys take the accent like every other key: under the pointer and when on.
+   The close key keeps its red. */
+.surface-modes .surface-mode:not(.close):is(:hover, :focus-visible, [aria-pressed="true"]) { color: var(--phosphor) !important; }
+.surface-modes .surface-mode:not(.close):hover:not([aria-pressed="true"]) { background: color-mix(in srgb, var(--phosphor) 10%, transparent) !important; }
+
+/* An agent's card (2026-10-09): one number with its gauge and when it comes back, then three short
+   groups with a title each (provider limits · this room · connection); labels left in plain words,
+   values right in figures that line up. */
+.agent-pop { padding: 14px 16px 12px; }
+.agent-pop .pop-hero { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.agent-pop .pop-hero .big { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; font-size: 26px; line-height: 1.1; }
+.agent-pop .pop-hero .big small { margin-left: 0; font-family: var(--read, var(--sans)); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.agent-pop .pop-hero .gauge { height: 5px; margin: 2px 0 0; border-radius: 5px; }
+.agent-pop .pop-reset { font-family: var(--read, var(--sans)); font-size: 12px; color: var(--text-3); }
+.agent-pop .pop-group { padding: 10px 0 2px; }
+.agent-pop .pop-group + .pop-group { border-top: 1px solid var(--line); }
+.agent-pop .pop-group h4 { margin: 0 0 6px; font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
+.agent-pop .pop-group dl { grid-template-columns: minmax(84px, auto) minmax(0, 1fr); gap: 5px 14px; align-items: baseline; }
+.agent-pop .pop-group dt { font-family: var(--read, var(--sans)); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+.agent-pop .pop-group dt::first-letter { text-transform: uppercase; }
+.agent-pop .pop-group dd { font-family: var(--read, var(--sans)); font-size: 12.5px; line-height: 1.35; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.agent-pop .caps { margin-top: 12px !important; padding-top: 12px; border-top: 1px solid var(--line); }
+.agent-pop .foot { margin-top: 10px; font-size: 9px; line-height: 1.5; }
+
+/* The agent picker: the chosen agent at full colour; the others dimmed, until the pointer finds one. */
+.picker .avatar.pick:not([aria-checked="true"]) { filter: saturate(.55) brightness(.94); opacity: .55; transition: opacity calc(160ms * var(--motion-scale, 1)) var(--ease-out), filter calc(160ms * var(--motion-scale, 1)) var(--ease-out); }
+.picker .avatar.pick:not([aria-checked="true"]):is(:hover, :focus-visible) { filter: none; opacity: 1; }
+
+/* A module's dashboard (2026-10-09): every tile reads from the top — its label, its figure, its
+   note — so figures line up across a row whether a tile has a note or not. The first tile is wider;
+   it takes two rows only when there are enough tiles beside it to fill them. A figure scales with
+   its tile (container units) instead of being cut, so it fits at any window size. */
+.mods-stat { justify-content: flex-start !important; container-type: inline-size; }
+.mods-stat .k { margin-bottom: 0 !important; }
+.mods-stat strong { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: normal !important; word-break: normal; font-size: clamp(16px, 15cqi, 24px) !important; }
+.mods-stat.hero { grid-row: span 1 !important; }
+.mods-stat.hero strong { font-size: clamp(24px, 14cqi, 40px) !important; }
+.mods-stats:has(> .mods-stat:nth-child(4)) > .mods-stat.hero { grid-row: span 2 !important; justify-content: space-between !important; }
+.mods-stats:has(> .mods-stat:nth-child(4)) > .mods-stat.hero strong { margin-top: auto; }
+@container sheet (max-width: 700px) { .mods-stats:has(> .mods-stat:nth-child(4)) > .mods-stat.hero { grid-row: span 1 !important; justify-content: flex-start !important; } .mods-stats:has(> .mods-stat:nth-child(4)) > .mods-stat.hero strong { margin-top: 0; } }
+
+/* Tables (2026-10-09): a header stands over its column. Figures right, in figures that line up. */
+.economy-table thead th:first-child { text-align: left; }
+.economy-table td { font-variant-numeric: tabular-nums; }
+.bubble :is(th, td) { font-variant-numeric: tabular-nums; }
+/* Intenciones, per agent: fixed columns (kind · level · turns · state) with a header row. */
+.mods-detail .mods-reading .intents-table { grid-template-columns: minmax(0, 1.1fr) minmax(64px, .55fr) minmax(52px, auto) minmax(0, 2fr) !important; column-gap: 16px !important; }
+.mods-detail .mods-reading .intents-table .intent-n { padding-right: 0 !important; text-align: right; }
+.mods-detail .mods-reading .intents-table > .intent-head { padding: 0 0 6px !important; border-top: 0 !important; font-size: 11px; font-weight: 500; color: color-mix(in srgb, var(--text) 50%, transparent) !important; }
+.mods-detail .mods-reading .intents-table > span:nth-child(-n + 8) { border-top: 0; }
+.mods-detail .mods-reading .intents-table > span:nth-child(n + 5):nth-child(-n + 8) { border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent) !important; }
+.module-card .intents-table > .intent-head { color: var(--ph-dim); opacity: .8; }
+
+/* MU/TH/UR's head: its settings (a gear, the same as AJUSTES'), NOSTROMO and the tour stand right
+   beside the macOS · Linux rail; only the window's own keys keep to the far right. */
+.mother-bar .mother-tools { margin-left: 0; margin-right: auto; }
+
+/* A session's state is the one thing in the room told by three colours, the brand's own (its
+   manual: EXCHANGE green, CREATE amber, CONTROL red): green with a session, amber while it signs in
+   or when it is not known, red without one. They never follow the accent. The lamp is a dot; the
+   words beside it stay in the text's colour, so they read on any ground. */
+:root { --session-ok: #9bff66; --session-wait: #ffb000; --session-bad: #ff2a1f; }
+:root[data-scheme="light"] { --session-ok: #2f8a1c; --session-wait: #d99600; --session-bad: #e0261c; }
+.session-lamp { color: var(--text-2) !important; }
+.session-lamp::before { content: '' !important; display: inline-block !important; width: 7px !important; height: 7px !important; margin-right: 6px !important; border-radius: 50% !important; vertical-align: 1px; opacity: 1 !important; box-shadow: none !important; }
+.session-lamp.ok::before { background: var(--session-ok) !important; }
+.session-lamp.wait::before { background: var(--session-wait) !important; }
+.session-lamp.bad::before { background: var(--session-bad) !important; }
+.sx-chip.session-lamp { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }

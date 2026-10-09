@@ -357,7 +357,9 @@ test('windows: a change of the room never paints the conversation across a windo
   // A press on something that does a thing brings the windows back; the composer's own menus do
   // not; a press on the desktop itself toggles them, aside and back.
   assert.match(app, /if \(!windowsAside \|\| target\?\.closest\?\.\('#composer, \.model-menu, \.agent-pop, \.slash-menu'\)\) return;/);
-  assert.match(app, /addEventListener\?\.\('click', \(event\) => \{ if \(deskPress\(event\)\) setWindowsAside\(!windowsAside, \{ always: true \}\); \}\);/);
+  // On the bare ground it answers on the press (no wait for the release); on words, on release.
+  assert.match(app, /if \(event\.button !== 0 \|\| event\.target\?\.closest\?\.\(DESK_WORDS\) \|\| !deskPress\(event\)\) return;\n    deskAnswered = true;\n    setWindowsAside\(!windowsAside, \{ always: true \}\);/);
+  assert.match(app, /if \(deskAnswered\) \{ deskAnswered = false; return; \}\n    if \(deskPress\(event\)\) setWindowsAside\(!windowsAside, \{ always: true \}\);/);
   // NOSTROMO opened from MU/TH/UR leaves it as it was: MU/TH/UR is a window, not a base.
   assert.ok(!/motherSurface/.test(app), 'MU/TH/UR is closed under NOSTROMO again');
   // The servers' close is the cluster's ×, not a second one drawn after it.
@@ -399,7 +401,7 @@ test('console details: NOSTROMO reads like every console header, effort shows it
   assert.match(css, /\.effort-slider \.tick\.cli::after \{ bottom: 17px;/);
   // A connection's state is said in words, in a chip of its own tone: colour is never the only
   // way it is told.
-  assert.match(app, /head\.append\(words, sxChip\(said, lamp\)\);/);
+  assert.match(app, /const chip = sxChip\(said, lamp\);\n[^\n]*session-lamp[^\n]*\n  head\.append\(words, chip\);/);
   assert.ok(!/el\('span', `session\$\{busy/.test(app), 'the session word in a box is back');
   assert.match(css, /\.sx-chip\.on \{[^}]*var\(--phosphor\)/);
   assert.match(css, /\.sx-chip\.off \{[^}]*var\(--danger\)/);
