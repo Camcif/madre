@@ -360,6 +360,9 @@ test('windows: a change of the room never paints the conversation across a windo
   // On the bare ground it answers on the press (no wait for the release); on words, on release.
   assert.match(app, /if \(event\.button !== 0 \|\| event\.target\?\.closest\?\.\(DESK_WORDS\) \|\| !deskPress\(event\)\) return;\n    deskAnswered = true;\n    setWindowsAside\(!windowsAside, \{ always: true \}\);/);
   assert.match(app, /if \(deskAnswered\) \{ deskAnswered = false; return; \}\n    if \(deskPress\(event\)\) setWindowsAside\(!windowsAside, \{ always: true \}\);/);
+  // The bars and an agent's sphere are never the desktop: a press there does not move the windows.
+  assert.match(app, /const NOT_DESK = '[^']*\.bar[^']*\.avatar[^']*';/);
+  assert.match(app, /target\.closest\(DESK_ACTIVE\) \|\| target\.closest\(NOT_DESK\)\) return false;/);
   // NOSTROMO opened from MU/TH/UR leaves it as it was: MU/TH/UR is a window, not a base.
   assert.ok(!/motherSurface/.test(app), 'MU/TH/UR is closed under NOSTROMO again');
   // The servers' close is the cluster's ×, not a second one drawn after it.

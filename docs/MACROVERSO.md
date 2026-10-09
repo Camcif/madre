@@ -620,3 +620,7 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   milésima de píxel (fallaba por ruido de punto flotante al cambiar los radios). Verificado en
   pantalla en claro y oscuro (El núcleo), a 1280 y 820 px. No verificado: el modal de desinstalar con
   un módulo propio instalado (no hay uno en esta sala; usa la misma hoja que las demás preguntas).
+- `2026-10-09` · Gesto del escritorio: una esfera de agente en la barra es un `span`, no un botón, y
+  el gesto la tomaba por fondo (aparecían o se iban las ventanas al tocarla). `NOT_DESK` deja fuera
+  las barras, las esferas, el selector y las filas de preguntas y decisiones. Verificado en pantalla:
+  la esfera no mueve las ventanas, ni apartadas ni en su lugar; el fondo sigue haciéndolo.

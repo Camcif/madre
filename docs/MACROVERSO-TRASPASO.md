@@ -35,7 +35,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `a38e095` | Claude | UX · sala en capas (tonos de blanco y sombra, sin transparencias), agentes planos, casa y engrane con movimiento, chip de Memoria |
 | `e611b5b` | Claude | UX · líneas de la sala (capa 0) con su forma también sin fondo de paisaje; los avisos conservan su color |
 | `5edf35a` | Claude | UX · doce ajustes (esfuerzo, foco, escritorio, editor, ventanas, ficha de agente, selector, tableros, tablas, MU/TH/UR, sesión) y precio de lista para Codex, Gemini y OpenCode (`src/prices.mjs`) |
-| *este commit* | Claude | UX · «sigue abierto» sin cortes, fichas de NOSTROMO como ventanas, NOSTROMO más amplio, El núcleo en el lenguaje de la sala, preguntas de módulos en la hoja |
+| `a7e5867` | Claude | UX · «sigue abierto» sin cortes, fichas de NOSTROMO como ventanas, NOSTROMO más amplio, El núcleo en el lenguaje de la sala, preguntas de módulos en la hoja |
+| *este commit* | Claude | UX · las barras y las esferas de agente quedan fuera del gesto del escritorio (`NOT_DESK`) |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en

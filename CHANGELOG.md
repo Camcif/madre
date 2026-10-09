@@ -72,6 +72,7 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **NOSTROMO más amplio.** MADRE es un 10 % más grande, las memorias se separan más y la constelación ocupa más del lienzo.
 - **El núcleo, en el lenguaje de la sala.** Deja la terminal verde: es una ventana como Ajustes y MU/TH/UR, con sus pestañas como selector, cifras en fichas, filas en tarjetas, textos en oración y letra mono solo para lo literal. Abre sin la animación de arranque. Se ve igual de bien en tema claro y oscuro.
 - **Instalar, actualizar y desinstalar un módulo** preguntan con la hoja de la sala, no con la consola heredada.
+- **Las barras no son escritorio.** Tocar una esfera de agente, o cualquier cosa en las barras de arriba, ya no aparta ni regresa las ventanas; ese gesto queda para el fondo de la conversación.
 - **Pedir correr un comando dentro de un plan ya no parece un plan nuevo.** Un paso delegado (o una orden de BISHOP) que terminaba con un bloque para correr un comando disparaba la alerta de «intentó abrir un plan dentro de un plan»; ahora solo la dispara un plan de verdad.
 - **Leer y ordenar ya no se gastan entre sí.** Cada enlace cuenta sus lecturas y sus órdenes por separado, cada una contra su tope por hora: preguntarle a BISHOP no agota las órdenes.
 

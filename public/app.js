@@ -7829,10 +7829,13 @@ function setWindowsAside(on, { always = false } = {}) {
 // back and it returns to its layer. A press on something that does a thing (a button, a link, a
 // field) is that thing's, and a press that selected text was reading, not asking.
 const DESK_ACTIVE = 'button, a, input, textarea, select, label, summary, [role="button"], [role="menu"], [role="menuitem"], .codeblock, .model-menu, .agent-pop, .slash-menu, .arrange-pop, .notices';
+// Never the desktop, though nothing there is a button: the room's bars and what stands on them
+// (an agent's sphere is a span that opens its card), any agent's mark, and the rows around the box.
+const NOT_DESK = '.bar, .bar-home, #bar, header, nav, .avatar, .picker, .openq, .settled, .crew-orb, .agent-pop';
 function deskPress(event) {
   const target = event.target;
   // Inside a dialog — MODULES, MU/TH/UR, a guide — a press is that dialog's, never the desktop's.
-  if (!target?.closest?.('.shell') || target.closest(WINDOW_SELECTOR) || target.closest('dialog') || target.closest('#composer') || target.closest(DESK_ACTIVE)) return false;
+  if (!target?.closest?.('.shell') || target.closest(WINDOW_SELECTOR) || target.closest('dialog') || target.closest('#composer') || target.closest(DESK_ACTIVE) || target.closest(NOT_DESK)) return false;
   if (!globalThis.getSelection?.()?.isCollapsed) return false;
   return floatingWindows().length > 0;
 }
