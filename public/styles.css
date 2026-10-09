@@ -2080,6 +2080,16 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .bishop-plan .bishop-act.primary:hover { background: color-mix(in srgb, var(--agent, var(--phosphor)) 12%, transparent); }
 .bishop-plan .bishop-act:disabled { opacity: .5; cursor: default; }
 .bishop-plan .bishop-act:focus-visible { outline: 0; box-shadow: var(--ring-soft); }
+.bishop-plan .choice-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.bishop-plan .bishop-mode { margin-left: auto; color: var(--text-3); }
+.bishop-plan .choice-tags { gap: 6px; }
+.bishop-plan .bishop-designation { width: 200px; max-width: 100%; border: 1px solid var(--line-2); background: transparent; color: var(--text); font-family: var(--mono); font-size: 11px; padding: 5px 8px; border-radius: 7px; }
+.bishop-plan .bishop-designation:focus-visible { outline: 0; box-shadow: var(--ring-soft); }
+.bishop-plan .bishop-order[data-status="done"] .choice-tag, .bishop-plan .bishop-link[data-status="signed"] .choice-tag { color: var(--phosphor); border-color: color-mix(in srgb, var(--phosphor) 45%, transparent); }
+.bishop-plan .bishop-order[data-status="failed"] .choice-tag { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.bishop-proposal > .bishop-act { margin-top: 10px; }
+.bishop-answer .bishop-answer-text { padding: 10px 14px 4px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.bishop-answer .choice-foot { margin: 6px 14px 12px; }
 
 /* What the room still has no answer to. Quieter than the free-turn offer above it: that one is
    about to save money, this one is only wondering. */

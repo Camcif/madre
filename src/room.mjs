@@ -1662,7 +1662,9 @@ export class Room {
         // human sees a plan-shaped reply and nothing happening.
         await this.#emit('plan.ignored', { orchestrator: agent.id, responseMessageId, reasons: directives.ignored.map((item) => item.reason) });
       }
-      if (depth > 0 && /```pulse/i.test(result.text)) {
+      // Only a ```pulse fence is a plan, read the way src/directives.mjs reads it; ```pulse-run,
+      // ```pulse-ask and ```pulse-salas are not (S-029 in docs/MACROVERSO.md).
+      if (depth > 0 && /```pulse\s*\n/i.test(result.text)) {
         await this.#alert('nested-delegation', `@${agent.id} tried to open a plan from inside a plan. It was ignored; the sequence stays under @${requester}. STOPALL if the room drifts.`, `nested:${agent.id}`);
       }
       // A question the agent put to the human: it leaves the text and comes back as buttons.

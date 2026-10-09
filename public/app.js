@@ -3384,8 +3384,12 @@ function renderUserMessage(event) {
   const who = el('div', 'who');
   who.append(el('b', null, reviewed ? t('YOU · CREW (EXPENDABLE)') : t('YOU · CREW')));
   // An order of BISHOP: its first line is the header the agent reads; the person reads a badge.
-  const order = event.payload.via === 'bishop' ? String(text ?? '').match(/^BISHOP › (\d+)\/(\d+) · plan (p-[0-9a-f]+)[^\n]*\n*/) : null;
-  if (event.payload.via === 'bishop') who.append(el('span', 'badge via', order ? t('from BISHOP · order {step} of {total}', { step: order[1], total: order[2] }) : t('from BISHOP')));
+  // A message BISHOP's channel brought: its first line is the header the agent reads; the person
+  // reads a badge. An order into this room, or a question another room raised.
+  const relayedOrder = event.payload.via === 'bishop' ? String(text ?? '').match(/^BISHOP › (\d+)\/(\d+) · plan (p-[0-9a-f]+)[^\n]*\n*/) : null;
+  const relayedQuestion = event.payload.via === 'bishop' && !relayedOrder ? String(text ?? '').match(/^BISHOP › question from room (.+?), asked by the human there\.[^\n]*\n*/) : null;
+  const order = relayedOrder ?? relayedQuestion;
+  if (event.payload.via === 'bishop') who.append(el('span', 'badge via', relayedOrder ? t('from BISHOP · order {step} of {total}', { step: relayedOrder[1], total: relayedOrder[2] }) : relayedQuestion ? t('asked from {room}', { room: relayedQuestion[1] }) : t('from BISHOP')));
   else if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
   const shownMode = Number.isInteger(mode) ? mode : create ? 2 : null;
   if (shownMode !== null && shownMode !== 1) who.append(el('span', `badge mode m${shownMode}`, `#${shownMode} ${MODES[shownMode].label}`));
@@ -4827,78 +4831,179 @@ function markRun({ responseMessageId, index }, status, where = null) {
   live.append(stop);
 }
 
-// BISHOP proposed a plan in the room of Salas (docs/MACROVERSO.md, fase 4b). One row per order with
-// the room, the agent and the mode in sight; nothing leaves until the human presses «Send» on it.
-// The press names the plan and the step, never the order: the server sends what it recorded.
-const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL' };
+// BISHOP proposed a plan in the room of Salas (docs/MACROVERSO.md, fases 4b y 4c). One row per
+// order with the room, the agent and the mode in sight, and one per link it proposes. What a press
+// sends is what the server recorded: the press names the plan and the row, never the order.
+const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL', delivered: 'IN ITS ROOM · WAITING FOR YOUR KEY' };
+const BISHOP_MODE_WORDS = { manual: 'MANUAL', hybrid: 'HYBRID', auto: 'AUTOMATIC' };
+async function bishopPress(path, body, buttons) {
+  for (const one of buttons) one.disabled = true;
+  try {
+    const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+  } catch (error) {
+    toast(`MU/TH/UR › ${error.message}`);
+    for (const one of buttons) one.disabled = false;
+  }
+}
+function bishopButton(label, ghost = false) {
+  const button = el('button', `bishop-act ${ghost ? 'ghost' : 'primary'}`, label);
+  button.type = 'button';
+  return button;
+}
 function renderBishopPlan(event) {
-  const { plan, reason, orders = [], agent } = event.payload;
-  if (!orders.length) return null;
+  const { plan, reason, orders = [], links = [], agent, mode = 'manual' } = event.payload;
+  if (!orders.length && !links.length) return null;
   const node = el('div', 'choice run-request bishop-plan');
   node.dataset.plan = plan;
   tint(node, agent);
   const head = el('div', 'choice-head');
   head.append(el('span', 'choice-kicker', t('BISHOP proposes a plan · {plan}', { plan })));
+  if (orders.length) head.append(el('span', 'choice-kicker bishop-mode', t(BISHOP_MODE_WORDS[mode] ?? mode)));
   node.append(head, el('p', 'choice-q', reason));
   const list = el('div', 'choice-list');
   list.setAttribute('role', 'group');
   list.setAttribute('aria-label', reason);
+  for (const link of links) {
+    const row = el('div', 'choice-option bishop-order bishop-link');
+    row.dataset.link = String(link.index);
+    row.append(el('span', 'choice-key', '⇄'));
+    const what = el('div', 'choice-text');
+    const where = el('div', 'bishop-where');
+    where.append(el('b', null, t('LINK')), el('span', null, ` · ${link.fromName} ${link.direction === 'both' ? '↔' : '→'} ${link.toName}`));
+    const terms = [link.kinds.map((kind) => kindWord(kind).toLowerCase()).join(', ')];
+    if (link.days) terms.push(t('{n} days', { n: link.days }));
+    if (link.orders) terms.push(t('orders up to #{n}', { n: link.orders.maxMode }));
+    what.append(where, el('div', 'bishop-task', terms.join(' · ')));
+    if (link.why) what.append(el('p', 'run-why', t(link.why)));
+    row.append(what, el('div', 'choice-tags'));
+    list.append(row);
+    markBishopLink({ plan, index: link.index }, link.status, row, link);
+  }
   for (const order of orders) {
     const row = el('div', 'choice-option bishop-order');
     row.dataset.step = String(order.step);
+    row.dataset.room = order.name;
     row.append(el('span', 'choice-key', String(order.step)));
     const what = el('div', 'choice-text');
     const where = el('div', 'bishop-where');
     where.append(el('b', null, order.name), el('span', null, ` · @${order.agent} · #${order.mode} ${MODES[order.mode]?.label ?? ''}`));
     what.append(where, el('div', 'bishop-task', order.text));
-    if (order.why) what.append(el('p', 'run-why', t(order.why, order.whyArgs ?? null)));
-    const side = el('div', 'choice-tags');
-    row.append(what, side);
+    const why = el('p', 'run-why');
+    why.hidden = !order.why;
+    if (order.why) why.textContent = t(order.why, order.whyArgs ?? null);
+    what.append(why);
+    row.append(what, el('div', 'choice-tags'));
     list.append(row);
-    markBishopOrder({ plan, step: order.step }, order.status, row);
+    markBishopOrder({ plan, step: order.step }, order.status, { row });
   }
-  node.append(list, el('p', 'choice-foot', t('Each order leaves only when you send it · the room checks it against its link · the answer comes back here as a card · #3 and #4 are armed in their room')));
+  node.append(list, el('p', 'choice-foot', t('Each order leaves only when you send it, or on its own within the link if you chose so · links are signed only by you · the answer comes back here as a card · #3 and #4 wait for your key in their room')));
   state.lastSender = null;
   return node;
 }
-function markBishopOrder({ plan, step }, status, row = null) {
+function markBishopOrder({ plan, step }, status, { row = null, why = undefined } = {}) {
   const target = row ?? document.querySelector(`.bishop-plan[data-plan="${CSS.escape(String(plan))}"] .bishop-order[data-step="${Number(step)}"]`);
+  if (!target) return;
+  if (status) target.dataset.status = status;
+  const current = target.dataset.status;
+  const note = target.querySelector('.run-why');
+  if (why !== undefined && note) { note.textContent = why ? t('Did not leave on its own: {why}', { why }) : ''; note.hidden = !why; }
+  const side = target.querySelector('.choice-tags');
+  side.replaceChildren();
+  const pressable = { ready: true, proposal: true, sent: true }[current];
+  if (!pressable || state.device) {
+    side.append(el('span', 'choice-tag', pressable ? t('FROM THE MAC') : t(BISHOP_STATES[current] ?? current)));
+    return;
+  }
+  const body = { plan, step: Number(step) };
+  if (current === 'sent') {
+    side.append(el('span', 'choice-tag', t(BISHOP_STATES.sent)));
+    const stop = bishopButton(t('STOP'), true);
+    stop.addEventListener('click', () => bishopPress('/api/x/bishop/stop', body, [stop]));
+    side.append(stop);
+    return;
+  }
+  const go = current === 'proposal' ? bishopButton(t('Take it to {room}', { room: target.dataset.room ?? '' })) : bishopButton(t('Send'));
+  const skip = bishopButton(t('Skip'), true);
+  go.addEventListener('click', () => bishopPress(current === 'proposal' ? '/api/x/bishop/propose' : '/api/x/bishop/send', body, [go, skip]));
+  skip.addEventListener('click', () => bishopPress('/api/x/bishop/skip', body, [go, skip]));
+  side.append(go, skip);
+}
+// A link BISHOP proposed: signed only by the human. With orders, the designation of the room that
+// would receive them is typed here, the way the sheet of Salas asks for it.
+function markBishopLink({ plan, index }, status, row = null, link = null) {
+  const target = row ?? document.querySelector(`.bishop-plan[data-plan="${CSS.escape(String(plan))}"] .bishop-link[data-link="${Number(index)}"]`);
   if (!target) return;
   target.dataset.status = status;
   const side = target.querySelector('.choice-tags');
   side.replaceChildren();
+  const words = { signed: 'SIGNED', exists: 'ALREADY IN FORCE', blocked: 'WILL NOT BE SIGNED' };
   if (status !== 'ready' || state.device) {
-    side.append(el('span', 'choice-tag', status === 'ready' ? t('SEND IT FROM THE MAC') : t(BISHOP_STATES[status] ?? status)));
+    side.append(el('span', 'choice-tag', status === 'ready' ? t('FROM THE MAC') : t(words[status] ?? status)));
     return;
   }
-  const act = (label, path, ghost = false) => {
-    const button = el('button', `sm-btn ${ghost ? 'ghost' : 'primary'} bishop-act`, label);
-    button.type = 'button';
-    button.addEventListener('click', async () => {
-      for (const one of side.querySelectorAll('button')) one.disabled = true;
-      try {
-        const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ plan, step: Number(step) }) });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
-      } catch (error) {
-        toast(`MU/TH/UR › ${error.message}`);
-        for (const one of side.querySelectorAll('button')) one.disabled = false;
-      }
-    });
-    return button;
-  };
-  side.append(act(t('Send'), '/api/x/bishop/send'), act(t('Skip'), '/api/x/bishop/skip', true));
+  const sign = bishopButton(t('Sign'));
+  const parts = [sign];
+  let designation = null;
+  if (link?.orders) {
+    const receiving = link.receives === link.from ? link.fromName : link.toName;
+    designation = el('input', 'bishop-designation');
+    designation.type = 'text';
+    designation.placeholder = t('type {room} to sign', { room: receiving });
+    designation.setAttribute('aria-label', designation.placeholder);
+    side.append(designation);
+  }
+  sign.addEventListener('click', () => bishopPress('/api/x/bishop/link', { plan, index: Number(index), designation: designation?.value ?? null }, parts));
+  side.append(sign);
 }
-// One line when a plan closes, and one when BISHOP's block could not be read. Neither starts a turn.
+// One line when a plan closes, stops leaving on its own, or sends an order on its own; and one when
+// BISHOP's block could not be read. None of them starts a turn.
 function renderBishopLine(event) {
   const node = el('div', 'system note bishop');
   node.append(el('b', null, 'BISHOP'));
-  if (event.type === 'bishop.plan.closed') {
-    const { plan, done = 0, failed = 0, skipped = 0 } = event.payload;
-    node.append(t(' · plan {plan} closed · {done} answered · {failed} failed · {skipped} skipped', { plan, done, failed, skipped }));
-  } else {
-    node.append(t(' · the block of orders could not be read: {why}', { why: (event.payload.reasons ?? []).map((why) => t(why)).join('; ') }));
+  const said = event.payload;
+  if (event.type === 'bishop.plan.closed') node.append(t(' · plan {plan} closed · {done} answered · {failed} failed · {skipped} skipped', { plan: said.plan, done: said.done ?? 0, failed: said.failed ?? 0, skipped: said.skipped ?? 0 }));
+  else if (event.type === 'bishop.plan.halted') node.append(t(' · plan {plan} stops leaving on its own ({why}); what is left waits for your press', { plan: said.plan, why: t(said.why) }));
+  else if (event.type === 'bishop.order.sent') node.append(t(' · sent on its own to @{agent} in {room} (#{n}): {text}', { agent: said.agent, room: said.name, n: said.mode, text: said.text ?? '' }));
+  else if (event.type === 'bishop.order.delivered') node.append(t(' · took #{n} for @{agent} to {room}; it waits there for your key', { n: said.mode, agent: said.agent, room: said.name }));
+  else node.append(t(' · the block of orders could not be read: {why}', { why: (said.reasons ?? []).map((why) => t(why)).join('; ') }));
+  return node;
+}
+// In the room an order is for: a #3/#4 proposal of BISHOP. «Arm and send» writes it into the
+// composer with its agent and mode; sending it asks for the usual key, as anything the human types.
+function renderBishopProposal(event) {
+  const { agent, mode, text, plan, step, total } = event.payload;
+  const node = el('div', 'choice run-request bishop-plan bishop-proposal');
+  tint(node, agent);
+  const head = el('div', 'choice-head');
+  head.append(el('span', 'choice-kicker', t('BISHOP proposes #{n} {label} to @{agent} · order {step} of {total} · plan {plan}', { n: mode, label: MODES[mode]?.label ?? '', agent, step, total, plan })));
+  node.append(head, el('p', 'choice-q', text));
+  if (!state.device) {
+    const arm = bishopButton(t('Arm and send'));
+    arm.addEventListener('click', () => {
+      els.input.value = `@${agent} #${mode} ${text}`;
+      els.input.dispatchEvent(new Event('input', { bubbles: true }));
+      els.input.focus();
+      toast(t('MU/TH/UR › written in the box. Sending it asks for your key, as always.'));
+    });
+    node.append(arm);
   }
+  node.append(el('p', 'choice-foot', t('Nothing runs until you send it from this room with your key · BISHOP never arms #3 or #4')));
+  state.lastSender = null;
+  return node;
+}
+// In a room that raised BISHOP with /bishop: its answer, for the human. The agents of this room do
+// not read it; a link is what lets them read another room.
+function renderBishopAnswer(event) {
+  const { agent, question, text, ok } = event.payload;
+  const node = el('div', `command-card bishop-answer${ok === false ? ' failed' : ''}`);
+  const head = el('div', 'head');
+  head.append(el('b', null, 'BISHOP'), el('span', null, t('answers through @{agent} · from the room of Salas', { agent })), el('span', 'args', question ?? ''));
+  const body = el('div', 'bishop-answer-text');
+  body.append(renderMarkdown(text ?? ''));
+  node.append(head, body, el('p', 'choice-foot', t('For you only: the agents of this room do not read it without a link.')));
+  state.lastSender = null;
   return node;
 }
 
@@ -5327,10 +5432,17 @@ void renderOpenQuestions(); return;
     case 'enlace.signed':
     case 'enlace.revoked': node = renderEnlace(event); break;
     case 'bishop.plan.proposed': node = renderBishopPlan(event); break;
-    case 'bishop.order.sent': markBishopOrder(event.payload, 'sent'); return;
+    case 'bishop.order.sent': markBishopOrder(event.payload, 'sent', { why: null }); if (!event.payload.auto) return; node = renderBishopLine(event); break;
     case 'bishop.order.skipped': markBishopOrder(event.payload, 'skipped'); return;
+    case 'bishop.order.held': markBishopOrder(event.payload, null, { why: event.payload.why }); return;
+    case 'bishop.order.delivered': markBishopOrder(event.payload, 'delivered', { why: null }); node = renderBishopLine(event); break;
+    case 'bishop.link.signed': markBishopLink(event.payload, 'signed'); return;
+    case 'bishop.plan.updated': for (const order of event.payload.orders ?? []) markBishopOrder({ plan: event.payload.plan, step: order.step }, order.status, { why: null }); return;
     case 'bishop.plan.closed':
+    case 'bishop.plan.halted':
     case 'bishop.plan.ignored': node = renderBishopLine(event); break;
+    case 'bishop.order.proposed': node = renderBishopProposal(event); break;
+    case 'bishop.answer': node = renderBishopAnswer(event); break;
     case 'create.missing': node = renderCreateMissing(event); break;
     case 'control.changed': markTouched(event.payload.agent, event.payload.files); node = renderControlChanged(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } break;
     case 'control.reverted': node = renderControlReverted(event); if (!replaying) treeFollowWrites(); break;

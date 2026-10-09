@@ -6,7 +6,7 @@ se anota aquí. Lo que toca procesos o rutas sigue además las reglas de `docs/W
 
 | | |
 |---|---|
-| Estado | **Fases 1, 2, 3a–3d, 4a y 4b · hechas**. Quedan 4c (modos híbrido y automático, propuestas `#3`/`#4`) y la decisión de 3e. D-S01..06 cerradas el 2026-10-08; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
+| Estado | **Fases 1, 2, 3a–3d y 4a–4c · hechas**. Queda 3e (se pregunta) y la decisión D-S13 (si BISHOP puede firmar enlaces solo). D-S01..06, D-S11 y D-S12 cerradas por el humano; el prompt de ejecución es `docs/MACROVERSO-ENCARGO.md` |
 | Origen | Pedido del 2026-10-08, después de probar Salas en el teléfono; ampliado el mismo día (§1, puntos 6-8) |
 | Regla en vigor | Nada aquí cambia el núcleo de una sala (registro, memoria, modos). Un enlace lee; nunca escribe en otra sala. Una orden entra a una sala solo por la puerta que esa sala ya tiene para el humano |
 | Encargo | `docs/MACROVERSO-ENCARGO.md`: hechos verificados con `ruta:línea`, diseño, compuertas, pruebas y presupuestos de las fases 3 y 4. Este documento sigue siendo el único lugar de hallazgos (`S-0xx`), decisiones (`D-Sxx`) y bitácora |
@@ -97,9 +97,11 @@ Cada hallazgo tiene id permanente (`S-0xx`); un id no se reusa.
 | **S-026** | `@madre` descartaba el bloque `bishop` al reconstruir su briefing y su sistema solo admitía el archivo de esta sala. Con la excepción autorizada, `Room` pasa el bloque como argumento separado y el adaptador usa reglas BISHOP solo cuando ese argumento existe: notas enlazadas con contrato, cita por sala, sin darles secuencias de Salas. Un texto del usuario no puede fingir ese argumento | `src/adapters/madre.mjs`, `src/room.mjs`, `test/madre-agent.test.mjs`, `test/bishop.test.mjs` | 4a | ARREGLADO |
 | **S-027** | El SDK documentaba `onEvent(ctx, event)` para cada evento, pero el servidor no invocaba ningún `module.onEvent`. Con la excepción autorizada por el humano, `wireModules()` en `src/server.mjs` suscribe cada conversación viva de la sala (la abierta en `wireRoom()` y las de al lado en `hold()`) y entrega cada evento a los módulos encendidos con `onEvent`, con `ctx.room`, `ctx.chat` y `ctx.record` de esa conversación; corre aparte y un fallo se registra sin detener a la sala. `docs/SDK.md` lo dice ahora como es. Para que el resultado vuelva a la conversación del plan, el contexto de módulos gana `services.recordIn(chat, type, payload)`, el mismo `record()` en una conversación nombrada; y las rutas de módulo reciben `viaPhone` (excepción 4) | `src/server.mjs` (`wireModules`, `moduleContext`), `docs/SDK.md`, `test/bishop-orders.test.mjs` | 4b | ARREGLADO |
 | **S-028** | `Room.send()` arrancaba siempre con `depth: 0` y delegación permitida. Con la excepción autorizada, `send()` sigue idéntico por fuera y pasa a `#accept()`; una puerta nueva, `Room.order({ text, target, mode })`, usa el mismo camino (`modeCheck`, arriendo, guardia, límites) con tres cosas fijas en el proceso y nunca leídas de una petición: `via: 'bishop'`, `depth: 1` y sin delegación; rechaza `#3`/`#4` y devuelve la respuesta o el fallo. `'bishop'` **no** entra a `VIA_KINDS`: ningún cuerpo de petición puede reclamarlo. Una mutación a `depth: 0` hace fallar la prueba (la alerta de delegación anidada solo existe a profundidad 1) | `src/room.mjs` (`send`, `order`, `#accept`), `test/bishop-orders.test.mjs` | 4b | ARREGLADO |
-| **S-029** | En `#runTurn`, la alerta de delegación anidada se dispara con `/```pulse/i` a profundidad > 0, que también casa con ```` ```pulse-run ````, ```` ```pulse-ask ```` y ```` ```pulse-salas ````: un paso delegado o una orden que pide correr un comando recibe una alerta falsa («tried to open a plan from inside a plan … under @you»). No se cambió: está fuera de las excepciones | `src/room.mjs` (`#runTurn`, la comprobación `depth > 0`) | 4b | ANOTADO |
-| **S-030** | `@madre` (qwen2.5:7b) como BISHOP, cinco intentos limpios, cada uno en una conversación nueva, con la misma petición: 2 planes con una orden enviable, 1 bloque legible con un agente que no existe («salas»), 2 sin cerca. Copia los marcadores del ejemplo («Motivo del plan en una línea»), inventa hechos («en la sala Salas se han tomado varias decisiones») y repite sus respuestas anteriores desde el transcrito y el archivo. Las reglas aguantaron: nada inválido quedó con botón. Claude como BISHOP cerró con un bloque válido a la primera. La condición del encargo §4C.7 («no cierra con un bloque válido en 5 intentos») no se cumple al pie de la letra; si BISHOP con `@madre` queda solo como consulta lo decide el humano | `src/modules/bishop.mjs`, `src/adapters/madre.mjs` | 4b | ABIERTO · DECIDE EL HUMANO |
+| **S-029** | En `#runTurn`, la alerta de delegación anidada se disparaba con `/```pulse/i` a profundidad > 0, que también casa con ```` ```pulse-run ````, ```` ```pulse-ask ```` y ```` ```pulse-salas ````: un paso delegado o una orden que pedía correr un comando recibía una alerta falsa. Con la autorización del humano, el patrón es el de `src/directives.mjs`: ```` ```pulse ```` seguido de salto de línea. Una prueba de 4c lo fija (una orden que responde con ```` ```pulse-run ```` no alerta) | `src/room.mjs` (`#runTurn`), `test/bishop-4c.test.mjs` | 4c | ARREGLADO |
+| **S-030** | `@madre` (qwen2.5:7b) como BISHOP, cinco intentos limpios, cada uno en una conversación nueva, con la misma petición: 2 planes con una orden enviable, 1 bloque legible con un agente que no existe («salas»), 2 sin cerca. Copia los marcadores del ejemplo («Motivo del plan en una línea»), inventa hechos («en la sala Salas se han tomado varias decisiones») y repite sus respuestas anteriores desde el transcrito y el archivo. Las reglas aguantaron: nada inválido quedó con botón. Claude como BISHOP cerró con un bloque válido a la primera. La condición del encargo §4C.7 («no cierra con un bloque válido en 5 intentos») no se cumple al pie de la letra; el humano decidió «sí a S-030»: con `@madre`, BISHOP solo responde. No se le enseña el bloque, su regla 5 lo dice, y si lo escribe no se lee (`onlyAnswers`). Elegir quién es BISHOP sigue siendo del humano | `src/modules/bishop.mjs`, `src/adapters/madre.mjs`, `test/bishop-4c.test.mjs` | 4c | CERRADO |
 | **S-031** | La regla fija de `@madre` (`ACTION_EN`) leía el primer encabezado de una orden («order», «delegate») como una petición de actuar y contestaba toda orden con su negativa. El encabezado se reescribió sin palabras de esa lista (`BISHOP › 1/1 · plan … · from Salas, sent by the human…`); una prueba fija que una pregunta que llega como orden se contesta y una orden de actuar se sigue negando | `src/modules/bishop.mjs` (`orderHeader`), `test/bishop-orders.test.mjs` | 4b | ARREGLADO |
+| **S-032** | El prompt de BISHOP en la sala de Salas lleva el bloque `delegation` (medido: 929 caracteres en `turn.cost`), y el encargo §4C pedía que BISHOP no delegue dentro de su sala. Apagarlo solo en esa sala sin tocar el núcleo no se encontró (`room.delegation` es de la sala entera, también para el humano) | `src/room/prompt.mjs`, `src/server.mjs` (`PULSE_DELEGATION`) | 4c | ANOTADO |
+| **S-033** | Lo que una sala «te espera» se borraba con cualquier mensaje `role: 'user'`, también con una orden de BISHOP: una propuesta `#3` que llegaba antes que una orden `#1` a la misma sala desaparecía de Salas. Ahora solo un mensaje del humano (sin `via: 'bishop'`) la borra | `src/server.mjs` (`trackAsks`) | 4c | ARREGLADO |
 
 ---
 
@@ -161,7 +163,7 @@ Solo en escritorio y solo desde Salas. **Fase 2 solo muestra; no enlaza.**
 
 ---
 
-## 6 · Fases 3 y 4 · Enlazar y BISHOP (3a–3d, 4a y 4b construidas; 4c encargada)
+## 6 · Fases 3 y 4 · Enlazar y BISHOP (construidas: 3a–3d y 4a–4c)
 
 El diseño completo, con cada hecho citado, está en `docs/MACROVERSO-ENCARGO.md`. Lo que no
 cambia respecto a la primera versión de este plan:
@@ -214,6 +216,8 @@ el encargo puede asumir la recomendación mientras tanto.
 | **D-S09** | Disparador de D-S02 | `madre salas`, y `madre` sin `--project` solo cuando el directorio actual es `$HOME`. Ninguna heurística de «¿esto es un proyecto?». Se puede asumir | 3d | **ABIERTA** |
 | **D-S10** | Cómo queda en el registro una orden de BISHOP | Asumida en 4b tal como se recomendó: el mensaje queda `role: 'user'`, `sender: 'you'`, con `via: 'bishop'` puesto por `Room.order()` (nunca por una petición), la página lo muestra como «de BISHOP · orden n de m», y `src/dataset.mjs` no hace pares con él ni con su respuesta | 4b | **ASUMIDA 2026-10-08** |
 | **D-S11** | Gobernanza contra los bucles: el humano hace lo macro hacia todos sus proyectos y lo micro dentro de cada sala; nada se retroalimenta | «La gobernanza los rige para que no haya bucles.» Lectura operativa para 4b/4c: **solo BISHOP ordena**, y solo dentro de un plan que arrancó un mensaje del humano; una sala que recibe una orden no puede ordenar ni delegar hacia fuera (su turno corre con `depth: 1`); el resultado vuelve a la sala de Salas como tarjeta y **no arranca ningún turno**; un plan tiene a lo sumo 4 órdenes y un cierre, y el cierre no abre otro plan; una orden a una sala que ya corre una orden espera o falla, nunca se encola sin tope; el modo automático cuenta contra `perHour` y se detiene con STOP ALL. Lo que no esté aquí no se asume | 4b, 4c | **CERRADA 2026-10-08** |
+| **D-S12** | BISHOP como centro del Macroverso | «Sí a S-030 pero me gustaría que el usuario elija quién quiere ser su super agente, pero la gobernanza, contexto y memorias de todas las salas enlazadas viven en el macroverso; levantando bishop en las salas puede consultar cualquiera que sea el proyecto que esté enlazado; y algo muy importante, bishop como wizard de enlaces automático y manual por el humano.» Lectura operativa (4c): el humano elige el agente de BISHOP; con `@madre` solo responde. Contratos, censo y notas enlazadas viven en la sala de Salas. Desde cualquier sala, `/bishop <pregunta>` la despierta si duerme, la pregunta corre allí y la respuesta vuelve solo para el humano (`bishop.answer`, que ningún agente lee sin contrato). BISHOP propone enlaces en su bloque, por su cuenta cuando una pregunta necesita una sala sin enlace (automático) o cuando se le pide (manual); **los firma el humano** con un toque (D-S13) | 4c | **CERRADA 2026-10-08** |
+| **D-S13** | ¿BISHOP puede firmar un enlace sin el humano? | Hoy no: la regla madre del plan es que un enlace lo firma el humano (§6, D-S03). Si se quiere, la recomendación es acotarlo a enlaces de solo lectura, sin órdenes, con caducidad de 7 días como máximo, revocables con un toque y avisados en las dos salas | — | **ABIERTA** |
 
 ---
 
@@ -229,7 +233,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | 3d | `madre salas`, la sala de Salas, tecla MACROVERSO (D-S08, D-S09) | HECHA |
 | 4a | Módulo `bishop`, bloque `bishop`, censo, elección del agente | HECHA |
 | 4b | Bloque `pulse-salas`, tarjeta, canal, `via`, resultado como tarjeta (D-S10) | HECHA |
-| 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje | ENCARGADA |
+| 4c | Modos híbrido y automático, topes, propuestas `#3`/`#4`, aprendizaje; y D-S12: `/bishop` desde cualquier sala y el asistente de enlaces | HECHA |
 | 3e | Recall automático de notas enlazadas | Se pregunta antes de empezar |
 
 ---
@@ -462,3 +466,34 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   §6, `docs/REFERENCE.md` (BISHOP y sus rutas), `docs/SDK.md` (`onEvent`, `viaPhone`), `CHANGELOG.md`
   y `docs/MACROVERSO-TRASPASO.md`, reescrito al estado de este commit. El contrato de prueba quedó
   revocado y BISHOP volvió a su agente por defecto.
+- `2026-10-08` · El humano cerró S-030 («sí»: con `@madre`, BISHOP solo responde), autorizó S-029,
+  dictó D-S12 y pidió seguir con 4c. Fase 4c hecha. `src/modules/bishop.mjs` se parte en dos: lo puro
+  en `src/modules/bishop-plan.mjs` (bloque con órdenes y enlaces, `resolveOrder`, `resolveLinks`,
+  planes, encabezados) y el módulo. **Modos** en la ficha de BISHOP (`manual` por defecto,
+  `hybrid`, `auto`): una orden sale sola solo dentro del contrato, hasta `#1` en híbrido y `#2` en
+  automático, una a la vez por sala; la que no puede salir queda retenida con su motivo y espera el
+  botón; una orden que falla o un STOP ALL en Salas detienen el envío automático del plan
+  (`bishop.plan.halted`). Cada envío automático deja una línea; una orden en curso se detiene desde
+  su fila (`/api/x/bishop/stop` → la sala destino detiene ese turno con `stopTurn`). **Propuestas
+  `#3`/`#4`**: llegan a su sala en cualquier modo (encargo §4C.5) como tarjeta «Armar y enviar», que
+  escribe `@agente #n tarea` en la caja; enviarla pide la llave de siempre; Salas y el teléfono la
+  muestran como «te espera» (S-033 arreglado al hacerlo). **Aprendizaje**: la tarjeta de respuesta
+  empieza con `[sala · @agente]`, así lo que se destila en Salas dice de dónde vino. **D-S12**:
+  `/bishop` en cualquier sala (despierta la de Salas si duerme), la pregunta corre allí por
+  `Room.order()` con su encabezado y sin bloque de órdenes, y su respuesta nunca abre un plan
+  aunque traiga uno; vuelve como `bishop.answer`, solo para el humano. El asistente de enlaces:
+  líneas `enlace A → B: tipos; N días; órdenes #n` en el mismo bloque (hasta 2), comprobadas como en
+  la hoja de Salas; «Firmar» en la tarjeta (con la designación si lleva órdenes) usa la misma ruta
+  de firma y avisos; al firmar, las órdenes del plan que esperaban ese enlace se vuelven a resolver
+  y, si el modo lo permite, salen. El bloque de BISHOP lista las salas sin enlace y le pide
+  proponer el enlace cuando una pregunta lo necesite. Pruebas: `test/bishop-4c.test.mjs` (S-030,
+  asistente, y punta a punta con tres salas: híbrido, retención de `#2`, propuesta `#3` en su sala y
+  en «te espera», S-029, firma con designación equivocada y correcta, orden liberada por la firma,
+  cierre único, STOP ALL, `/bishop` con respuesta fuera del contexto de los agentes y sin plan);
+  una mutación que quita el filtro de mensajes traídos por el canal la hace fallar. Suite 644 en
+  verde y `pack:check`. Verificado de verdad con la sala de Salas (4318) y `pulse` (4401): Claude
+  como BISHOP en híbrido propuso enlace y orden en un plan; la firma desde la tarjeta con «pulse»
+  liberó la orden, que salió sola, `@madre` contestó y el plan se cerró; `/bishop` desde `pulse`
+  volvió con una respuesta que cita `pulse` por el enlace y dice qué no pudo leer. Salen S-032
+  (anotado) y S-033 (arreglado); D-S13 abierta. Enlace de prueba revocado; BISHOP de vuelta a su
+  agente por defecto y a `manual`.

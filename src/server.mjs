@@ -780,10 +780,16 @@ export async function createPulseServer({
     const asks = new Map();
     const feed = (event) => {
       const said = event?.payload ?? {};
-      if (event?.type === 'message.created' && said.role === 'user') { for (const key of [...asks.keys()]) asks.delete(key); }
+      // The human answering clears what waited; a message BISHOP's channel brought is not the human.
+      if (event?.type === 'message.created' && said.role === 'user' && said.via !== 'bishop') { for (const key of [...asks.keys()]) asks.delete(key); }
       else if (event?.type === 'choice.offered') asks.set(`choice:${said.responseMessageId}`, { kind: 'choice', agent: said.agent, text: said.question ?? null, at: event.timestamp });
       else if (event?.type === 'run.requested') asks.set(`run:${said.responseMessageId}`, { kind: 'run', agent: said.agent, text: said.commands?.[0]?.line ?? null, at: event.timestamp });
       else if (event?.type === 'run.started') asks.delete(`run:${said.responseMessageId}`);
+      // BISHOP (fase 4c): a #3/#4 proposal waits for the human's key in this room; in Salas, a
+      // plan with something to press waits until it closes.
+      else if (event?.type === 'bishop.order.proposed') asks.set(`bishop:${said.plan}:${said.step}`, { kind: 'bishop', agent: said.agent, mode: said.mode, text: said.text ?? null, at: event.timestamp });
+      else if (event?.type === 'bishop.plan.proposed' && [...(said.orders ?? []), ...(said.links ?? [])].some((item) => item.status === 'ready')) asks.set(`plan:${said.plan}`, { kind: 'plan', agent: 'bishop', text: said.reason ?? null, at: event.timestamp });
+      else if (event?.type === 'bishop.plan.closed') asks.delete(`plan:${said.plan}`);
     };
     for (const event of history) feed(event);
     asksByRoom.set(target, asks);
