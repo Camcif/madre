@@ -261,7 +261,9 @@ test('ollama: every conversation distills locally, the one switched to and the o
   const roomDir = async () => join(root, 'rooms', (await readdir(join(root, 'rooms')))[0]);
   const distilled = async (chat) => {
     const file = chatLedger(await roomDir(), chat);
-    for (let attempt = 0; attempt < 160; attempt += 1) {
+    // Up to 10 s. What is tested is who distils, not how fast: alone this takes about half a second,
+    // but the full suite runs files that start several real rooms at once, and 4 s fell short there.
+    for (let attempt = 0; attempt < 400; attempt += 1) {
       const lines = (await readFile(file, 'utf8').catch(() => '')).split('\n').filter(Boolean).map((line) => JSON.parse(line));
       const found = lines.filter((event) => event.type === 'memory.distilled');
       if (found.length) return found;

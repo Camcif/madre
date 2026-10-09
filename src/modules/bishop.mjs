@@ -47,6 +47,11 @@ const enabled = (ctx) => ctx.config?.modules?.bishop?.enabled !== false;
 const modeOf = (ctx) => (BISHOP_MODES.includes(ctx.config?.modules?.bishop?.mode) ? ctx.config.modules.bishop.mode : 'manual');
 // D-S13: who signs a link that only reads. By default BISHOP; the human can keep them all.
 export const LINK_SIGNERS = ['bishop', 'you'];
+// What a person reads for each setting's value; the value is what is saved.
+const ORDER_CHOICES = { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
+const SIGNER_CHOICES = { bishop: 'BISHOP signs them, for 7 days at most', you: 'You sign them' };
+const ORDER_WORDS = { manual: 'manual orders', hybrid: 'hybrid orders', auto: 'automatic orders' };
+const SIGNER_WORDS = { bishop: 'BISHOP signs links to read', you: 'you sign every link' };
 const signerOf = (ctx) => (ctx.config?.modules?.bishop?.links === 'you' ? 'you' : 'bishop');
 // S-030: @madre as BISHOP only answers. It is still the human's choice of who BISHOP is.
 export const onlyAnswers = (agent) => agent === 'madre';
@@ -232,10 +237,12 @@ const base = defineModule({
   settings: { enabled: true, agent: null, mode: 'manual', links: 'bishop' },
   async status(ctx) {
     const agent = chosen(ctx);
-    const detail = !ctx.settings.enabled ? 'off'
-      : !agent ? 'No ready agent. Choose one when it is available.'
-      : onlyAnswers(agent) ? `on · @${agent} · answers only`
-      : `on · @${agent} · ${modeOf(ctx)}`;
+    // Said in the room's language here: the words are whole sentences with the agent in them,
+    // which the card's translation (exact sentences only) could never match.
+    const detail = !ctx.settings.enabled ? t('off')
+      : !agent ? t('No ready agent. Choose one when it is available.')
+      : onlyAnswers(agent) ? t('on · @{agent} · only answers', { agent })
+      : t('on · @{agent} · {orders} · {links}', { agent, orders: t(ORDER_WORDS[modeOf(ctx)]), links: t(SIGNER_WORDS[signerOf(ctx)]) });
     return { status: { installed: Boolean(ctx.settings.enabled && agent), detail } };
   },
   // Raised from any room: the question goes to BISHOP in the room of Salas (woken if it sleeps),
@@ -510,10 +517,22 @@ const bishop = Object.freeze({
     const card = await base.describe(ctx);
     const agents = readyAgents(ctx);
     const agent = chosen(ctx);
-    const controls = agents.length ? [{ key: 'agent', label: 'AGENT', type: 'select', options: agents.map((one) => one.id), value: agent, note: 'The ready agent BISHOP speaks through. With @madre, BISHOP only answers: it proposes neither orders nor links.' }] : [];
+    const controls = agents.length ? [{
+      key: 'agent', label: 'AGENT', type: 'select', options: agents.map((one) => one.id), value: agent,
+      choices: agents.map((one) => ({ value: one.id, label: onlyAnswers(one.id) ? '@madre · only answers' : `@${one.id}` })),
+      note: 'The ready agent BISHOP speaks through. With @madre, BISHOP only answers: it proposes neither orders nor links.',
+    }] : [];
     if (agent && !onlyAnswers(agent)) {
-      controls.push({ key: 'mode', label: 'ORDERS', type: 'select', options: BISHOP_MODES, value: modeOf(ctx), note: 'manual: every order waits for your press · hybrid: #0-#1 leave on their own within the link · auto: up to #2 on their own within the link. #3 and #4 always wait for your key in their room.' });
-      controls.push({ key: 'links', label: 'LINKS TO READ', type: 'select', options: LINK_SIGNERS, value: signerOf(ctx), note: 'bishop: BISHOP signs the links it proposes that only read, for 7 days at most; you revoke them with one press · you: you sign every link. A link with orders is always signed by you.' });
+      controls.push({
+        key: 'mode', label: 'ORDERS', type: 'select', options: BISHOP_MODES, value: modeOf(ctx),
+        choices: BISHOP_MODES.map((value) => ({ value, label: ORDER_CHOICES[value] })),
+        note: 'Always within the link. #3 and #4 always wait for your key in their room; a failure or STOP ALL stops what leaves on its own.',
+      });
+      controls.push({
+        key: 'links', label: 'LINKS TO READ', type: 'select', options: LINK_SIGNERS, value: signerOf(ctx),
+        choices: LINK_SIGNERS.map((value) => ({ value, label: SIGNER_CHOICES[value] })),
+        note: 'A link with orders is always signed by you. A link BISHOP signed is revoked with one press, in Salas.',
+      });
     }
     return { ...card, controls };
   },

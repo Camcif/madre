@@ -28,7 +28,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `ea7b253` | Claude | 4c · modos, propuestas `#3`/`#4` en su sala, `/bishop` desde cualquier sala, asistente de enlaces; S-029 arreglado, S-030 cerrado, D-S12; S-032 y S-033 |
 | `78bbd2d` | Claude | D-S13 (BISHOP firma enlaces de lectura, 7 días) y S-032 (Salas no delega) |
 | `d453015` | Claude | S-021 completo (cada lectura con su agente y su turno vivo) y 3e (recordar en cada turno, con casilla) |
-| *este commit* | Claude | UX · autor y encabezado de los mensajes traídos por BISHOP |
+| `cf453ca` | Claude | UX · autor y encabezado de los mensajes traídos por BISHOP |
+| *este commit* | Claude | UX · ajustes de BISHOP en palabras (`choices` en el SDK) |
 
 Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
 NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en

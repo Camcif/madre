@@ -103,8 +103,14 @@ export function defineModule(spec) {
       if (!control?.key) throw new Error(`Module ${spec.id}: a control needs a key.`);
       const type = control.type ?? 'switch';
       if (!['select', 'switch', 'text'].includes(type)) throw new Error(`Module ${spec.id}: control ${control.key} has no such type "${type}".`);
-      if (type === 'select' && !control.options?.length) throw new Error(`Module ${spec.id}: control ${control.key} is a select with no options.`);
-      return { key: control.key, label: control.label ?? control.key.toUpperCase(), type, options: control.options ?? [], note: control.note ?? '', invert: Boolean(control.invert) };
+      // A select may say, for each value it saves, the words a person reads: `choices` is
+      // [{ value, label }], and its values are the options. The label is prose, translated with
+      // the rest of the card; the value is what is saved, never shown.
+      const choices = type === 'select' && Array.isArray(control.choices) ? control.choices.filter((choice) => typeof choice?.value === 'string').map((choice) => ({ value: choice.value, label: String(choice.label ?? choice.value) })) : null;
+      const options = control.options ?? choices?.map((choice) => choice.value) ?? [];
+      if (type === 'select' && !options.length) throw new Error(`Module ${spec.id}: control ${control.key} is a select with no options.`);
+      if (choices && choices.some((choice) => !options.includes(choice.value))) throw new Error(`Module ${spec.id}: control ${control.key} has a choice that is not one of its options.`);
+      return { key: control.key, label: control.label ?? control.key.toUpperCase(), type, options, ...(choices ? { choices } : {}), note: control.note ?? '', invert: Boolean(control.invert) };
     }),
     // Where this module's traffic goes, in the same four answers `src/outbound.mjs` demands of
     // MADRE's own destinations. Without it a connector's traffic reads in the log as «an address

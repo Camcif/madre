@@ -11462,7 +11462,8 @@ function cardControls(panel, item) {
       const field = el('label', 'control');
       field.append(el('span', null, control.label));
       const select = el('select');
-      for (const option of control.options) { const choice = el('option', null, option); choice.value = option; if (option === control.value) choice.selected = true; select.append(choice); }
+      const words = new Map((control.choices ?? []).map((choice) => [choice.value, choice.label]));
+      for (const option of control.options) { const choice = el('option', null, words.get(option) ?? option); choice.value = option; if (option === control.value) choice.selected = true; select.append(choice); }
       select.title = control.note;
       select.addEventListener('change', () => save(control, select.value, select));
       field.append(select);
@@ -12674,7 +12675,8 @@ function moduleSheet(host, item) {
       let node;
       if (control.type === 'select') {
         node = el('select', 'sx-input');
-        for (const option of control.options) { const choice = el('option', null, option); choice.value = option; if (option === control.value) choice.selected = true; node.append(choice); }
+        const words = new Map((control.choices ?? []).map((choice) => [choice.value, choice.label]));
+        for (const option of control.options) { const choice = el('option', null, words.get(option) ?? option); choice.value = option; if (option === control.value) choice.selected = true; node.append(choice); }
         node.addEventListener('change', () => save(control, node.value, node));
       } else if (control.type === 'switch') {
         node = sxSwitch(control.invert ? control.value === false : control.value === true, (next, box) => save(control, control.invert ? !next : next, box), { label: control.label });

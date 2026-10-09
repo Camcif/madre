@@ -8,6 +8,7 @@ import { BISHOP_SIGN_DAYS, activeContracts, channelKey, normalizeContract, signC
 import { loadConfig, updateConfig } from '../src/config.mjs';
 import { ensureSalasProject, knownRooms, projectRoomId, salasRoomId } from '../src/salas.mjs';
 import { createChat, listChats, touchChat } from '../src/chats.mjs';
+import { defineModule } from '../src/modules/sdk.mjs';
 import { createPulseServer } from '../src/server.mjs';
 
 // BISHOP, fase 4c (docs/MACROVERSO.md): S-030 (@madre only answers), the link wizard, the modes,
@@ -86,6 +87,31 @@ test('bishop · a conversation named or previewed by an old relayed message show
     assert.equal(two.preview, 'BISHOP', 'a preview cut inside the header shows only the sender');
   } finally {
     await rm(roomDir, { recursive: true, force: true });
+  }
+});
+
+test('bishop · its card says its settings and its state in words, never in the values it saves', async () => {
+  // The SDK: a select may carry the words for each value; a word for a value it does not have is refused.
+  const plain = defineModule({ id: 'probe', name: 'Probe', controls: [{ key: 'level', type: 'select', choices: [{ value: 'low', label: 'Low: a little' }, { value: 'high', label: 'High: a lot' }] }] });
+  assert.deepEqual(plain.controls[0].options, ['low', 'high']);
+  assert.deepEqual(plain.controls[0].choices, [{ value: 'low', label: 'Low: a little' }, { value: 'high', label: 'High: a lot' }]);
+  assert.throws(() => defineModule({ id: 'probe-2', name: 'Probe', controls: [{ key: 'level', type: 'select', options: ['low'], choices: [{ value: 'mid', label: 'Mid' }] }] }), /not one of its options/);
+
+  const state = await scratch('madre-bishop-words-');
+  try {
+    const projectRoot = await ensureSalasProject(state);
+    const crew = [{ id: 'madre', detected: true, ready: true }, { id: 'codex', detected: true, ready: true }];
+    const card = async (bishopSettings) => bishop.describe({ projectRoot, stateRoot: state, agents: crew, config: { modules: { bishop: bishopSettings } } });
+    const withCodex = await card({ enabled: true, agent: 'codex', mode: 'hybrid', links: 'bishop' });
+    const words = (key) => Object.fromEntries(withCodex.controls.find((control) => control.key === key).choices.map((choice) => [choice.value, choice.label]));
+    assert.deepEqual(words('agent'), { madre: '@madre · only answers', codex: '@codex' });
+    assert.deepEqual(words('mode'), { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' });
+    assert.deepEqual(words('links'), { bishop: 'BISHOP signs them, for 7 days at most', you: 'You sign them' });
+    assert.equal(withCodex.status.detail, 'on · @codex · hybrid orders · BISHOP signs links to read');
+    assert.equal((await card({ enabled: true, agent: null })).status.detail, 'on · @madre · only answers');
+    assert.equal((await card({ enabled: false })).status.detail, 'off');
+  } finally {
+    await rm(state, { recursive: true, force: true });
   }
 });
 

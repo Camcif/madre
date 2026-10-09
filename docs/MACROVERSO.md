@@ -548,3 +548,13 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   encabezado). Pruebas en `test/ui-smoke.test.mjs`, `test/bishop-orders.test.mjs` y
   `test/bishop-4c.test.mjs`. Verificado en la sala `pulse`: tres órdenes, incluida una del formato
   viejo, sin ningún «BISHOP ›» visible.
+- `2026-10-08` · Segunda corrección de UX: los ajustes de BISHOP en crudo. Los selectores mostraban
+  los valores que se guardan (`manual / hybrid / auto`, `bishop / you`) y el estado de la ficha decía
+  «on · @claude · hybrid» en inglés. El SDK gana `choices: [{ value, label }]` en un `select` (la
+  frase que se lee por cada valor; se traduce con el resto de la ficha; una frase para un valor que
+  no existe se rechaza), y las dos pantallas que pintan ajustes de módulo (la ficha en MÓDULOS y
+  Ajustes) la usan. BISHOP la declara para sus tres ajustes («@madre · solo responde», «Manual: cada
+  orden espera tu botón», «Híbrido: #0 y #1 salen solas», «Automático: hasta #2 salen solas», «Los
+  firma BISHOP, por 7 días como máximo», «Los firmas tú») y arma su estado en el idioma de la sala
+  («encendido · @claude · órdenes manuales · BISHOP firma los de lectura»); las notas se acortan
+  porque las opciones ya se explican. `docs/SDK.md` lo documenta. Verificado en la ficha.
