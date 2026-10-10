@@ -210,6 +210,11 @@ function card(room) {
   const state = stateOf(room);
   const node = el('article', `sm-tile sm-card is-${state.key}${room.here ? ' here' : ''}`);
   node.dataset.room = room.id;
+  // To the bar: dragged there, or pinned from its right-click.
+  node.draggable = true;
+  node.addEventListener('dragstart', (event) => pinsDragOut(event, room));
+  node.addEventListener('dragend', () => pinsDropEnd());
+  node.addEventListener('contextmenu', (event) => pinsMenu(event, room));
 
   const head = el('header', 'sm-card-head');
   head.append(el('h3', null, room.name));
@@ -287,6 +292,7 @@ function draw() {
   // The macroverse wants a large screen: on a small one SALAS is the whole of it.
   ui.macro.hidden = !data.rooms.length || window.innerWidth < 900;
   macro?.update(data.rooms, data.enlaces ?? []);
+  settingsSheet?.sync();
 }
 
 // The projects, as the search box and the filter leave them. Nothing is hidden by the filter
@@ -376,6 +382,7 @@ async function loadAgents() {
   agentsSeen = answer;
   drawAttention();
   drawTopbar();
+  settingsSheet?.sync();
 }
 // MADRE itself: the version this room runs and the newest one it knows of.
 async function loadVersion() {
@@ -384,93 +391,7 @@ async function loadVersion() {
   versionSeen = answer;
   drawAttention();
   drawTopbar();
-}
-
-// APPEARANCE, in the settings sheet: the theme and the accent, chosen at once, on the room's own
-// rail. The same three words and the same colours as PERSONALIZE in the room.
-function themeSeg() {
-  const { theme } = readLooks();
-  const seg = el('div', 'sx-seg');
-  seg.setAttribute('role', 'radiogroup');
-  seg.setAttribute('aria-label', t('Theme'));
-  for (const [value, words] of [['auto', t('Automatic')], ['light', t('Light')], ['dark', t('Dark')]]) {
-    const one = button(null, words, () => saveLooks({ theme: value }));
-    one.setAttribute('role', 'radio');
-    one.setAttribute('aria-checked', String(theme === value));
-    seg.append(one);
-  }
-  return seg;
-}
-function papers() {
-  const { wallpaper } = readLooks();
-  const grid = el('div', 'sm-papers');
-  grid.setAttribute('role', 'radiogroup');
-  grid.setAttribute('aria-label', t('Wallpaper'));
-  for (const value of WALLPAPERS) {
-    const paper = button('paper', null, () => saveLooks({ wallpaper: value }));
-    paper.dataset.wp = value;
-    paper.setAttribute('role', 'radio');
-    paper.setAttribute('aria-checked', String(wallpaper === value));
-    paper.append(el('span', 'paper-swatch'), el('span', 'paper-name', WALLPAPER_WORDS[value]()));
-    grid.append(paper);
-  }
-  return grid;
-}
-// A look on the room's rail: its values in its words, the one chosen pressed.
-function lookSeg(label, values, words, chosen, pick) {
-  const seg = el('div', 'sx-seg');
-  seg.setAttribute('role', 'radiogroup');
-  if (label) seg.setAttribute('aria-label', label);
-  for (const value of values) {
-    const one = button(null, words[value](), () => pick(value));
-    one.setAttribute('role', 'radio');
-    one.setAttribute('aria-checked', String(chosen === value));
-    seg.append(one);
-  }
-  return seg;
-}
-// A photograph's layer or mesh and its two dials, in the room's own frame and sliders (styles.css,
-// .sx-look .paper-tune and .tune-row): the wallpaper moves under the hand, the choice is kept when
-// the dial is let go.
-function paperTune() {
-  const looks = readLooks();
-  const frame = el('div', 'sx-look sm-tune');
-  const box = el('div', 'paper-tune');
-  box.append(lookSeg(null, ['veil', 'mesh'], { veil: () => t('Layer'), mesh: () => t('Mesh') }, looks.style, (value) => saveLooks({ style: value })));
-  const dial = (name, label) => {
-    const tune = TUNES[name];
-    const line = el('label', 'tune-row');
-    const value = el('span', 'tune-value', tune.shown(looks[name]));
-    const input = el('input', 'tune-range');
-    input.type = 'range';
-    input.min = String(tune.min); input.max = String(tune.max); input.step = String(tune.step);
-    input.value = String(looks[name]);
-    const fill = (v) => input.style.setProperty('--fill', `${((v - tune.min) / (tune.max - tune.min)) * 100}%`);
-    fill(looks[name]);
-    input.addEventListener('input', () => { const v = Number(input.value); tune.apply(v); value.textContent = tune.shown(v); fill(v); });
-    input.addEventListener('change', () => saveTune(name, Number(input.value)));
-    line.append(el('span', 'tune-name', label), input, value);
-    return line;
-  };
-  box.append(dial('veil', t('Intensity')), dial('blur', t('Blur')));
-  frame.append(box);
-  return frame;
-}
-function swatches() {
-  const { accent } = readLooks();
-  const row = el('div', 'sm-swatches');
-  row.setAttribute('role', 'radiogroup');
-  row.setAttribute('aria-label', t('Accent'));
-  for (const id of ACCENTS) {
-    const swatch = button('sm-swatch', null, () => saveLooks({ accent: id }));
-    swatch.dataset.accent = id;
-    swatch.setAttribute('role', 'radio');
-    swatch.setAttribute('aria-checked', String(accent === id));
-    swatch.title = ACCENT_WORDS[id]();
-    swatch.setAttribute('aria-label', swatch.title);
-    row.append(swatch);
-  }
-  return row;
+  settingsSheet?.sync();
 }
 
 // NEEDS YOU: what the person would want to know before anything else, from what the rooms, the
@@ -1192,10 +1113,9 @@ ui.stop.addEventListener('click', async () => {
 });
 
 // ---- THE BAR, as a room's: the logo and where you are (and, served by a project's room, the way
-// back to it); this lobby answering; the projects open, each with how it is and a way into it; the
+// back to it); this lobby answering; the rooms on the bar, each with how it is and a way into it; the
 // agents with their sessions; who waits for you; a newer MADRE; what is running and the key that
 // stops it; the links in force; the macroverse; reload and settings apart, as in the room.
-const BAR_OPEN = 4;   // projects shown open on the bar; the rest are counted
 function drawTopbar() {
   if (!data) return;
   const b = ui.bar;
@@ -1205,28 +1125,8 @@ function drawTopbar() {
   if (here && here.id !== data.salas) { b.backRoom.href = '/'; b.backRoom.lastChild.textContent = here.name; b.backRoom.title = t('Back to the room'); }
   b.live.classList.remove('is-off');
   b.live.lastChild.textContent = data.mac ?? '';
-  // The projects open, the ones that need the person first.
-  const { open } = projectsInOrder();
-  b.open.replaceChildren();
-  for (const room of open.slice(0, BAR_OPEN)) {
-    const state = stateOf(room);
-    const chip = el('a', `sm-tb-room is-${state.key}`);
-    chip.href = addressOf(room);
-    chip.title = `${room.name} · ${state.words}`;
-    chip.append(el('i'), el('span', null, room.name));
-    b.open.append(chip);
-  }
-  if (open.length > BAR_OPEN) {
-    const more = button('sm-tb-room is-more', `+${open.length - BAR_OPEN}`, () => {
-      filter = 'open';
-      for (const one of ui.filter.querySelectorAll('[data-filter]')) one.setAttribute('aria-checked', String(one.dataset.filter === 'open'));
-      drawProjects();
-      ui.projects.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    });
-    more.title = t('{n} open', { n: open.length });
-    b.open.append(more);
-  }
-  b.open.hidden = !open.length;
+  // The rooms on the bar: the open projects, or the ones the person pinned, in their order.
+  drawPins();
   // The agents of this computer, each with its session.
   b.agents.replaceChildren();
   for (const agent of (agentsSeen?.agents ?? []).filter((one) => one.id !== 'madre')) {
@@ -1251,6 +1151,468 @@ function drawTopbar() {
   b.linksCount.hidden = !links;
   b.linksCount.textContent = String(links);
 }
+// ---- THE BAR'S ROOMS, the way you want them (2026-10-10), as the room's bar is arranged (app.js,
+// «The bar, the way you want it»). Until the person arranges it, the bar holds the projects that
+// are open, the ones that need the person first. A project is pinned from its card (right-click
+// it, or drag the card to the bar); right-click a room on the bar and the bar opens for editing:
+// the rooms tremble, each wears a «−», they can be carried to another place, and a card under the
+// bar holds the projects that are not on it yet. What is on the bar, and in which order, is this
+// browser's own (localStorage), as the room keeps its bar.
+const PIN_KEY = 'pulse.lobbyBar';
+const PIN_TYPE = 'application/x-madre-room';
+const PIN_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const PIN_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.4 3.4h5.2l-.9 4.4 2.6 2.6v1.2H5.7v-1.2l2.6-2.6zM10 11.6v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const UNPIN_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.4 3.4h5.2l-.9 4.4 2.6 2.6v1.2H5.7v-1.2l2.6-2.6zM10 11.6v5M3.6 3.6l12.8 12.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ARRANGE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.6" y="5.4" width="14.8" height="9.2" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 10h2.2M11.6 10h2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const pins = {
+  saved: null,          // what this page decided, for when storage will not keep it
+  chips: new Map(),     // room id → its key on the bar
+  badges: new Map(),    // room id → its «−»
+  layer: null,          // where the «−» live, over the rooms
+  more: null,           // «+n», when the rooms do not all fit
+  spilled: [],          // the rooms behind «+n»
+  moreCard: null,
+  card: null,           // the card under the bar while it is being arranged
+  cardSaid: '',
+  menu: null,           // a card's right-click menu
+  editing: false,
+  frame: 0,
+  drag: null,           // a room being carried along the bar
+  dropping: null,       // a project's card being dragged towards the bar
+  slot: null,           // where it would land
+  slotAt: null,
+};
+const motionStill = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+const motionMs = (ms) => ms * (Number.parseFloat(getComputedStyle(root).getPropertyValue('--motion-scale')) || 1);
+
+function pinsStored() {
+  if (pins.saved) return [...pins.saved];
+  try {
+    const raw = JSON.parse(localStorage.getItem(PIN_KEY) ?? 'null');
+    if (Array.isArray(raw) && raw.every((id) => typeof id === 'string')) return [...new Set(raw)];
+  } catch { /* no storage, or not a list: the bar as it comes */ }
+  return null;
+}
+// The rooms on the bar, in their order: the person's, or the open projects until they arrange it.
+// A project that left the lobby is skipped; BISHOP's own room is never a project.
+function pinsShown() {
+  if (!data) return [];
+  const stored = pinsStored();
+  if (!stored) return projectsInOrder().open.map((room) => room.id);
+  const known = new Set(data.rooms.filter((room) => room.id !== data.salas).map((room) => room.id));
+  return stored.filter((id) => known.has(id));
+}
+function pinsWrite(list) {
+  pins.saved = [...list];
+  try { localStorage.setItem(PIN_KEY, JSON.stringify(pins.saved)); } catch { /* this page only */ }
+  drawTopbar();
+  settingsSheet?.sync({ detail: true });
+}
+function pinAdd(id, at = null) {
+  const list = pinsShown().filter((one) => one !== id);
+  list.splice(at === null ? list.length : Math.max(0, Math.min(at, list.length)), 0, id);
+  pinsWrite(list);
+  // It arrives where it was put, growing into its place rather than appearing in it.
+  const chip = pins.chips.get(id);
+  if (chip && typeof chip.animate === 'function' && !motionStill()) chip.animate([{ opacity: 0, scale: '.6' }, { opacity: 1, scale: '1' }], { duration: motionMs(240), easing: 'cubic-bezier(.2, .7, .2, 1)' });
+}
+function pinRemove(id) { pinsWrite(pinsShown().filter((one) => one !== id)); }
+function pinsReset() {
+  pins.saved = null;
+  try { localStorage.removeItem(PIN_KEY); } catch { /* this page only */ }
+  drawTopbar();
+  settingsSheet?.sync({ detail: true });
+}
+
+// A room's key on the bar: its lamp and its name. Open, it is a link to its room; asleep, pressing
+// it wakes it and goes in, as «Open» on its card does.
+function pinChip(id) {
+  let chip = pins.chips.get(id);
+  if (chip) return chip;
+  chip = el('a', 'sm-tb-room');
+  chip.dataset.barItem = id;
+  chip.draggable = false;
+  chip.append(el('i'), el('span'));
+  chip.addEventListener('click', (event) => {
+    if (pins.editing) return;
+    const room = data?.rooms.find((one) => one.id === id);
+    if (!room || room.open) return;
+    event.preventDefault();
+    if (!busy.has(room.id)) void startRoom(room, { enter: true });
+  });
+  chip.addEventListener('keydown', (event) => { if (!chip.hasAttribute('href') && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); chip.click(); } });
+  chip.addEventListener('contextmenu', (event) => { event.preventDefault(); event.pinHandled = true; pinsEdit(!pins.editing); });
+  chip.addEventListener('pointerdown', (event) => { if (pins.editing) pinsDragStart(event, id); });
+  pins.chips.set(id, chip);
+  return chip;
+}
+// Puts the keys where the order says. Only what is out of place moves, so a key that stays is
+// never taken off the page (and keeps its focus, and its tremble).
+function pinsPlace(ids) {
+  const box = ui.bar.open;
+  const want = ids.map((id) => pins.chips.get(id)).filter(Boolean);
+  if (pins.dropping && pins.slot) want.splice(Math.min(pins.slotAt ?? want.length, want.length), 0, pins.slot);
+  want.push(pins.more);
+  let next = pins.layer.parentNode === box ? pins.layer : null;
+  for (let index = want.length - 1; index >= 0; index -= 1) {
+    const node = want[index];
+    if (node.parentNode !== box || node.nextElementSibling !== next) box.insertBefore(node, next);
+    next = node;
+  }
+}
+function drawPins() {
+  const box = ui.bar.open;
+  const ids = pinsShown();
+  for (const id of ids) {
+    const room = data.rooms.find((one) => one.id === id);
+    const state = stateOf(room);
+    const chip = pinChip(id);
+    const lifted = pins.drag?.moved && pins.drag.id === id;
+    chip.className = `sm-tb-room is-${busy.get(id) === 'starting' ? 'working' : state.key}${lifted ? ' bar-lifted' : ''}${pins.dropping === id ? ' is-moving' : ''}`;
+    chip.lastChild.textContent = room.name;
+    chip.title = `${room.name} · ${busy.get(id) === 'starting' ? t('Waking…') : state.words}`;
+    if (room.open) { chip.href = addressOf(room); chip.removeAttribute('role'); chip.removeAttribute('tabindex'); }
+    else { chip.removeAttribute('href'); chip.setAttribute('role', 'button'); chip.tabIndex = 0; }
+  }
+  for (const [id, chip] of pins.chips) if (!ids.includes(id)) { chip.remove(); pins.chips.delete(id); }
+  pinsPlace(pins.drag?.order ?? (pins.dropping ? ids.filter((id) => id !== pins.dropping) : ids));
+  box.hidden = !ids.length && !pins.dropping && !pins.editing;
+  pinsFit();
+  if (pins.editing) { pinsBadges(); pinsDrawCard(); }
+}
+
+// When the rooms do not all fit, the last ones go behind «+n», which opens a small card with them.
+// While the bar is arranged every room shows.
+function pinsFit() {
+  const box = ui.bar.open;
+  for (const chip of pins.chips.values()) chip.classList.remove('is-spilled');
+  pins.spilled = [];
+  pins.more.hidden = true;
+  if (pins.editing || pins.dropping || box.hidden || !box.clientWidth) { pinsCloseMore(); return; }
+  const spills = () => box.scrollWidth > box.clientWidth + 1;
+  if (!spills()) { pinsCloseMore(); return; }
+  pins.more.hidden = false;
+  const ids = pinsShown();
+  while (ids.length && spills()) {
+    const id = ids.pop();
+    pins.chips.get(id)?.classList.add('is-spilled');
+    pins.spilled.unshift(id);
+    pins.more.textContent = `+${pins.spilled.length}`;
+  }
+  pins.more.title = t('{n} more', { n: pins.spilled.length });
+  if (pins.moreCard && !pins.moreCard.hidden) pinsDrawMore();
+}
+function pinTile(room, onPress) {
+  const tile = button('bar-tile', null, onPress);
+  tile.dataset.barItem = room.id;
+  const glyph = el('span', `bar-tile-glyph sm-pin-glyph is-${stateOf(room).key}`);
+  glyph.innerHTML = FOLDER_GLYPH; // trusted: our own SVG string
+  glyph.append(el('i'));
+  tile.append(glyph, el('span', 'bar-tile-name', room.name));
+  return tile;
+}
+function pinsDrawMore() {
+  const card = pins.moreCard ??= (() => { const node = el('div', 'bar-card bar-more-card'); node.setAttribute('role', 'menu'); node.hidden = true; document.body.append(node); return node; })();
+  const grid = el('div', 'bar-grid');
+  for (const id of pins.spilled) {
+    const room = data.rooms.find((one) => one.id === id);
+    if (!room) continue;
+    const tile = pinTile(room, () => { pinsCloseMore(); pins.chips.get(id)?.click(); });
+    tile.setAttribute('role', 'menuitem');
+    grid.append(tile);
+  }
+  card.replaceChildren(grid);
+  card.hidden = false;
+  const key = pins.more.getBoundingClientRect();
+  const width = card.offsetWidth || 240;
+  card.style.top = `${Math.round(key.bottom + 10)}px`;
+  card.style.left = `${Math.round(Math.max(16, Math.min(window.innerWidth - width - 16, key.left)))}px`;
+  card.style.right = 'auto';
+  pins.more.setAttribute('aria-expanded', 'true');
+}
+function pinsCloseMore() {
+  if (pins.moreCard) pins.moreCard.hidden = true;
+  pins.more?.setAttribute('aria-expanded', 'false');
+}
+
+// The «−» of every room on the bar. They live in a layer of their own over the rooms (a link
+// cannot hold a button) and follow their room every frame: its place, its tremble, its carry.
+function pinsBadges() {
+  const ids = pinsShown();
+  for (const [id, badge] of pins.badges) if (!ids.includes(id)) { badge.remove(); pins.badges.delete(id); }
+  ids.forEach((id, index) => {
+    const delay = `${-((index * 97) % 260)}ms`;
+    pins.chips.get(id)?.style.setProperty('--jiggle-delay', delay);
+    let badge = pins.badges.get(id);
+    if (!badge) {
+      const name = data.rooms.find((one) => one.id === id)?.name ?? id;
+      badge = button('bar-badge', null, (event) => { event.stopPropagation(); pinRemove(id); });
+      badge.innerHTML = PIN_MINUS; // trusted: our own SVG string
+      badge.title = t('Remove {name} from the bar', { name });
+      badge.setAttribute('aria-label', badge.title);
+      pins.badges.set(id, badge);
+      pins.layer.append(badge);
+    }
+    badge.style.setProperty('--jiggle-delay', delay);
+  });
+  pinsFollow();
+}
+function pinsFollow() {
+  for (const [id, badge] of pins.badges) {
+    const chip = pins.chips.get(id);
+    badge.hidden = !chip?.offsetWidth;
+    if (badge.hidden) continue;
+    badge.style.left = `${chip.offsetLeft - 5}px`;
+    badge.style.top = `${chip.offsetTop - 5}px`;
+    badge.style.transformOrigin = `${chip.offsetWidth / 2 + 5}px ${chip.offsetHeight / 2 + 5}px`;
+    badge.style.translate = chip.style.translate || '';
+  }
+}
+function pinsTick() {
+  pins.frame = 0;
+  if (!pins.editing) return;
+  pinsFollow();
+  pinsPlaceCard();
+  pins.frame = requestAnimationFrame(pinsTick);
+}
+// The card under the bar: the projects that are not on it, a key to finish, and how to come back.
+function pinsDrawCard() {
+  if (!pins.card) {
+    pins.card = el('section', 'bar-card sm-pins-card');
+    pins.card.setAttribute('role', 'dialog');
+    pins.card.setAttribute('aria-label', t('Add to the bar'));
+    document.body.append(pins.card);
+  }
+  const ids = pinsShown();
+  const offered = projectsInOrder().all.filter((room) => !ids.includes(room.id));
+  // Drawn again only when what it offers changed, so a tile under the pointer stays put.
+  const said = offered.map((room) => `${room.id}:${stateOf(room).key}`).join() + language;
+  if (said === pins.cardSaid && !pins.card.hidden) { pinsPlaceCard(); return; }
+  pins.cardSaid = said;
+  const head = el('header', 'bar-card-head');
+  const done = sxButton(t('Done'), () => pinsEdit(false), { tone: 'primary' });
+  done.classList.add('bar-done');
+  head.append(el('h3', null, t('Add to the bar')), done);
+  const grid = el('div', 'bar-grid');
+  for (const room of offered) {
+    const tile = pinTile(room, () => pinAdd(room.id));
+    tile.title = t('Add {name}', { name: room.name });
+    tile.setAttribute('aria-label', tile.title);
+    grid.append(tile);
+  }
+  pins.card.replaceChildren(head, grid.children.length ? grid : el('p', 'bar-card-empty', t('Everything is already on the bar.')), el('p', 'bar-card-hint', t('Drag a room to move it. A project comes to the bar from its card: right-click it, or drag it here.')));
+  pins.card.hidden = false;
+  pinsPlaceCard();
+}
+function pinsPlaceCard() {
+  const card = pins.card;
+  if (!card || card.hidden) return;
+  const bar = ui.bar.open.closest('.sm-topbar').getBoundingClientRect();
+  const from = ui.bar.open.getBoundingClientRect();
+  const width = card.offsetWidth || 360;
+  card.style.top = `${Math.round(bar.bottom + 10)}px`;
+  card.style.left = `${Math.round(Math.max(16, Math.min(window.innerWidth - width - 16, from.left - 6)))}px`;
+  card.style.right = 'auto';
+}
+function pinsEdit(on) {
+  if (on === pins.editing) return;
+  pins.editing = on;
+  pinsCloseMenu();
+  ui.bar.open.classList.toggle('is-editing', on);
+  if (on) {
+    pins.cardSaid = '';
+    drawPins();
+    pins.card?.querySelector('.bar-tile, .bar-done')?.focus({ preventScroll: true });
+    if (!pins.frame) pins.frame = requestAnimationFrame(pinsTick);
+    return;
+  }
+  cancelAnimationFrame(pins.frame);
+  pins.frame = 0;
+  pinsDragEnd({ save: true });
+  for (const badge of pins.badges.values()) badge.remove();
+  pins.badges.clear();
+  if (pins.card) { pins.card.hidden = true; pins.card.replaceChildren(); }
+  drawPins();
+}
+
+// Carrying a room to another place: it follows the pointer, the others make room as it passes
+// their middle, and it settles where it is let go. The order is saved then.
+function pinsDragStart(event, id) {
+  if (event.button !== 0 || pins.drag) return;
+  const chip = pins.chips.get(id);
+  if (!chip || event.target.closest?.('.bar-badge')) return;
+  const drag = { id, node: chip, x0: event.clientX, base: 0, moved: false, order: pinsShown() };
+  drag.move = (moving) => pinsDragMove(moving);
+  drag.up = () => pinsDragEnd({ save: true });
+  pins.drag = drag;
+  window.addEventListener('pointermove', drag.move);
+  window.addEventListener('pointerup', drag.up);
+  window.addEventListener('pointercancel', drag.up);
+}
+function pinsDragMove(event) {
+  const drag = pins.drag;
+  if (!drag) return;
+  const dx = event.clientX - drag.x0;
+  if (!drag.moved) {
+    if (Math.abs(dx) < 5) return;
+    drag.moved = true;
+    drag.base = drag.node.offsetLeft;
+    drag.node.classList.add('bar-lifted');
+  }
+  const centre = drag.base + dx + drag.node.offsetWidth / 2;
+  const others = drag.order.filter((one) => one !== drag.id).map((one) => [one, pins.chips.get(one)]).filter(([, node]) => node);
+  const past = others.find(([, node]) => centre < node.offsetLeft + node.offsetWidth / 2)?.[0] ?? null;
+  const order = drag.order.filter((one) => one !== drag.id);
+  order.splice(past ? order.indexOf(past) : order.length, 0, drag.id);
+  if (order.join() !== drag.order.join()) {
+    const before = new Map(others.map(([one, node]) => [one, node.offsetLeft]));
+    drag.order = order;
+    pinsPlace(order);
+    // The rooms that moved slide from where they were, instead of jumping.
+    for (const [one, node] of others) {
+      const shift = before.get(one) - node.offsetLeft;
+      if (shift && typeof node.animate === 'function' && !motionStill()) node.animate([{ translate: `${shift}px 0` }, { translate: '0 0' }], { duration: motionMs(180), easing: 'cubic-bezier(.2, .7, .2, 1)' });
+    }
+  }
+  drag.node.style.translate = `${drag.base + dx - drag.node.offsetLeft}px 0`;
+}
+function pinsDragEnd({ save = false } = {}) {
+  const drag = pins.drag;
+  if (!drag) return;
+  pins.drag = null;
+  window.removeEventListener('pointermove', drag.move);
+  window.removeEventListener('pointerup', drag.up);
+  window.removeEventListener('pointercancel', drag.up);
+  if (!drag.moved) return;
+  const from = drag.node.style.translate;
+  drag.node.style.translate = '';
+  drag.node.classList.remove('bar-lifted');
+  if (from && typeof drag.node.animate === 'function' && !motionStill()) drag.node.animate([{ translate: from }, { translate: '0 0' }], { duration: motionMs(160), easing: 'cubic-bezier(.2, .7, .2, 1)' });
+  if (save) pinsWrite(drag.order);
+}
+
+// A project's card, right-clicked: pin it to the bar (or take it off), or arrange the bar.
+function pinsCloseMenu() { pins.menu?.remove(); pins.menu = null; }
+function pinsMenu(event, room) {
+  event.preventDefault();
+  pinsCloseMenu();
+  const menu = el('div', 'bar-card sm-menu');
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', room.name);
+  const item = (words, icon, act) => {
+    const one = button('sm-menu-item', null, () => { pinsCloseMenu(); act(); });
+    one.setAttribute('role', 'menuitem');
+    one.innerHTML = icon; // trusted: our own SVG strings
+    one.append(el('span', null, words));
+    menu.append(one);
+  };
+  const on = pinsShown().includes(room.id);
+  item(on ? t('Remove from the bar') : t('Pin to the bar'), on ? UNPIN_ICON : PIN_ICON, () => (on ? pinRemove(room.id) : pinAdd(room.id)));
+  item(t('Arrange the bar'), ARRANGE_ICON, () => pinsEdit(true));
+  menu.addEventListener('keydown', (key) => {
+    const items = [...menu.querySelectorAll('.sm-menu-item')];
+    const at = items.indexOf(document.activeElement);
+    if (key.key === 'ArrowDown') { key.preventDefault(); items[(at + 1) % items.length].focus(); }
+    if (key.key === 'ArrowUp') { key.preventDefault(); items[(at - 1 + items.length) % items.length].focus(); }
+  });
+  document.body.append(menu);
+  pins.menu = menu;
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  menu.style.left = `${Math.round(Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX)))}px`;
+  menu.style.top = `${Math.round(Math.max(8, Math.min(window.innerHeight - height - 8, event.clientY)))}px`;
+  menu.style.right = 'auto';
+  menu.querySelector('.sm-menu-item')?.focus({ preventScroll: true });
+}
+
+// A project's card, dragged to the bar: the bar shows where it would land, following the pointer,
+// and it is pinned there when it is let go. A room already on the bar is moved instead.
+function pinsDragOut(event, room) {
+  if (!event.dataTransfer) return;
+  event.dataTransfer.setData(PIN_TYPE, room.id);
+  event.dataTransfer.setData('text/plain', room.name);
+  event.dataTransfer.effectAllowed = 'copyMove';
+  pinsCloseMenu();
+  pins.dropping = room.id;
+  pins.slotAt = null;
+  pins.slot = el('span', 'sm-tb-room sm-tb-slot');
+  pins.slot.append(el('i'), el('span', null, room.name));
+  document.body.classList.add('sm-pin-dragging');
+  // The source card stays as it is while it is carried: the lobby is not drawn again under it.
+  requestAnimationFrame(() => drawPins());
+}
+function pinsDropEnd() {
+  if (!pins.dropping) return;
+  pins.dropping = null;
+  pins.slot?.remove();
+  pins.slot = null;
+  pins.slotAt = null;
+  document.body.classList.remove('sm-pin-dragging');
+  drawPins();
+}
+function pinsIndexAt(x) {
+  const ids = pinsShown().filter((id) => id !== pins.dropping);
+  const index = ids.findIndex((id) => { const box = pins.chips.get(id)?.getBoundingClientRect(); return box && x < box.left + box.width / 2; });
+  return index < 0 ? ids.length : index;
+}
+{
+  const box = ui.bar.open;
+  pins.layer = el('div', 'bar-badges');
+  box.append(pins.layer);
+  pins.more = button('sm-tb-room is-more', '', (event) => { event.stopPropagation(); if (pins.moreCard && !pins.moreCard.hidden) pinsCloseMore(); else pinsDrawMore(); });
+  pins.more.hidden = true;
+  pins.more.setAttribute('aria-haspopup', 'menu');
+  box.append(pins.more);
+  const bar = box.closest('.sm-topbar');
+  // While the bar is arranged a room is carried, not followed; a right-click between the rooms
+  // puts the bar back, as a second right-click on a room does.
+  box.addEventListener('click', (event) => {
+    if (!pins.editing || event.target.closest?.('.bar-badge') || !event.target.closest?.('[data-bar-item]')) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+  box.addEventListener('contextmenu', (event) => { if (pins.editing && !event.pinHandled) { event.preventDefault(); pinsEdit(false); } });
+  // A press anywhere but the bar and its card puts the bar back; Escape too.
+  document.addEventListener('pointerdown', (event) => {
+    if (pins.menu && !pins.menu.contains(event.target)) pinsCloseMenu();
+    if (pins.moreCard && !pins.moreCard.hidden && !pins.moreCard.contains(event.target) && !pins.more.contains(event.target)) pinsCloseMore();
+    if (pins.editing && !box.contains(event.target) && !pins.card?.contains(event.target)) pinsEdit(false);
+  }, true);
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (pins.menu) { pinsCloseMenu(); return; }
+    if (pins.moreCard && !pins.moreCard.hidden) { pinsCloseMore(); return; }
+    if (pins.editing) { event.preventDefault(); pinsEdit(false); }
+  });
+  window.addEventListener('resize', () => { pinsCloseMenu(); if (data) drawPins(); });
+  window.addEventListener('scroll', () => pinsCloseMenu(), { passive: true });
+  // The drop: anywhere on the bar, at the place nearest the pointer.
+  bar.addEventListener('dragover', (event) => {
+    if (!pins.dropping || !event.dataTransfer?.types.includes(PIN_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    const at = pinsIndexAt(event.clientX);
+    if (at !== pins.slotAt) { pins.slotAt = at; bar.classList.add('is-drop'); pinsPlace(pinsShown().filter((id) => id !== pins.dropping)); }
+  });
+  bar.addEventListener('dragleave', (event) => {
+    if (!pins.dropping || bar.contains(event.relatedTarget)) return;
+    pins.slotAt = null;
+    bar.classList.remove('is-drop');
+    pinsPlace(pinsShown().filter((id) => id !== pins.dropping));
+  });
+  bar.addEventListener('drop', (event) => {
+    const id = event.dataTransfer?.getData(PIN_TYPE);
+    if (!id) return;
+    event.preventDefault();
+    const at = pins.slotAt ?? pinsIndexAt(event.clientX);
+    bar.classList.remove('is-drop');
+    pinsDropEnd();
+    pinAdd(id, at);
+  });
+  // Another tab arranged the bar: this one follows.
+  window.addEventListener('storage', (event) => { if (event.key === PIN_KEY) { pins.saved = null; if (data) drawPins(); } });
+}
+
 ui.bar.links.addEventListener('click', () => { if ((data?.enlaces ?? []).length) { if (!ui.linksSheet.open) ui.linksSheet.showModal(); } else openLinkSheet(); });
 ui.bar.reload.addEventListener('click', () => location.reload());
 
@@ -1648,91 +2010,478 @@ function openWizard() {
   void agentsStep();
 }
 
-// ---- The lobby's settings: what belongs to the lobby and to every project at once. The looks
-// (kept in this browser, as the room keeps them), the language (MADRE's, for every room), the
-// agents of this computer, and the way back to the first steps. What belongs to one room — its
-// turns, its memory, BISHOP's agent and mode — is set in that room.
+// ---- AJUSTES, as the room's (app.js, SETTINGS_SECTIONS and its sheets; 2026-10-10): a board of
+// three sections, a card per category that already says how it stands and holds the one switch
+// people reach for, the category in a sheet over the board, and one search for any setting. The
+// window is the room's own (styles.css: #settings, .settings-*, .sx-*), not a likeness of it. The
+// lobby sets what is the lobby's — how it looks, what its bar holds, the agents of this Mac,
+// BISHOP's ways in, the projects and the version; a room's turns, memory or permissions are set
+// in that room. Nothing scrolls inside the window: the screen behind it does.
+const SET_SECTIONS = [
+  ['You', 'How the lobby looks and what its bar holds', ['look', 'bar']],
+  ['The crew', 'Who works on this Mac', ['agents', 'bishop']],
+  ['System', 'The projects of this Mac and the version', ['projects', 'release']],
+];
+// The room's own icons where the room has the category (app.js, SETTINGS_CATS); the bar, BISHOP
+// and the projects drawn here in the same hand: 20×20, one round stroke.
+const SET_CATS = {
+  look: { name: 'Appearance', icon: '<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/>' },
+  bar: { name: 'Top bar', icon: '<rect x="2.6" y="5.4" width="14.8" height="9.2" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 10h2.2M11.6 10h2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
+  agents: { name: 'Agents', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  bishop: { name: 'BISHOP', icon: '<path d="M2.6 10c1.7-3.1 4.3-4.8 7.4-4.8s5.7 1.7 7.4 4.8c-1.7 3.1-4.3 4.8-7.4 4.8S4.3 13.1 2.6 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.3" fill="currentColor"/>' },
+  projects: { name: 'Projects', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
+  release: { name: 'Version', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+};
+const SET_ORDER = ['look', 'bar', 'agents', 'bishop', 'projects', 'release'];
+// The words the search knows, each pointing to the category that holds it (app.js, SETTINGS_INDEX).
+const SET_INDEX = [
+  ['look', 'Preview'], ['look', 'Theme'], ['look', 'Accent'], ['look', 'Wallpaper'], ['look', 'Intensity'], ['look', 'Blur'], ['look', 'Bubbles'], ['look', 'Text'], ['look', 'Language'],
+  ['bar', 'Arrange the bar'], ['bar', 'Back to default'],
+  ['bishop', 'Talk to BISHOP'], ['bishop', 'Open BISHOP in a new tab'],
+  ['projects', 'Add a project'], ['projects', 'See the welcome again'],
+  ['release', 'Check now'],
+];
+const THEME_WORDS = { auto: () => t('Automatic'), light: () => t('Light'), dark: () => t('Dark') };
+const catName = (id) => (id === 'bishop' ? 'BISHOP' : t(SET_CATS[id].name));
+const setIcon = (id) => { const span = el('span', 'settings-icon'); span.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${SET_CATS[id].icon}</svg>`; span.style.setProperty('--cat', 'var(--phosphor)'); return span; }; // trusted: our own SVG strings
+const CHEVRON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 6.2 8 10l3.8-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const chevron = (className) => { const mark = el('span', `${className} chev-icon`); mark.innerHTML = CHEVRON; return mark; }; // trusted: our own SVG string
+const fold = (text) => String(text).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const bishopRoom = () => data?.rooms.find((room) => room.id === data.salas) ?? null;
+
+// The pieces every sheet is built from, the room's (app.js, sxBlock, sxRow, sxButton): a block is a
+// card with a title and a line about it, then its rows; a row says what it is on the left and
+// holds its control on the right.
+function sxBlock(host, title, about = null, { aside = null, className = '' } = {}) {
+  const block = el('section', `sx-block${className ? ` ${className}` : ''}`);
+  const head = el('header', 'sx-head');
+  const words = el('div', 'sx-words');
+  words.append(el('h3', null, title));
+  if (about) words.append(el('p', null, about));
+  head.append(words);
+  if (aside) head.append(aside);
+  block.rows = el('div', 'sx-rows');
+  block.append(head, block.rows);
+  host.append(block);
+  return block;
+}
+function sxRow(block, label, hint, control = null, { stack = false } = {}) {
+  const row = el('div', `sx-row${stack ? ' stack' : ''}`);
+  const words = el('div', 'sx-words');
+  words.append(el('b', null, label));
+  if (hint) words.append(el('span', 'sx-hint', hint));
+  row.append(words);
+  if (control) { const box = el('div', 'sx-control'); box.append(control); row.append(box); }
+  block.rows.append(row);
+  return row;
+}
+const sxButton = (words, click, { tone = null } = {}) => button(`sx-btn${tone ? ` ${tone}` : ''}`, words, click);
+// A choice of a few, on the rail PERSONALIZE uses (app.js, drawCustom, segmented).
+function customSeg(options, current, pick, size = '') {
+  const seg = el('div', `custom-seg${size ? ` ${size}` : ''}`);
+  seg.setAttribute('role', 'radiogroup');
+  for (const [value, words] of options) {
+    const option = button('seg-option', words, () => { if (value !== current) pick(value); });
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(value === current));
+    seg.append(option);
+  }
+  return seg;
+}
+
+// How each category stands, in a line, from what the lobby already knows; nothing is guessed.
+function setStatus(id) {
+  const looks = readLooks();
+  if (id === 'look') return { line: `${THEME_WORDS[looks.theme]()} · ${WALLPAPER_WORDS[looks.wallpaper]()} · ${ACCENT_WORDS[looks.accent]()}` };
+  if (id === 'bar') {
+    if (!pinsStored()) return { line: t('The open projects, as they open') };
+    const count = pinsShown().length;
+    return { line: count ? t('{n} rooms pinned', { n: count }) : t('Nothing pinned') };
+  }
+  if (id === 'agents') {
+    if (!agentsSeen) return { line: t('Reading…') };
+    const here = agentsSeen.agents.filter((agent) => agent.id !== 'madre' && agent.detected);
+    const off = here.filter((agent) => !agentState(agent, agentsSeen).ok);
+    return { line: t('{n} of {total} signed in', { n: here.length - off.length, total: here.length }), warn: off.length ? t('{agents} without a session', { agents: off.map((agent) => agent.label ?? agent.id).join(', ') }) : null };
+  }
+  if (id === 'bishop') { const room = bishopRoom(); return { line: room ? stateOf(room).words : t('Reading…') }; }
+  if (id === 'projects') {
+    if (!data) return { line: t('Reading…') };
+    const { all, open } = projectsInOrder();
+    return { line: t('{n} projects · {open} open', { n: all.length, open: open.length }) };
+  }
+  if (id === 'release') {
+    if (!versionSeen) return { line: t('Reading…') };
+    return { line: `MADRE ${versionSeen.current} · ${versionSeen.available ? t('{version} available', { version: versionSeen.latest }) : t('up to date')}`, warn: versionSeen.available ? t('{version} is on npm', { version: versionSeen.latest }) : null };
+  }
+  return { line: '' };
+}
+
+// The one thing people reach for, on the card itself: changing it opens nothing.
+function setQuick(id) {
+  const rows = el('div', 'settings-quick');
+  const add = (label, control) => { const row = el('div', 'settings-quick-row'); row.append(el('span', null, label), control); rows.append(row); };
+  if (id === 'look') {
+    const { theme } = readLooks();
+    const seg = el('div', 'settings-seg');
+    for (const [value, word] of [['auto', t('Auto')], ['light', t('Light')], ['dark', t('Dark')]]) {
+      seg.append(button(value === theme ? 'on' : null, word, (event) => { event.stopPropagation(); saveLooks({ theme: value }); }));
+    }
+    add(t('Theme'), seg);
+  }
+  if (id === 'bar') add(t('Arrange the bar'), sxButton(t('Arrange'), (event) => { event.stopPropagation(); settingsSheet?.close(); pinsEdit(true); }));
+  if (id === 'agents' && agentsSeen) {
+    for (const agent of agentsSeen.agents.filter((one) => one.id !== 'madre' && one.detected)) {
+      const state = agentState(agent, agentsSeen);
+      const row = el('div', 'settings-quick-row agent');
+      const who = el('span', 'who', agent.label ?? agent.id);
+      who.style.setProperty('--agent', brandOf(agent.id).color);
+      row.append(who, el('span', `state session-lamp ${state.ok ? 'on ok' : state.key === 'bad' ? 'off bad' : 'wait'}`, state.ok ? t('signed in') : state.key === 'bad' ? t('no session') : t('unknown')));
+      rows.append(row);
+    }
+  }
+  return rows.children.length ? rows : null;
+}
+
+// What MADRE looks like with these choices: the room's preview, built as the room builds it
+// (app.js, drawCustom), wearing the choices, so the bubbles and the text — which the lobby has no
+// conversation to show — are seen before they are lived with.
+function lookPreview(looks) {
+  const preview = el('div', 'look-preview');
+  preview.setAttribute('aria-hidden', 'true');
+  Object.assign(preview.dataset, { accent: looks.accent, bubbles: looks.bubbles, text: looks.text, wallpaper: looks.wallpaper, wpStyle: looks.style });
+  preview.style.setProperty('--veil-k', String(looks.veil / 100));
+  preview.style.setProperty('--wp-blur', `${looks.blur}px`);
+  preview.dataset.scheme = root.dataset.scheme ?? 'dark';
+  const line = el('div', 'system');
+  line.append(el('b', null, t('MEMORY')), t('Read 8 exchanges and kept 5 memories.'));
+  const agent = el('div', 'row assistant');
+  const col = el('div', 'col');
+  const who = el('div', 'who');
+  who.append(el('span', null, 'CODEX'), el('span', 'badge mode m2', '#2 CREATE'), el('span', 'badge ash', 'ASH'));
+  const bubble = el('div', 'bubble');
+  bubble.append(t('The room keeps what you decide. '), el('b', null, t('Bold reads like this')), ' · ', el('code', null, 'npm test'));
+  col.append(who, bubble);
+  agent.append(el('span', 'avatar'), col);
+  const you = el('div', 'row user');
+  const yours = el('div', 'col');
+  const stamp = el('div', 'stamp');
+  stamp.append(el('span', 'to', '→ @codex'), el('span', null, '08:46 PM'));
+  yours.append(el('div', 'bubble', t('Show me how my messages look.')), stamp);
+  you.append(yours);
+  preview.append(line, agent, you, el('span', 'look-button', t('A BUTTON')));
+  return preview;
+}
+
+// The sheets. Appearance is the room's own sheet of PERSONALIZE inside AJUSTES (app.js,
+// drawCustom with customWindow.instant): the preview first, then the colours, the wallpaper, the
+// conversation and the language, each applied as it is touched.
+function fillLook(host) {
+  host.classList.add('settings-look');
+  const looks = readLooks();
+  host.append(el('p', 'sx-intro', t('Kept in this browser, for the lobby and for the room served at this address.')));
+  const frame = el('div', 'sx-look');
+  const preview = lookPreview(looks);
+  sxBlock(frame, t('Preview'), t('Your choices, in the bubbles the conversation draws.'), { className: 'sx-preview' }).rows.append(preview);
+  const page = el('div', 'sx-look-controls');
+  frame.append(page);
+
+  const named = el('span', 'custom-current', ACCENT_WORDS[looks.accent]());
+  const colour = sxBlock(page, t('Colour'), null, { aside: named });
+  sxRow(colour, t('Theme'), t('Automatic follows your system.'), customSeg(['auto', 'light', 'dark'].map((value) => [value, THEME_WORDS[value]()]), looks.theme, (value) => saveLooks({ theme: value }), 'three'));
+  const swatches = el('div', 'custom-swatches');
+  swatches.setAttribute('role', 'radiogroup');
+  for (const id of ACCENTS) {
+    const swatch = button('swatch', null, () => saveLooks({ accent: id }));
+    swatch.dataset.swatch = id;
+    swatch.setAttribute('role', 'radio');
+    swatch.setAttribute('aria-checked', String(id === looks.accent));
+    swatch.setAttribute('aria-label', ACCENT_WORDS[id]());
+    // The colour's name sits beside COLOUR: the one picked, or the one under the pointer.
+    const say = () => { named.textContent = ACCENT_WORDS[id](); named.classList.toggle('peek', id !== looks.accent); };
+    const back = () => { named.textContent = ACCENT_WORDS[looks.accent](); named.classList.remove('peek'); };
+    swatch.addEventListener('pointerenter', say);
+    swatch.addEventListener('focus', say);
+    swatch.addEventListener('pointerleave', back);
+    swatch.addEventListener('blur', back);
+    swatches.append(swatch);
+  }
+  sxRow(colour, t('Accent'), t('Each colour in dark (top) and in light (bottom). The permission modes keep their own.'), swatches, { stack: true });
+
+  const photo = looks.wallpaper !== 'default';
+  const papers = el('div', 'custom-papers');
+  papers.setAttribute('role', 'radiogroup');
+  for (const value of WALLPAPERS) {
+    const paper = button('paper', null, () => saveLooks({ wallpaper: value }));
+    paper.dataset.wp = value;
+    paper.setAttribute('role', 'radio');
+    paper.setAttribute('aria-checked', String(value === looks.wallpaper));
+    paper.append(el('span', 'paper-swatch'), el('span', 'paper-name', WALLPAPER_WORDS[value]()));
+    papers.append(paper);
+  }
+  const paperBox = el('div', 'paper-box');
+  paperBox.append(papers);
+  if (photo) {
+    // A photograph: layer or mesh, how strong, how blurred. The dials move the lobby and the
+    // preview while they are dragged, and are kept when they are let go.
+    const tune = el('div', 'paper-tune');
+    tune.append(customSeg([['veil', t('Layer')], ['mesh', t('Mesh')]], looks.style, (value) => saveLooks({ style: value }), 'two'));
+    const dial = (name, label) => {
+      const spec = TUNES[name];
+      const line = el('label', 'tune-row');
+      const value = el('span', 'tune-value', spec.shown(looks[name]));
+      const input = el('input', 'tune-range');
+      input.type = 'range';
+      input.min = String(spec.min); input.max = String(spec.max); input.step = String(spec.step);
+      input.value = String(looks[name]);
+      const fill = (v) => input.style.setProperty('--fill', `${((v - spec.min) / (spec.max - spec.min)) * 100}%`);
+      fill(looks[name]);
+      input.addEventListener('input', () => {
+        const v = Number(input.value);
+        spec.apply(v);
+        if (name === 'veil') preview.style.setProperty('--veil-k', String(v / 100)); else preview.style.setProperty('--wp-blur', `${v}px`);
+        value.textContent = spec.shown(v);
+        fill(v);
+      });
+      input.addEventListener('change', () => saveTune(name, Number(input.value)));
+      line.append(el('span', 'tune-name', label), input, value);
+      return line;
+    };
+    tune.append(dial('veil', t('Intensity')), dial('blur', t('Blur')));
+    paperBox.append(tune);
+  }
+  sxBlock(page, t('Wallpaper'), photo
+    ? t('A photograph wears the room\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+    : t('Behind the lobby, and behind the conversation of the room served at this address. Light and dark each have their own.')).rows.append(paperBox);
+
+  const talk = sxBlock(page, t('Conversation'));
+  sxRow(talk, t('Bubbles'), null, customSeg(BUBBLES.map((value) => [value, BUBBLE_WORDS[value]()]), looks.bubbles, (value) => saveLooks({ bubbles: value })), { stack: true });
+  sxRow(talk, t('Text'), null, customSeg(TEXTS.map((value) => [value, TEXT_WORDS[value]()]), looks.text, (value) => saveLooks({ text: value })), { stack: true });
+
+  const words = sxBlock(page, t('Language'));
+  sxRow(words, t('Interface'), t('The page reloads in it when you choose to.'), customSeg([['es', 'Español'], ['en', 'English']], language, async (code) => {
+    try { localStorage.setItem('pulse.language', code); } catch { /* no storage */ }
+    await post('/api/language', { language: code });
+    location.reload();
+  }, 'two'));
+
+  const atDefault = looks.accent === 'madre' && looks.wallpaper === 'default' && looks.style === 'veil' && looks.veil === TUNES.veil.value && looks.blur === TUNES.blur.value && looks.bubbles === BUBBLES[0] && looks.text === TEXTS[0];
+  if (!atDefault) {
+    const acts = el('div', 'sx-actions end');
+    acts.append(sxButton(t('Back to default'), () => {
+      for (const name of ['veil', 'blur']) saveTune(name, TUNES[name].value);
+      saveLooks({ accent: 'madre', wallpaper: 'default', style: 'veil', bubbles: BUBBLES[0], text: TEXTS[0] });
+    }));
+    page.append(acts);
+  }
+  host.append(frame);
+}
+function fillBar(host) {
+  const block = sxBlock(host, t('Top bar'), t('The rooms you keep at hand, in the order you choose. A project comes to the bar from its card: right-click it, or drag it to the bar.'));
+  const ids = pinsShown();
+  if (!ids.length) sxRow(block, t('Nothing pinned'), null);
+  for (const id of ids) {
+    const room = data.rooms.find((one) => one.id === id);
+    sxRow(block, room.name, stateOf(room).words, sxButton(t('Remove'), () => pinRemove(id)));
+  }
+  const acts = el('div', 'sx-actions end');
+  if (pinsStored()) acts.append(sxButton(t('Back to default'), () => pinsReset()));
+  acts.append(sxButton(t('Arrange the bar'), () => { settingsSheet?.close(); pinsEdit(true); }, { tone: 'primary' }));
+  host.append(acts);
+}
+function fillAgents(host, keep) {
+  const block = sxBlock(host, t('Agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'));
+  const panel = agentsPanel({ onPaint: () => settingsSheet?.sync() });
+  block.rows.append(panel.node);
+  keep(panel.stop);
+  void panel.paint().then(() => panel.live());
+}
+function fillBishop(host) {
+  const room = bishopRoom();
+  const block = sxBlock(host, 'BISHOP', t('Its agent and its mode are chosen in its own room.'));
+  sxRow(block, t('Talk to BISHOP'), room ? stateOf(room).words : null, sxButton(t('Open'), () => { settingsSheet?.close(); openBishop(); }, { tone: 'primary' }));
+  sxRow(block, t('Open BISHOP in a new tab'), null, sxButton(t('Open'), () => openBishop({ newTab: true })));
+}
+function fillProjects(host) {
+  const block = sxBlock(host, t('Projects'), t('A project is a folder: MADRE opens a room for it, with its own conversations and its own memory. Adding it does not open it; you open it from its card.'));
+  sxRow(block, t('Add a project'), null, sxButton(t('Add'), () => { settingsSheet?.close(); openAddSheet(); }, { tone: 'primary' }));
+  sxRow(block, t('See the welcome again'), null, sxButton(t('Open'), () => { settingsSheet?.close(); welcomed = true; openWizard(); }));
+}
+function fillRelease(host) {
+  const info = versionSeen;
+  const block = sxBlock(host, t('Version'), info ? t('You run {version}. Each room updates from its settings, in Version.', { version: info.current }) : null);
+  const check = info?.enabled ? sxButton(t('Check now'), async () => {
+    check.disabled = true;
+    const answer = await fetch('/api/version?force=1', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+    if (answer) versionSeen = answer;
+    drawAttention();
+    drawTopbar();
+    settingsSheet?.sync({ detail: true });
+  }) : null;
+  sxRow(block, `MADRE ${info?.current ?? ''}`.trim(), info ? (info.available ? t('{version} available', { version: info.latest }) : t('up to date')) : t('Reading…'), check);
+  if (info?.available) {
+    const notes = el('a', 'sx-btn primary', t('What it brings'));
+    notes.href = info.release ?? 'https://madre.run';
+    notes.target = '_blank';
+    notes.rel = 'noopener';
+    sxRow(block, `MADRE ${info.latest}`, t('MADRE {version} is out.', { version: info.latest }), notes);
+  }
+}
+const SET_FILL = { look: fillLook, bar: fillBar, agents: fillAgents, bishop: fillBishop, projects: fillProjects, release: fillRelease };
+
 let settingsSheet = null;
 function openSettings(section = null) {
   if (settingsSheet) { settingsSheet.show(section); return; }
-  const dialog = el('dialog', 'sm-sheet sm-wide sm-settings');
-  const inner = el('div', 'sm-sheet-body');
-  const head = el('header', 'sm-sheet-head');
-  head.append(el('h3', null, t('Lobby settings')), closeKey(() => dialog.close()));
-  inner.append(head);
-  const block = (id, title, note) => {
-    const node = el('section', 'sm-set');
-    node.dataset.section = id;
-    node.append(el('h4', null, title));
-    if (note) node.append(el('p', 'hint', note));
-    inner.append(node);
+  const state = { open: null, query: '', stops: [] };
+  const dialog = el('dialog', 'sm-sheet sm-settings');
+  dialog.setAttribute('aria-label', t('Lobby settings'));
+  // The room's window, by its own name, so it wears exactly what the room's wears.
+  const win = el('div', 'sm-sheet-body sm-settings-window');
+  win.id = 'settings';
+  const head = el('header', 'custom-head settings-head');
+  const search = el('label', 'settings-search');
+  search.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 13.2 17 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'; // trusted: our own SVG
+  const input = el('input');
+  input.type = 'search';
+  input.placeholder = t('Search any setting');
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.setAttribute('aria-label', t('Search any setting'));
+  search.append(input);
+  head.append(el('span', 'custom-title', t('SETTINGS')), search, closeKey(() => dialog.close()));
+  const body = el('div', 'sm-settings-body');
+  win.append(head, body);
+  dialog.append(win);
+  document.body.append(dialog);
+
+  const stop = () => { for (const one of state.stops.splice(0)) one(); };
+  const card = (id) => {
+    const status = setStatus(id);
+    const node = el('div', `settings-card${state.open === id ? ' open' : ''}`);
+    node.tabIndex = 0;
+    node.setAttribute('role', 'button');
+    node.dataset.cat = id;
+    const top = el('div', 'settings-card-head');
+    top.append(setIcon(id), el('b', null, catName(id)), chevron('settings-go'));
+    node.append(top, el('p', 'settings-line', status.line));
+    if (status.warn) node.append(el('p', 'settings-warn', status.warn));
+    const quick = setQuick(id);
+    if (quick) node.append(quick);
+    node.addEventListener('click', () => openCategory(id));
+    node.addEventListener('keydown', (event) => { if (event.target === node && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openCategory(id); } });
     return node;
   };
-  const row = (words, control, note) => {
-    const line = el('div', 'sm-set-row');
-    const name = el('span', null, words);
-    if (note) name.append(el('small', 'sm-set-note', note));
-    line.append(name, control);
-    return line;
+  const board = () => {
+    const node = el('div', 'settings-board');
+    for (const [name, sub, ids] of SET_SECTIONS) {
+      const section = el('section', 'settings-section');
+      const top = el('header');
+      top.append(el('b', null, t(name)), el('span', null, t(sub)));
+      const cards = el('div', 'settings-cards');
+      for (const id of ids) cards.append(card(id));
+      section.append(top, cards);
+      node.append(section);
+    }
+    return node;
   };
-
-  const looks = block('looks', t('Appearance'), t('Kept in this browser, for the lobby and for the room served at this address.'));
-  const looksRows = el('div', 'sm-set-rows');
-  looks.append(looksRows);
-  const languages = el('div', 'sx-seg');
-  for (const [code, name] of [['es', 'Español'], ['en', 'English']]) {
-    const one = button(null, name, async () => {
-      if (code === language) return;
-      try { localStorage.setItem('pulse.language', code); } catch { /* no storage */ }
-      await post('/api/language', { language: code });
-      location.reload();
-    });
-    one.setAttribute('role', 'radio');
-    one.setAttribute('aria-checked', String(code === language));
-    languages.append(one);
-  }
-  // The room's PERSONALIZE, all of it: theme, accent, wallpaper (and, for a photograph, its layer or
-  // mesh and its dials), bubbles, the conversation's text and the language.
-  const paintLooks = () => {
-    const looks = readLooks();
-    const wall = row(t('Wallpaper'), papers());
-    wall.classList.add('stack');
-    if (looks.wallpaper !== 'default') wall.append(paperTune());
-    looksRows.replaceChildren(
-      row(t('Theme'), themeSeg()),
-      row(t('Accent'), swatches()),
-      wall,
-      row(t('Bubbles'), lookSeg(t('Bubbles'), BUBBLES, BUBBLE_WORDS, looks.bubbles, (value) => saveLooks({ bubbles: value })), t('In the conversation of the room served at this address.')),
-      row(t('Text in the conversation'), lookSeg(t('Text in the conversation'), TEXTS, TEXT_WORDS, looks.text, (value) => saveLooks({ text: value }))),
-      row(t('Language'), languages),
-    );
+  const detail = (id) => {
+    const node = el('div', 'settings-detail');
+    const top = el('div', 'settings-detail-head');
+    const title = el('div', 'settings-detail-title');
+    const back = el('button', 'settings-back');
+    back.type = 'button';
+    back.title = t('Back to settings');
+    back.setAttribute('aria-label', t('Back to settings'));
+    back.append(chevron('settings-back-icon'));
+    back.addEventListener('click', () => closeCategory());
+    title.append(back, setIcon(id), el('b', null, catName(id)));
+    top.append(title, el('p', 'settings-line', setStatus(id).line));
+    const host = el('div', 'settings-host');
+    node.append(top, host);
+    SET_FILL[id](host, (one) => state.stops.push(one));
+    return node;
   };
-  paintLooks();
-
-  const agents = block('agents', t('Agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'));
-  const panel = agentsPanel();
-  agents.append(panel.node);
-
-  const bishop = block('bishop', 'BISHOP', t('Its agent and its mode are chosen in its own room.'));
-  const bishopKeys = el('div', 'sm-set-keys');
-  bishopKeys.append(button('sm-btn ghost small', t('Talk to BISHOP'), () => { dialog.close(); openBishop(); }), button('sm-btn ghost small', t('Open BISHOP in a new tab'), () => openBishop({ newTab: true })));
-  bishop.append(bishopKeys);
-
-  const projects = block('projects', t('Projects'), null);
-  const projectKeys = el('div', 'sm-set-keys');
-  projectKeys.append(button('sm-btn ghost small', t('Add a project'), () => { dialog.close(); openAddSheet(); }), button('sm-btn ghost small', t('See the welcome again'), () => { dialog.close(); welcomed = true; openWizard(); }));
-  projects.append(projectKeys);
-
-  dialog.append(inner);
-  document.body.append(dialog);
+  const results = () => {
+    const wanted = fold(state.query.trim());
+    const list = el('div', 'settings-results');
+    const hits = [];
+    for (const id of SET_ORDER) if (fold(catName(id)).includes(wanted)) hits.push([id, null]);
+    for (const [id, key] of SET_INDEX) if (fold(t(key)).includes(wanted)) hits.push([id, t(key)]);
+    for (const agent of agentsSeen?.agents ?? []) if (agent.id !== 'madre' && fold(agent.label ?? agent.id).includes(wanted)) hits.push(['agents', agent.label ?? agent.id]);
+    if (!hits.length) { list.append(el('p', 'settings-reading', t('Nothing called «{query}».', { query: state.query.trim() }))); return list; }
+    for (const [id, said] of hits.slice(0, 40)) {
+      const row = el('button', 'settings-result');
+      row.type = 'button';
+      row.append(setIcon(id), el('b', null, said ?? catName(id)), el('span', null, catName(id)));
+      row.addEventListener('click', () => { state.query = ''; input.value = ''; openCategory(id, said); });
+      list.append(row);
+    }
+    return list;
+  };
+  const draw = () => {
+    stop();
+    if (state.query.trim()) { body.replaceChildren(results()); return; }
+    if (!state.open) { body.replaceChildren(board()); return; }
+    const scrim = el('div', 'settings-scrim');
+    scrim.addEventListener('click', () => closeCategory());
+    const sheet = el('div', 'settings-sheet');
+    const scroll = el('div', 'settings-scroll');
+    scroll.append(detail(state.open));
+    sheet.append(scroll);
+    body.replaceChildren(board(), scrim, sheet);
+  };
+  const openCategory = (id, landOn = null) => {
+    state.open = id;
+    draw();
+    dialog.scrollTop = 0;
+    if (!landOn) { body.querySelector('.settings-back')?.focus({ preventScroll: true }); return; }
+    // Land on the setting the search found, once its sheet has drawn.
+    let tries = 0;
+    const land = () => {
+      const hit = [...body.querySelectorAll('.settings-detail :is(.sx-row b, .sx-head h3, .tune-name, button)')].find((node) => fold(node.textContent).includes(fold(landOn)));
+      if (hit) { hit.scrollIntoView({ block: 'center', behavior: 'smooth' }); const row = hit.closest('.sx-row, .tune-row, .sx-block') ?? hit; row.classList.add('settings-found'); setTimeout(() => row.classList.remove('settings-found'), 1600); return; }
+      if ((tries += 1) < 20) setTimeout(land, 150);
+    };
+    setTimeout(land, 60);
+  };
+  const closeCategory = () => {
+    const was = state.open;
+    state.open = null;
+    draw();
+    body.querySelector(`.settings-card[data-cat="${was}"]`)?.focus({ preventScroll: true });
+  };
+  input.addEventListener('input', () => { state.query = input.value; draw(); });
+  // Escape steps back the way the person came: out of the search, out of the sheet, then away.
+  dialog.addEventListener('cancel', (event) => {
+    if (state.query) { event.preventDefault(); state.query = ''; input.value = ''; draw(); return; }
+    if (state.open) { event.preventDefault(); closeCategory(); }
+  });
+  // What the lobby learns while the window is open (an agent signs in, a version is found, a
+  // project opens) reaches the cards and the sheet's line; a card that says the same is left alone,
+  // so nothing under the pointer or the keyboard is drawn again for nothing.
+  const sync = ({ detail: again = false } = {}) => {
+    if (state.query.trim()) return;
+    for (const old of body.querySelectorAll('.settings-card')) {
+      const fresh = card(old.dataset.cat);
+      if (fresh.outerHTML !== old.outerHTML) old.replaceWith(fresh);
+    }
+    const line = body.querySelector('.settings-detail-head .settings-line');
+    if (line && state.open) line.textContent = setStatus(state.open).line;
+    // The sheet stays where it is (it slid in once); only what is inside it is drawn again.
+    const scroll = body.querySelector('.settings-scroll');
+    if (again && state.open && scroll) { stop(); scroll.replaceChildren(detail(state.open)); }
+  };
+  // A look changed (here, in a room's PERSONALIZE at this address, or in another tab): the cards
+  // say so, and Appearance is drawn again with it.
+  const paintLooks = () => { sync({ detail: state.open === 'look' }); };
   const show = (wanted) => {
     if (!dialog.open) dialog.showModal();
-    if (wanted) inner.querySelector(`[data-section="${wanted}"]`)?.scrollIntoView({ block: 'start' });
+    if (wanted && SET_FILL[wanted]) openCategory(wanted); else draw();
   };
-  settingsSheet = { show, paintLooks };
-  dialog.addEventListener('close', () => { panel.stop(); dialog.remove(); settingsSheet = null; });
+  const close = () => dialog.close();
+  settingsSheet = { show, paintLooks, sync, close };
+  dialog.addEventListener('close', () => { stop(); dialog.remove(); settingsSheet = null; });
   show(section);
-  void panel.paint().then(() => panel.live());
 }
 ui.gear.addEventListener('click', () => openSettings());
 
@@ -1741,7 +2490,7 @@ function translateStatic() {
   ui.title.textContent = t('Lobby');
   ui.add.textContent = t('Add a project');
   ui.bar.crumb.textContent = t('Lobby');
-  ui.bar.open.setAttribute('aria-label', t('Open projects'));
+  ui.bar.open.setAttribute('aria-label', t('Rooms on the bar'));
   ui.bar.agents.setAttribute('aria-label', t('Agents'));
   ui.bar.links.querySelector('span').textContent = t('Links');
   ui.bar.reload.title = t('Reload the page');
@@ -1786,7 +2535,7 @@ void loadDecisions();
 if (location.hash === '#welcome') { history.replaceState(null, '', location.pathname); welcomed = true; openWizard(); }
 // Sent here for the Macroverso (the key in BISHOP's room): straight into it, on a large screen.
 if (location.hash === '#macroverso' && data && !ui.macro.hidden) { history.replaceState(null, '', location.pathname); ui.macro.click(); }
-timer = setInterval(() => { if (!document.hidden && !busy.size) void refresh(); }, 4000);
+timer = setInterval(() => { if (!document.hidden && !busy.size && !pins.dropping && !pins.drag) void refresh(); }, 4000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { void refresh(); void loadAgents(); void loadWork(); void loadDecisions(); } });
 // The decisions are asked again every few minutes (the route itself asks the rooms no oftener).
 setInterval(() => { if (!document.hidden) void loadDecisions(); }, 5 * 60 * 1000);

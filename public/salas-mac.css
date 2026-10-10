@@ -281,27 +281,6 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 .sm-legend .k-question::before { background: var(--mem-question); }
 .sm-legend .k-aberration::before { background: var(--mem-aberration); }
 :root[data-scheme="light"] .sm-legend .k-fact::before { background: #b9c6d6; }
-.sm-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
-.sm-swatch { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: var(--acc); box-shadow: var(--key-rest); cursor: pointer; }
-.sm-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface, var(--panel)), 0 0 0 4px var(--acc); }
-.sm-swatch:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
-
-/* The lobby's settings: one sheet, a section per thing it sets. */
-.sm-settings .sm-sheet-body { gap: 22px; }
-.sm-set { display: grid; gap: 10px; scroll-margin-top: 12px; }
-.sm-set h4 { margin: 0; font-size: 15px; font-weight: 650; color: var(--text); }
-.sm-set-rows { display: grid; gap: 0; padding: 2px 14px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
-.sm-set-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 11px 0; border-top: 1px solid var(--line); font-size: 14px; }
-.sm-set-row:first-child { border-top: 0; }
-.sm-set-row .sm-swatches { max-width: 380px; justify-content: flex-end; }
-.sm-set-keys { display: flex; flex-wrap: wrap; gap: 8px; }
-.sm-set-row.stack { display: grid; justify-content: stretch; }
-.sm-set-row > span:has(.sm-set-note) { flex: 1 1 200px; min-width: 0; }
-.sm-set-note { display: block; margin-top: 2px; font-size: 12.5px; color: var(--text-2); }
-.sm-tune .sx-seg { justify-self: start; }
-/* The wallpapers, the room's papers (styles.css, .paper), each shown as itself. */
-.sm-papers { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
-.sm-papers .paper { font-family: var(--read); font-size: 11.5px; }
 .salas-mac .paper:hover { border-color: color-mix(in srgb, var(--s-acc) 40%, var(--line-2)); }
 .salas-mac .paper[aria-checked="true"] { border-color: var(--s-acc); box-shadow: 0 0 0 1px var(--s-acc); }
 
@@ -344,24 +323,32 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 /* Every sheet of the lobby wears the room's window material (styles.css, dialog.settings-window):
    the second ground at 94 %, a light falling from its top, the space behind it blurred. What is
    inside stands on it as the room's cards do. */
-.sm-sheet { width: min(520px, calc(100vw - 32px)); margin: auto; padding: 0; border: 0; border-radius: 18px; background-color: color-mix(in srgb, var(--bg-2) 94%, transparent); background-image: linear-gradient(180deg, color-mix(in srgb, var(--text) 5%, transparent), transparent 120px); -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2); color: var(--text); box-shadow: 0 34px 90px -30px rgba(0, 0, 0, .55), 0 8px 24px -8px rgba(0, 0, 0, .25); }
-:root[data-scheme="light"] .sm-sheet { background-image: linear-gradient(180deg, rgba(255, 255, 255, .55), transparent 120px); }
+/* A SHEET (2026-10-10): the scroll is outside the window. The dialog is the whole screen, clear,
+   and it is what scrolls, so its bar runs down the screen's edge and the window stays whole,
+   corners and all; nothing inside a window scrolls on its own. Short, the window sits in the
+   middle; long, it starts near the top and the screen carries it. The window is the room's
+   settings window (styles.css, dialog.settings-window): its ground at 94 %, the light above, the
+   blur behind. */
+dialog.sm-sheet { --sm-sheet-w: 520px; position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; color: var(--text); overflow: hidden auto; overscroll-behavior: contain; }
+dialog.sm-sheet[open] { --sm-sheet-pad: 28px; display: flex; flex-direction: column; align-items: center; padding: var(--sm-sheet-pad) 16px; }
+dialog.sm-sheet > .sm-sheet-body { flex: none; width: min(var(--sm-sheet-w), 100%); margin-block: auto; overflow: clip; border-radius: 18px; background-color: color-mix(in srgb, var(--bg-2) 94%, transparent); background-image: linear-gradient(180deg, color-mix(in srgb, var(--text) 5%, transparent), transparent 120px); -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2); box-shadow: 0 34px 90px -30px rgba(0, 0, 0, .55), 0 8px 24px -8px rgba(0, 0, 0, .25); }
+:root[data-scheme="light"] dialog.sm-sheet > .sm-sheet-body { background-image: linear-gradient(180deg, rgba(255, 255, 255, .55), transparent 120px); }
 .sm-sheet::backdrop { background: rgba(0, 0, 0, .45); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.sm-sheet form { display: grid; gap: 16px; padding: 24px 24px 20px; }
-.sm-sheet h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
-.sm-sheet .pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; }
-.sm-sheet .pair .arrow { padding-bottom: 9px; font-size: 18px; color: var(--text-3); text-align: center; }
-.sm-sheet label { display: grid; gap: 5px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
-.sm-sheet select, .sm-sheet input[type="text"] { height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: 14px; box-shadow: var(--key-track); outline: 0; }
-.sm-sheet select:focus, .sm-sheet input[type="text"]:focus { box-shadow: var(--key-down); }
-.sm-sheet .row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13.5px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text); }
-.sm-sheet .row input { accent-color: var(--s-acc); }
-.sm-sheet .hint { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
-.sm-sheet .orders { padding: 12px 14px; border-radius: 12px; background: var(--panel-2); display: grid; gap: 10px; }
-.sm-sheet .orders[hidden] { display: none; }
-.sm-sheet .error { margin: 0; font-size: 13px; color: #ff4d3d; }
-.sm-sheet .error:empty { display: none; }
-.sm-sheet .actions { display: flex; justify-content: flex-end; gap: 8px; }
+.sm-sheet:where(:not(.sm-settings)) form { display: grid; gap: 16px; padding: 24px 24px 20px; }
+.sm-sheet:where(:not(.sm-settings)) h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
+.sm-sheet:where(:not(.sm-settings)) .pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; }
+.sm-sheet:where(:not(.sm-settings)) .pair .arrow { padding-bottom: 9px; font-size: 18px; color: var(--text-3); text-align: center; }
+.sm-sheet:where(:not(.sm-settings)) label { display: grid; gap: 5px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.sm-sheet:where(:not(.sm-settings)) select, .sm-sheet:where(:not(.sm-settings)) input[type="text"] { height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: 14px; box-shadow: var(--key-track); outline: 0; }
+.sm-sheet:where(:not(.sm-settings)) select:focus, .sm-sheet:where(:not(.sm-settings)) input[type="text"]:focus { box-shadow: var(--key-down); }
+.sm-sheet:where(:not(.sm-settings)) .row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13.5px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text); }
+.sm-sheet:where(:not(.sm-settings)) .row input { accent-color: var(--s-acc); }
+.sm-sheet:where(:not(.sm-settings)) .hint { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+.sm-sheet:where(:not(.sm-settings)) .orders { padding: 12px 14px; border-radius: 12px; background: var(--panel-2); display: grid; gap: 10px; }
+.sm-sheet:where(:not(.sm-settings)) .orders[hidden] { display: none; }
+.sm-sheet:where(:not(.sm-settings)) .error { margin: 0; font-size: 13px; color: #ff4d3d; }
+.sm-sheet:where(:not(.sm-settings)) .error:empty { display: none; }
+.sm-sheet:where(:not(.sm-settings)) .actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* THE MACROVERSE (macroverso.js): a layer over SALAS, the whole window, always night — it is space,
    in either theme. The words over it keep the room's type and the accent. */
@@ -427,7 +414,8 @@ body.sm-in-macro { overflow: hidden; }
    NOSTROMO's cards are: dark glass, the kind as a dot and a word, the words under it, where it came
    from in small mono. Moved by the header; the one in front carries a rim in its kind's colour. */
 .mv-windows { position: absolute; inset: 0; pointer-events: none; }
-.mv-mem { position: absolute; width: min(340px, 30vw); max-height: min(60vh, 520px); overflow: auto; overscroll-behavior: contain; display: grid; gap: 10px; padding: 14px 16px 14px; border-radius: 16px; background: rgba(22, 22, 25, .95); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 18px 40px -18px rgba(0, 0, 0, .8); color: #f2f1ee; pointer-events: auto; animation: mv-mem-in 220ms var(--ease-out, ease-out); }
+.mv-mem { position: absolute; width: min(340px, 30vw); max-height: min(60vh, 520px); overflow: auto; overscroll-behavior: contain; scrollbar-width: none; display: grid; gap: 10px; padding: 14px 16px 14px; border-radius: 16px; background: rgba(22, 22, 25, .95); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 18px 40px -18px rgba(0, 0, 0, .8); color: #f2f1ee; pointer-events: auto; animation: mv-mem-in 220ms var(--ease-out, ease-out); }
+.mv-mem::-webkit-scrollbar { display: none; }
 .mv-mem.front { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 1px color-mix(in srgb, var(--k, #f2f1ee) 40%, transparent), 0 22px 48px -18px rgba(0, 0, 0, .85); }
 @keyframes mv-mem-in { from { opacity: 0; translate: 0 8px; } }
 .mv-mem header { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: grab; user-select: none; touch-action: none; }
@@ -453,8 +441,8 @@ body.sm-in-macro { overflow: hidden; }
 .sm-mark svg { width: 62%; height: 62%; }
 
 /* Sheets that are wider than the link sheet, and their head. */
-.sm-sheet.sm-wide { width: min(720px, calc(100vw - 32px)); }
-.sm-sheet-body { display: grid; gap: 14px; padding: 20px 24px 20px; max-height: min(84vh, 760px); overflow: auto; }
+.sm-sheet.sm-wide { --sm-sheet-w: 720px; }
+.sm-sheet-body { display: grid; gap: 14px; padding: 20px 24px 20px; }
 .sm-sheet-body > h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
 .sm-sheet-body .hint, .sm-picker .hint { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
 .sm-sheet-body .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
@@ -519,9 +507,7 @@ body.sm-in-macro { overflow: hidden; }
 /* Folders: rows on a raised list, a box to choose each, its kind as a small tag. */
 .sm-picker { display: grid; gap: 16px; }
 .sm-picker h4 { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--text); }
-.sm-folders { display: grid; gap: 0; max-height: 220px; overflow: auto; padding: 2px 12px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
-.sm-folders.tall { max-height: 280px; }
-.sm-picker.compact .sm-folders { max-height: 180px; }
+.sm-folders { display: grid; gap: 0; padding: 2px 12px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
 /* A folder row is a <label> (its box is checked by a click anywhere on it); the link sheet's
    uppercase labels are not its type. */
 .sm-sheet label.sm-folder { font-size: inherit; font-weight: inherit; letter-spacing: 0; text-transform: none; color: var(--text); }
@@ -556,7 +542,7 @@ body.sm-in-macro { overflow: hidden; }
 /* LINKING TWO ROOMS, step by step (salas-mac.js, openLinkSheet), in the room's settings language:
    the step and its question, what it decides; the choices on a card, a row each, the safe one
    marked; and the link as it stands, in a sunk panel under every step. */
-.sm-link-wizard { width: min(640px, calc(100vw - 32px)); }
+.sm-sheet.sm-link-wizard { --sm-sheet-w: 640px; }
 .sm-sheet .settings-switch { display: inline-flex; gap: 0; }
 .salas-mac .settings-switch input:checked + i { background: var(--s-acc); }
 .lw-step { gap: 16px; }
@@ -603,7 +589,7 @@ body.sm-in-macro { overflow: hidden; }
 .scene-link .lw-terms span { padding: 2px 8px; border-radius: 7px; font-size: 11px; line-height: 1.5; color: var(--text-2); background: color-mix(in srgb, var(--surface, var(--panel)) 72%, transparent); white-space: nowrap; }
 .scene-link .lw-terms span:first-child { color: var(--text); font-weight: 600; }
 /* One view, no scrolling: the assistant is compact. */
-.sm-link-wizard .sm-sheet-body { gap: 12px; padding: 18px 22px; max-height: calc(100dvh - 24px); }
+.sm-link-wizard .sm-sheet-body { gap: 12px; padding: 18px 22px; }
 .sm-link-wizard .lw-step { gap: 12px; }
 .sm-link-wizard .lw-intro h3 { font-size: 20px; }
 .sm-link-wizard .lw-lead { font-size: 13.5px; line-height: 1.5; }
@@ -624,3 +610,50 @@ body.sm-in-macro { overflow: hidden; }
   .lw-pick { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .lw-end, .lw-end.is-bishop::before { animation: none; } .lw-wires .sm-wire { animation: none; } }
+
+/* AJUSTES, the room's window (styles.css: #settings, .settings-*, .sx-*), as wide as the room's.
+   Its head stays at the top of the screen while the screen carries the window. The board, the
+   scrim and the sheet over it share one place, so the window is as tall as the taller of the two
+   and nothing inside it scrolls. */
+.sm-sheet.sm-settings { --sm-sheet-w: 980px; }
+.sm-sheet-body.sm-settings-window { display: flex; flex-direction: column; gap: 0; padding: 0; min-height: min(640px, calc(100dvh - 56px)); }
+/* Sticky against the screen's edge, not the layer's padding: the head meets the top of the screen. */
+.sm-settings-window > .settings-head { position: sticky; top: calc(-1 * var(--sm-sheet-pad, 0px)); z-index: 4; cursor: default; touch-action: auto; background: color-mix(in srgb, var(--bg-2) 96%, transparent); -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2); }
+.sm-settings-body { position: relative; flex: 1; display: grid; container: settings / inline-size; }
+.sm-settings-body > * { grid-area: 1 / 1; min-width: 0; }
+.sm-settings-body > .settings-board { align-self: start; overflow: visible; }
+.sm-settings-body > .settings-results { align-self: start; overflow: visible; }
+.sm-settings-body > .settings-scrim { position: absolute; inset: 0; }
+.sm-settings-body > .settings-sheet { position: relative; inset: auto; justify-self: end; width: min(580px, 64%); display: block; overflow: visible; }
+.sm-settings-body .settings-scroll { overflow: visible; }
+@container settings (max-width: 700px) { .sm-settings-body > .settings-sheet { width: 100%; } }
+/* The agents of this Mac, inside their block: the block is the card. */
+.sx-block .sm-agents { padding: 0 16px 6px; border-radius: 0; background: none; box-shadow: none; }
+
+/* THE BAR'S ROOMS, arranged as the room's bar is (styles.css, .bar-editing, .bar-badge, .bar-card):
+   the rooms tremble, each wears a «−», and a card under the bar offers the projects not on it. */
+.sm-tb-open { position: relative; }
+.sm-tb-open.is-editing { padding: 6px; margin: -6px; }
+.sm-tb-open.is-editing > .sm-tb-room[data-bar-item] { animation: bar-jiggle calc(260ms * var(--motion-scale, 1)) ease-in-out infinite; animation-delay: var(--jiggle-delay, 0ms); touch-action: none; cursor: grab; }
+.sm-tb-open.is-editing > .sm-tb-room[data-bar-item]:nth-child(even) { animation-direction: reverse; }
+.sm-tb-open.is-editing > .bar-lifted { position: relative; z-index: 1; cursor: grabbing; animation-play-state: paused; }
+.sm-tb-room:is(.is-spilled, .is-moving) { display: none; }
+.sm-tb-room.is-asleep { color: var(--text-2); }
+.sm-tb-room.is-asleep i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-3); }
+/* A project carried to the bar: where it would land, in its own name, drawn as a key that is not
+   there yet. */
+.sm-tb-room.sm-tb-slot { background: transparent; box-shadow: none; outline: 1.5px dashed color-mix(in srgb, var(--s-acc) 75%, transparent); outline-offset: -1.5px; color: var(--text-2); pointer-events: none; }
+.sm-tb-slot i { background: var(--s-acc); }
+.sm-pins-card .bar-grid, .bar-more-card .bar-grid { max-height: none; overflow: visible; }
+.sm-pin-glyph { position: relative; }
+.sm-pin-glyph svg { width: 20px; height: 17px; }
+.sm-pin-glyph i { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--session-ok); box-shadow: 0 0 0 2px var(--surface, var(--panel)); }
+.sm-pin-glyph.is-asleep i { background: var(--surface, var(--panel)); box-shadow: 0 0 0 2px var(--surface, var(--panel)), inset 0 0 0 1.5px var(--text-3); }
+.sm-pin-glyph:is(.is-waiting, .is-working) i { background: var(--s-acc); }
+.sm-pin-glyph:is(.is-outdated, .is-quiet) i { background: var(--session-wait); }
+/* A project's right-click: the bar card's material, a row per thing it can do. */
+.bar-card.sm-menu { width: auto; min-width: 214px; padding: 6px; display: grid; gap: 2px; }
+.sm-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font-family: var(--read); font-size: 13px; text-align: left; cursor: pointer; }
+.sm-menu-item svg { flex: none; width: 16px; height: 16px; color: var(--phosphor); }
+.sm-menu-item:hover, .sm-menu-item:focus-visible { background: color-mix(in srgb, var(--text) 7%, transparent); outline: none; }
+@media (prefers-reduced-motion: reduce) { .sm-tb-open.is-editing > .sm-tb-room[data-bar-item] { animation: none; } }
