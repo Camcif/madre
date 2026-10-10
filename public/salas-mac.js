@@ -11,7 +11,7 @@ import { brandOf } from './brands.js';
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 const ui = {
-  title: $('sm-title'), sub: $('sm-sub'), stop: $('sm-stop'), macro: $('sm-macro'), foot: $('sm-foot'), gear: $('sm-gear'),
+  title: $('sm-title'), stop: $('sm-stop'), macro: $('sm-macro'), foot: $('sm-foot'), gear: $('sm-gear'),
   bar: { backRoom: $('sm-back-room'), crumb: $('sm-crumb'), live: $('sm-live'), open: $('sm-tb-open'), agents: $('sm-tb-agents'), waiting: $('sm-tb-waiting'), update: $('sm-tb-update'), links: $('sm-tb-links'), linksCount: $('sm-tb-links-count'), reload: $('sm-reload') },
   add: $('sm-add'), search: $('sm-search'), filter: $('sm-filter'), projects: $('sm-projects'), none: $('sm-none'),
   bishop: {
@@ -48,11 +48,31 @@ const revoking = new Set();    // link ids whose row asks before revoking
 // so a choice made here is the room's too when the room is served at this address.
 const ACCENTS = ['madre', 'mountain', 'caribbean', 'phantom', 'malbec', 'dijon', 'pacific', 'love', 'sierra', 'pitahaya', 'papaya', 'agave', 'dinamo', 'marina', 'pulso', 'leal', 'dulce'];
 const ACCENT_WORDS = { madre: () => t('Madre green'), mountain: () => t('Mountain green'), caribbean: () => t('Caribbean blue'), phantom: () => t('Phantom purple'), malbec: () => t('Malbec red'), dijon: () => t('Dijon yellow'), pacific: () => t('Pacific blue'), love: () => t('Love pink'), sierra: () => t('Sierra blue'), pitahaya: () => 'Pitahaya', papaya: () => 'Papaya', agave: () => 'Agave', dinamo: () => t('Dynamo black'), marina: () => t('Marina blue'), pulso: () => t('Pulse green'), leal: () => t('Loyal orange'), dulce: () => t('Sweet yellow') };
+// The wallpapers are the room's (app.js, LOOKS.wallpaper; styles.css, --wp-*): the same images, the
+// same veil, the same «mesh» and blur the room's PERSONALIZE sets, read from the same keys.
+const WALLPAPERS = ['default', 'jarrito', 'canela', 'paradise', 'ventura', 'magna', 'biznaga', 'oceano', 'quila', 'xico', 'tropical', 'tradicion', 'urbania'];
+const WALLPAPER_WORDS = { default: () => t('Default'), jarrito: () => 'Jarrito', canela: () => 'Canela', paradise: () => t('Paradise'), ventura: () => 'Ventura', magna: () => 'Magna', biznaga: () => 'Biznaga', oceano: () => 'Oceano', quila: () => 'Quila', xico: () => 'Xico', tropical: () => 'Tropical', tradicion: () => 'Tradicion', urbania: () => 'Urbania' };
+const LOOK_KEYS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur'];
 function readLooks() {
   let theme = 'auto';
   let accent = null;
-  try { theme = localStorage.getItem('pulse.theme') ?? 'auto'; accent = localStorage.getItem('pulse.accent'); } catch { /* no storage */ }
-  return { theme: ['auto', 'light', 'dark'].includes(theme) ? theme : 'auto', accent: ACCENTS.includes(accent) ? accent : 'madre' };
+  let wallpaper = null;
+  let style = null;
+  let veil = null;
+  let blur = null;
+  try {
+    theme = localStorage.getItem('pulse.theme') ?? 'auto'; accent = localStorage.getItem('pulse.accent'); wallpaper = localStorage.getItem('pulse.wallpaper');
+    style = localStorage.getItem('pulse.wallpaper.style'); veil = localStorage.getItem('pulse.wallpaper.veil'); blur = localStorage.getItem('pulse.wallpaper.blur');
+  } catch { /* no storage */ }
+  const number = (raw, low, high, fallback) => { const value = raw === null ? Number.NaN : Number(raw); return Number.isFinite(value) && value >= low && value <= high ? value : fallback; };
+  return {
+    theme: ['auto', 'light', 'dark'].includes(theme) ? theme : 'auto',
+    accent: ACCENTS.includes(accent) ? accent : 'madre',
+    wallpaper: WALLPAPERS.includes(wallpaper) ? wallpaper : 'default',
+    style: style === 'mesh' ? 'mesh' : 'veil',
+    veil: number(veil, 0, 140, 100),
+    blur: number(blur, 0, 24, 0),
+  };
 }
 function applyLooks() {
   const { theme, accent } = readLooks();
@@ -60,19 +80,26 @@ function applyLooks() {
   if (theme === 'light' || theme === 'dark') root.dataset.theme = theme; else delete root.dataset.theme;
   root.dataset.scheme = theme === 'auto' ? (light ? 'light' : 'dark') : theme;
   if (accent !== 'madre') root.dataset.accent = accent; else delete root.dataset.accent;
+  // The wallpaper, its style and its two dials, as the room applies them (app.js, applyLook, TUNES).
+  const looks = readLooks();
+  if (looks.wallpaper !== 'default') root.dataset.wallpaper = looks.wallpaper; else delete root.dataset.wallpaper;
+  if (looks.style === 'mesh') root.dataset.wpStyle = 'mesh'; else delete root.dataset.wpStyle;
+  root.style.setProperty('--veil-k', String(looks.veil / 100));
+  root.style.setProperty('--wp-blur', `${looks.blur}px`);
 }
 applyLooks();
-function saveLooks({ theme, accent }) {
+function saveLooks({ theme, accent, wallpaper }) {
   try {
     if (theme) localStorage.setItem('pulse.theme', theme);
-    // The first accent is the room as it always was, and is kept as no choice at all (app.js, saveLook).
+    // The first accent (and the first wallpaper) is the room as it always was, kept as no choice at all (app.js, saveLook).
     if (accent) { if (accent === 'madre') localStorage.removeItem('pulse.accent'); else localStorage.setItem('pulse.accent', accent); }
+    if (wallpaper) { if (wallpaper === 'default') localStorage.removeItem('pulse.wallpaper'); else localStorage.setItem('pulse.wallpaper', wallpaper); }
   } catch { /* the choice lasts as long as the page */ }
   applyLooks();
   settingsSheet?.paintLooks();
 }
 window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', applyLooks);
-window.addEventListener('storage', (event) => { if (event.key === 'pulse.theme' || event.key === 'pulse.accent') { applyLooks(); settingsSheet?.paintLooks(); } });
+window.addEventListener('storage', (event) => { if (LOOK_KEYS.includes(event.key)) { applyLooks(); settingsSheet?.paintLooks(); } });
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -219,7 +246,6 @@ function projectsInOrder() {
 function draw() {
   if (!data) return;
   const { all, open } = projectsInOrder();
-  ui.sub.textContent = [data.mac ? t('On {mac}', { mac: data.mac }) : null, all.length === 1 ? t('1 project') : t('{n} projects', { n: all.length }), open.length ? t('{n} open', { n: open.length }) : null].filter(Boolean).join(' · ');
   drawBishop(data.rooms.find((room) => room.id === data.salas) ?? null);
   drawWaiting();
   drawProjects(all);
@@ -346,6 +372,21 @@ function themeSeg() {
     seg.append(one);
   }
   return seg;
+}
+function papers() {
+  const { wallpaper } = readLooks();
+  const grid = el('div', 'sm-papers');
+  grid.setAttribute('role', 'radiogroup');
+  grid.setAttribute('aria-label', t('Wallpaper'));
+  for (const value of WALLPAPERS) {
+    const paper = button('paper', null, () => saveLooks({ wallpaper: value }));
+    paper.dataset.wp = value;
+    paper.setAttribute('role', 'radio');
+    paper.setAttribute('aria-checked', String(wallpaper === value));
+    paper.append(el('span', 'paper-swatch'), el('span', 'paper-name', WALLPAPER_WORDS[value]()));
+    grid.append(paper);
+  }
+  return grid;
 }
 function swatches() {
   const { accent } = readLooks();
@@ -948,7 +989,8 @@ async function closeRoom(room) {
     // This page goes with the room that serves it: it says so, and stops asking.
     clearInterval(timer);
     document.body.classList.add('sm-gone');
-    ui.sub.textContent = t('This room closed. Open MADRE again to come back to the lobby.');
+    ui.none.hidden = false;
+    ui.none.replaceChildren(el('span', null, t('This room closed. Open MADRE again to come back to the lobby.')));
     ui.stop.hidden = true;
     ui.projects.hidden = true;
     return;
@@ -1575,7 +1617,11 @@ function openSettings(section = null) {
     one.setAttribute('aria-checked', String(code === language));
     languages.append(one);
   }
-  const paintLooks = () => looksRows.replaceChildren(row(t('Theme'), themeSeg()), row(t('Accent'), swatches()), row(t('Language'), languages));
+  const paintLooks = () => {
+    const wall = row(t('Wallpaper'), papers());
+    wall.classList.add('stack');
+    looksRows.replaceChildren(row(t('Theme'), themeSeg()), row(t('Accent'), swatches()), wall, row(t('Language'), languages));
+  };
   paintLooks();
 
   const agents = block('agents', t('Agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'));

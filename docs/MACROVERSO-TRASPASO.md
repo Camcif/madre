@@ -53,7 +53,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `e457bd3` | Claude | BISHOP más real (esfera iluminada, nebulosa, ojo sobre la esfera que parpadea y sigue al puntero) y enlazar como asistente paso a paso |
 | `3632ca6` | Claude | Lobby: hojas con el material de la ventana de Ajustes; enlazar rehecho en el lenguaje de Ajustes; carpetas que caen en su casilla; el pulso detrás de las salas |
 | `f9127dc` | Claude | Enlazar: escena al estilo de la bienvenida (nodos, cable que fluye, notas que cruzan) y todo en una vista, sin scroll |
-| *este commit* | Claude | Lobby: barra superior como la de las salas (proyectos abiertos, agentes, te esperan, versión, enlaces, macroverso; recargar y ajustes aparte) |
+| `bc4c5fb` | Claude | Lobby: barra superior como la de las salas (proyectos abiertos, agentes, te esperan, versión, enlaces, macroverso; recargar y ajustes aparte) |
+| *este commit* | Claude | Lobby: sin título ni subtítulo, herramientas al centro; fondo de pantalla de la sala en Ajustes del lobby |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas

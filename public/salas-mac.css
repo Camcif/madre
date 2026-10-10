@@ -17,6 +17,22 @@ body.salas-mac {
     radial-gradient(900px 560px at 108% 8%, color-mix(in srgb, #3dc6ff 11%, transparent), transparent 62%),
     radial-gradient(1200px 700px at 50% 122%, color-mix(in srgb, #ff2a1f 9%, transparent), transparent 64%);
 }
+/* A wallpaper, when one is chosen: the room's own (styles.css, --wp-*), with its veil, its «mesh»
+   and its blur, in place of the sky; the stars go with the sky. */
+:root[data-wallpaper="jarrito"] .sm-sky { background: var(--wp-jarrito); }
+:root[data-wallpaper="canela"] .sm-sky { background: var(--wp-canela); }
+:root[data-wallpaper="paradise"] .sm-sky { background: var(--wp-paradise); }
+:root[data-wallpaper="ventura"] .sm-sky { background: var(--wp-ventura); }
+:root[data-wallpaper="magna"] .sm-sky { background: var(--wp-magna); }
+:root[data-wallpaper="biznaga"] .sm-sky { background: var(--wp-biznaga); }
+:root[data-wallpaper="oceano"] .sm-sky { background: var(--wp-oceano); }
+:root[data-wallpaper="quila"] .sm-sky { background: var(--wp-quila); }
+:root[data-wallpaper="xico"] .sm-sky { background: var(--wp-xico); }
+:root[data-wallpaper="tropical"] .sm-sky { background: var(--wp-tropical); }
+:root[data-wallpaper="tradicion"] .sm-sky { background: var(--wp-tradicion); }
+:root[data-wallpaper="urbania"] .sm-sky { background: var(--wp-urbania); }
+:root[data-wallpaper] .sm-sky { inset: calc(-2 * var(--wp-blur-on, 0px)); filter: blur(var(--wp-blur-on, 0px)); }
+:root[data-wallpaper] .sm-sky::after { display: none; }
 :root:not([data-scheme="light"]) .sm-sky::after {
   content: ''; position: absolute; inset: 0; opacity: .5;
   background-image:
@@ -95,7 +111,7 @@ body.salas-mac {
 .sm-btn[aria-disabled="true"], .sm-icon-key[aria-disabled="true"] { opacity: .45; box-shadow: none; pointer-events: none; }
 
 .sm-main { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 14px 40px 56px; }
-.sm-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; margin: 22px 0 24px; }
+.sm-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 24px; margin: 26px 0 26px; }
 .sm-hero h1 { margin: 0; font-size: clamp(40px, 5vw, 60px); font-weight: 700; letter-spacing: -.025em; line-height: 1.02; }
 .sm-sub { margin: 10px 0 0; font-size: 15px; color: var(--text-2); }
 /* The hero's tools stand on a raised bar, as the room's keys stand on its bar: the search and the
@@ -271,6 +287,12 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 .sm-set-row:first-child { border-top: 0; }
 .sm-set-row .sm-swatches { max-width: 380px; justify-content: flex-end; }
 .sm-set-keys { display: flex; flex-wrap: wrap; gap: 8px; }
+.sm-set-row.stack { display: grid; justify-content: stretch; }
+/* The wallpapers, the room's papers (styles.css, .paper), each shown as itself. */
+.sm-papers { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.sm-papers .paper { font-family: var(--read); font-size: 11.5px; }
+.salas-mac .paper:hover { border-color: color-mix(in srgb, var(--s-acc) 40%, var(--line-2)); }
+.salas-mac .paper[aria-checked="true"] { border-color: var(--s-acc); box-shadow: 0 0 0 1px var(--s-acc); }
 
 @media (max-width: 1180px) { .sm-projects > .sm-tile { grid-column: span 4; } }
 @media (max-width: 920px) {
