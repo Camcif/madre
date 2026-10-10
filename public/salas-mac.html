@@ -15,44 +15,106 @@
         <svg class="brand-logo" viewBox="-4.8 -4.8 377.1 49.6" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g class="pulse" transform="translate(0 0) scale(2.5) translate(0 -2)"><path class="beat" d="M1 10H16L20 10L23.5 2L28 18L32 10L35 10L37 6L39 10H52" stroke-width="1.92" pathLength="100"/><circle class="beat-dot" cx="60" cy="10" r="3" stroke="none"/></g><g class="word" transform="translate(193.5 7)" stroke-width="4.8"><path d="M0 26V0L14 14.3L28 0V26"/><path transform="translate(36.5 0)" d="M0 26V7.8A7.8 7.8 0 0 1 7.8 0H17.2A7.8 7.8 0 0 1 25 7.8V26M0 15.6H25"/><path transform="translate(71.5 0)" d="M0 0H16A12 12 0 0 1 28 12V14A12 12 0 0 1 16 26H0Z"/><path transform="translate(110.5 0)" d="M0 26V0H20.85A7.15 7.15 0 0 1 28 7.15V7.15A7.15 7.15 0 0 1 20.85 14.3H0M15.12 14.3L28 26"/><path transform="translate(146 0)" d="M28 0H0V26H28M0 13H21"/></g></g></svg>
       </a>
       <span class="sm-spacer"></span>
-      <button id="sm-macro" class="sm-macro" type="button" hidden>
-        <svg viewBox="0 0 20 20" aria-hidden="true"><ellipse cx="10" cy="10" rx="8.2" ry="3.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"/><circle cx="10" cy="10" r="2.2" fill="currentColor"/><circle cx="16.4" cy="8.6" r="1.5" fill="currentColor"/><circle cx="4.2" cy="11.6" r="1.1" fill="currentColor" opacity=".7"/></svg>
-        <span>Macroverse</span>
-      </button>
       <button id="sm-stop" class="sm-stop" type="button" hidden>
         <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="5" width="10" height="10" rx="2.6" fill="currentColor"/></svg>
         <span>Stop all</span>
       </button>
+      <button id="sm-macro" class="sm-macro" type="button" hidden>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><ellipse cx="10" cy="10" rx="8.2" ry="3.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"/><circle cx="10" cy="10" r="2.2" fill="currentColor"/><circle cx="16.4" cy="8.6" r="1.5" fill="currentColor"/><circle cx="4.2" cy="11.6" r="1.1" fill="currentColor" opacity=".7"/></svg>
+        <span>Macroverse</span>
+      </button>
+      <button id="sm-gear" class="sm-round" type="button" aria-label="Lobby settings" title="Lobby settings">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M8.65 3.85L8.92 1.97L11.08 1.97L11.35 3.85L13.40 4.69L14.91 3.56L16.44 5.09L15.31 6.60L16.15 8.65L18.03 8.92L18.03 11.08L16.15 11.35L15.31 13.40L16.44 14.91L14.91 16.44L13.40 15.31L11.35 16.15L11.08 18.03L8.92 18.03L8.65 16.15L6.60 15.31L5.09 16.44L3.56 14.91L4.69 13.40L3.85 11.35L1.97 11.08L1.97 8.92L3.85 8.65L4.69 6.60L3.56 5.09L5.09 3.56L6.60 4.69ZM12.6 10a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 1 1 5.2 0Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      </button>
     </header>
     <main class="sm-main">
       <section class="sm-hero">
-        <div class="sm-hero-row">
+        <div class="sm-hero-words">
           <h1 id="sm-title">Lobby</h1>
+          <p id="sm-sub" class="sm-sub"></p>
+        </div>
+        <div class="sm-tools">
+          <label class="sm-search">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <input id="sm-search" type="search" autocomplete="off" spellcheck="false" placeholder="Search a project…" aria-label="Search a project…">
+          </label>
+          <div id="sm-filter" class="sm-seg" role="radiogroup" aria-label="Show">
+            <button type="button" role="radio" data-filter="all" aria-checked="true">All projects</button>
+            <button type="button" role="radio" data-filter="open" aria-checked="false">Open projects</button>
+            <button type="button" role="radio" data-filter="asleep" aria-checked="false">Asleep projects</button>
+          </div>
           <button id="sm-add" class="sm-btn primary sm-add" type="button">Add a project</button>
         </div>
-        <p id="sm-sub" class="sm-sub"></p>
       </section>
-      <section id="sm-bishop" class="sm-group sm-bishop" hidden></section>
-      <section id="sm-open-group" class="sm-group" hidden>
-        <h2 id="sm-open-title"></h2>
-        <div id="sm-open" class="sm-grid" aria-live="polite"></div>
-      </section>
-      <section id="sm-asleep-group" class="sm-group" hidden>
-        <h2 id="sm-asleep-title"></h2>
-        <p id="sm-asleep-note" class="sm-note"></p>
-        <div id="sm-asleep" class="sm-grid"></div>
-      </section>
-      <p id="sm-empty" class="sm-empty" hidden></p>
-      <section id="sm-links-group" class="sm-group sm-links" hidden>
-        <header class="sm-links-head">
-          <h2 id="sm-links-title"></h2>
-          <button id="sm-link" class="sm-btn primary" type="button"></button>
-        </header>
-        <p id="sm-links-note" class="sm-note"></p>
-        <div id="sm-links" class="sm-link-list"></div>
-      </section>
+
+      <div class="sm-bento">
+        <section id="sm-bishop" class="sm-tile sm-bishop c-8 r-3" aria-labelledby="sm-bishop-name">
+          <header class="sm-bishop-head">
+            <span id="sm-bishop-mark"></span>
+            <div class="sm-bishop-words">
+              <h2 id="sm-bishop-name">BISHOP</h2>
+              <p id="sm-bishop-state" class="sm-state"><i class="dot"></i><span></span></p>
+            </div>
+            <div class="sm-bishop-keys">
+              <a id="sm-bishop-go" class="sm-btn primary small" href="/">Talk to BISHOP</a>
+              <a id="sm-bishop-tab" class="sm-round small" href="/" target="_blank" rel="noopener" aria-label="Open BISHOP in a new tab" title="Open BISHOP in a new tab">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 4.5h4v4M15.5 4.5 9 11M8.5 5.5H6.2a1.7 1.7 0 0 0-1.7 1.7v6.6a1.7 1.7 0 0 0 1.7 1.7h6.6a1.7 1.7 0 0 0 1.7-1.7v-2.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+            </div>
+          </header>
+          <p id="sm-bishop-about" class="sm-bishop-about">Your super agent. It reads across your projects, signs the links between them and carries an order from one to another.</p>
+          <div id="sm-bishop-last" class="sm-bishop-last" hidden></div>
+          <div id="sm-bishop-asks" class="sm-bishop-asks" hidden></div>
+          <p id="sm-bishop-error" class="sm-error" hidden></p>
+          <form id="sm-bishop-form" class="sm-ask-box">
+            <input id="sm-bishop-input" type="text" autocomplete="off" maxlength="2000" placeholder="Write to BISHOP about any project…" aria-label="Write to BISHOP about any project…">
+            <button class="sm-send" type="submit" aria-label="Take it to BISHOP" title="Take it to BISHOP">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15.4V4.9M5.6 9.3 10 4.9l4.4 4.4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </form>
+          <p id="sm-bishop-hint" class="sm-hint">BISHOP's room opens with this written; you send it from there.</p>
+        </section>
+
+        <section id="sm-waiting" class="sm-tile sm-waiting c-4 r-1" aria-labelledby="sm-waiting-title">
+          <header class="sm-tile-head"><h2 id="sm-waiting-title">Waiting for you</h2><b id="sm-waiting-count" class="sm-big">0</b></header>
+          <div id="sm-waiting-body" class="sm-waiting-body"></div>
+        </section>
+
+        <section id="sm-links-tile" class="sm-tile sm-links-tile c-4 r-2" aria-labelledby="sm-links-tile-title">
+          <header class="sm-tile-head"><h2 id="sm-links-tile-title">Links</h2><button id="sm-link" class="sm-btn tone small" type="button">Link projects</button></header>
+          <div id="sm-map" class="sm-map"></div>
+          <footer class="sm-tile-foot"><span id="sm-links-sum" class="sm-hint"></span><button id="sm-links-all" class="sm-btn ghost small" type="button">See the links</button></footer>
+        </section>
+      </div>
+
+      <div id="sm-projects" class="sm-bento sm-projects" aria-live="polite"></div>
+      <p id="sm-none" class="sm-none" hidden></p>
+
+      <div class="sm-bento sm-low">
+        <section id="sm-memory" class="sm-tile c-4" aria-labelledby="sm-memory-title">
+          <header class="sm-tile-head"><h2 id="sm-memory-title">Memory</h2><span id="sm-memory-total" class="sm-chip port"></span></header>
+          <div id="sm-memory-body" class="sm-memory-body"></div>
+        </section>
+        <section id="sm-agents" class="sm-tile c-4" aria-labelledby="sm-agents-title">
+          <header class="sm-tile-head"><h2 id="sm-agents-title">Agents</h2><span id="sm-agents-state" class="session-lamp"></span></header>
+          <div id="sm-agents-body" class="sm-agents-row"></div>
+        </section>
+        <section id="sm-looks" class="sm-tile c-4" aria-labelledby="sm-looks-title">
+          <header class="sm-tile-head"><h2 id="sm-looks-title">Appearance</h2><button id="sm-looks-more" class="sm-btn ghost small" type="button">Settings</button></header>
+          <div id="sm-looks-body" class="sm-looks-body"></div>
+        </section>
+      </div>
       <p id="sm-foot" class="sm-foot"></p>
     </main>
+
+    <dialog id="sm-links-sheet" class="sm-sheet sm-wide">
+      <div class="sm-sheet-body">
+        <header class="sm-sheet-head"><h3 id="sm-links-title">Links</h3><button id="sm-links-close" class="sm-x" type="button" aria-label="Close">×</button></header>
+        <p id="sm-links-note" class="hint"></p>
+        <div id="sm-links" class="sm-link-list"></div>
+        <div class="actions"><button id="sm-link-more" class="sm-btn primary" type="button">Link projects</button></div>
+      </div>
+    </dialog>
     <script type="module" src="/salas-mac.js"></script>
   </body>
 </html>

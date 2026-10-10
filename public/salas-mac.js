@@ -11,11 +11,18 @@ import { brandOf } from './brands.js';
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 const ui = {
-  title: $('sm-title'), sub: $('sm-sub'), back: $('sm-back'), stop: $('sm-stop'), macro: $('sm-macro'), empty: $('sm-empty'), foot: $('sm-foot'),
-  open: $('sm-open'), openGroup: $('sm-open-group'), openTitle: $('sm-open-title'),
-  asleep: $('sm-asleep'), asleepGroup: $('sm-asleep-group'), asleepTitle: $('sm-asleep-title'), asleepNote: $('sm-asleep-note'),
-  linksGroup: $('sm-links-group'), linksTitle: $('sm-links-title'), linksNote: $('sm-links-note'), links: $('sm-links'), link: $('sm-link'),
-  add: $('sm-add'), bishop: $('sm-bishop'),
+  title: $('sm-title'), sub: $('sm-sub'), back: $('sm-back'), stop: $('sm-stop'), macro: $('sm-macro'), foot: $('sm-foot'), gear: $('sm-gear'),
+  add: $('sm-add'), search: $('sm-search'), filter: $('sm-filter'), projects: $('sm-projects'), none: $('sm-none'),
+  bishop: {
+    box: $('sm-bishop'), mark: $('sm-bishop-mark'), state: $('sm-bishop-state'), go: $('sm-bishop-go'), tab: $('sm-bishop-tab'), about: $('sm-bishop-about'),
+    last: $('sm-bishop-last'), asks: $('sm-bishop-asks'), error: $('sm-bishop-error'), form: $('sm-bishop-form'), input: $('sm-bishop-input'), hint: $('sm-bishop-hint'),
+  },
+  waiting: { box: $('sm-waiting'), title: $('sm-waiting-title'), count: $('sm-waiting-count'), body: $('sm-waiting-body') },
+  map: $('sm-map'), linksTileTitle: $('sm-links-tile-title'), linksSum: $('sm-links-sum'), linksAll: $('sm-links-all'), link: $('sm-link'),
+  linksSheet: $('sm-links-sheet'), linksTitle: $('sm-links-title'), linksNote: $('sm-links-note'), links: $('sm-links'), linksClose: $('sm-links-close'), linkMore: $('sm-link-more'),
+  memory: { title: $('sm-memory-title'), total: $('sm-memory-total'), body: $('sm-memory-body') },
+  agents: { title: $('sm-agents-title'), state: $('sm-agents-state'), body: $('sm-agents-body') },
+  looks: { title: $('sm-looks-title'), body: $('sm-looks-body'), more: $('sm-looks-more') },
 };
 let language = 'es';
 let timer = 0;
@@ -23,22 +30,45 @@ let arming = 0;
 let data = null;
 let macro = null;              // the macroverse, while it is open
 let welcomed = false;          // the first-run wizard was offered this visit
+let agentsSeen = null;         // what /api/settings said of the agents, last time it was asked
+let filter = 'all';            // which projects show: all, open or asleep
+let query = '';                // what the search box holds
 // What each card is in the middle of, kept across the refreshes that redraw it.
 const busy = new Map();       // room id → 'starting' | 'closing'
 const asking = new Set();      // room ids whose card asks before closing
 const failed = new Map();      // room id → what went wrong, said on its card
 const revoking = new Set();    // link ids whose row asks before revoking
 
-// The room's looks, from this browser: the same keys the room's own page keeps.
-(() => {
+// The room's looks, from this browser: the same keys the room's own page keeps (app.js, LOOKS),
+// so a choice made here is the room's too when the room is served at this address.
+const ACCENTS = ['madre', 'mountain', 'caribbean', 'phantom', 'malbec', 'dijon', 'pacific', 'love', 'sierra', 'pitahaya', 'papaya', 'agave', 'dinamo', 'marina', 'pulso', 'leal', 'dulce'];
+const ACCENT_WORDS = { madre: () => t('Madre green'), mountain: () => t('Mountain green'), caribbean: () => t('Caribbean blue'), phantom: () => t('Phantom purple'), malbec: () => t('Malbec red'), dijon: () => t('Dijon yellow'), pacific: () => t('Pacific blue'), love: () => t('Love pink'), sierra: () => t('Sierra blue'), pitahaya: () => 'Pitahaya', papaya: () => 'Papaya', agave: () => 'Agave', dinamo: () => t('Dynamo black'), marina: () => t('Marina blue'), pulso: () => t('Pulse green'), leal: () => t('Loyal orange'), dulce: () => t('Sweet yellow') };
+function readLooks() {
   let theme = 'auto';
   let accent = null;
   try { theme = localStorage.getItem('pulse.theme') ?? 'auto'; accent = localStorage.getItem('pulse.accent'); } catch { /* no storage */ }
+  return { theme: ['auto', 'light', 'dark'].includes(theme) ? theme : 'auto', accent: ACCENTS.includes(accent) ? accent : 'madre' };
+}
+function applyLooks() {
+  const { theme, accent } = readLooks();
   const light = window.matchMedia?.('(prefers-color-scheme: light)').matches;
-  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme; else delete root.dataset.theme;
   root.dataset.scheme = theme === 'auto' ? (light ? 'light' : 'dark') : theme;
-  if (accent && accent !== 'madre') root.dataset.accent = accent;
-})();
+  if (accent !== 'madre') root.dataset.accent = accent; else delete root.dataset.accent;
+}
+applyLooks();
+function saveLooks({ theme, accent }) {
+  try {
+    if (theme) localStorage.setItem('pulse.theme', theme);
+    // The first accent is the room as it always was, and is kept as no choice at all (app.js, saveLook).
+    if (accent) { if (accent === 'madre') localStorage.removeItem('pulse.accent'); else localStorage.setItem('pulse.accent', accent); }
+  } catch { /* the choice lasts as long as the page */ }
+  applyLooks();
+  drawLooks();
+  settingsSheet?.paintLooks();
+}
+window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', applyLooks);
+window.addEventListener('storage', (event) => { if (event.key === 'pulse.theme' || event.key === 'pulse.accent') { applyLooks(); drawLooks(); } });
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -71,10 +101,14 @@ function askLine(ask) {
 }
 // The folder, as a person writes it: the home folder is ~.
 const homeWord = (path) => String(path ?? '').replace(/^\/(Users|home)\/[^/]+/, '~');
+// Where a room is reached from this page: this one is here, the rest at their own port.
+const addressOf = (room) => (room.here ? '/' : `http://127.0.0.1:${room.open.port}/`);
 
 // The memory kinds, in the colours NOSTROMO gives them (styles.css, --mem-*).
 const KINDS = ['decision', 'fact', 'preference', 'question', 'aberration'];
 const KIND_WORDS = { decision: t('DECISION'), fact: t('FACT'), preference: t('PREFERENCE'), question: t('QUESTION'), aberration: t('ABERRATION') };
+// A kind as a sentence says it: «Decisión», not «DECISIÓN».
+const kindWord = (kind) => { const word = String(KIND_WORDS[kind] ?? kind).toLowerCase(); return word.charAt(0).toUpperCase() + word.slice(1); };
 
 function memoryStrip(census) {
   const strip = el('div', 'sm-strip');
@@ -115,7 +149,7 @@ function button(className, words, onClick) {
 function card(room) {
   const glance = room.glance ?? {};
   const state = stateOf(room);
-  const node = el('article', `sm-card is-${state.key}${room.here ? ' here' : ''}`);
+  const node = el('article', `sm-tile sm-card is-${state.key}${room.here ? ' here' : ''}`);
   node.dataset.room = room.id;
 
   const head = el('header', 'sm-card-head');
@@ -154,14 +188,22 @@ function card(room) {
   else if (doing === 'closing') actions.append(el('span', 'sm-doing', t('Closing…')));
   else if (asking.has(room.id)) {
     const why = room.here ? t('This page closes with it.') : glance.working?.length ? t('What is running stops.') : t('Nothing is running.');
-    actions.append(el('span', 'sm-ask', why), button('sm-btn danger', t('Close it'), () => closeRoom(room)), button('sm-btn ghost', t('Cancel'), () => { asking.delete(room.id); draw(); }));
-  } else if (room.open) {
-    const go = el('a', 'sm-btn primary', room.here ? t('Back to the room') : t('Open'));
-    go.href = room.here ? '/' : `http://127.0.0.1:${room.open.port}/`;
-    actions.append(go);
-    if (!glance.outdated) actions.append(button('sm-btn ghost', t('Close'), () => { failed.delete(room.id); asking.add(room.id); draw(); }));
-  } else if (room.root) {
-    actions.append(button('sm-btn primary', t('Open'), () => startRoom(room, { enter: true })));
+    actions.append(el('span', 'sm-ask', why), button('sm-btn danger small', t('Close it'), () => closeRoom(room)), button('sm-btn ghost small', t('Cancel'), () => { asking.delete(room.id); draw(); }));
+  } else {
+    if (room.open) {
+      const go = el('a', 'sm-btn primary small', room.here ? t('Back to the room') : t('Open'));
+      go.href = addressOf(room);
+      actions.append(go);
+      if (!glance.outdated) actions.append(button('sm-btn ghost small', t('Close'), () => { failed.delete(room.id); asking.add(room.id); draw(); }));
+    } else if (room.root) {
+      actions.append(button('sm-btn primary small', t('Open'), () => startRoom(room, { enter: true })));
+    }
+    // A question about this project starts in BISHOP's box, where it can be read before it goes.
+    const about = button('sm-ask-bishop', null, () => askAbout(room));
+    about.append(mark('bishop', 30));
+    about.title = t('Ask BISHOP about {name}', { name: room.name });
+    about.setAttribute('aria-label', about.title);
+    actions.append(about);
   }
   node.append(actions);
   return node;
@@ -169,35 +211,179 @@ function card(room) {
 
 // Open first, by what needs the person: waiting, then working, then the rest, newest first.
 const ORDER = { waiting: 0, working: 1, calm: 2, quiet: 3, outdated: 4 };
-function draw() {
-  if (!data) return;
-  // BISHOP's own room is not a project: it is the lobby's, drawn as its own section above them.
+// The projects in the order the lobby shows them: the open ones by what needs the person, then
+// the asleep ones, the last opened first. BISHOP's own room is not a project.
+function projectsInOrder() {
   const projects = data.rooms.filter((room) => room.id !== data.salas);
   const open = projects.filter((room) => room.open)
     .sort((a, b) => (ORDER[stateOf(a).key] - ORDER[stateOf(b).key]) || (Date.parse(b.glance?.chat?.at ?? 0) - Date.parse(a.glance?.chat?.at ?? 0)));
   const asleep = projects.filter((room) => !room.open).sort((a, b) => Date.parse(b.lastOpened ?? b.added ?? 0) - Date.parse(a.lastOpened ?? a.added ?? 0));
-  ui.sub.textContent = [data.mac ? t('On {mac}', { mac: data.mac }) : null, projects.length === 1 ? t('1 project') : t('{n} projects', { n: projects.length }), open.length ? t('{n} open', { n: open.length }) : null].filter(Boolean).join(' · ');
+  return { all: [...open, ...asleep], open, asleep };
+}
+function draw() {
+  if (!data) return;
+  const { all, open } = projectsInOrder();
+  ui.sub.textContent = [data.mac ? t('On {mac}', { mac: data.mac }) : null, all.length === 1 ? t('1 project') : t('{n} projects', { n: all.length }), open.length ? t('{n} open', { n: open.length }) : null].filter(Boolean).join(' · ');
   drawBishop(data.rooms.find((room) => room.id === data.salas) ?? null);
+  drawWaiting();
   // The brand leads back to where this page came from; served by BISHOP's own room, it stays here.
   ui.back.href = data.here === data.salas ? '/salas' : '/';
-  ui.openGroup.hidden = !open.length;
-  ui.asleepGroup.hidden = !asleep.length;
-  ui.open.replaceChildren(...open.map(card));
-  ui.asleep.replaceChildren(...asleep.map(card));
-  ui.empty.hidden = Boolean(open.length || asleep.length);
-  if (!projects.length && !welcomed) { welcomed = true; openWizard(); }
+  drawProjects(all);
+  if (!all.length && !welcomed) { welcomed = true; openWizard(); }
   const working = open.some((room) => room.glance?.working?.length);
   ui.stop.hidden = !working;
-  drawLinks();
+  drawLinks(all);
+  drawMemory();
   // The macroverse wants a large screen: on a small one SALAS is the whole of it.
   ui.macro.hidden = !data.rooms.length || window.innerWidth < 900;
   macro?.update(data.rooms, data.enlaces ?? []);
 }
 
+// The projects, as the search box and the filter leave them. Nothing is hidden by the filter
+// without saying so: an empty result says what was asked.
+function shows(room) {
+  if (filter === 'open' && !room.open) return false;
+  if (filter === 'asleep' && room.open) return false;
+  if (!query) return true;
+  const wanted = query.toLocaleLowerCase(language);
+  return room.name.toLocaleLowerCase(language).includes(wanted) || homeWord(room.root).toLocaleLowerCase(language).includes(wanted);
+}
+function drawProjects(all = data ? projectsInOrder().all : []) {
+  if (!data) return;
+  const shown = all.filter(shows);
+  ui.projects.replaceChildren(...shown.map(card));
+  ui.projects.hidden = !shown.length;
+  ui.none.hidden = Boolean(shown.length);
+  ui.none.replaceChildren();
+  if (!all.length) ui.none.append(el('span', null, t('No projects yet. Add the first one.')), button('sm-btn primary small', t('Add a project'), openAddSheet));
+  else if (!shown.length) ui.none.append(el('span', null, query ? t('No project matches «{query}».', { query }) : filter === 'open' ? t('No project is open.') : t('No project is asleep.')));
+}
+ui.search.addEventListener('input', () => { query = ui.search.value.trim(); drawProjects(); });
+for (const choice of ui.filter.querySelectorAll('[data-filter]')) {
+  choice.addEventListener('click', () => {
+    filter = choice.dataset.filter;
+    for (const one of ui.filter.querySelectorAll('[data-filter]')) one.setAttribute('aria-checked', String(one === choice));
+    drawProjects();
+  });
+}
+
+// WAITING FOR YOU: every question an agent asks the person, from every open room, counted in one
+// number; the first ones said, each leading to its room.
+function drawWaiting() {
+  const rooms = data.rooms.filter((room) => room.open && room.glance?.waitingCount);
+  const total = rooms.reduce((sum, room) => sum + room.glance.waitingCount, 0);
+  ui.waiting.count.textContent = String(total);
+  ui.waiting.box.classList.toggle('has', Boolean(total));
+  ui.waiting.body.replaceChildren();
+  if (!total) { ui.waiting.body.append(el('p', 'sm-hint', t('Nobody needs you. When an agent asks for you, it shows here.'))); return; }
+  for (const room of rooms.slice(0, 2)) {
+    const row = el('a', 'sm-waiting-row');
+    row.href = addressOf(room);
+    const first = room.glance.waiting?.[0];
+    row.append(el('b', null, roomLabel(room)), el('span', null, first ? askLine(first) : t('Waiting for you · {n}', { n: room.glance.waitingCount })));
+    ui.waiting.body.append(row);
+  }
+  if (rooms.length > 2) ui.waiting.body.append(el('p', 'sm-hint', t('And {n} more rooms.', { n: rooms.length - 2 })));
+}
+
+// MEMORY: what the open rooms hold, added up, by kind. A room asleep is not asked, so it is not
+// counted, and the tile says so.
+function drawMemory() {
+  const sum = { memories: 0, travelling: 0, kinds: {} };
+  const counted = data.rooms.filter((room) => room.open && room.glance?.census);
+  for (const room of counted) {
+    const census = room.glance.census;
+    sum.memories += census.memories ?? 0;
+    sum.travelling += census.travelling ?? 0;
+    for (const kind of KINDS) sum.kinds[kind] = (sum.kinds[kind] ?? 0) + (census.kinds?.[kind] ?? 0);
+  }
+  ui.memory.total.textContent = t('{n} memories', { n: sum.memories });
+  ui.memory.total.hidden = !counted.length;
+  ui.memory.body.replaceChildren();
+  if (!counted.length) { ui.memory.body.append(el('p', 'sm-hint', t('Open a project to count its memory.'))); return; }
+  ui.memory.body.append(memoryStrip(sum));
+  const legend = el('div', 'sm-legend');
+  for (const kind of KINDS) {
+    if (!sum.kinds[kind]) continue;
+    const item = el('span', `k-${kind}`, `${kindWord(kind)} · ${sum.kinds[kind]}`);
+    legend.append(item);
+  }
+  ui.memory.body.append(legend, el('p', 'sm-hint', [sum.memories ? t('{n} travel', { n: sum.travelling }) : null, t('Counted in the open rooms.')].filter(Boolean).join(' · ')));
+}
+
+// AGENTS: the ones on this computer, with the session each has. Connected once, every project
+// uses them; the settings sheet installs or signs in the one that needs it.
+function agentState(agent, answer) {
+  const session = answer.sessions?.[agent.id]?.state;
+  const busyNow = answer.loggingIn === agent.id;
+  const ok = agent.ready && session !== 'signed-out';
+  return { ok, busyNow, key: ok ? 'ok' : busyNow ? 'wait' : agent.detected ? 'bad' : 'wait', words: ok ? t('Connected') : busyNow ? t('Signing in…') : agent.detected ? t('Not signed in') : t('Not installed') };
+}
+async function loadAgents() {
+  const answer = await fetch('/api/settings', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  if (!answer?.agents) return;
+  agentsSeen = answer;
+  drawAgents();
+}
+function drawAgents() {
+  ui.agents.body.replaceChildren();
+  if (!agentsSeen) return;
+  const list = agentsSeen.agents.filter((agent) => agent.id !== 'madre');
+  const ready = list.filter((agent) => agentState(agent, agentsSeen).ok).length;
+  ui.agents.state.className = `session-lamp ${ready === list.length ? 'ok' : ready ? 'wait' : 'bad'}`;
+  ui.agents.state.textContent = ready === 1 ? t('1 connected') : t('{n} connected', { n: ready });
+  for (const agent of list) {
+    const state = agentState(agent, agentsSeen);
+    const key = button(`sm-agent-key ${state.key}`, null, () => openSettings('agents'));
+    key.append(mark(agent.id, 32));
+    key.title = `${agent.label ?? agent.id} · ${state.words}`;
+    key.setAttribute('aria-label', key.title);
+    ui.agents.body.append(key);
+  }
+  if (ready < list.length) ui.agents.body.append(button('sm-btn tone small sm-connect', t('Connect'), () => openSettings('agents')));
+}
+
+// APPEARANCE: the theme and the accent, chosen here at once. The same three words and the same
+// colours as PERSONALIZE in the room; the rest of the looks belong to the conversation, in there.
+function themeSeg() {
+  const { theme } = readLooks();
+  const seg = el('div', 'sm-seg');
+  seg.setAttribute('role', 'radiogroup');
+  seg.setAttribute('aria-label', t('Theme'));
+  for (const [value, words] of [['auto', t('Automatic')], ['light', t('Light')], ['dark', t('Dark')]]) {
+    const one = button(null, words, () => saveLooks({ theme: value }));
+    one.setAttribute('role', 'radio');
+    one.setAttribute('aria-checked', String(theme === value));
+    seg.append(one);
+  }
+  return seg;
+}
+function swatches() {
+  const { accent } = readLooks();
+  const row = el('div', 'sm-swatches');
+  row.setAttribute('role', 'radiogroup');
+  row.setAttribute('aria-label', t('Accent'));
+  for (const id of ACCENTS) {
+    const swatch = button('sm-swatch', null, () => saveLooks({ accent: id }));
+    swatch.dataset.accent = id;
+    swatch.setAttribute('role', 'radio');
+    swatch.setAttribute('aria-checked', String(accent === id));
+    swatch.title = ACCENT_WORDS[id]();
+    swatch.setAttribute('aria-label', swatch.title);
+    row.append(swatch);
+  }
+  return row;
+}
+function drawLooks() {
+  ui.looks.body.replaceChildren(themeSeg(), swatches());
+}
+ui.looks.more.addEventListener('click', () => openSettings('looks'));
+
 // LINKS (docs/MACROVERSO.md, phase 3c): the contracts between rooms, read from /api/salas, each
 // one revocable here, and the sheet that signs a new one. A contract says which room reads which,
 // what kinds cross and until when; what crosses is counted, never shown.
-const roomName = (id) => data?.rooms.find((room) => room.id === id)?.name ?? id;
+const roomLabel = (room) => (room.id === data?.salas ? 'BISHOP' : room.name);
+const roomName = (id) => { const room = data?.rooms.find((one) => one.id === id); return room ? roomLabel(room) : id === data?.salas ? 'BISHOP' : id; };
 const kindsWords = (kinds) => (kinds ?? []).map((kind) => (KIND_WORDS[kind] ?? kind).toLowerCase()).join(', ');
 // Who reads and who serves, from the contract's own words: `a→b` means the notes travel from a to b.
 function endsOf(enlace) {
@@ -237,18 +423,93 @@ function linkRow(enlace) {
   node.append(actions);
   return node;
 }
-function drawLinks() {
+function drawLinks(projects) {
   const enlaces = data.enlaces ?? [];
   const enough = data.rooms.length >= 2;
-  ui.linksGroup.hidden = !enough && !enlaces.length;
   ui.link.hidden = !enough;
+  ui.linkMore.hidden = !enough;
+  ui.linksAll.hidden = !enlaces.length;
+  const reads = enlaces.reduce((sum, enlace) => sum + (enlace.traffic?.reads24h ?? 0), 0);
+  ui.linksSum.textContent = enlaces.length
+    ? [enlaces.length === 1 ? t('1 in force') : t('{n} in force', { n: enlaces.length }), t('{n} reads in 24 h', { n: reads })].join(' · ')
+    : enough ? t('No links yet.') : t('Add a project to link it.');
   ui.linksNote.textContent = t('A link lets one room read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes that travel into turns cross.');
   ui.links.replaceChildren(...enlaces.map(linkRow));
+  if (!enlaces.length && ui.linksSheet.open) ui.linksSheet.close();
+  drawMap(projects, enlaces);
 }
 async function revokeLink(id) {
   revoking.delete(id);
   await fetch('/api/salas/enlaces/revoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => null);
   await refresh();
+}
+ui.linksAll.addEventListener('click', () => { if (!ui.linksSheet.open) ui.linksSheet.showModal(); });
+ui.linksClose.addEventListener('click', () => ui.linksSheet.close());
+ui.linkMore.addEventListener('click', () => openLinkSheet());
+
+// The map of the links: BISHOP in the middle, the projects round it (the first ten, in the
+// lobby's order), and an arrow for each contract in force, from the room that serves to the one
+// that reads. A project asleep is a dashed ring; nothing here is drawn that the contracts do not say.
+const SVG = 'http://www.w3.org/2000/svg';
+const svgNode = (tag, attributes = {}) => {
+  const node = document.createElementNS(SVG, tag);
+  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
+  return node;
+};
+function drawMap(projects, enlaces) {
+  ui.map.replaceChildren();
+  if (!projects.length) { ui.map.append(el('p', 'sm-hint', t('Your projects show here, round BISHOP, with the links between them.'))); return; }
+  const W = 320, H = 200, cx = W / 2, cy = H / 2 - 6;
+  const shown = projects.slice(0, 10);
+  const at = new Map([[data.salas, { x: cx, y: cy, r: 16 }]]);
+  shown.forEach((room, index) => {
+    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / shown.length + (shown.length === 2 ? Math.PI / 2 : 0);
+    const memories = room.glance?.census?.memories ?? 0;
+    at.set(room.id, { x: cx + Math.cos(angle) * 118, y: cy + Math.sin(angle) * 62, r: room.open ? 7 + Math.min(8, Math.sqrt(memories) / 2) : 7 });
+  });
+  const svg = svgNode('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  svg.setAttribute('aria-label', ui.linksSum.textContent);
+  const defs = svgNode('defs');
+  const arrow = svgNode('marker', { id: 'sm-arrow', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' });
+  arrow.append(svgNode('path', { d: 'M0 0L10 5L0 10z', fill: 'currentColor' }));
+  defs.append(arrow);
+  svg.append(defs);
+  for (const room of shown) { const end = at.get(room.id); svg.append(svgNode('line', { class: 'spoke', x1: cx, y1: cy, x2: end.x, y2: end.y })); }
+  for (const enlace of enlaces) {
+    const { source, reader } = endsOf(enlace);
+    const from = at.get(source), to = at.get(reader);
+    if (!from || !to) continue;
+    // A soft curve, bent to one side, that stops at the edge of each body.
+    const dx = to.x - from.x, dy = to.y - from.y, length = Math.hypot(dx, dy) || 1;
+    const ux = dx / length, uy = dy / length;
+    const start = { x: from.x + ux * (from.r + 3), y: from.y + uy * (from.r + 3) };
+    const end = { x: to.x - ux * (to.r + 4), y: to.y - uy * (to.r + 4) };
+    const bend = { x: (start.x + end.x) / 2 - uy * 26, y: (start.y + end.y) / 2 + ux * 26 };
+    const path = svgNode('path', { class: 'vein', d: `M${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${bend.x.toFixed(1)} ${bend.y.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`, 'marker-end': 'url(#sm-arrow)' });
+    if (enlace.direction === 'both') path.setAttribute('marker-start', 'url(#sm-arrow)');
+    svg.append(path);
+  }
+  for (const room of shown) {
+    const spot = at.get(room.id);
+    const body = svgNode('circle', { class: `node${room.open ? '' : ' asleep'}${room.glance?.waitingCount ? ' waiting' : ''}`, cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: spot.r.toFixed(1) });
+    const title = svgNode('title');
+    title.textContent = `${room.name} · ${stateOf(room).words}`;
+    body.append(title);
+    const name = svgNode('text', { class: 'label', x: spot.x.toFixed(1), y: (spot.y + spot.r + 12).toFixed(1), 'text-anchor': 'middle' });
+    name.textContent = room.name.length > 14 ? `${room.name.slice(0, 13)}…` : room.name;
+    svg.append(body, name);
+  }
+  // BISHOP, in its own colours, with its own mark (brands.js).
+  const brand = brandOf('bishop');
+  const centre = svgNode('g', { class: 'bishop' });
+  centre.append(svgNode('circle', { cx, cy, r: 16, fill: brand.color }));
+  const face = svgNode('g', { transform: `translate(${cx - 10} ${cy - 10})`, color: brand.ink });
+  face.innerHTML = brand.mark(); // trusted: our own SVG string from brands.js
+  face.firstElementChild?.setAttribute('width', '20');
+  face.firstElementChild?.setAttribute('height', '20');
+  centre.append(face);
+  svg.append(centre);
+  ui.map.append(svg);
 }
 
 // The sheet that signs a link. Two rooms, who reads whom (or both), what crosses, until when;
@@ -265,7 +526,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
   const choose = (labelWords, chosen) => {
     const label = el('label', null, labelWords);
     const select = el('select');
-    for (const room of rooms) { const option = el('option', null, room.name); option.value = room.id; if (room.id === chosen) option.selected = true; select.append(option); }
+    for (const room of rooms) { const option = el('option', null, roomLabel(room)); option.value = room.id; if (room.id === chosen) option.selected = true; select.append(option); }
     label.append(select);
     return { label, select };
   };
@@ -382,7 +643,7 @@ ui.link.addEventListener('click', () => openLinkSheet());
 async function refresh() {
   const answer = await fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
   if (!answer) { ui.foot.textContent = t('This room did not answer. It may have closed.'); return; }
-  if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); }
+  if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawLooks(); drawAgents(); }
   data = answer;
   ui.foot.textContent = t('Every project runs on this Mac, in a room of its own, with its own memory.');
   draw();
@@ -415,7 +676,7 @@ async function closeRoom(room) {
     document.body.classList.add('sm-gone');
     ui.sub.textContent = t('This room closed. Open MADRE again to come back to the lobby.');
     ui.stop.hidden = true;
-    for (const group of [ui.openGroup, ui.asleepGroup]) group.hidden = true;
+    ui.projects.hidden = true;
     return;
   }
   if (!answer.ok) { busy.delete(room.id); failed.set(room.id, answer.body.error ?? t('That room did not answer.')); draw(); return; }
@@ -529,7 +790,7 @@ ui.stop.addEventListener('click', async () => {
 const post = (url, payload) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload ?? {}) })
   .then(async (response) => ({ ok: response.ok, status: response.status, body: await response.json().catch(() => ({})) }))
   .catch(() => ({ ok: false, status: 0, body: {} }));
-const mark = (id, size = 40) => {
+function mark(id, size = 40) {
   const brand = brandOf(id);
   const node = el('span', 'sm-mark');
   node.style.setProperty('--b', brand.color);
@@ -537,41 +798,103 @@ const mark = (id, size = 40) => {
   node.style.width = node.style.height = `${size}px`;
   node.innerHTML = brand.mark(); // trusted: our own SVG strings from brands.js
   return node;
-};
+}
 
-// BISHOP, as a section of the lobby: the super agent that reads across the projects, signs links
+// BISHOP, as the heart of the lobby: the super agent that reads across the projects, signs links
 // between them and carries orders from one to another. It lives in a room of its own (MADRE's
-// folder, not a project), so talking to it opens that room; asleep, it is woken first.
+// folder, not a project), so talking to it opens that room, here or in a new tab; asleep, it is
+// woken first. Its last conversation and what it waits for are read from that room; nothing on
+// this tile is said that the room did not say.
+ui.bishop.mark.replaceWith(mark('bishop', 44));
 function drawBishop(room) {
-  const box = ui.bishop;
-  box.hidden = false;
-  box.replaceChildren();
-  const cardNode = el('article', 'sm-bishop-card');
-  const head = el('header', 'sm-bishop-head');
-  const words = el('div', 'sm-bishop-words');
-  words.append(el('h2', null, 'BISHOP'), el('p', null, t('Your super agent. It reads across your projects, signs the links between them and carries an order from one to another.')));
-  head.append(mark('bishop', 44), words);
-  cardNode.append(head);
+  const b = ui.bishop;
   const glance = room?.glance ?? {};
-  const line = el('p', 'sm-state');
-  line.append(el('i', 'dot'), document.createTextNode(room?.open ? stateOf(room).words : t('Asleep')));
-  cardNode.append(line);
-  cardNode.classList.add(`is-${room?.open ? stateOf(room).key : 'asleep'}`);
-  if (glance.waiting?.length) { const wait = el('div', 'sm-wait'); wait.append(el('span', null, askLine(glance.waiting[0]))); cardNode.append(wait); }
-  else if (glance.chat && !glance.outdated) { const chat = el('div', 'sm-chat'); chat.append(el('b', null, chatName(glance.chat.title))); if (glance.chat.preview) chat.append(el('span', null, glance.chat.preview)); cardNode.append(chat); }
-  const actions = el('div', 'sm-actions');
-  const id = data?.salas;
-  if (busy.get(id) === 'starting') actions.append(el('span', 'sm-doing', t('Waking…')));
-  else if (room?.open) {
-    const go = el('a', 'sm-btn primary', t('Talk to BISHOP'));
-    go.href = room.here ? '/' : `http://127.0.0.1:${room.open.port}/`;
-    actions.append(go);
-  } else {
-    actions.append(button('sm-btn primary', t('Talk to BISHOP'), () => startRoom({ id }, { enter: true })));
+  const state = room?.open ? stateOf(room) : { key: 'asleep', words: t('Asleep') };
+  b.box.className = `sm-tile sm-bishop c-8 r-3 is-${state.key}`;
+  b.state.querySelector('span').textContent = state.words;
+  const waking = busy.get(data?.salas) === 'starting';
+  for (const way of [b.go, b.tab]) way.setAttribute('aria-disabled', String(waking));
+  b.go.textContent = waking ? t('Waking…') : t('Talk to BISHOP');
+  syncBishopLinks();
+  // Its last conversation, as the room keeps it: the name and the last line said in it.
+  b.last.replaceChildren();
+  b.last.hidden = !(glance.chat && !glance.outdated);
+  if (!b.last.hidden) {
+    const head = el('div', 'sm-bishop-last-head');
+    head.append(el('span', null, t('Last conversation')), el('time', null, ago(glance.chat.at)));
+    b.last.append(head, el('b', null, chatName(glance.chat.title)));
+    if (glance.chat.preview && glance.chat.preview !== glance.chat.title) b.last.append(el('p', null, glance.chat.preview));
   }
-  if (failed.has(id)) cardNode.append(el('p', 'sm-error', failed.get(id)));
-  cardNode.append(actions);
-  box.append(cardNode);
+  // What it waits for, each one a door into its room.
+  b.asks.replaceChildren();
+  b.asks.hidden = !glance.waiting?.length;
+  if (!b.asks.hidden) {
+    b.asks.append(el('span', 'sm-hint', t('Waiting for you')));
+    for (const ask of glance.waiting.slice(0, 3)) b.asks.append(button('sm-chip ask', askLine(ask), () => openBishop()));
+  }
+  b.error.hidden = !failed.has(data?.salas);
+  b.error.textContent = failed.get(data?.salas) ?? '';
+}
+// Into BISHOP's room, with what the box holds written there (never sent: `#para=` puts it in the
+// room's own box, app.js). Both ways in are links, so ⌘-click and «open in a new tab» do what they
+// always do. Asleep, it is woken first; a new tab is then opened at the press, while the press is
+// still the person's, and sent on when the room answers: a tab opened after waiting is blocked.
+function bishopAddress() {
+  const room = data?.rooms.find((one) => one.id === data.salas);
+  if (!room?.open) return null;
+  const text = ui.bishop.input.value.trim();
+  return `${addressOf(room)}${text ? `#para=${encodeURIComponent(text)}` : ''}`;
+}
+function syncBishopLinks() {
+  const address = bishopAddress() ?? '/salas';
+  ui.bishop.go.href = address;
+  ui.bishop.tab.href = address;
+}
+// Gone to another tab, the lobby stays as it was, without the words it already handed over.
+const handedOver = () => setTimeout(() => { ui.bishop.input.value = ''; syncBishopLinks(); }, 0);
+function wakeBishop({ newTab = false } = {}) {
+  const text = ui.bishop.input.value.trim();
+  const tab = newTab ? window.open('about:blank', '_blank') : null;
+  if (tab) tab.opener = null;
+  void startRoom({ id: data.salas }).then((answer) => {
+    if (!answer.ok || !answer.body.port) { tab?.close(); return; }
+    const address = `http://127.0.0.1:${answer.body.port}/${text ? `#para=${encodeURIComponent(text)}` : ''}`;
+    ui.bishop.input.value = '';
+    syncBishopLinks();
+    if (tab) tab.location.href = address;
+    else location.href = address;
+  });
+}
+function openBishop({ newTab = false } = {}) {
+  if (!data) return;
+  const address = bishopAddress();
+  if (!address) { wakeBishop({ newTab }); return; }
+  if (newTab) { window.open(address, '_blank', 'noopener'); handedOver(); }
+  else location.href = address;
+}
+for (const [way, alwaysNew] of [[ui.bishop.go, false], [ui.bishop.tab, true]]) {
+  way.addEventListener('click', (event) => {
+    if (way.getAttribute('aria-disabled') === 'true' || !data) { event.preventDefault(); return; }
+    const newTab = alwaysNew || event.metaKey || event.ctrlKey || event.shiftKey;
+    // Awake, the link goes where it points; only a new tab leaves the lobby here to tidy.
+    if (bishopAddress()) { if (newTab) handedOver(); return; }
+    event.preventDefault();
+    wakeBishop({ newTab });
+  });
+}
+ui.bishop.input.addEventListener('input', syncBishopLinks);
+ui.bishop.form.addEventListener('submit', (event) => { event.preventDefault(); if (ui.bishop.input.value.trim()) openBishop(); });
+// ⌘↩ (Ctrl+↩) takes it to BISHOP in a new tab and leaves the lobby where it is.
+ui.bishop.input.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && ui.bishop.input.value.trim()) { event.preventDefault(); openBishop({ newTab: true }); }
+});
+function askAbout(room) {
+  const input = ui.bishop.input;
+  input.value = `${t('About {name}:', { name: room.name })} `;
+  ui.bishop.box.scrollIntoView({ block: 'nearest', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  syncBishopLinks();
 }
 
 // ---- Choosing folders. Suggestions first (folders that look like projects in the places people
@@ -678,6 +1001,61 @@ function openAddSheet() {
 }
 ui.add.addEventListener('click', openAddSheet);
 
+// The agents of this computer, each with its session and the one action it needs (install, or
+// sign in), kept current while it is on screen: polled, and told by the room's events what an
+// install or a sign-in says as it goes. The wizard's first step and the settings sheet show it.
+function agentsPanel({ onPaint = null } = {}) {
+  const list = el('div', 'sm-agents');
+  const lastLine = new Map();   // agent → what its install or sign-in said last
+  let poll = 0;
+  let stream = null;
+  const paint = async () => {
+    const answer = await fetch('/api/settings', { cache: 'no-store' }).then((response) => response.json()).catch(() => null);
+    if (!answer?.agents) return;
+    agentsSeen = answer;
+    drawAgents();
+    list.replaceChildren();
+    let ready = 0;
+    for (const agent of answer.agents.filter((one) => one.id !== 'madre')) {
+      const state = agentState(agent, answer);
+      if (state.ok) ready += 1;
+      const item = el('div', `sm-agent${state.ok ? ' ok' : ''}`);
+      const words = el('span', 'sm-agent-words');
+      words.append(el('b', null, agent.label ?? agent.id));
+      words.append(el('small', `session-lamp ${state.key}`, state.words));
+      if (lastLine.has(agent.id) && !state.ok) {
+        const said = lastLine.get(agent.id);
+        const line = el('small', 'sm-agent-line', said.line);
+        if (said.url) { const link = el('a', null, t('Open the sign-in page')); link.href = said.url; link.target = '_blank'; link.rel = 'noopener'; line.append(' ', link); }
+        words.append(line);
+      }
+      item.append(mark(agent.id, 34), words);
+      if (!state.ok && !state.busyNow) {
+        if (!agent.detected && agent.install) item.append(button('sm-btn ghost small', t('Install'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/install`); void paint(); }));
+        else if (agent.detected && agent.login) item.append(button('sm-btn ghost small', t('Sign in'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/login`); void paint(); }));
+      }
+      list.append(item);
+    }
+    onPaint?.(ready);
+  };
+  const live = () => {
+    if (!list.isConnected || poll) return;
+    poll = setInterval(() => { if (!document.hidden) void paint(); }, 2500);
+    try {
+      stream = new EventSource('/api/events');
+      stream.onmessage = (message) => {
+        try {
+          const event = JSON.parse(message.data);
+          if (event.type === 'connection.login.output' || event.type === 'connection.install.output') lastLine.set(event.payload.agent, { line: event.payload.line, url: event.payload.url ?? null });
+          if (/^connection\./.test(event.type)) void paint();
+        } catch { /* not ours */ }
+      };
+    } catch { /* no stream: the poll keeps it current */ }
+  };
+  const stop = () => { clearInterval(poll); poll = 0; stream?.close(); stream = null; };
+  return { node: list, paint, live, stop };
+}
+
 // ---- The first time: three steps. The agents (connected once, for every project: a CLI's session
 // is this computer's, not a project's), the projects, and which to open now.
 let wizard = null;
@@ -688,11 +1066,9 @@ function openWizard() {
   wizard.append(inner);
   document.body.append(wizard);
   let step = 0;
-  let poll = 0;
-  let stream = null;
-  const lastLine = new Map();   // agent → what its install or sign-in said last
+  let panel = null;
   const steps = [t('Agents'), t('Projects'), t('Open')];
-  const stop = () => { clearInterval(poll); poll = 0; stream?.close(); stream = null; };
+  const stop = () => { panel?.stop(); panel = null; };
   const frame = (title, note, body, actions) => {
     stop();
     inner.replaceChildren();
@@ -706,55 +1082,14 @@ function openWizard() {
     inner.append(body, actions);
   };
   async function agentsStep() {
-    const list = el('div', 'sm-agents');
     const actions = el('div', 'actions');
     const next = button('sm-btn primary', t('Continue'), () => { step = 1; projectsStep(); });
     actions.append(next);
-    frame(t('Connect your agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'), list, actions);
-    const paint = async () => {
-      const answer = await fetch('/api/settings', { cache: 'no-store' }).then((response) => response.json()).catch(() => null);
-      if (!answer?.agents) return;
-      const sessions = answer.sessions ?? {};
-      list.replaceChildren();
-      let ready = 0;
-      for (const agent of answer.agents.filter((one) => one.id !== 'madre')) {
-        const session = sessions[agent.id]?.state;
-        const busyNow = answer.loggingIn === agent.id;
-        const ok = agent.ready && session !== 'signed-out';
-        if (ok) ready += 1;
-        const item = el('div', `sm-agent${ok ? ' ok' : ''}`);
-        const words = el('span', 'sm-agent-words');
-        words.append(el('b', null, agent.label ?? agent.id));
-        const lamp = el('small', `session-lamp ${ok ? 'ok' : busyNow ? 'wait' : agent.detected ? 'bad' : 'wait'}`, ok ? t('Connected') : busyNow ? t('Signing in…') : agent.detected ? t('Not signed in') : t('Not installed'));
-        words.append(lamp);
-        if (lastLine.has(agent.id) && !ok) {
-          const said = lastLine.get(agent.id);
-          const line = el('small', 'sm-agent-line', said.line);
-          if (said.url) { const link = el('a', null, t('Open the sign-in page')); link.href = said.url; link.target = '_blank'; link.rel = 'noopener'; line.append(' ', link); }
-          words.append(line);
-        }
-        item.append(mark(agent.id, 34), words);
-        if (!ok && !busyNow) {
-          if (!agent.detected && agent.install) item.append(button('sm-btn ghost small', t('Install'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/install`); void paint(); }));
-          else if (agent.detected && agent.login) item.append(button('sm-btn ghost small', t('Sign in'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/login`); void paint(); }));
-        }
-        list.append(item);
-      }
-      next.textContent = ready ? t('Continue') : t('Continue without agents');
-    };
-    await paint();
-    poll = setInterval(() => { if (!document.hidden) void paint(); }, 2500);
-    // What an install or a sign-in says as it goes, and the page it asks you to open.
-    try {
-      stream = new EventSource('/api/events');
-      stream.onmessage = (message) => {
-        try {
-          const event = JSON.parse(message.data);
-          if (event.type === 'connection.login.output' || event.type === 'connection.install.output') lastLine.set(event.payload.agent, { line: event.payload.line, url: event.payload.url ?? null });
-          if (/^connection\./.test(event.type)) void paint();
-        } catch { /* not ours */ }
-      };
-    } catch { /* no stream: the poll keeps it current */ }
+    const fresh = agentsPanel({ onPaint: (ready) => { next.textContent = ready ? t('Continue') : t('Continue without agents'); } });
+    frame(t('Connect your agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'), fresh.node, actions);
+    panel = fresh;
+    await fresh.paint();
+    fresh.live();
   }
   function projectsStep() {
     const actions = el('div', 'actions');
@@ -791,10 +1126,78 @@ function openWizard() {
     actions.append(button('sm-btn ghost', t('Back'), () => { step = 1; projectsStep(); }), go);
     frame(t('Open what you will use'), t('Each open project runs on this Mac with its own room. The rest stay in the lobby, asleep, until you open them.'), list, actions);
   }
-  wizard.addEventListener('close', () => { stop(); wizard.remove(); wizard = null; });
+  wizard.addEventListener('close', () => { stop(); wizard.remove(); wizard = null; void loadAgents(); });
   wizard.showModal();
   void agentsStep();
 }
+
+// ---- The lobby's settings: what belongs to the lobby and to every project at once. The looks
+// (kept in this browser, as the room keeps them), the language (MADRE's, for every room), the
+// agents of this computer, and the way back to the first steps. What belongs to one room — its
+// turns, its memory, BISHOP's agent and mode — is set in that room.
+let settingsSheet = null;
+function openSettings(section = null) {
+  if (settingsSheet) { settingsSheet.show(section); return; }
+  const dialog = el('dialog', 'sm-sheet sm-wide sm-settings');
+  const inner = el('div', 'sm-sheet-body');
+  const head = el('header', 'sm-sheet-head');
+  head.append(el('h3', null, t('Lobby settings')), button('sm-x', '×', () => dialog.close()));
+  head.lastChild.setAttribute('aria-label', t('Close'));
+  inner.append(head);
+  const block = (id, title, note) => {
+    const node = el('section', 'sm-set');
+    node.dataset.section = id;
+    node.append(el('h4', null, title));
+    if (note) node.append(el('p', 'hint', note));
+    inner.append(node);
+    return node;
+  };
+  const row = (words, control) => { const line = el('div', 'sm-set-row'); line.append(el('span', null, words), control); return line; };
+
+  const looks = block('looks', t('Appearance'), t('Kept in this browser, for the lobby and for the room served at this address.'));
+  const looksRows = el('div', 'sm-set-rows');
+  looks.append(looksRows);
+  const languages = el('div', 'sm-seg');
+  for (const [code, name] of [['es', 'Español'], ['en', 'English']]) {
+    const one = button(null, name, async () => {
+      if (code === language) return;
+      try { localStorage.setItem('pulse.language', code); } catch { /* no storage */ }
+      await post('/api/language', { language: code });
+      location.reload();
+    });
+    one.setAttribute('role', 'radio');
+    one.setAttribute('aria-checked', String(code === language));
+    languages.append(one);
+  }
+  const paintLooks = () => looksRows.replaceChildren(row(t('Theme'), themeSeg()), row(t('Accent'), swatches()), row(t('Language'), languages));
+  paintLooks();
+
+  const agents = block('agents', t('Agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'));
+  const panel = agentsPanel();
+  agents.append(panel.node);
+
+  const bishop = block('bishop', 'BISHOP', t('Its agent and its mode are chosen in its own room.'));
+  const bishopKeys = el('div', 'sm-set-keys');
+  bishopKeys.append(button('sm-btn ghost small', t('Talk to BISHOP'), () => { dialog.close(); openBishop(); }), button('sm-btn ghost small', t('Open BISHOP in a new tab'), () => openBishop({ newTab: true })));
+  bishop.append(bishopKeys);
+
+  const projects = block('projects', t('Projects'), null);
+  const projectKeys = el('div', 'sm-set-keys');
+  projectKeys.append(button('sm-btn ghost small', t('Add a project'), () => { dialog.close(); openAddSheet(); }), button('sm-btn ghost small', t('See the welcome again'), () => { dialog.close(); welcomed = true; openWizard(); }));
+  projects.append(projectKeys);
+
+  dialog.append(inner);
+  document.body.append(dialog);
+  const show = (wanted) => {
+    if (!dialog.open) dialog.showModal();
+    if (wanted) inner.querySelector(`[data-section="${wanted}"]`)?.scrollIntoView({ block: 'start' });
+  };
+  settingsSheet = { show, paintLooks };
+  dialog.addEventListener('close', () => { panel.stop(); dialog.remove(); settingsSheet = null; });
+  show(section);
+  void panel.paint().then(() => panel.live());
+}
+ui.gear.addEventListener('click', () => openSettings());
 
 function translateStatic() {
   document.title = `MADRE · ${t('Lobby')}`;
@@ -804,20 +1207,44 @@ function translateStatic() {
   ui.back.setAttribute('aria-label', t('Back to the room'));
   ui.stop.querySelector('span').textContent = t('Stop all');
   ui.macro.querySelector('span').textContent = t('Macroverse');
-  ui.openTitle.textContent = t('Open projects');
-  ui.asleepTitle.textContent = t('Asleep projects');
-  ui.asleepNote.textContent = t('Projects in the lobby that are not open. Opening one starts its room.');
-  ui.linksTitle.textContent = t('Links');
+  ui.gear.title = t('Lobby settings');
+  ui.gear.setAttribute('aria-label', t('Lobby settings'));
+  ui.search.placeholder = t('Search a project…');
+  ui.search.setAttribute('aria-label', t('Search a project…'));
+  ui.filter.setAttribute('aria-label', t('Show'));
+  const FILTER_WORDS = { all: t('All projects'), open: t('Open projects'), asleep: t('Asleep projects') };
+  for (const choice of ui.filter.querySelectorAll('[data-filter]')) choice.textContent = FILTER_WORDS[choice.dataset.filter];
+  ui.bishop.go.textContent = t('Talk to BISHOP');
+  ui.bishop.tab.title = t('Open BISHOP in a new tab');
+  ui.bishop.tab.setAttribute('aria-label', t('Open BISHOP in a new tab'));
+  ui.bishop.about.textContent = t('Your super agent. It reads across your projects, signs the links between them and carries an order from one to another.');
+  ui.bishop.input.placeholder = t('Write to BISHOP about any project…');
+  ui.bishop.input.setAttribute('aria-label', t('Write to BISHOP about any project…'));
+  const send = ui.bishop.form.querySelector('.sm-send');
+  send.title = t('Take it to BISHOP');
+  send.setAttribute('aria-label', t('Take it to BISHOP'));
+  ui.bishop.hint.textContent = t('BISHOP\'s room opens with this written; you send it from there.');
+  ui.waiting.title.textContent = t('Waiting on you');
+  ui.linksTileTitle.textContent = t('Links');
   ui.link.textContent = t('Link projects');
-  ui.empty.textContent = t('No projects yet. Add the first one.');
+  ui.linksAll.textContent = t('See the links');
+  ui.linksTitle.textContent = t('Links');
+  ui.linksClose.setAttribute('aria-label', t('Close'));
+  ui.linkMore.textContent = t('Link projects');
+  ui.memory.title.textContent = t('Memory');
+  ui.agents.title.textContent = t('Agents');
+  ui.looks.title.textContent = t('Appearance');
+  ui.looks.more.textContent = t('Settings');
   for (const kind of KINDS) KIND_WORDS[kind] = t(kind.toUpperCase());
 }
 
 translateStatic();
+drawLooks();
 await refresh();
+void loadAgents();
 // `#welcome`: the first-run wizard again, on purpose (to connect an agent or add projects in steps).
 if (location.hash === '#welcome') { history.replaceState(null, '', location.pathname); welcomed = true; openWizard(); }
 // Sent here for the Macroverso (the key in BISHOP's room): straight into it, on a large screen.
 if (location.hash === '#macroverso' && data && !ui.macro.hidden) { history.replaceState(null, '', location.pathname); ui.macro.click(); }
 timer = setInterval(() => { if (!document.hidden && !busy.size) void refresh(); }, 4000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { void refresh(); void loadAgents(); } });

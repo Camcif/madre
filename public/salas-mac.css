@@ -25,7 +25,7 @@ body.salas-mac {
   background-size: 240px 240px, 240px 240px, 240px 240px, 240px 240px;
 }
 
-.sm-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; padding: 22px 40px 0; }
+.sm-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 22px 40px 0; }
 .sm-brand { display: inline-flex; align-items: center; color: var(--text); border-radius: 10px; padding: 6px 4px; }
 .sm-brand .brand-logo { height: 17px; }
 .sm-brand:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 3px; }
@@ -33,54 +33,84 @@ body.salas-mac {
 .sm-stop { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 16px 0 12px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--terror) 14%, transparent); color: var(--terror); font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .sm-stop svg { width: 15px; height: 15px; }
 .sm-stop.armed { background: var(--terror); color: #fff; }
-.sm-stop[hidden] { display: none; }
+/* Whatever the page hides stays hidden, whatever its class lays out. */
+.salas-mac [hidden] { display: none !important; }
 
-.sm-main { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 18px 40px 56px; }
-.sm-hero { margin: 26px 0 30px; }
+/* A round key: the gear, BISHOP's new tab. The room's soft key, the light from the top left. */
+.sm-round { flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--surface, var(--panel)); color: var(--text-2); box-shadow: var(--key-rest); cursor: pointer; transition: box-shadow 140ms, color 140ms; }
+.sm-round:hover { color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
+.sm-round:active { box-shadow: var(--key-down); }
+.sm-round:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
+.sm-round svg { width: 18px; height: 18px; }
+.sm-round.small { width: 32px; height: 32px; }
+.sm-round.small svg { width: 16px; height: 16px; }
+.sm-round[disabled] { opacity: .5; cursor: default; }
+/* A link that cannot be followed yet (BISHOP waking) looks and acts like a disabled key. */
+.sm-btn[aria-disabled="true"], .sm-round[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+
+.sm-main { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 14px 40px 56px; }
+.sm-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; margin: 22px 0 24px; }
 .sm-hero h1 { margin: 0; font-size: clamp(40px, 5vw, 60px); font-weight: 700; letter-spacing: -.025em; line-height: 1.02; }
 .sm-sub { margin: 10px 0 0; font-size: 15px; color: var(--text-2); }
+.sm-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
-.sm-group { margin: 0 0 34px; }
-.sm-group[hidden] { display: none; }
-.sm-group h2 { margin: 0 0 14px; font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
-.sm-note { margin: -6px 0 16px; font-size: 13.5px; color: var(--text-2); max-width: 680px; }
-.sm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+/* The search box and the segmented choice: a track sunk into the ground, the chosen one raised. */
+.sm-search { display: inline-flex; align-items: center; gap: 8px; height: 38px; min-width: 230px; padding: 0 14px; border-radius: 999px; background: color-mix(in srgb, var(--surface, var(--panel)) 55%, transparent); box-shadow: var(--key-track); color: var(--text-2); cursor: text; }
+.sm-search svg { flex: none; width: 16px; height: 16px; }
+.sm-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; }
+.sm-search input::placeholder { color: var(--text-2); }
+.sm-search input::-webkit-search-cancel-button { cursor: pointer; }
+.sm-search:focus-within { box-shadow: var(--key-track), 0 0 0 2px color-mix(in srgb, var(--s-acc) 55%, transparent); }
+.sm-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; box-shadow: var(--key-track); background: color-mix(in srgb, var(--surface, var(--panel)) 40%, transparent); }
+.sm-seg button { height: 30px; padding: 0 13px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.sm-seg button:hover { color: var(--text); }
+.sm-seg button[aria-checked="true"] { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-rest); }
+.sm-seg button:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 1px; }
 
-/* A room: the room's own material, raised off the sky; the one that waits for you wears the accent. */
-.sm-card {
-  position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0;
-  padding: 20px 22px 18px; border-radius: 22px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent); background-image: var(--sheen, none);
-  box-shadow: var(--bevel, none), 0 1px 2px rgba(0, 0, 0, .18), 0 22px 44px -26px rgba(0, 0, 0, .6);
-  transition: transform 180ms var(--ease-out, ease-out), box-shadow 180ms var(--ease-out, ease-out);
-}
-:root[data-scheme="light"] .sm-card { box-shadow: var(--bevel, none), 0 1px 2px rgba(20, 30, 20, .06), 0 20px 40px -26px rgba(20, 30, 20, .3); }
-.sm-card:hover { transform: translateY(-2px); }
-.sm-card.is-waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--bevel, none), 0 22px 44px -24px color-mix(in srgb, var(--s-acc) 40%, rgba(0, 0, 0, .6)); }
-.sm-card.is-asleep { background: color-mix(in srgb, var(--panel) 70%, transparent); }
+/* THE BENTO: twelve columns, rows of 118 px that grow when a tile needs more. A tile is the room's
+   surface raised by the one light every card shares (--raise); nothing glows, nothing has a rim
+   but the one that waits for you. */
+.sm-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: minmax(118px, auto); gap: 16px; }
+.sm-bento + .sm-bento, .sm-none + .sm-bento, .sm-bento + .sm-none { margin-top: 16px; }
+.sm-projects, .sm-low { grid-auto-rows: auto; }
+.sm-tile { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 18px 20px; border-radius: 22px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
+.c-3 { grid-column: span 3; } .c-4 { grid-column: span 4; } .c-8 { grid-column: span 8; }
+.r-1 { grid-row: span 1; } .r-2 { grid-row: span 2; } .r-3 { grid-row: span 3; }
+.sm-projects > .sm-tile { grid-column: span 3; }
+.sm-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.sm-tile-head h2 { margin: 0; font-family: var(--read); font-size: 15px; font-weight: 650; letter-spacing: -.005em; color: var(--text); }
+.sm-tile-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; }
+.sm-hint { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+.sm-big { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--session-ok); }
+
+/* A project: its name, where it lives, how it is, what it said last and what it holds. */
+.sm-card { gap: 9px; transition: transform 180ms var(--ease-out, ease-out), box-shadow 180ms var(--ease-out, ease-out); }
+.sm-card:hover { transform: translateY(-2px); box-shadow: var(--raise-over, var(--raise, var(--key-rest))); }
+.sm-card.is-waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--raise, var(--key-rest)); }
+.sm-card.is-asleep { background: color-mix(in srgb, var(--surface, var(--panel)) 64%, transparent); }
 .sm-card.is-asleep h3 { color: var(--text-2); }
-
 .sm-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.sm-card-head h3 { flex: 1; min-width: 0; margin: 0; font-size: 21px; font-weight: 650; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-chip { flex: none; padding: 3px 9px; border-radius: 999px; font-family: var(--mono); font-size: 11px; letter-spacing: .02em; }
-.sm-chip.port { color: var(--text-3); box-shadow: inset 0 0 0 1px var(--line-2); }
-.sm-chip.here { color: var(--s-acc-ink); background: var(--s-acc); font-family: var(--read); font-weight: 650; }
-.sm-path { margin: -6px 0 0; font-family: var(--mono); font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-card-head h3 { flex: 1; min-width: 0; margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Chips in a flat tone (the room's, 6 Oct): seven-pixel corners, no rim, no shadow. */
+.sm-chip { flex: none; padding: 3px 8px; border-radius: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: .02em; }
+.sm-chip.port { color: var(--text-2); background: color-mix(in srgb, var(--text) 7%, transparent); }
+.sm-chip.here { color: color-mix(in srgb, var(--s-acc) 72%, var(--text)); background: color-mix(in srgb, var(--s-acc) 16%, transparent); font-family: var(--read); font-weight: 650; }
+.sm-path { margin: -5px 0 0; font-family: var(--mono); font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.sm-state { display: flex; align-items: center; gap: 8px; margin: 2px 0 0; font-size: 13.5px; color: var(--text-2); }
-.sm-state .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.sm-state { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--text-2); }
+.sm-state .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--session-ok); }
 .is-working .sm-state .dot { background: var(--s-acc); animation: sm-beat 1.4s ease-in-out infinite; }
 .is-waiting .sm-state { color: color-mix(in srgb, var(--s-acc) 62%, var(--text)); font-weight: 600; }
 .is-waiting .sm-state .dot { background: var(--s-acc); }
 .is-asleep .sm-state .dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-3); }
-.is-outdated .sm-state .dot { background: var(--warn, #ffd166); }
+.is-outdated .sm-state .dot, .is-quiet .sm-state .dot { background: var(--session-wait); }
 @keyframes sm-beat { 50% { opacity: .35; transform: scale(.8); } }
 
-.sm-wait { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--s-acc) 15%, transparent); font-size: 13.5px; }
+.sm-wait { padding: 9px 11px; border-radius: 12px; background: color-mix(in srgb, var(--s-acc) 14%, transparent); font-size: 13px; }
 .sm-wait span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .sm-chat { display: grid; gap: 2px; min-width: 0; }
-.sm-chat b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-chat span { font-size: 13px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sm-chat b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-chat span { font-size: 12.5px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* What the archive holds, by kind, in NOSTROMO's colours: one line, as long as the archive is full. */
 .sm-strip { display: flex; gap: 2px; height: 6px; margin-top: 2px; border-radius: 3px; overflow: hidden; }
@@ -92,34 +122,128 @@ body.salas-mac {
 .sm-strip .k-question { background: var(--mem-question); }
 .sm-strip .k-aberration { background: var(--mem-aberration); }
 :root[data-scheme="light"] .sm-strip .k-fact { background: #b9c6d6; }
-.sm-counts { margin: 0; font-size: 12.5px; color: var(--text-3); }
+.sm-counts { margin: 0; font-size: 12px; color: var(--text-2); }
 
-.sm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 6px; }
-.sm-btn { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 16px; border: 0; border-radius: 999px; font-size: 13.5px; font-weight: 600; text-decoration: none; cursor: pointer; transition: transform 140ms var(--ease-out, ease-out), background-color 140ms; }
+.sm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
+.sm-btn { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 16px; border: 0; border-radius: 999px; font-size: 13.5px; font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; transition: transform 140ms var(--ease-out, ease-out), box-shadow 140ms; }
 .sm-btn:active { transform: scale(.97); }
 .sm-btn:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
 .sm-btn.primary { background: var(--s-acc); color: var(--s-acc-ink); }
-.sm-btn.ghost { background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--line-2); }
-.sm-btn.ghost:hover { color: var(--text); }
+.sm-btn.ghost { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-rest); }
+.sm-btn.ghost:hover { box-shadow: var(--key-over, var(--key-rest)); }
+.sm-btn.tone { background: color-mix(in srgb, var(--s-acc) 15%, transparent); color: color-mix(in srgb, var(--s-acc) 72%, var(--text)); }
 .sm-btn.danger { background: var(--terror); color: #fff; }
-.sm-ask { flex-basis: 100%; font-size: 13px; color: var(--text-2); }
-.sm-doing { font-size: 13.5px; color: var(--text-2); }
+.sm-ask { flex-basis: 100%; font-size: 12.5px; color: var(--text-2); }
+.sm-doing { font-size: 13px; color: var(--text-2); }
 .sm-doing::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -2px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--s-acc) 30%, transparent); border-top-color: var(--s-acc); animation: sm-turn .8s linear infinite; }
 @keyframes sm-turn { to { transform: rotate(360deg); } }
 .sm-error { margin: 0; font-size: 13px; color: var(--terror); }
+/* «Ask BISHOP about this one»: BISHOP's own mark, a key of its own at the end of the row. */
+.sm-ask-bishop { margin-left: auto; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; transition: transform 140ms var(--ease-out, ease-out); }
+.sm-ask-bishop:hover { transform: translateY(-1px); }
+.sm-ask-bishop:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
 
-.sm-empty, .sm-foot { margin: 24px 0 0; font-size: 13.5px; color: var(--text-2); }
-.sm-foot { color: var(--text-3); font-size: 12.5px; }
-.sm-empty[hidden] { display: none; }
+.sm-none { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0; padding: 22px; border-radius: 22px; font-size: 14px; color: var(--text-2); box-shadow: var(--key-track); }
+.sm-foot { margin: 24px 0 0; font-size: 12.5px; color: var(--text-2); }
 body.sm-gone .sm-hero h1 { color: var(--text-3); }
 
+/* BISHOP, the heart of the lobby: its mark, its state, the two ways in (here, or a new tab), its
+   last conversation, what it waits for, and a box that takes a question to its room. */
+.sm-bishop { gap: 12px; padding: 20px 22px; box-shadow: inset 0 0 0 1px color-mix(in srgb, #4fc3f7 20%, transparent), var(--raise, var(--key-rest)); }
+:root[data-scheme="light"] .sm-bishop { box-shadow: inset 0 0 0 1px color-mix(in srgb, #0277bd 16%, transparent), var(--raise, var(--key-rest)); }
+.sm-bishop.is-waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--raise, var(--key-rest)); }
+.sm-bishop-head { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.sm-bishop-words { display: grid; gap: 3px; flex: 1; min-width: 0; }
+.sm-bishop-words h2 { margin: 0; font-family: var(--read); font-size: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.sm-bishop-keys { display: flex; align-items: center; gap: 8px; }
+.sm-bishop-about { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); max-width: 680px; }
+.sm-bishop-last { display: grid; gap: 3px; max-width: 86%; padding: 11px 14px; border-radius: 16px; border-bottom-left-radius: 6px; background: color-mix(in srgb, var(--text) 5%, var(--surface, var(--panel))); box-shadow: var(--key-rest); }
+.sm-bishop-last-head { display: flex; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-2); }
+.sm-bishop-last-head time { margin-left: auto; font-family: var(--mono); font-size: 11px; }
+.sm-bishop-last b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-bishop-last p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.sm-bishop-asks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sm-chip.ask { max-width: 100%; padding: 5px 10px; border: 0; font-family: var(--read); font-size: 12.5px; font-weight: 600; letter-spacing: 0; color: color-mix(in srgb, var(--s-acc) 72%, var(--text)); background: color-mix(in srgb, var(--s-acc) 15%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.sm-ask-box { display: flex; align-items: center; gap: 10px; height: 46px; margin-top: auto; padding: 0 6px 0 18px; border-radius: 999px; box-shadow: var(--key-track); background: color-mix(in srgb, var(--surface, var(--panel)) 40%, transparent); }
+.sm-ask-box:focus-within { box-shadow: var(--key-track), 0 0 0 2px color-mix(in srgb, var(--s-acc) 55%, transparent); }
+.sm-ask-box input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; }
+.sm-ask-box input::placeholder { color: var(--text-2); }
+.sm-send { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: var(--s-acc); color: var(--s-acc-ink); cursor: pointer; }
+.sm-send svg { width: 17px; height: 17px; }
+.sm-send:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
+.sm-bishop .sm-hint { margin-top: -4px; padding-left: 18px; }
+
+/* Waiting for you: one number, green when nobody waits, the accent when someone does. */
+.sm-waiting.has .sm-big { color: var(--s-acc); }
+.sm-waiting.has { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 60%, transparent), var(--raise, var(--key-rest)); }
+.sm-waiting-body { display: grid; gap: 6px; }
+.sm-waiting-row { display: grid; gap: 1px; padding: 7px 10px; border-radius: 12px; color: var(--text); text-decoration: none; background: color-mix(in srgb, var(--s-acc) 12%, transparent); }
+.sm-waiting-row b { font-size: 13px; font-weight: 650; }
+.sm-waiting-row span { font-size: 12.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-waiting-row:hover { background: color-mix(in srgb, var(--s-acc) 18%, transparent); }
+
+/* The map of the links: spokes from BISHOP, an arrow per contract, a ring per project. */
+.sm-map { position: relative; flex: 1; min-height: 150px; color: var(--s-acc); }
+.sm-map svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sm-map .spoke { stroke: var(--text-3); stroke-opacity: .4; stroke-dasharray: 3 5; }
+.sm-map .vein { fill: none; stroke: var(--s-acc); stroke-width: 2.2; stroke-linecap: round; }
+.sm-map .node { fill: var(--surface, var(--panel)); stroke: var(--line-2); stroke-width: 1.5; }
+.sm-map .node.asleep { fill: transparent; stroke: var(--text-3); stroke-dasharray: 3 3; }
+.sm-map .node.waiting { stroke: var(--s-acc); stroke-width: 2; }
+.sm-map .label { font-family: var(--read); font-size: 11px; font-weight: 600; fill: var(--text-2); }
+.sm-map > .sm-hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 12px; }
+
+/* Memory, agents, appearance: the low row. */
+.sm-memory-body { display: grid; gap: 9px; }
+.sm-memory-body .sm-strip { height: 8px; }
+.sm-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--text-2); }
+.sm-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sm-legend span::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+.sm-legend .k-decision::before { background: var(--mem-decision); }
+.sm-legend .k-fact::before { background: var(--mem-fact); }
+.sm-legend .k-preference::before { background: var(--mem-preference); }
+.sm-legend .k-question::before { background: var(--mem-question); }
+.sm-legend .k-aberration::before { background: var(--mem-aberration); }
+:root[data-scheme="light"] .sm-legend .k-fact::before { background: #b9c6d6; }
+.sm-agents-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.sm-agent-key { position: relative; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.sm-agent-key::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--session-ok); box-shadow: 0 0 0 2px var(--surface, var(--panel)); }
+.sm-agent-key.wait::after { background: var(--session-wait); }
+.sm-agent-key.bad::after { background: var(--session-bad); }
+.sm-agent-key:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
+.sm-connect { margin-left: auto; }
+.sm-looks-body { display: grid; gap: 12px; justify-items: start; }
+.sm-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+.sm-swatch { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: var(--acc); box-shadow: var(--key-rest); cursor: pointer; }
+.sm-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface, var(--panel)), 0 0 0 4px var(--acc); }
+.sm-swatch:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+/* The lobby's settings: one sheet, a section per thing it sets. */
+.sm-settings .sm-sheet-body { gap: 22px; }
+.sm-set { display: grid; gap: 10px; scroll-margin-top: 12px; }
+.sm-set h4 { margin: 0; font-size: 15px; font-weight: 650; color: var(--text); }
+.sm-set-rows { display: grid; gap: 0; padding: 2px 14px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
+.sm-set-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 11px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.sm-set-row:first-child { border-top: 0; }
+.sm-set-row .sm-swatches { max-width: 380px; justify-content: flex-end; }
+.sm-set-keys { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 1180px) { .sm-projects > .sm-tile { grid-column: span 4; } }
+@media (max-width: 920px) {
+  .sm-bento > .c-8, .sm-bento > .c-4 { grid-column: 1 / -1; }
+  .sm-bento > .r-2, .sm-bento > .r-3 { grid-row: auto; }
+  .sm-projects > .sm-tile { grid-column: span 6; }
+  .sm-low > .sm-tile { grid-column: 1 / -1; }
+}
 @media (max-width: 720px) {
   .sm-top { padding: 16px 18px 0; }
   .sm-main { padding: 12px 18px 40px; }
-  .sm-grid { grid-template-columns: 1fr; }
+  .sm-projects > .sm-tile { grid-column: 1 / -1; }
+  .sm-search { min-width: 0; flex: 1; }
+  .sm-bishop-head { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sm-card, .sm-btn { transition: none; }
+  .sm-card, .sm-btn, .sm-ask-bishop { transition: none; }
   .is-working .sm-state .dot, .sm-doing::before { animation: none; }
 }
 
@@ -128,8 +252,6 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
 .sm-card.is-salas { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--s-acc) 45%, var(--line)); }
 
 /* LINKS (docs/MACROVERSO.md, phase 3c): the contracts between rooms, and the sheet that signs one. */
-.sm-links-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.sm-links-head h2 { margin: 0; }
 .sm-link-list { display: grid; gap: 10px; }
 .sm-link { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; padding: 14px 16px; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
 .sm-link .who { margin: 0; font-family: var(--read); font-size: 15px; font-weight: 650; letter-spacing: -.01em; text-transform: none; }
@@ -223,23 +345,11 @@ body.sm-in-macro { overflow: hidden; }
    (add a project); BISHOP above the projects, wide and in its own colour; the sheet that adds
    folders and the first-run wizard, both in the sheets' material. The room's tokens throughout.
    ========================================================================================== */
-.sm-hero-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; }
 .sm-add { height: 40px; padding: 0 20px; font-size: 14.5px; }
 .sm-btn[disabled] { opacity: .5; cursor: default; }
 .sm-btn.small { height: 30px; padding: 0 13px; font-size: 12.5px; }
 
-/* BISHOP: one wide card, the robot in its own blue. */
-.sm-bishop-card {
-  display: grid; gap: 12px; padding: 20px 22px 18px; border-radius: 22px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent); background-image: var(--sheen, none);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #4fc3f7 22%, transparent), var(--bevel, none), 0 1px 2px rgba(0, 0, 0, .18), 0 22px 44px -26px rgba(0, 0, 0, .6);
-}
-:root[data-scheme="light"] .sm-bishop-card { box-shadow: inset 0 0 0 1px color-mix(in srgb, #0277bd 18%, transparent), var(--bevel, none), 0 1px 2px rgba(20, 30, 20, .06), 0 20px 40px -26px rgba(20, 30, 20, .3); }
-.sm-bishop-card.is-waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--bevel, none), 0 22px 44px -24px color-mix(in srgb, var(--s-acc) 40%, rgba(0, 0, 0, .6)); }
-.sm-bishop-head { display: flex; align-items: center; gap: 14px; }
-.sm-bishop-words { display: grid; gap: 3px; min-width: 0; }
-.sm-bishop-words h2 { margin: 0; font-family: var(--read); font-size: 20px; font-weight: 700; letter-spacing: -.01em; text-transform: none; color: var(--text); }
-.sm-bishop-words p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); max-width: 720px; }
+/* An agent's mark: its own colour and glyph (brands.js). */
 .sm-mark { flex: none; display: inline-grid; place-items: center; border-radius: 50%; background: var(--b); color: var(--b-ink); box-shadow: 0 1px 2px rgba(15, 20, 30, .14), 0 4px 10px -5px rgba(15, 20, 30, .28); }
 .sm-mark svg { width: 62%; height: 62%; }
 

@@ -105,3 +105,23 @@ test('lobby · the routes answer only its own page on this Mac: not a phone, not
     for (const dir of [home, state, project]) await rm(dir, { recursive: true, force: true });
   }
 });
+
+// The lobby as a dashboard (2026-10-10): BISHOP at its heart. A question written there goes to
+// BISHOP's room in the address (`#para=`), waits in that room's box unsent, and the address
+// forgets it at once; BISHOP opens here or in a new tab, by plain links.
+test('lobby · a question for BISHOP reaches its room\'s box unsent, here or in a new tab', async () => {
+  const read = (file) => readFile(join(import.meta.dirname, '..', 'public', file), 'utf8');
+  const [app, page, html] = await Promise.all([read('app.js'), read('salas-mac.js'), read('salas-mac.html')]);
+  // The room takes `#para=` into its box only when the box is empty, and never sends it.
+  const arrival = app.slice(app.indexOf("const said = /^#para=(.*)$/s.exec("), app.indexOf("const said = /^#para=(.*)$/s.exec(") + 600);
+  assert.ok(arrival.length > 100, 'the room does not read #para= any more');
+  assert.match(arrival, /replaceState\?\.\(null, '', `\$\{globalThis\.location\.pathname\}\$\{globalThis\.location\.search\}`\)/, 'the address keeps the words');
+  assert.match(arrival, /!els\.input\.value\.trim\(\)\) \{ els\.input\.value = text; autosize\(\); els\.input\.focus\(\); \}/);
+  assert.doesNotMatch(arrival, /requestSubmit|\.submit\(|sendMessage|fetch\(/, 'the words are sent, not left in the box');
+  // The lobby writes them encoded, and BISHOP's two ways in are links: the second a new tab.
+  assert.match(page, /#para=\$\{encodeURIComponent\(text\)\}/);
+  assert.match(html, /<a id="sm-bishop-go" class="sm-btn primary small" href="\/">/);
+  assert.match(html, /<a id="sm-bishop-tab" class="sm-round small" href="\/" target="_blank" rel="noopener"/);
+  // Asleep, it is woken first and the new tab is opened at the press, so it is not blocked.
+  assert.match(page, /const tab = newTab \? window\.open\('about:blank', '_blank'\) : null;/);
+});

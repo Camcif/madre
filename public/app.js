@@ -17920,6 +17920,17 @@ document.addEventListener('visibilitychange', () => {
     }).catch(() => {});
   } else void handoffOffer();
 }
+// Arrived from the lobby with words for this room (`#para=…`, salas-mac.js): they wait in the box,
+// unsent, for the person to read and send; the address forgets them at once.
+{
+  const said = /^#para=(.*)$/s.exec(globalThis.location?.hash ?? '');
+  if (said) {
+    globalThis.history?.replaceState?.(null, '', `${globalThis.location.pathname}${globalThis.location.search}`);
+    let text = '';
+    try { text = decodeURIComponent(said[1]).slice(0, 2000); } catch { /* a broken address brings nothing */ }
+    if (text.trim() && els.input && !els.input.value.trim()) { els.input.value = text; autosize(); els.input.focus(); }
+  }
+}
 
 
 /* ---------- Sheets on a phone ----------
