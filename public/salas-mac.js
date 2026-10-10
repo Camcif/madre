@@ -11,7 +11,8 @@ import { brandOf } from './brands.js';
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 const ui = {
-  title: $('sm-title'), sub: $('sm-sub'), back: $('sm-back'), stop: $('sm-stop'), macro: $('sm-macro'), foot: $('sm-foot'), gear: $('sm-gear'),
+  title: $('sm-title'), sub: $('sm-sub'), stop: $('sm-stop'), macro: $('sm-macro'), foot: $('sm-foot'), gear: $('sm-gear'),
+  bar: { backRoom: $('sm-back-room'), crumb: $('sm-crumb'), live: $('sm-live'), open: $('sm-tb-open'), agents: $('sm-tb-agents'), waiting: $('sm-tb-waiting'), update: $('sm-tb-update'), links: $('sm-tb-links'), linksCount: $('sm-tb-links-count'), reload: $('sm-reload') },
   add: $('sm-add'), search: $('sm-search'), filter: $('sm-filter'), projects: $('sm-projects'), none: $('sm-none'),
   bishop: {
     box: $('sm-bishop'), mark: $('sm-bishop-mark'), state: $('sm-bishop-state'), go: $('sm-bishop-go'), tab: $('sm-bishop-tab'), about: $('sm-bishop-about'),
@@ -221,8 +222,6 @@ function draw() {
   ui.sub.textContent = [data.mac ? t('On {mac}', { mac: data.mac }) : null, all.length === 1 ? t('1 project') : t('{n} projects', { n: all.length }), open.length ? t('{n} open', { n: open.length }) : null].filter(Boolean).join(' · ');
   drawBishop(data.rooms.find((room) => room.id === data.salas) ?? null);
   drawWaiting();
-  // The brand leads back to where this page came from; served by BISHOP's own room, it stays here.
-  ui.back.href = data.here === data.salas ? '/salas' : '/';
   drawProjects(all);
   if (!all.length && !welcomed) { welcomed = true; openWizard(); }
   const working = open.some((room) => room.glance?.working?.length);
@@ -230,6 +229,7 @@ function draw() {
   drawLinks(all);
   drawMemory();
   drawAttention();
+  drawTopbar();
   // The macroverse wants a large screen: on a small one SALAS is the whole of it.
   ui.macro.hidden = !data.rooms.length || window.innerWidth < 900;
   macro?.update(data.rooms, data.enlaces ?? []);
@@ -321,6 +321,7 @@ async function loadAgents() {
   if (!answer?.agents) return;
   agentsSeen = answer;
   drawAttention();
+  drawTopbar();
 }
 // MADRE itself: the version this room runs and the newest one it knows of.
 async function loadVersion() {
@@ -328,6 +329,7 @@ async function loadVersion() {
   if (!answer) return;
   versionSeen = answer;
   drawAttention();
+  drawTopbar();
 }
 
 // APPEARANCE, in the settings sheet: the theme and the accent, chosen at once, on the room's own
@@ -914,7 +916,7 @@ ui.link.addEventListener('click', () => openLinkSheet());
 
 async function refresh() {
   const answer = await fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
-  if (!answer) { ui.foot.textContent = t('This room did not answer. It may have closed.'); return; }
+  if (!answer) { ui.foot.textContent = t('This room did not answer. It may have closed.'); ui.bar.live.classList.add('is-off'); ui.bar.live.lastChild.textContent = t('Not answering right now'); return; }
   if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); }
   data = answer;
   ui.foot.textContent = t('Every project runs on this Mac, in a room of its own, with its own memory.');
@@ -1078,6 +1080,69 @@ ui.stop.addEventListener('click', async () => {
   ui.stop.querySelector('span').textContent = t('Stop all');
   await refresh();
 });
+
+// ---- THE BAR, as a room's: the logo and where you are (and, served by a project's room, the way
+// back to it); this lobby answering; the projects open, each with how it is and a way into it; the
+// agents with their sessions; who waits for you; a newer MADRE; what is running and the key that
+// stops it; the links in force; the macroverse; reload and settings apart, as in the room.
+const BAR_OPEN = 4;   // projects shown open on the bar; the rest are counted
+function drawTopbar() {
+  if (!data) return;
+  const b = ui.bar;
+  // Where you are, and the way back to the room that serves this page, when it is a project's.
+  const here = data.rooms.find((room) => room.id === data.here) ?? null;
+  b.backRoom.hidden = !here || here.id === data.salas;
+  if (here && here.id !== data.salas) { b.backRoom.href = '/'; b.backRoom.lastChild.textContent = here.name; b.backRoom.title = t('Back to the room'); }
+  b.live.classList.remove('is-off');
+  b.live.lastChild.textContent = data.mac ?? '';
+  // The projects open, the ones that need the person first.
+  const { open } = projectsInOrder();
+  b.open.replaceChildren();
+  for (const room of open.slice(0, BAR_OPEN)) {
+    const state = stateOf(room);
+    const chip = el('a', `sm-tb-room is-${state.key}`);
+    chip.href = addressOf(room);
+    chip.title = `${room.name} · ${state.words}`;
+    chip.append(el('i'), el('span', null, room.name));
+    b.open.append(chip);
+  }
+  if (open.length > BAR_OPEN) {
+    const more = button('sm-tb-room is-more', `+${open.length - BAR_OPEN}`, () => {
+      filter = 'open';
+      for (const one of ui.filter.querySelectorAll('[data-filter]')) one.setAttribute('aria-checked', String(one.dataset.filter === 'open'));
+      drawProjects();
+      ui.projects.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+    more.title = t('{n} open', { n: open.length });
+    b.open.append(more);
+  }
+  b.open.hidden = !open.length;
+  // The agents of this computer, each with its session.
+  b.agents.replaceChildren();
+  for (const agent of (agentsSeen?.agents ?? []).filter((one) => one.id !== 'madre')) {
+    const state = agentState(agent, agentsSeen);
+    const key = button(`sm-agent-key ${state.key}`, null, () => openSettings('agents'));
+    key.append(mark(agent.id, 24));
+    key.title = `${agent.label ?? agent.id} · ${state.words}`;
+    key.setAttribute('aria-label', key.title);
+    b.agents.append(key);
+  }
+  b.agents.hidden = !b.agents.childElementCount;
+  // Who waits for you: how many, and a way into the first room that asks.
+  const asking = data.rooms.filter((room) => room.open && room.glance?.waitingCount);
+  const waiting = asking.reduce((sum, room) => sum + room.glance.waitingCount, 0);
+  b.waiting.hidden = !waiting;
+  if (waiting) { b.waiting.href = addressOf(asking[0]); b.waiting.lastChild.textContent = t('{n} waiting for you', { n: waiting }); b.waiting.title = asking.map((room) => roomLabel(room)).join(' · '); }
+  // A newer MADRE.
+  b.update.hidden = !(versionSeen?.available && versionSeen.latest);
+  if (!b.update.hidden) { b.update.href = versionSeen.release ?? 'https://madre.run'; b.update.lastChild.textContent = `MADRE ${versionSeen.latest}`; b.update.title = t('MADRE {version} is out.', { version: versionSeen.latest }); }
+  // The links in force.
+  const links = (data.enlaces ?? []).length;
+  b.linksCount.hidden = !links;
+  b.linksCount.textContent = String(links);
+}
+ui.bar.links.addEventListener('click', () => { if ((data?.enlaces ?? []).length) { if (!ui.linksSheet.open) ui.linksSheet.showModal(); } else openLinkSheet(); });
+ui.bar.reload.addEventListener('click', () => location.reload());
 
 // ---- THE LOBBY (2026-10-10). The first screen of MADRE: every project on this Mac, BISHOP above
 // them, and the way to add more. A bare `madre` opens here; `madre start` in a folder still opens
@@ -1544,8 +1609,12 @@ function translateStatic() {
   document.title = `MADRE · ${t('Lobby')}`;
   ui.title.textContent = t('Lobby');
   ui.add.textContent = t('Add a project');
-  ui.back.title = t('Back to the room');
-  ui.back.setAttribute('aria-label', t('Back to the room'));
+  ui.bar.crumb.textContent = t('Lobby');
+  ui.bar.open.setAttribute('aria-label', t('Open projects'));
+  ui.bar.agents.setAttribute('aria-label', t('Agents'));
+  ui.bar.links.querySelector('span').textContent = t('Links');
+  ui.bar.reload.title = t('Reload the page');
+  ui.bar.reload.setAttribute('aria-label', t('Reload the page'));
   ui.stop.querySelector('span').textContent = t('Stop all');
   ui.macro.querySelector('span').textContent = t('Macroverse');
   ui.gear.title = t('Lobby settings');

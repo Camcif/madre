@@ -27,14 +27,57 @@ body.salas-mac {
   background-size: 240px 240px, 240px 240px, 240px 240px, 240px 240px;
 }
 
-.sm-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 22px 40px 0; }
-.sm-brand { display: inline-flex; align-items: center; color: var(--text); border-radius: 10px; padding: 6px 4px; }
-.sm-brand .brand-logo { height: 17px; }
+/* THE BAR, as a room's (styles.css, .shell > .bar and .bar-home): the surface as glass, the sheen,
+   the bevel and the layered shadow, mono at 11 px; a group of its own on the right for reload and
+   settings. It stays at the top while the lobby scrolls under it. */
+.sm-top { position: sticky; top: 0; z-index: 12; display: flex; align-items: stretch; gap: 10px; max-width: 1440px; margin: 0 auto; padding: 10px 20px 0; }
+.sm-topbar { position: relative; display: flex; align-items: center; gap: 14px; min-width: 0; height: 48px; padding: 9px 12px 9px 16px; border-radius: 20px; background-color: color-mix(in srgb, var(--bg) 93%, transparent); background-image: var(--sheen); -webkit-backdrop-filter: blur(22px) saturate(1.7); backdrop-filter: blur(22px) saturate(1.7); box-shadow: var(--bevel), 0 1px 2px rgba(0, 0, 0, .45), 0 10px 24px -10px rgba(0, 0, 0, .6), 16px 24px 50px -24px rgba(0, 0, 0, .55); font-family: var(--mono); font-size: 11px; letter-spacing: .04em; color: var(--text-2); }
+:root[data-scheme="light"] .sm-topbar { background-color: color-mix(in srgb, #ffffff 94%, transparent); box-shadow: var(--bevel), 0 1px 2px rgba(20, 40, 60, .12), 0 10px 24px -12px rgba(20, 40, 60, .24), 16px 24px 50px -26px rgba(20, 40, 60, .28); }
+.sm-topbar:first-child { flex: 1; }
+.sm-tb-home { flex: none; gap: 6px; padding: 9px 10px; }
+.sm-brand { display: inline-flex; align-items: center; flex: none; color: var(--text); border-radius: 8px; padding: 4px 2px; }
+.sm-brand .brand-logo { height: 15px; }
+.sm-back-room { display: inline-flex; align-items: center; gap: 3px; flex: none; height: 26px; padding: 0 9px 0 5px; border-radius: 6px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); color: var(--text-2); font-weight: 600; text-decoration: none; }
+.sm-back-room svg { width: 14px; height: 14px; }
+.sm-back-room:hover { color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
+.sm-crumb { flex: none; font-weight: 600; color: var(--text); }
+.sm-crumb::before { content: '/ '; color: var(--text-3); font-weight: 400; }
+.sm-live { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--text-2); }
+.sm-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--session-ok); }
+.sm-live.is-off i { background: var(--session-bad); }
+.sm-live.is-off { color: var(--session-bad); }
+/* The projects open: a key each, its state as a lamp — calm, working (it beats), waiting (ringed), older. */
+.sm-tb-open { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; padding: 3px; margin: -3px; }
+.sm-tb-room { display: inline-flex; align-items: center; gap: 6px; flex: none; max-width: 170px; height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); color: var(--text); font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .02em; text-decoration: none; white-space: nowrap; cursor: pointer; transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-tb-room span { overflow: hidden; text-overflow: ellipsis; }
+.sm-tb-room i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--session-ok); }
+.sm-tb-room.is-working i { background: var(--s-acc); animation: sm-beat 1.4s ease-in-out infinite; }
+.sm-tb-room.is-waiting i { background: var(--s-acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-acc) 28%, transparent); }
+.sm-tb-room:is(.is-outdated, .is-quiet) i { background: var(--session-wait); }
+.sm-tb-room.is-more { color: var(--text-2); font-weight: 500; }
+.sm-tb-room:hover { box-shadow: var(--key-over, var(--key-rest)); }
+.sm-tb-room:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
+/* The agents, with their sessions, as the room shows its crew. */
+.sm-tb-agents { display: flex; align-items: center; gap: 8px; flex: none; }
+.sm-agent-key { position: relative; flex: none; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.sm-agent-key::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--session-ok); box-shadow: 0 0 0 2px var(--surface, var(--panel)); }
+.sm-agent-key.wait::after { background: var(--session-wait); }
+.sm-agent-key.bad::after { background: var(--session-bad); }
+.sm-agent-key:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
+/* What asks for the person: who waits, a newer MADRE. */
+.sm-pill { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 26px; padding: 0 11px; border-radius: 999px; font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .02em; text-decoration: none; white-space: nowrap; }
+.sm-pill.is-wait { background: color-mix(in srgb, var(--s-acc) 16%, transparent); color: color-mix(in srgb, var(--s-acc) 70%, var(--text)); }
+.sm-pill.is-wait i { width: 7px; height: 7px; border-radius: 50%; background: var(--s-acc); animation: sm-beat 1.4s ease-in-out infinite; }
+.sm-pill.is-update { background: color-mix(in srgb, var(--session-wait) 18%, transparent); color: var(--text); }
+.sm-badge { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 2px; padding: 0 4px; border-radius: 999px; background: var(--s-acc); color: var(--s-acc-ink); font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0; }
+@media (max-width: 1180px) { .sm-tb-agents { display: none; } }
+@media (max-width: 980px) { .sm-tb-open, .sm-live span, .sm-pill.is-update { display: none; } }
+@media (max-width: 720px) { .sm-crumb, .sm-barkey span { display: none; } .sm-top { padding: 8px 10px 0; } }
 .sm-brand:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 3px; }
 .sm-spacer { flex: 1; }
-/* The top bar's keys are the room's bar keys (styles.css, .mother-button, .tree-button, .stop-all). */
-.sm-macro, .sm-stop { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border: 0; border-radius: 6px; font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: .18em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
-.sm-macro svg, .sm-stop svg { width: 14px; height: 14px; }
+/* The bar's keys are the room's bar keys (styles.css, .mother-button, .tree-button, .stop-all). */
+.sm-barkey, .sm-stop { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border: 0; border-radius: 6px; font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: .18em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
+.sm-barkey svg, .sm-stop svg { width: 14px; height: 14px; }
 .sm-stop { box-shadow: inset 0 0 0 1px var(--terror); background: color-mix(in srgb, var(--terror) 12%, transparent); color: var(--terror); }
 .sm-stop:hover, .sm-stop.armed { background: var(--terror); color: #fff; }
 /* Whatever the page hides stays hidden, whatever its class lays out. */
@@ -60,8 +103,6 @@ body.salas-mac {
 .sm-tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 6px; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
 .sm-tools .sm-search { flex: 0 1 260px; min-width: 180px; }
 .sm-tools .sm-search input::-webkit-search-cancel-button { cursor: pointer; }
-/* The top bar's keys, on a raised bar of their own (the room's bar). */
-.sm-bar { display: inline-flex; align-items: center; gap: 6px; padding: 5px; border-radius: 12px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
 
 
 /* THE BENTO: twelve columns, rows of 118 px that grow when a tile needs more. A tile is the room's
@@ -239,7 +280,6 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
   .sm-low > .sm-tile { grid-column: 1 / -1; }
 }
 @media (max-width: 720px) {
-  .sm-top { padding: 16px 18px 0; }
   .sm-main { padding: 12px 18px 40px; }
   .sm-projects > .sm-tile { grid-column: 1 / -1; }
   .sm-tools { flex-wrap: wrap; width: 100%; }
@@ -292,11 +332,11 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 
 /* THE MACROVERSE (macroverso.js): a layer over SALAS, the whole window, always night — it is space,
    in either theme. The words over it keep the room's type and the accent. */
-/* Its key in the top bar is a bar key, as MÓDULOS and MU/TH/UR are in the room. */
-.sm-macro { background: var(--surface, var(--panel)); color: var(--text-2); box-shadow: var(--key-rest); transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
-.sm-macro:hover { color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
-.sm-macro:active { box-shadow: var(--key-down); }
-.sm-macro:focus-visible, .sm-stop:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
+/* A key on the bar, as MÓDULOS and MU/TH/UR are in the room. */
+.sm-barkey { background: var(--surface, var(--panel)); color: var(--text-2); box-shadow: var(--key-rest); transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-barkey:hover { color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
+.sm-barkey:active { box-shadow: var(--key-down); }
+.sm-barkey:focus-visible, .sm-stop:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
 body.sm-in-macro { overflow: hidden; }
 
 .mv { position: fixed; inset: 0; z-index: 20; background: #030305; color: #f2f1ee; animation: mv-in 420ms var(--ease-out, ease-out); }
