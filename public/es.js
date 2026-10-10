@@ -4199,7 +4199,6 @@ export const ES = {
   'No orders cross: BISHOP only reads.': 'No cruzan órdenes: BISHOP solo lee.',
   'Nothing is written across, and you can revoke it at any moment from Links.': 'No se escribe nada en la otra sala, y puedes revocarlo cuando quieras desde Enlaces.',
   'Recommended': 'Recomendado',
-  'The link as it stands': 'Así queda el enlace',
   'nothing yet': 'nada todavía',
   'Ends {date}': 'Vence el {date}',
   'On every turn': 'En cada turno',

@@ -506,31 +506,48 @@ body.sm-in-macro { overflow: hidden; }
 .lw-select { flex: none; width: 200px; }
 .lw-input { width: 100%; }
 .lw-control { flex: none; }
-.lw-contract-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
 .lw-caution { display: flex; align-items: flex-start; gap: 10px; padding: 11px 0; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.45; color: var(--text); }
 .lw-caution i { flex: none; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--session-wait); }
 .lw-foot { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
-/* The link as it stands: who serves, what crosses along the wire, who reads; then its terms. */
-.lw-contract { display: grid; gap: 10px; padding: 14px 16px; border-radius: 14px; box-shadow: var(--key-track); }
-.lw-flow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.lw-room { display: grid; gap: 1px; min-width: 0; max-width: 170px; padding: 8px 12px; border-radius: 10px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
-.lw-room b { font-size: 13.5px; font-weight: 650; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lw-room.is-bishop b::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; vertical-align: 1px; border-radius: 50%; background: #7b3cf0; }
-.lw-room small { font-size: 11.5px; color: var(--text-2); }
-.lw-wire { display: grid; justify-items: center; gap: 5px; min-width: 0; }
-.lw-wire em { max-width: 100%; font-style: normal; font-size: 12px; color: var(--text); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lw-wire i { position: relative; display: block; width: 100%; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--s-acc) 65%, transparent); }
-.lw-wire i::after { content: ''; position: absolute; right: -2px; top: -4px; border-left: 8px solid color-mix(in srgb, var(--s-acc) 85%, transparent); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
-.lw-flow.both .lw-wire i::before { content: ''; position: absolute; left: -2px; top: -4px; border-right: 8px solid color-mix(in srgb, var(--s-acc) 85%, transparent); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
-.lw-flow:not(.both) .lw-wire i::before { content: ''; position: absolute; top: -2px; left: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--s-acc); animation: lw-travel 1.8s linear infinite; }
-@keyframes lw-travel { 0% { left: 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: calc(100% - 10px); opacity: 0; } }
-.lw-terms { margin: 0; font-size: 12.5px; color: var(--text-2); }
+/* The scene over every step, in the welcome's style: the two rooms arriving and floating, BISHOP
+   with its ring, the wire running the way the notes travel and the notes crossing it in their
+   kinds' colours; the link's terms above, small. */
+.scene-link { height: 132px; }
+.lw-wires { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+.lw-wires path { fill: none; }
+.lw-crossing { stroke: var(--surface, var(--panel)); stroke-width: 1.5; }
+.lw-crossing.k-decision { fill: var(--mem-decision); } .lw-crossing.k-fact { fill: var(--mem-fact); } .lw-crossing.k-preference { fill: var(--mem-preference); } .lw-crossing.k-question { fill: var(--mem-question); }
+:root[data-scheme="light"] .lw-crossing.k-fact { fill: #9fb0c6; }
+.lw-end { z-index: 1; display: grid; justify-items: center; gap: 2px; transform: translate(-50%, -23px); animation: lw-arrive calc(620ms * var(--motion-scale, 1)) var(--ease-out, ease-out) var(--d) both, lw-float 4.2s ease-in-out calc(var(--d) + 700ms) infinite alternate; }
+@keyframes lw-arrive { from { opacity: 0; transform: translate(-50%, -23px) scale(.45); } }
+@keyframes lw-float { to { transform: translate(-50%, -28px); } }
+.lw-end b { max-width: 130px; margin-top: 5px; font-size: 13px; font-weight: 650; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lw-end small { font-size: 11px; color: var(--text-2); }
+.lw-room-mark { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); color: color-mix(in srgb, var(--s-acc) 72%, var(--text-2)); }
+.lw-room-mark svg { width: 22px; height: 19px; }
+.lw-end.is-bishop::before { content: ''; position: absolute; top: -6px; left: 50%; width: 58px; height: 58px; margin-left: -29px; border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--s-acc) 45%, transparent); animation: sm-ring 2.4s ease-out infinite; pointer-events: none; }
+.scene-link .lw-terms { position: absolute; z-index: 1; top: 9px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: nowrap; justify-content: center; gap: 5px; width: max-content; max-width: calc(100% - 20px); margin: 0; overflow: hidden; }
+.scene-link .lw-terms span { padding: 2px 8px; border-radius: 7px; font-size: 11px; line-height: 1.5; color: var(--text-2); background: color-mix(in srgb, var(--surface, var(--panel)) 72%, transparent); white-space: nowrap; }
+.scene-link .lw-terms span:first-child { color: var(--text); font-weight: 600; }
+/* One view, no scrolling: the assistant is compact. */
+.sm-link-wizard .sm-sheet-body { gap: 12px; padding: 18px 22px; max-height: calc(100dvh - 24px); }
+.sm-link-wizard .lw-step { gap: 12px; }
+.sm-link-wizard .lw-intro h3 { font-size: 20px; }
+.sm-link-wizard .lw-lead { font-size: 13.5px; line-height: 1.5; }
+.sm-link-wizard .lw-row { padding: 10px 0; }
+.lw-card.lw-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 22px; }
+.lw-card.lw-grid > .lw-row { border-top: 1px solid var(--line); }
+.lw-card.lw-grid > .lw-row:nth-child(-n+2) { border-top: 0; }
+.lw-pick { display: flex; align-items: center; gap: 8px; }
+.lw-pick .lw-select { width: 170px; }
 .lw-review li { position: relative; padding: 12px 0 12px 20px; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.5; color: var(--text); }
 .lw-review li:first-child { border-top: 0; }
 .lw-review li::before { content: ''; position: absolute; left: 2px; top: 19px; width: 8px; height: 8px; border-radius: 50%; background: var(--s-acc); }
 @media (max-width: 640px) {
   .lw-row { flex-wrap: wrap; }
   .lw-select { width: 100%; }
-  .lw-flow { grid-template-columns: minmax(0, 1fr); justify-items: start; }
+  .lw-card.lw-grid { grid-template-columns: minmax(0, 1fr); }
+  .lw-card.lw-grid > .lw-row:nth-child(2) { border-top: 1px solid var(--line); }
+  .lw-pick { flex-wrap: wrap; }
 }
-@media (prefers-reduced-motion: reduce) { .lw-flow .lw-wire i::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .lw-end, .lw-end.is-bishop::before { animation: none; } .lw-wires .sm-wire { animation: none; } }

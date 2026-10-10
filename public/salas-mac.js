@@ -722,38 +722,87 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     }
     return said;
   }
-  // The link as it stands so far: who serves, what crosses, who reads; and its terms.
-  function contract({ swap = null } = {}) {
-    const box = el('section', 'lw-contract');
-    box.setAttribute('aria-label', t('The link as it stands'));
-    const top = el('div', 'lw-contract-head');
-    top.append(el('span', 'lw-eyebrow', t('The link as it stands')));
-    if (swap) top.append(swap);
-    box.append(top);
-    const flow = el('div', `lw-flow${pick.both ? ' both' : ''}`);
-    const end = (id, role) => { const node = el('span', `lw-room${id === data.salas ? ' is-bishop' : ''}`); node.append(el('b', null, nameOf(id)), el('small', null, role)); return node; };
-    const wire = el('span', 'lw-wire');
-    wire.append(el('em', null, pick.kinds.size ? kindsSaid() : t('nothing yet')), el('i'));
-    flow.append(end(pick.source, pick.both ? t('Reads and serves') : t('Serves')), wire, end(pick.reader, pick.both ? t('Reads and serves') : t('Reads')));
-    const terms = [
+  // The scene over every step, in the welcome's own style (wizardScene): the room that serves and
+  // the one that reads, arriving and floating; BISHOP with its ring; between them the wire, its dashes
+  // running the way the notes travel (both ways when both read), and the notes themselves crossing it,
+  // one dot per kind that crosses, in its kind's colour. Under them, the link's terms. It is made once
+  // and kept across the steps; a choice redraws what it says, not the scene.
+  const stage = el('div', 'sm-scene scene-link');
+  const shown = { head: null, page: null };
+  stage.setAttribute('aria-hidden', 'true');
+  const ends = { source: null, reader: null };
+  function endNode(role) {
+    const node = el('div', `sm-scene-node lw-end ${role}`);
+    node.style.left = role === 'source' ? '20%' : '80%';
+    node.style.top = '42%';
+    node.style.setProperty('--d', role === 'source' ? '0ms' : '160ms');
+    stage.append(node);
+    return node;
+  }
+  function paintEnd(node, id, role) {
+    if (node.dataset.room !== id) {
+      node.dataset.room = id;
+      node.replaceChildren();
+      const body = id === data.salas ? mark('bishop', 46) : (() => { const disc = el('span', 'lw-room-mark'); disc.innerHTML = FOLDER_GLYPH; return disc; })(); // trusted: drawn here
+      node.classList.toggle('is-bishop', id === data.salas);
+      node.append(body, el('b', null, nameOf(id)), el('small'));
+    }
+    node.lastChild.textContent = role;
+  }
+  function paintStage() {
+    ends.source ??= endNode('source');
+    ends.reader ??= endNode('reader');
+    paintEnd(ends.source, pick.source, pick.both ? t('Reads and serves') : t('Serves'));
+    paintEnd(ends.reader, pick.reader, pick.both ? t('Reads and serves') : t('Reads'));
+    stage.querySelector('.lw-wires')?.remove();
+    stage.querySelector('.lw-terms')?.remove();
+    const box = stage.getBoundingClientRect();
+    if (box.width) {
+      // In the scene's own pixels, so the dots stay round and the wire meets the bodies.
+      const W = box.width, H = box.height, y = H * 0.42, x0 = W * 0.2 + 34, x1 = W * 0.8 - 34;
+      const wires = svgNode('svg', { class: 'lw-wires', viewBox: `0 0 ${W} ${H}` });
+      const there = `M${x0} ${y} C ${x0 + (x1 - x0) * 0.33} ${y - 18}, ${x0 + (x1 - x0) * 0.66} ${y + 18}, ${x1} ${y}`;
+      const back = `M${x1} ${y + 7} C ${x0 + (x1 - x0) * 0.66} ${y + 26}, ${x0 + (x1 - x0) * 0.33} ${y - 10}, ${x0} ${y + 7}`;
+      const paths = [['lw-there', there], ...(pick.both ? [['lw-back', back]] : [])];
+      paths.forEach(([id, d]) => wires.append(svgNode('path', { id, class: 'sm-wire on', d })));
+      // The notes crossing: one dot per kind, one after another, along each way (still, for whoever
+      // asked for less motion: then the wire alone says it).
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const kinds = still ? [] : LINK_KINDS.filter((kind) => pick.kinds.has(kind));
+      paths.forEach(([id], way) => kinds.forEach((kind, index) => {
+        const dot = svgNode('circle', { r: 4.2, class: `lw-crossing k-${kind}`, opacity: 0 });
+        const begin = `${(index * 2.6) / Math.max(1, kinds.length) + way * 1.3}s`;
+        const move = svgNode('animateMotion', { dur: '2.6s', repeatCount: 'indefinite', begin, calcMode: 'spline', keyTimes: '0;1', keySplines: '.45 0 .55 1' });
+        const along = svgNode('mpath');
+        along.setAttribute('href', `#${id}`);
+        move.append(along);
+        dot.append(move, svgNode('animate', { attributeName: 'opacity', values: '0;1;1;0', keyTimes: '0;.12;.88;1', dur: '2.6s', repeatCount: 'indefinite', begin }));
+        wires.append(dot);
+      }));
+      stage.prepend(wires);
+    }
+    const terms = el('p', 'lw-terms');
+    const said = [
+      pick.kinds.size ? kindsSaid() : t('nothing yet'),
       pick.days ? t('Ends {date}', { date: until() }) : t('No expiry'),
       pick.recall ? t('On every turn') : t('Only when asked'),
       ...(ordersInto() ? [pick.orders ? t('Orders up to #{n}', { n: pick.maxMode }) : t('No orders')] : []),
     ];
-    box.append(flow, el('p', 'lw-terms', terms.join(' · ')));
-    return box;
+    for (const words of said) terms.append(el('span', null, words));
+    stage.append(terms);
   }
 
   function render({ back = false } = {}) {
     const steps = stepsNow();
     at = Math.min(at, steps.length - 1);
     const kind = steps[at];
-    inner.replaceChildren();
     const head = el('header', 'sm-sheet-head');
     const dots = el('ol', 'sm-steps');
     steps.forEach((name, index) => dots.append(el('li', index === at ? 'on' : index < at ? 'done' : null, STEP_WORDS[name]())));
     head.append(dots, closeKey(() => sheet.close()));
     const page = el('div', `sm-step lw-step${back ? ' back' : ''}`);
+    // The swap, on the first step: it turns the link round, and the scene shows it.
+    const turn = button('sm-btn small', t('Swap them'), () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); });
     const intro = (title, lead) => {
       const box = el('div', 'lw-intro');
       box.append(el('span', 'lw-eyebrow', t('Step {n} of {total}', { n: at + 1, total: steps.length })), el('h3', null, title));
@@ -768,7 +817,9 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     if (kind === 'who') {
       intro(t('Which room reads, and from which?'), t('A link lets one room look up the notes of another. The one that reads asks; the one that serves answers with its notes. Nothing is ever written into the one that serves.'));
       const box = card();
-      box.append(row(t('The one that serves'), t('Its notes are read. Nothing is written into it.'), roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('The one that serves'))));
+      const serves = el('div', 'lw-control lw-pick');
+      serves.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('The one that serves')), turn);
+      box.append(row(t('The one that serves'), t('Its notes are read. Nothing is written into it.'), serves));
       box.append(row(t('The one that reads'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The one that reads'))));
       box.append(row(t('Both ways'), t('Each one reads the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
       for (const said of cautions()) box.append(caution(said));
@@ -777,6 +828,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     } else if (kind === 'what') {
       intro(t('Which notes cross?'), t('Turn on only what the room that reads needs. Decisions and facts are usually enough.'));
       const box = card();
+      box.classList.add('lw-grid');
       for (const kindOf of LINK_KINDS) {
         box.append(row(kindWord(kindOf), LINK_KIND_NOTES[kindOf](), toggle(pick.kinds.has(kindOf), (on) => { if (on) pick.kinds.add(kindOf); else pick.kinds.delete(kindOf); error.textContent = ''; render(); }, kindWord(kindOf)), { recommended: kindOf === 'decision' || kindOf === 'fact', dot: kindOf }));
       }
@@ -846,15 +898,17 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       });
       actions.append(sign);
     }
-    // On the first step the direction can be turned round from the link itself.
-    const turn = kind === 'who' ? button('sm-btn small', t('Swap them'), () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); }) : null;
-    if (kind !== 'review') page.append(contract({ swap: turn }));
     page.append(error, actions);
-    inner.append(head, page);
+    // The scene stays where it is (taken out and put back, its animations would start over).
+    if (!stage.isConnected) inner.replaceChildren(head, stage, page);
+    else { shown.head.replaceWith(head); shown.page.replaceWith(page); }
+    shown.head = head; shown.page = page;
+    paintStage();
   }
   sheet.addEventListener('close', () => { sheet.remove(); sheet = null; });
   render();
   sheet.showModal();
+  paintStage();
 }
 ui.link.addEventListener('click', () => openLinkSheet());
 

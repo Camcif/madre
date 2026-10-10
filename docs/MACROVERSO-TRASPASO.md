@@ -51,7 +51,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `a99015a` | Claude | Macroverso: BISHOP al centro con las venas de sus enlaces, enlazar llevando un universo a BISHOP, teclas de la sala de noche, menos brillo y pulsos más chicos a lo lejos |
 | `a801530` | Claude | Macroverso: BISHOP como esfera de gas nebuloso con un ojo que todo lo ve |
 | `e457bd3` | Claude | BISHOP más real (esfera iluminada, nebulosa, ojo sobre la esfera que parpadea y sigue al puntero) y enlazar como asistente paso a paso |
-| *este commit* | Claude | Lobby: hojas con el material de la ventana de Ajustes; enlazar rehecho en el lenguaje de Ajustes; carpetas que caen en su casilla; el pulso detrás de las salas |
+| `3632ca6` | Claude | Lobby: hojas con el material de la ventana de Ajustes; enlazar rehecho en el lenguaje de Ajustes; carpetas que caen en su casilla; el pulso detrás de las salas |
+| *este commit* | Claude | Enlazar: escena al estilo de la bienvenida (nodos, cable que fluye, notas que cruzan) y todo en una vista, sin scroll |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -272,7 +273,9 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   pulsos y anillos del latido se atenúan y achican con `nearness` (`farLight`, `farSize`).
 - **Enlazar es un asistente** (`openLinkSheet`, 2026-10-10): pasos Quién lee · Qué cruza · Cuánto
   tiempo · Órdenes (solo con BISHOP de un lado) · Revisión; cada paso dice qué decide, las opciones
-  van en filas como Ajustes (lo seguro marcado «Recomendado») y abajo «Así queda el enlace».
+  van en filas como Ajustes (lo seguro marcado «Recomendado»); arriba, una escena al estilo de la
+  bienvenida que se conserva entre pasos: las dos salas, el cable que fluye hacia la que lee, una nota
+  por tipo cruzándolo y los términos. Cabe en una vista (≥ 760 px de alto) sin scroll.
   Todas las hojas del lobby llevan el material de `dialog.settings-window` (`--bg-2` al 94 %).
   Valores seguros por defecto: **una semana** (antes 30 días), decisiones y hechos, sin recuerdo,
   sin órdenes; avisa si la que entrega duerme o corre una MADRE vieja; con órdenes exige la
