@@ -116,18 +116,27 @@ body.salas-mac {
 .sm-sub { margin: 10px 0 0; font-size: 15px; color: var(--text-2); }
 /* The hero's tools stand on a raised bar, as the room's keys stand on its bar: the search and the
    rail sink into it (the room's .settings-search and .sx-seg), the key that adds stands up. */
-.sm-tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 6px; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
+.sm-tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 6px; border-radius: 14px; background: var(--surface, var(--panel)); }
 .sm-tools .sm-search { flex: 0 1 260px; min-width: 180px; }
 .sm-tools .sm-search input::-webkit-search-cancel-button { cursor: pointer; }
 
 
-/* THE BENTO: twelve columns, rows of 118 px that grow when a tile needs more. A tile is the room's
-   surface raised by the one light every card shares (--raise); nothing glows, nothing has a rim
-   but the one that waits for you. */
+/* THE BENTO: twelve columns, rows of 118 px that grow when a tile needs more. A tile stands on the
+   lobby as the room's conversation stands on its wallpaper (styles.css, THE CANVAS IN PLANES): a
+   solid surface, one contact edge under it and one short lift, from the same formula and the same
+   depths. No light around it, no rim, no glow; the one that waits for you is the only one with a
+   ring (--ring), and a project under the hand comes one plane nearer. */
 .sm-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: minmax(118px, auto); gap: 16px; }
 .sm-bento + .sm-bento, .sm-none + .sm-bento, .sm-bento + .sm-none { margin-top: 16px; }
 .sm-projects, .sm-low { grid-auto-rows: auto; }
-.sm-tile { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 18px 20px; border-radius: 22px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
+.sm-tile { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 18px 20px; border-radius: 22px; background: var(--surface, var(--panel)); }
+:is(.sm-tile, .sm-tools) {
+  --plane: var(--depth-system, 40);
+  box-shadow:
+    var(--ring, 0 0 #0000),
+    0 1px 1px rgb(var(--plane-ink) / min(.4, calc(var(--plane) * .0017 * var(--plane-k)))),
+    0 calc(var(--plane) * .16px) calc(var(--plane) * .38px) calc(var(--plane) * -.2px) rgb(var(--plane-ink) / min(.55, calc(var(--plane) * .0042 * var(--plane-k))));
+}
 .c-3 { grid-column: span 3; } .c-4 { grid-column: span 4; } .c-5 { grid-column: span 5; } .c-8 { grid-column: span 8; }
 .r-1 { grid-row: span 1; } .r-2 { grid-row: span 2; } .r-3 { grid-row: span 3; }
 .sm-projects > .sm-tile { grid-column: span 3; }
@@ -139,8 +148,8 @@ body.salas-mac {
 
 /* A project: its name, where it lives, how it is, what it said last and what it holds. */
 .sm-card { gap: 9px; transition: transform 180ms var(--ease-out, ease-out), box-shadow 180ms var(--ease-out, ease-out); }
-.sm-card:hover { transform: translateY(-2px); box-shadow: var(--raise-over, var(--raise, var(--key-rest))); }
-.sm-card.is-waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--raise, var(--key-rest)); }
+.sm-card:hover { transform: translateY(-2px); --plane: var(--depth-user, 60); }
+.sm-card.is-waiting { --ring: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent); }
 .sm-card.is-asleep { background: color-mix(in srgb, var(--surface, var(--panel)) 64%, transparent); }
 .sm-card.is-asleep h3 { color: var(--text-2); }
 .sm-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -192,15 +201,14 @@ body.salas-mac {
 .sm-error { margin: 0; font-size: 13px; color: var(--terror); }
 /* «Ask BISHOP about this one»: BISHOP's own mark, a key of its own at the end of the row. */
 
-.sm-none { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0; padding: 22px; border-radius: 22px; font-size: 14px; color: var(--text-2); box-shadow: var(--key-track); }
+.sm-none { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0; padding: 22px; border-radius: 22px; font-size: 14px; color: var(--text-2); background: var(--plane-meta, color-mix(in srgb, var(--text) 4%, transparent)); }
 .sm-foot { margin: 24px 0 0; font-size: 12.5px; color: var(--text-2); }
 body.sm-gone .sm-hero h1 { color: var(--text-3); }
 
 /* BISHOP, the heart of the lobby: its mark, its state, the two ways in (here, or a new tab), its
    last conversation, what it waits for, and a box that takes a question to its room. */
-.sm-bishop { gap: 12px; padding: 20px 22px; box-shadow: inset 0 0 0 1px color-mix(in srgb, #4fc3f7 20%, transparent), var(--raise, var(--key-rest)); }
-:root[data-scheme="light"] .sm-bishop { box-shadow: inset 0 0 0 1px color-mix(in srgb, #0277bd 16%, transparent), var(--raise, var(--key-rest)); }
-.sm-bishop.is-waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--raise, var(--key-rest)); }
+.sm-bishop { gap: 12px; padding: 20px 22px; }
+.sm-bishop.is-waiting { --ring: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent); }
 .sm-bishop-head { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .sm-bishop-words { display: grid; gap: 3px; flex: 1; min-width: 0; }
 .sm-bishop-words h2 { margin: 0; font-family: var(--read); font-size: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
@@ -208,7 +216,7 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
 .sm-bishop-about { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); max-width: 680px; }
 .sm-bishop-asks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* THE LAST WORK, under BISHOP: MADRE's summary, a line per thing done, each led by its project. */
-.sm-work { display: grid; gap: 10px; margin-top: 4px; padding: 14px 16px 12px; border-radius: 16px; box-shadow: var(--key-track); flex: 1; align-content: start; }
+.sm-work { display: grid; gap: 10px; margin-top: 4px; padding: 14px 16px 12px; border-radius: 16px; background: color-mix(in srgb, var(--text) 4%, transparent); flex: 1; align-content: start; }
 .sm-work-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .sm-work-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; color: var(--text); }
 .sm-work-by { flex: 1; min-width: 0; font-family: var(--mono); font-size: 11px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -229,7 +237,7 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 
 /* Waiting for you: one number, green when nobody waits, the accent when someone does. */
 .sm-waiting.has .sm-big { color: var(--s-acc); }
-.sm-waiting.has { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 60%, transparent), var(--raise, var(--key-rest)); }
+.sm-waiting.has { --ring: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 60%, transparent); }
 .sm-waiting-body { display: grid; gap: 6px; }
 .sm-waiting-row { display: grid; gap: 1px; padding: 7px 10px; border-radius: 12px; color: var(--text); text-decoration: none; background: color-mix(in srgb, var(--s-acc) 12%, transparent); }
 .sm-waiting-row b { font-size: 13px; font-weight: 650; }
@@ -255,7 +263,7 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 .sm-decision-head time { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
 .sm-decision p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .sm-attention { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.sm-attention-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; box-shadow: var(--key-track); }
+.sm-attention-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--text) 4%, transparent); }
 .sm-attention-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--session-wait); }
 .sm-attention-item.is-bad .dot { background: var(--session-bad); }
 .sm-attention-item.is-ok .dot, .sm-attention-item.is-calm .dot { background: var(--session-ok); }
@@ -288,6 +296,9 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 .sm-set-row .sm-swatches { max-width: 380px; justify-content: flex-end; }
 .sm-set-keys { display: flex; flex-wrap: wrap; gap: 8px; }
 .sm-set-row.stack { display: grid; justify-content: stretch; }
+.sm-set-row > span:has(.sm-set-note) { flex: 1 1 200px; min-width: 0; }
+.sm-set-note { display: block; margin-top: 2px; font-size: 12.5px; color: var(--text-2); }
+.sm-tune .sx-seg { justify-self: start; }
 /* The wallpapers, the room's papers (styles.css, .paper), each shown as itself. */
 .sm-papers { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
 .sm-papers .paper { font-family: var(--read); font-size: 11.5px; }

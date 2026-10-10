@@ -4123,6 +4123,8 @@ export const ES = {
   'See the links': 'Ver los enlaces',
   'Open BISHOP in a new tab': 'Abrir BISHOP en una pestaña nueva',
   'Kept in this browser, for the lobby and for the room served at this address.': 'Se guarda en este navegador, para el lobby y para la sala que se sirve en esta dirección.',
+  'In the conversation of the room served at this address.': 'En la conversación de la sala que se sirve en esta dirección.',
+  'Text in the conversation': 'Texto de la conversación',
   'Its agent and its mode are chosen in its own room.': 'Su agente y su modo se eligen en su propia sala.',
   'See the welcome again': 'Ver la bienvenida otra vez',
   'Waiting on you': 'Te esperan',

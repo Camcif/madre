@@ -52,7 +52,18 @@ const ACCENT_WORDS = { madre: () => t('Madre green'), mountain: () => t('Mountai
 // same veil, the same «mesh» and blur the room's PERSONALIZE sets, read from the same keys.
 const WALLPAPERS = ['default', 'jarrito', 'canela', 'paradise', 'ventura', 'magna', 'biznaga', 'oceano', 'quila', 'xico', 'tropical', 'tradicion', 'urbania'];
 const WALLPAPER_WORDS = { default: () => t('Default'), jarrito: () => 'Jarrito', canela: () => 'Canela', paradise: () => t('Paradise'), ventura: () => 'Ventura', magna: () => 'Magna', biznaga: () => 'Biznaga', oceano: () => 'Oceano', quila: () => 'Quila', xico: () => 'Xico', tropical: () => 'Tropical', tradicion: () => 'Tradicion', urbania: () => 'Urbania' };
-const LOOK_KEYS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur'];
+// The conversation's own looks (app.js, LOOKS.bubbles and LOOKS.text): the lobby has no
+// conversation, so here they are only chosen, for the room served at this address.
+const BUBBLES = ['comfortable', 'large', 'compact', 'fitted'];
+const BUBBLE_WORDS = { comfortable: () => t('Comfortable'), large: () => t('Large'), compact: () => t('Compact'), fitted: () => t('Fitted') };
+const TEXTS = ['comfortable', 'larger', 'smaller', 'visual'];
+const TEXT_WORDS = { comfortable: () => t('Comfortable'), larger: () => t('Larger'), smaller: () => t('Smaller'), visual: () => t('Visual') };
+// The photographs' two dials, as the room keeps them (app.js, TUNES): the first value is no key.
+const TUNES = {
+  veil: { key: 'pulse.wallpaper.veil', min: 0, max: 140, step: 5, value: 100, shown: (v) => `${v}%`, apply: (v) => root.style.setProperty('--veil-k', String(v / 100)) },
+  blur: { key: 'pulse.wallpaper.blur', min: 0, max: 24, step: 1, value: 0, shown: (v) => `${v}px`, apply: (v) => root.style.setProperty('--wp-blur', `${v}px`) },
+};
+const LOOK_KEYS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text'];
 function readLooks() {
   let theme = 'auto';
   let accent = null;
@@ -60,9 +71,12 @@ function readLooks() {
   let style = null;
   let veil = null;
   let blur = null;
+  let bubbles = null;
+  let text = null;
   try {
     theme = localStorage.getItem('pulse.theme') ?? 'auto'; accent = localStorage.getItem('pulse.accent'); wallpaper = localStorage.getItem('pulse.wallpaper');
     style = localStorage.getItem('pulse.wallpaper.style'); veil = localStorage.getItem('pulse.wallpaper.veil'); blur = localStorage.getItem('pulse.wallpaper.blur');
+    bubbles = localStorage.getItem('pulse.bubbles'); text = localStorage.getItem('pulse.text');
   } catch { /* no storage */ }
   const number = (raw, low, high, fallback) => { const value = raw === null ? Number.NaN : Number(raw); return Number.isFinite(value) && value >= low && value <= high ? value : fallback; };
   return {
@@ -72,6 +86,8 @@ function readLooks() {
     style: style === 'mesh' ? 'mesh' : 'veil',
     veil: number(veil, 0, 140, 100),
     blur: number(blur, 0, 24, 0),
+    bubbles: BUBBLES.includes(bubbles) ? bubbles : BUBBLES[0],
+    text: TEXTS.includes(text) ? text : TEXTS[0],
   };
 }
 function applyLooks() {
@@ -86,17 +102,29 @@ function applyLooks() {
   if (looks.style === 'mesh') root.dataset.wpStyle = 'mesh'; else delete root.dataset.wpStyle;
   root.style.setProperty('--veil-k', String(looks.veil / 100));
   root.style.setProperty('--wp-blur', `${looks.blur}px`);
+  if (looks.bubbles !== BUBBLES[0]) root.dataset.bubbles = looks.bubbles; else delete root.dataset.bubbles;
+  if (looks.text !== TEXTS[0]) root.dataset.text = looks.text; else delete root.dataset.text;
 }
 applyLooks();
-function saveLooks({ theme, accent, wallpaper }) {
+function saveLooks({ theme, accent, wallpaper, style, bubbles, text }) {
+  // The first value of each look is the room as it always was, kept as no choice at all (app.js, saveLook).
+  const keep = (key, value, first) => { if (value === first) localStorage.removeItem(key); else localStorage.setItem(key, value); };
   try {
     if (theme) localStorage.setItem('pulse.theme', theme);
-    // The first accent (and the first wallpaper) is the room as it always was, kept as no choice at all (app.js, saveLook).
-    if (accent) { if (accent === 'madre') localStorage.removeItem('pulse.accent'); else localStorage.setItem('pulse.accent', accent); }
-    if (wallpaper) { if (wallpaper === 'default') localStorage.removeItem('pulse.wallpaper'); else localStorage.setItem('pulse.wallpaper', wallpaper); }
+    if (accent) keep('pulse.accent', accent, 'madre');
+    if (wallpaper) keep('pulse.wallpaper', wallpaper, 'default');
+    if (style) keep('pulse.wallpaper.style', style, 'veil');
+    if (bubbles) keep('pulse.bubbles', bubbles, BUBBLES[0]);
+    if (text) keep('pulse.text', text, TEXTS[0]);
   } catch { /* the choice lasts as long as the page */ }
   applyLooks();
   settingsSheet?.paintLooks();
+}
+// A dial is saved when it is let go and shown while it moves; the sheet is not painted again under
+// the hand (app.js, saveTune).
+function saveTune(name, value) {
+  try { if (value === TUNES[name].value) localStorage.removeItem(TUNES[name].key); else localStorage.setItem(TUNES[name].key, String(value)); } catch { /* the choice lasts as long as the page */ }
+  applyLooks();
 }
 window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', applyLooks);
 window.addEventListener('storage', (event) => { if (LOOK_KEYS.includes(event.key)) { applyLooks(); settingsSheet?.paintLooks(); } });
@@ -387,6 +415,46 @@ function papers() {
     grid.append(paper);
   }
   return grid;
+}
+// A look on the room's rail: its values in its words, the one chosen pressed.
+function lookSeg(label, values, words, chosen, pick) {
+  const seg = el('div', 'sx-seg');
+  seg.setAttribute('role', 'radiogroup');
+  if (label) seg.setAttribute('aria-label', label);
+  for (const value of values) {
+    const one = button(null, words[value](), () => pick(value));
+    one.setAttribute('role', 'radio');
+    one.setAttribute('aria-checked', String(chosen === value));
+    seg.append(one);
+  }
+  return seg;
+}
+// A photograph's layer or mesh and its two dials, in the room's own frame and sliders (styles.css,
+// .sx-look .paper-tune and .tune-row): the wallpaper moves under the hand, the choice is kept when
+// the dial is let go.
+function paperTune() {
+  const looks = readLooks();
+  const frame = el('div', 'sx-look sm-tune');
+  const box = el('div', 'paper-tune');
+  box.append(lookSeg(null, ['veil', 'mesh'], { veil: () => t('Layer'), mesh: () => t('Mesh') }, looks.style, (value) => saveLooks({ style: value })));
+  const dial = (name, label) => {
+    const tune = TUNES[name];
+    const line = el('label', 'tune-row');
+    const value = el('span', 'tune-value', tune.shown(looks[name]));
+    const input = el('input', 'tune-range');
+    input.type = 'range';
+    input.min = String(tune.min); input.max = String(tune.max); input.step = String(tune.step);
+    input.value = String(looks[name]);
+    const fill = (v) => input.style.setProperty('--fill', `${((v - tune.min) / (tune.max - tune.min)) * 100}%`);
+    fill(looks[name]);
+    input.addEventListener('input', () => { const v = Number(input.value); tune.apply(v); value.textContent = tune.shown(v); fill(v); });
+    input.addEventListener('change', () => saveTune(name, Number(input.value)));
+    line.append(el('span', 'tune-name', label), input, value);
+    return line;
+  };
+  box.append(dial('veil', t('Intensity')), dial('blur', t('Blur')));
+  frame.append(box);
+  return frame;
 }
 function swatches() {
   const { accent } = readLooks();
@@ -1600,7 +1668,13 @@ function openSettings(section = null) {
     inner.append(node);
     return node;
   };
-  const row = (words, control) => { const line = el('div', 'sm-set-row'); line.append(el('span', null, words), control); return line; };
+  const row = (words, control, note) => {
+    const line = el('div', 'sm-set-row');
+    const name = el('span', null, words);
+    if (note) name.append(el('small', 'sm-set-note', note));
+    line.append(name, control);
+    return line;
+  };
 
   const looks = block('looks', t('Appearance'), t('Kept in this browser, for the lobby and for the room served at this address.'));
   const looksRows = el('div', 'sm-set-rows');
@@ -1617,10 +1691,21 @@ function openSettings(section = null) {
     one.setAttribute('aria-checked', String(code === language));
     languages.append(one);
   }
+  // The room's PERSONALIZE, all of it: theme, accent, wallpaper (and, for a photograph, its layer or
+  // mesh and its dials), bubbles, the conversation's text and the language.
   const paintLooks = () => {
+    const looks = readLooks();
     const wall = row(t('Wallpaper'), papers());
     wall.classList.add('stack');
-    looksRows.replaceChildren(row(t('Theme'), themeSeg()), row(t('Accent'), swatches()), wall, row(t('Language'), languages));
+    if (looks.wallpaper !== 'default') wall.append(paperTune());
+    looksRows.replaceChildren(
+      row(t('Theme'), themeSeg()),
+      row(t('Accent'), swatches()),
+      wall,
+      row(t('Bubbles'), lookSeg(t('Bubbles'), BUBBLES, BUBBLE_WORDS, looks.bubbles, (value) => saveLooks({ bubbles: value })), t('In the conversation of the room served at this address.')),
+      row(t('Text in the conversation'), lookSeg(t('Text in the conversation'), TEXTS, TEXT_WORDS, looks.text, (value) => saveLooks({ text: value }))),
+      row(t('Language'), languages),
+    );
   };
   paintLooks();
 
