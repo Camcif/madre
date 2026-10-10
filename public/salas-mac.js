@@ -340,7 +340,7 @@ function drawAgents() {
     key.setAttribute('aria-label', key.title);
     ui.agents.body.append(key);
   }
-  if (ready < list.length) ui.agents.body.append(button('sm-btn tone small sm-connect', t('Connect'), () => openSettings('agents')));
+  if (ready < list.length) ui.agents.body.append(button('sm-btn small sm-connect', t('Connect'), () => openSettings('agents')));
 }
 
 // APPEARANCE: the theme and the accent, chosen here at once. The same three words and the same

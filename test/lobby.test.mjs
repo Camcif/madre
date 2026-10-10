@@ -120,8 +120,8 @@ test('lobby · a question for BISHOP reaches its room\'s box unsent, here or in 
   assert.doesNotMatch(arrival, /requestSubmit|\.submit\(|sendMessage|fetch\(/, 'the words are sent, not left in the box');
   // The lobby writes them encoded, and BISHOP's two ways in are links: the second a new tab.
   assert.match(page, /#para=\$\{encodeURIComponent\(text\)\}/);
-  assert.match(html, /<a id="sm-bishop-go" class="sm-btn primary small" href="\/">/);
-  assert.match(html, /<a id="sm-bishop-tab" class="sm-round small" href="\/" target="_blank" rel="noopener"/);
+  assert.match(html, /<a id="sm-bishop-go" class="sm-btn primary" href="\/">/);
+  assert.match(html, /<a id="sm-bishop-tab" class="sm-icon-key" href="\/" target="_blank" rel="noopener"/);
   // Asleep, it is woken first and the new tab is opened at the press, so it is not blocked.
   assert.match(page, /const tab = newTab \? window\.open\('about:blank', '_blank'\) : null;/);
 });
