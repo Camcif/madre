@@ -9,6 +9,9 @@ export function parseArgs(argv) {
   // The first word is the command: `start` when there is none, or when the line opens with an
   // option. `salas` (docs/MACROVERSO.md, D-S09) is one more word here; what it opens is decided
   // beside the room of Salas, in src/salas.mjs.
+  // `named`: whether a command word was written at all. A bare `madre` (or `npx madre`) opens the
+  // lobby; `madre start` keeps opening the folder it is run in (src/salas.mjs, projectRootFor).
+  const named = Boolean(args[0]) && !args[0].startsWith('-') && !helpFlags.has(args[0]);
   let command = helpFlags.has(args[0])
     ? 'help'
     : args[0]?.startsWith('-') ? 'start' : (args.shift() ?? 'start');
@@ -38,6 +41,7 @@ export function parseArgs(argv) {
   if (flags.has('help') || args.includes('-h')) command = 'help';
   return {
     command,
+    named,
     option: (name, fallback) => options[name] ?? fallback,
     has: (name) => flags.has(name) || name in options,
     explicit: (name) => name in options,

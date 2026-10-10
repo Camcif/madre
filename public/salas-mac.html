@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>MADRE · Rooms</title>
+    <title>MADRE · Lobby</title>
     <link rel="icon" type="image/svg+xml" href="/assets/brand/madre-favicon.svg">
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/salas-mac.css">
@@ -26,9 +26,13 @@
     </header>
     <main class="sm-main">
       <section class="sm-hero">
-        <h1 id="sm-title">Rooms</h1>
+        <div class="sm-hero-row">
+          <h1 id="sm-title">Lobby</h1>
+          <button id="sm-add" class="sm-btn primary sm-add" type="button">Add a project</button>
+        </div>
         <p id="sm-sub" class="sm-sub"></p>
       </section>
+      <section id="sm-bishop" class="sm-group sm-bishop" hidden></section>
       <section id="sm-open-group" class="sm-group" hidden>
         <h2 id="sm-open-title"></h2>
         <div id="sm-open" class="sm-grid" aria-live="polite"></div>

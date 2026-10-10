@@ -68,14 +68,18 @@ export async function ensureSalasProject(stateRoot) {
   return folder;
 }
 
-// Which project a run of `madre` is about (D-S09), said once and with nothing started, so the
-// rule can be tested as a rule. `--project` wins, always. `madre salas` is the room of Salas. So
-// is a bare `madre` from the home folder itself, the one folder that is nobody's project; from
-// any other folder, `madre` opens that folder, as it always did. No guess about what looks like
-// a project; `cwd` and `home` are compared as real paths, never as text.
-export function projectRootFor({ command, project, cwd, home, stateRoot }) {
+// Which project a run of `madre` is about (D-S09, revised 2026-10-10), said once and with nothing
+// started, so the rule can be tested as a rule. `--project` wins, always. The lobby — the process
+// that serves the list of projects and where BISHOP lives, whose folder is MADRE's own
+// `~/.pulse/salas` — is opened by `madre lobby` and `madre salas`, by a bare `madre` (or
+// `npx madre`) with no command word at all, and by `madre start` from the home folder, the one
+// folder that is nobody's project. `madre start` anywhere else opens that folder, as it always
+// did. No guess about what looks like a project; `cwd` and `home` are compared as real paths.
+// `named` is false only when no command word was written; left out, the command was written.
+export function projectRootFor({ command, named = true, project, cwd, home, stateRoot }) {
   if (typeof project === 'string' && project) return resolve(project);
-  if (command === 'salas' || realFolder(cwd) === realFolder(home)) return resolve(salasProjectRoot(stateRoot));
+  const lobby = command === 'salas' || command === 'lobby' || (command === 'start' && !named) || realFolder(cwd) === realFolder(home);
+  if (lobby) return resolve(salasProjectRoot(stateRoot));
   return resolve(cwd);
 }
 
@@ -88,6 +92,97 @@ export async function markProject(roomDir, projectRoot, { now = new Date() } = {
   const draft = `${file}.${process.pid}.tmp`;
   await writeFile(draft, `${JSON.stringify({ root: projectRoot, name: basename(projectRoot), lastOpened: now.toISOString() })}\n`);
   await rename(draft, file);
+}
+
+// ---- The lobby: adding projects (2026-10-10). A browser cannot hand MADRE the path of a folder,
+// so the lobby browses the folders itself, from this Mac, inside the home folder and nowhere
+// else: names of folders, and whether a folder looks like a project (a marker file is there),
+// never what any file says. Associating a project only writes where it is beside its record, as
+// `madre start` would the first time; nothing is started. A folder already used with MADRE gets
+// the same id it had, so its conversations and its memory are there when it is entered.
+const PROJECT_MARKS = ['.git', 'package.json', 'pyproject.toml', 'requirements.txt', 'Cargo.toml', 'go.mod', 'composer.json', 'Gemfile', 'pom.xml', 'build.gradle', 'Package.swift', 'deno.json', '.pulse'];
+const NOT_PROJECTS = new Set(['node_modules', 'Library', 'Applications', 'Pictures', 'Music', 'Movies', 'Public', 'OneDrive', 'Dropbox']);
+// Where people keep their projects, looked at one level deep for suggestions.
+const PROJECT_HOMES = ['', 'Projects', 'projects', 'Developer', 'dev', 'Dev', 'code', 'Code', 'src', 'repos', 'Repos', 'GitHub', 'git', 'work', 'Work', 'Sites', 'Documents', 'Desktop'];
+
+const inside = (child, parent) => child === parent || child.startsWith(parent.endsWith('/') ? parent : `${parent}/`);
+async function looksLikeProject(folder) {
+  for (const mark of PROJECT_MARKS) if (await stat(join(folder, mark)).then(() => true, () => false)) return true;
+  return false;
+}
+// The folders already in the lobby, by where they are and by their id: a room on an older MADRE
+// may be open without having written where its project is, and its id still names its folder.
+async function knownRoots(stateRoot) {
+  const rooms = await knownRooms(stateRoot);
+  const roots = new Set(rooms.map((room) => room.root).filter(Boolean).map((root) => realFolder(root)));
+  const ids = new Set(rooms.map((room) => room.id));
+  return { has: (folder) => roots.has(folder) || ids.has(projectRoomId(folder)) };
+}
+
+// The folders inside one folder of the home, the projects first. Refused outside the home.
+export async function listFolders({ path = null, home, stateRoot }) {
+  const top = realFolder(home);
+  const here = realFolder(path ?? home);
+  if (!inside(here, top)) return { error: 'outside' };
+  const info = await stat(here).catch(() => null);
+  if (!info?.isDirectory()) return { error: 'missing' };
+  const known = await knownRoots(stateRoot);
+  const state = realFolder(stateRoot);
+  const names = await readdir(here, { withFileTypes: true }).catch(() => []);
+  const entries = [];
+  for (const entry of names) {
+    if (!entry.isDirectory() || entry.name.startsWith('.') || NOT_PROJECTS.has(entry.name)) continue;
+    const full = join(here, entry.name);
+    if (inside(full, state)) continue;
+    entries.push({ name: entry.name, path: full, project: await looksLikeProject(full), known: known.has(full) });
+  }
+  entries.sort((a, b) => Number(b.project) - Number(a.project) || a.name.localeCompare(b.name));
+  return { path: here, home: top, parent: here === top ? null : dirname(here), entries: entries.slice(0, 400) };
+}
+
+// Folders that look like projects in the places people keep them, newest first, none already here.
+export async function suggestProjects({ home, stateRoot, limit = 24 }) {
+  const top = realFolder(home);
+  const known = await knownRoots(stateRoot);
+  const state = realFolder(stateRoot);
+  const seen = new Map();
+  const places = new Set();   // `Projects` and `projects` are one folder on a Mac: read it once
+  for (const place of PROJECT_HOMES) {
+    const base = join(top, place);
+    const info = await stat(base).catch(() => null);
+    if (!info?.isDirectory() || places.has(`${info.dev}:${info.ino}`)) continue;
+    places.add(`${info.dev}:${info.ino}`);
+    const names = await readdir(base, { withFileTypes: true }).catch(() => []);
+    for (const entry of names) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || NOT_PROJECTS.has(entry.name)) continue;
+      const full = join(base, entry.name);
+      if (seen.has(full) || known.has(full) || inside(full, state) || !(await looksLikeProject(full))) continue;
+      const when = (await stat(full).catch(() => null))?.mtimeMs ?? 0;
+      seen.set(full, { name: entry.name, path: full, when });
+    }
+  }
+  return [...seen.values()].sort((a, b) => b.when - a.when).slice(0, limit).map(({ name, path }) => ({ name, path }));
+}
+
+// Associates one folder with the lobby: a project inside the home, not the home itself and not
+// MADRE's own state. Its record says where it is; a record already there keeps when it was last
+// opened. Answers the room's id.
+export async function associateProject({ root, home, stateRoot, now = new Date() }) {
+  const folder = realFolder(String(root ?? ''));
+  const top = realFolder(home);
+  if (!root || !inside(folder, top) || folder === top) return { error: 'outside' };
+  if (inside(folder, realFolder(stateRoot))) return { error: 'madre' };
+  const info = await stat(folder).catch(() => null);
+  if (!info?.isDirectory()) return { error: 'missing' };
+  const id = projectRoomId(folder);
+  const roomDir = join(stateRoot, 'rooms', id);
+  await mkdir(roomDir, { recursive: true });
+  const file = join(roomDir, 'project.json');
+  const before = await readJson(file);
+  const draft = `${file}.${process.pid}.tmp`;
+  await writeFile(draft, `${JSON.stringify({ root: folder, name: basename(folder), lastOpened: before?.lastOpened ?? null, added: before?.added ?? now.toISOString() })}\n`);
+  await rename(draft, file);
+  return { id, name: basename(folder), root: folder, already: Boolean(before) };
 }
 
 // Every room: the ones open now, and the ones asleep whose project is still on disk. A folder

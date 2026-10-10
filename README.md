@@ -22,7 +22,7 @@ Codex, Claude Code, Gemini CLI y OpenCode trabajando sobre el mismo proyecto,
 en la misma conversación, recordando lo mismo.
 
 ```
-npx @jossuealcala/madre start
+npx @jossuealcala/madre
 ```
 
 Eso es todo. No hay cuenta que crear, ni nube que configurar, ni llave que pegar.
@@ -128,11 +128,17 @@ Esto importa más que cualquier función.
 Necesitas **Node 22.5** o superior y al menos una de estas CLIs con sesión iniciada: Codex, Claude Code, Gemini CLI u OpenCode.
 
 ```
+npx @jossuealcala/madre
+```
+
+Desde cualquier carpeta, abre el **lobby** en `http://127.0.0.1:4317/salas`: todos tus proyectos en un lugar, con BISHOP arriba. La primera vez te acompaña en tres pasos: **conectar tus agentes** (instalar y firmar cada CLI ahí mismo, una vez para todos tus proyectos), **agregar tus proyectos** (eliges las carpetas; agregarlas no las abre) y **abrir** los que vas a usar. Cada proyecto corre en su propia sala, con su propia memoria.
+
+Si prefieres entrar directo a un proyecto, como antes:
+
+```
 cd tu-proyecto
 npx @jossuealcala/madre start
 ```
-
-La sala abre en `http://127.0.0.1:4317`. **Si no tienes ninguna CLI, ábrela igual**: lo primero que ves es el puente, con un botón para instalar y firmar cada agente ahí mismo. MADRE enseña el comando antes de correrlo y transmite cada línea a la pantalla.
 
 ```
 npx @jossuealcala/madre doctor    # qué hay instalado, quién tiene sesión

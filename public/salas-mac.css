@@ -217,3 +217,84 @@ body.sm-in-macro { overflow: hidden; }
 .mv-mem-meta { margin: 0; font-family: var(--mono); font-size: 11px; color: rgba(242, 241, 238, .5); }
 @media (prefers-reduced-motion: reduce) { .mv-mem { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .mv, .mv.leaving, .mv-card { animation: none; } }
+
+/* ==========================================================================================
+   THE LOBBY (2026-10-10): the first screen of MADRE. The title with the one action it offers
+   (add a project); BISHOP above the projects, wide and in its own colour; the sheet that adds
+   folders and the first-run wizard, both in the sheets' material. The room's tokens throughout.
+   ========================================================================================== */
+.sm-hero-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; }
+.sm-add { height: 40px; padding: 0 20px; font-size: 14.5px; }
+.sm-btn[disabled] { opacity: .5; cursor: default; }
+.sm-btn.small { height: 30px; padding: 0 13px; font-size: 12.5px; }
+
+/* BISHOP: one wide card, the robot in its own blue. */
+.sm-bishop-card {
+  display: grid; gap: 12px; padding: 20px 22px 18px; border-radius: 22px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent); background-image: var(--sheen, none);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #4fc3f7 22%, transparent), var(--bevel, none), 0 1px 2px rgba(0, 0, 0, .18), 0 22px 44px -26px rgba(0, 0, 0, .6);
+}
+:root[data-scheme="light"] .sm-bishop-card { box-shadow: inset 0 0 0 1px color-mix(in srgb, #0277bd 18%, transparent), var(--bevel, none), 0 1px 2px rgba(20, 30, 20, .06), 0 20px 40px -26px rgba(20, 30, 20, .3); }
+.sm-bishop-card.is-waiting { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--bevel, none), 0 22px 44px -24px color-mix(in srgb, var(--s-acc) 40%, rgba(0, 0, 0, .6)); }
+.sm-bishop-head { display: flex; align-items: center; gap: 14px; }
+.sm-bishop-words { display: grid; gap: 3px; min-width: 0; }
+.sm-bishop-words h2 { margin: 0; font-family: var(--read); font-size: 20px; font-weight: 700; letter-spacing: -.01em; text-transform: none; color: var(--text); }
+.sm-bishop-words p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); max-width: 720px; }
+.sm-mark { flex: none; display: inline-grid; place-items: center; border-radius: 50%; background: var(--b); color: var(--b-ink); box-shadow: 0 1px 2px rgba(15, 20, 30, .14), 0 4px 10px -5px rgba(15, 20, 30, .28); }
+.sm-mark svg { width: 62%; height: 62%; }
+
+/* Sheets that are wider than the link sheet, and their head. */
+.sm-sheet.sm-wide { width: min(720px, calc(100vw - 32px)); }
+.sm-sheet-body { display: grid; gap: 14px; padding: 20px 24px 20px; max-height: min(84vh, 760px); overflow: auto; }
+.sm-sheet-body > h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
+.sm-sheet-body .hint, .sm-picker .hint { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.sm-sheet-body .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.sm-sheet-body .error { margin: 0; font-size: 13px; color: var(--terror); }
+.sm-sheet-body .error:empty { display: none; }
+.sm-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sm-sheet-head > h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
+.sm-x { flex: none; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-2); font-size: 16px; line-height: 1; cursor: pointer; }
+.sm-x:hover { color: var(--text); background: color-mix(in srgb, var(--text) 14%, transparent); }
+
+/* The wizard's steps: a track, the current one raised. */
+.sm-steps { display: inline-flex; gap: 3px; margin: 0; padding: 3px; list-style: none; border-radius: 999px; box-shadow: var(--key-track, inset 0 0 0 1px var(--line-2)); }
+.sm-steps li { padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text-3); }
+.sm-steps li.done { color: var(--text-2); }
+.sm-steps li.on { color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-rest, none); }
+
+/* Folders: rows on a raised list, a box to choose each, its kind as a small tag. */
+.sm-picker { display: grid; gap: 16px; }
+.sm-picker h4 { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--text); }
+.sm-folders { display: grid; gap: 0; max-height: 220px; overflow: auto; padding: 2px 12px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
+.sm-folders.tall { max-height: 280px; }
+.sm-picker.compact .sm-folders { max-height: 180px; }
+/* A folder row is a <label> (its box is checked by a click anywhere on it); the link sheet's
+   uppercase labels are not its type. */
+.sm-sheet label.sm-folder { font-size: inherit; font-weight: inherit; letter-spacing: 0; text-transform: none; color: var(--text); }
+.sm-folder { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.sm-folder:first-child { border-top: 0; }
+.sm-folder input { width: 16px; height: 16px; margin: 0; accent-color: var(--s-acc); }
+.sm-folder.known { cursor: default; opacity: .7; }
+.sm-folder-words { display: grid; gap: 1px; min-width: 0; }
+.sm-folder-words b { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-folder-words small { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-tag { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: color-mix(in srgb, var(--text) 7%, transparent); white-space: nowrap; }
+.sm-tag.is-project { color: var(--s-acc); background: color-mix(in srgb, var(--s-acc) 14%, transparent); }
+.sm-into { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-2); font-size: 18px; line-height: 1; cursor: pointer; }
+.sm-into:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.sm-browse-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sm-browse-head h4 { margin: 0; }
+.sm-where { margin: 0 0 8px; font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+.sm-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sm-picked { font-size: 13px; color: var(--text-2); }
+
+/* Agents, in the wizard's first step: the mark, its name and its state, and the one action it needs. */
+.sm-agents { display: grid; gap: 0; padding: 2px 14px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
+.sm-agent { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.sm-agent:first-child { border-top: 0; }
+.sm-agent-words { display: grid; gap: 2px; min-width: 0; }
+.sm-agent-words b { font-size: 14.5px; font-weight: 600; }
+.sm-agent-words small { font-size: 12.5px; }
+.sm-agent-line { font-family: var(--mono); font-size: 11.5px !important; color: var(--text-3); overflow-wrap: anywhere; }
+.sm-agent-line a { color: var(--s-acc); }
+@media (max-width: 640px) { .sm-folder { grid-template-columns: auto minmax(0, 1fr) auto; } .sm-folder .sm-tag { display: none; } }

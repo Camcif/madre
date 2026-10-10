@@ -44,6 +44,7 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `09eb9a1` | Claude | UX · el vidrio de «sigue abierto» vuelve: el desvanecido pasa de la fila a la píldora cortada |
 | `ae60641` | Claude | Cierre de la jornada de UX del 2026-10-09: resumen en §1·b |
 | `6f1f4b4` | Claude | Macroverso vivo: universos lejanos animados (`frozen`), luz y tamaño por distancia, oscuridad de borde a borde, ventanas de memoria, venas con pulsos |
+| *este commit* | Claude | El lobby: primera pantalla de `npx madre`, agregar proyectos con botón, BISHOP como sección, asistente de primera vez |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -232,6 +233,10 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
 - **Una máscara, filtro u opacidad en un contenedor lo vuelve la raíz del fondo de sus hijos**: un
   `backdrop-filter` dentro ya no ve el paisaje. Por eso el desvanecido de «sigue abierto» va en la
   píldora cortada (`.cut-end`, `--fade-end`) y no en `.openq-rail`.
+- **El lobby** (2026-10-10): es la página `/salas` servida por el proceso de BISHOP (carpeta
+  `~/.pulse/salas`), y la primera pantalla de un `madre` sin palabra de comando. Agregar un proyecto
+  es `associateProject` (escribe `project.json`, no abre); `PULSE_LOBBY_HOME` cambia la carpeta de
+  usuario que explora (para pruebas). Una sala vieja sin `project.json` se reconoce por su id.
 - **Macroverso vivo**: un universo lejano conserva su escena con `scene.frozen` (el motor no calcula
   fuerzas, solo gira, late y pulsa) y se redibuja en `animateFar`, a lo más `FAR_FPS` por segundo y
   con `FAR_BUDGET` ms por cuadro entre todos; su lienzo sigue su tamaño en pantalla

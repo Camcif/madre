@@ -85,7 +85,9 @@ const stateRoot = process.env.PULSE_HOME;
 // anywhere else, the folder MADRE was run from. The notebook of Salas lives under MADRE's own
 // state, `~/.pulse/salas` unless PULSE_HOME says where that state is.
 const salasHome = stateRoot ?? join(homedir(), '.pulse');
-const projectRoot = projectRootFor({ command, project: option('--project', null), cwd: process.cwd(), home: homedir(), stateRoot: salasHome });
+const projectRoot = projectRootFor({ command, named: cli.named, project: option('--project', null), cwd: process.cwd(), home: homedir(), stateRoot: salasHome });
+// The lobby opens on its list of projects; a project's room on its conversation.
+const openPath = isSalasRoom(projectRoot, salasHome) ? '/salas' : '';
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
 if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 5)) {
   console.error(`\n  MOTHER › MADRE needs Node 22.5 or newer (found ${process.version}): the room's memory runs on node:sqlite.\n`);
@@ -188,11 +190,11 @@ if (command === 'doctor' && (has('--catalog') || has('--conditions'))) {
 } else if (command === 'setup') {
   const { action, online } = await runSetup({ projectRoot, stateRoot });
   if (action === 'start') {
-    await openRoom({ port: Number(option('--port', '4317')), projectRoot, openBrowser: !has('--no-open') });
+    await openRoom({ port: Number(option('--port', '4317')), projectRoot, openBrowser: !has('--no-open'), openPath });
   } else {
     process.exitCode = action === 'report' && !online ? 1 : 0;
   }
-} else if (command === 'start' || command === 'salas') {
+} else if (command === 'start' || command === 'salas' || command === 'lobby') {
   // `madre salas` is `madre start` on the notebook of Salas (projectRoot, above): the same look
   // for a room already open, the same walk up the ports, the same browser unless --no-open.
   const port = Number(option('--port', '4317'));
@@ -207,23 +209,26 @@ if (command === 'doctor' && (has('--catalog') || has('--conditions'))) {
   // A room for this project may already be open. Show that one instead of starting a second.
   const running = await roomAlreadyOpen(port, projectRoot);
   if (running) {
-    console.log(`\nMADRE is already open for this project\n\n  ${running.url}\n  Project: ${projectRoot}\n  Close that room first if you want a fresh one.\n`);
-    if (!noOpen) openUrl(running.url);
+    console.log(`\nMADRE is already open for this project\n\n  ${running.url}${openPath}\n  Project: ${projectRoot}\n  Close that room first if you want a fresh one.\n`);
+    if (!noOpen) openUrl(`${running.url}${openPath}`);
     process.exit(0);
   }
-  await openRoom({ port, projectRoot, openBrowser: !noOpen });
+  await openRoom({ port, projectRoot, openBrowser: !noOpen, openPath });
 } else if (command === 'help') {
   console.log(`MADRE
 
+  madre       [--port 4317] [--no-open]
+              Opens the lobby: every project on this computer, in one place.
   madre start [--project PATH] [--port 4317] [--no-open] [--setup]
+              Opens the project in this folder (or PATH) directly.
               Without --port, a busy 4317 falls through to the next free port.
-  madre salas [--port 4317] [--no-open]
-              The same room opens with a bare madre from your home folder.
+  madre lobby [--port 4317] [--no-open]   (also: madre salas)
   madre setup [--project PATH] [--port 4317] [--no-open]
   madre doctor [--project PATH] [--json]
 
-  start   Opens the project room. With nobody online, runs setup first.
-  salas   Opens the room of Salas: every room on this computer, in one place.
+  (none)  Opens the lobby. From there you add projects, connect the agents
+          and enter any project. BISHOP lives there.
+  start   Opens the project room in this folder. From your home folder, the lobby.
   setup   Detects the agents on this computer, shows who has a session,
           and runs each agent's own sign-in from here.
   doctor  Prints the same diagnosis without the wizard.

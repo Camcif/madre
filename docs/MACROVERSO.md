@@ -213,7 +213,7 @@ el encargo puede asumir la recomendación mientras tanto.
 | **D-S06** | Modo automático: ¿se permite? | «De esto se desprenden las demás decisiones»: sí, dentro del techo de cada contrato, con aviso y revocable; `#3`/`#4` nunca solos | — | **CERRADA 2026-10-08** |
 | **D-S07** | Nombre del super agente en la interfaz | **BISHOP**, en la familia de ASH, RIPLEY, NOSTROMO y MU/TH/UR. Se puede asumir; renombrar cuesta un commit | — | **ABIERTA** |
 | **D-S08** | Dónde vive el proyecto de la sala de Salas (planes y contratos como archivos) | `~/.pulse/salas/`, creada al primer `madre salas`, mostrada en Ajustes para cambiarla. Se puede asumir | 3d | **ABIERTA** |
-| **D-S09** | Disparador de D-S02 | `madre salas`, y `madre` sin `--project` solo cuando el directorio actual es `$HOME`. Ninguna heurística de «¿esto es un proyecto?». Se puede asumir | 3d | **ABIERTA** |
+| **D-S09** | Disparador de D-S02 | Revisada por el humano 2026-10-10: el primer `npx` lleva al **lobby**. Abren el lobby `madre` sin palabra de comando (desde cualquier carpeta), `madre lobby`, `madre salas` y `madre start` desde `$HOME`; `madre start` en otra carpeta abre ese proyecto directo. Ninguna heurística de «¿esto es un proyecto?» | 3d | **CERRADA 2026-10-10** |
 | **D-S10** | Cómo queda en el registro una orden de BISHOP | Asumida en 4b tal como se recomendó: el mensaje queda `role: 'user'`, `sender: 'you'`, con `via: 'bishop'` puesto por `Room.order()` (nunca por una petición), la página lo muestra como «de BISHOP · orden n de m», y `src/dataset.mjs` no hace pares con él ni con su respuesta | 4b | **ASUMIDA 2026-10-08** |
 | **D-S11** | Gobernanza contra los bucles: el humano hace lo macro hacia todos sus proyectos y lo micro dentro de cada sala; nada se retroalimenta | «La gobernanza los rige para que no haya bucles.» Lectura operativa para 4b/4c: **solo BISHOP ordena**, y solo dentro de un plan que arrancó un mensaje del humano; una sala que recibe una orden no puede ordenar ni delegar hacia fuera (su turno corre con `depth: 1`); el resultado vuelve a la sala de Salas como tarjeta y **no arranca ningún turno**; un plan tiene a lo sumo 4 órdenes y un cierre, y el cierre no abre otro plan; una orden a una sala que ya corre una orden espera o falla, nunca se encola sin tope; el modo automático cuenta contra `perHour` y se detiene con STOP ALL. Lo que no esté aquí no se asume | 4b, 4c | **CERRADA 2026-10-08** |
 | **D-S12** | BISHOP como centro del Macroverso | «Sí a S-030 pero me gustaría que el usuario elija quién quiere ser su super agente, pero la gobernanza, contexto y memorias de todas las salas enlazadas viven en el macroverso; levantando bishop en las salas puede consultar cualquiera que sea el proyecto que esté enlazado; y algo muy importante, bishop como wizard de enlaces automático y manual por el humano.» Lectura operativa (4c): el humano elige el agente de BISHOP; con `@madre` solo responde. Contratos, censo y notas enlazadas viven en la sala de Salas. Desde cualquier sala, `/bishop <pregunta>` la despierta si duerme, la pregunta corre allí y la respuesta vuelve solo para el humano (`bishop.answer`, que ningún agente lee sin contrato). BISHOP propone enlaces en su bloque, por su cuenta cuando una pregunta necesita una sala sin enlace (automático) o cuando se le pide (manual); **los firma el humano** con un toque (D-S13) | 4c | **CERRADA 2026-10-08** |
@@ -669,3 +669,19 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   del navegador estaba oculto). Una vez, el NOSTROMO de la sala pulse se vio con la cámara dentro del
   núcleo tras ticks a mano; no se reprodujo en tres repeticiones (dos con el motor nuevo, una con el
   anterior).
+- `2026-10-10` · **El lobby** (pedido del humano: «sala de Salas no se entiende; esto es el lobby principal
+  con todos los proyectos»). Decisiones del humano: el primer `npx` lleva al lobby; se agregan
+  proyectos con un botón; `madre start` se conserva; BISHOP es una sección del lobby; las reglas de
+  Windows quedan para su versión (sin declarar soporte ni no-soporte). Hecho: `madre` sin palabra de
+  comando abre el lobby (`cli.named`, `projectRootFor`), servido por el proceso de BISHOP en
+  `/salas`; rutas `GET /api/salas/folders`, `GET /api/salas/suggestions`, `POST /api/salas/projects`
+  (solo la página del lobby en esta Mac: ni teléfono, ni otro sitio por `Sec-Fetch-Site`/`Origin`,
+  ni otro nombre de host; solo carpetas dentro del usuario; nombres y archivos marcadores, nunca
+  contenido); asociar escribe `project.json` con el id que daría `madre start` (la memoria de una
+  carpeta ya usada vuelve) sin abrir nada; `/api/salas/start` despierta a BISHOP aunque nunca se
+  hubiera abierto. En la página: sección de BISHOP, «Agregar proyecto» con sugerencias y explorador,
+  asistente de primera vez (agentes · proyectos · abrir; también en `/salas#welcome`). Los textos en
+  español ya no dicen «Salas» como lugar ni «la sala de Salas». Pruebas: `test/lobby.test.mjs` y la
+  regla nueva en `salas-room.test.mjs`. Verificado en pantalla: el lobby, la hoja de agregar y los
+  dos primeros pasos del asistente. No verificado: asociar y abrir proyectos reales desde la página
+  (cubierto por pruebas, no se tocó el lobby real), el teléfono.

@@ -79,6 +79,17 @@ test('sala de salas · which project a run is about: --project always, `madre sa
   // the notebook, as `madre` from home would open it.
   assert.equal(projectRootFor({ command: 'doctor', project: null, cwd: home, home, stateRoot: state }), salas);
   assert.equal(projectRootFor({ command: 'doctor', project: null, cwd: elsewhere, home, stateRoot: state }), elsewhere);
+  // The lobby (2026-10-10): a bare `madre` — no command word at all — opens the lobby from any
+  // folder; `madre start`, written, keeps opening the folder it is run in; `madre lobby` is the lobby.
+  assert.equal(projectRootFor({ command: 'start', named: false, project: null, cwd: inside, home, stateRoot: state }), salas);
+  assert.equal(projectRootFor({ command: 'start', named: false, project: null, cwd: elsewhere, home, stateRoot: state }), salas);
+  assert.equal(projectRootFor({ command: 'start', named: true, project: null, cwd: inside, home, stateRoot: state }), inside);
+  assert.equal(projectRootFor({ command: 'lobby', project: null, cwd: inside, home, stateRoot: state }), salas);
+  assert.equal(projectRootFor({ command: 'start', named: false, project: elsewhere, cwd: home, home, stateRoot: state }), elsewhere, '--project still wins');
+  assert.equal(parseArgs([]).named, false);
+  assert.equal(parseArgs(['--no-open']).named, false);
+  assert.equal(parseArgs(['start']).named, true);
+  assert.equal(parseArgs(['lobby', '--port', '4400']).named, true);
   // The notebook of a state root that is not there yet is still where it will be.
   assert.equal(projectRootFor({ command: 'salas', project: null, cwd: elsewhere, home, stateRoot: join(state, 'later') }), join(state, 'later', 'salas'));
 });
@@ -213,10 +224,17 @@ test('sala de salas · `madre salas` opens and closes as `madre start` would, a 
     assert.equal(fromHome.room, salasRoomId(state));
     third.child.kill('SIGTERM');
     assert.equal((await third.done).code, 0);
-    // And from a folder inside home, `madre` is that folder's room, as it always was.
+    // From a folder inside home, a bare `madre` is the lobby too (2026-10-10); `madre start`,
+    // written, is that folder's room, as it always was.
     const project = join(home, 'a-project');
     await mkdir(project);
-    const fourth = await run(['--no-open', '--port', String(port)], project);
+    const bare = await run(['--no-open', '--port', String(port)], project);
+    assert.match(bare.out(), /MADRE is ready/, bare.out());
+    assert.match(bare.out(), /\/salas/, 'a bare madre does not say it opens the lobby');
+    assert.equal((await fetch(`http://127.0.0.1:${port}/api/state`).then((answer) => answer.json())).salas, true);
+    bare.child.kill('SIGTERM');
+    assert.equal((await bare.done).code, 0);
+    const fourth = await run(['start', '--no-open', '--port', String(port)], project);
     assert.match(fourth.out(), /MADRE is ready/, fourth.out());
     const inside = await fetch(`http://127.0.0.1:${port}/api/state`).then((answer) => answer.json());
     assert.equal(inside.salas, false);

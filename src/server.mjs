@@ -91,7 +91,7 @@ import { currentNetwork, lanAddresses } from './bridge/network.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
-import { askRoom, isSalasRoom, knownRooms, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, universeOf } from './salas.mjs';
+import { askRoom, associateProject, ensureSalasProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
 import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
@@ -1513,7 +1513,13 @@ export async function createPulseServer({
       }
       if (request.method === 'POST' && url.pathname === '/api/salas/start') {
         const payload = await body(request).catch(() => ({}));
-        const room = (await knownRooms(root)).find((one) => one.id === payload.room);
+        let room = (await knownRooms(root)).find((one) => one.id === payload.room);
+        // BISHOP's own room is MADRE's: talking to it from the lobby wakes it even the first time,
+        // before it was ever opened (its folder is made then, empty, as `madre lobby` makes it).
+        if (!room && payload.room === salasRoomId(root)) {
+          const folder = await ensureSalasProject(root);
+          room = { id: payload.room, root: folder, open: null };
+        }
         if (!room) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
         if (room.open) return sendJson(response, 200, { room: room.id, port: room.open.port, already: true });
         if (!room.root) return sendJson(response, 404, { error: t('The folder of that project is no longer on this Mac.') });
@@ -1521,6 +1527,42 @@ export async function createPulseServer({
         const up = await roomComesUp(root, room.id);
         if (!up) return sendJson(response, 504, { error: t('The room did not open. What it said on the way up is in start.log, beside its record.') });
         return sendJson(response, 200, { room: up.id, port: up.open.port });
+      }
+      // ---- The lobby adds projects (2026-10-10, src/salas.mjs). Only this page, on this Mac: a
+      // phone was refused above; another site is refused here, whether it tries to read the
+      // folders (Sec-Fetch-Site) or to add one (Origin), and so is any host name but this Mac's
+      // own, so a name pointed at it from outside reaches nothing. Folders are listed inside the
+      // home folder only; what is listed is names, never what a file says.
+      if (url.pathname === '/api/salas/folders' || url.pathname === '/api/salas/suggestions' || url.pathname === '/api/salas/projects') {
+        const host = String(request.headers.host ?? '');
+        const localHost = /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host);
+        const site = request.headers['sec-fetch-site'];
+        if (!localHost || (site !== undefined && site !== 'same-origin' && site !== 'none')) return sendJson(response, 403, { error: t('This is done from the lobby, on this Mac.') });
+        if (request.method === 'POST' && request.headers.origin !== `http://${host}`) return sendJson(response, 403, { error: t('This is done from the lobby, on this Mac.') });
+        const home = process.env.PULSE_LOBBY_HOME || homedir();
+        if (request.method === 'GET' && url.pathname === '/api/salas/folders') {
+          const listed = await listFolders({ path: url.searchParams.get('path') || null, home, stateRoot: root });
+          if (listed.error === 'outside') return sendJson(response, 403, { error: t('Only folders inside your home folder.') });
+          if (listed.error) return sendJson(response, 404, { error: t('That folder is not there.') });
+          return sendJson(response, 200, listed);
+        }
+        if (request.method === 'GET' && url.pathname === '/api/salas/suggestions') {
+          return sendJson(response, 200, { suggestions: await suggestProjects({ home, stateRoot: root }) });
+        }
+        if (request.method === 'POST' && url.pathname === '/api/salas/projects') {
+          const payload = await body(request).catch(() => ({}));
+          const roots = Array.isArray(payload.roots) ? payload.roots.filter((one) => typeof one === 'string').slice(0, 50) : [];
+          if (!roots.length) return sendJson(response, 422, { error: t('Choose at least one folder.') });
+          const added = [];
+          const refused = [];
+          for (const one of roots) {
+            const result = await associateProject({ root: one, home, stateRoot: root });
+            if (result.error) refused.push({ root: one, error: result.error === 'madre' ? t('That folder is MADRE\'s own.') : result.error === 'outside' ? t('Only folders inside your home folder.') : t('That folder is not there.') });
+            else added.push(result);
+          }
+          return sendJson(response, added.length ? 200 : 422, { added, refused });
+        }
+        return sendJson(response, 405, { error: 'method' });
       }
       if (request.method === 'POST' && url.pathname === '/api/salas/close') {
         const payload = await body(request).catch(() => ({}));
@@ -2807,7 +2849,7 @@ export async function createPulseServer({
   return { server, store, agents, quotaMonitor, markOpen, releaseOpen, phone };
 }
 
-export async function startPulse({ port, projectRoot, openBrowser }) {
+export async function startPulse({ port, projectRoot, openBrowser, openPath = '' }) {
   const { server, agents, markOpen, phone } = await createPulseServer({ projectRoot, quotaSources: defaultQuotaSources() });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -2821,8 +2863,8 @@ export async function startPulse({ port, projectRoot, openBrowser }) {
   const url = `http://127.0.0.1:${address.port}`;
   const ready = agents.filter((agent) => agent.ready).map((agent) => agent.label).join(', ') || 'none';
   const detected = agents.filter((agent) => agent.detected).map((agent) => agent.label).join(', ') || 'none';
-  console.log(`\nMADRE is ready\n\n  ${url}\n  Project: ${projectRoot}\n  Ready: ${ready}\n  Detected: ${detected}\n`);
-  if (openBrowser) openUrl(url);
+  console.log(`\nMADRE is ready\n\n  ${url}${openPath}\n  Project: ${projectRoot}\n  Ready: ${ready}\n  Detected: ${detected}\n`);
+  if (openBrowser) openUrl(`${url}${openPath}`);
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.once(signal, () => server.close(() => process.exit(0)));
   }
