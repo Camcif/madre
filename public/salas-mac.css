@@ -200,9 +200,20 @@ body.sm-in-macro { overflow: hidden; }
 .mv-recenter { position: absolute; left: 40px; bottom: 54px; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
 .mv-recenter:hover { background: rgba(255, 255, 255, .14); }
 .mv-recenter[hidden] { display: none; }
-/* The memory picked inside the chosen universe: its kind in its colour, its words under it. */
-.mv-memory { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k, #fff) 35%, transparent); }
-.mv-memory[hidden] { display: none; }
-.mv-memory b { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--k, #f2f1ee); }
-.mv-memory p { margin: 0; font-size: 13.5px; line-height: 1.4; color: rgba(242, 241, 238, .88); max-height: 7.2em; overflow: hidden; }
+/* The memories picked inside the chosen universe, each in a window of its own (2026-10-09), as
+   NOSTROMO's cards are: dark glass, the kind as a dot and a word, the words under it, where it came
+   from in small mono. Moved by the header; the one in front carries a rim in its kind's colour. */
+.mv-windows { position: absolute; inset: 0; pointer-events: none; }
+.mv-mem { position: absolute; width: min(340px, 30vw); max-height: min(60vh, 520px); overflow: auto; overscroll-behavior: contain; display: grid; gap: 10px; padding: 14px 16px 14px; border-radius: 16px; background: rgba(22, 22, 25, .95); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 18px 40px -18px rgba(0, 0, 0, .8); color: #f2f1ee; pointer-events: auto; animation: mv-mem-in 220ms var(--ease-out, ease-out); }
+.mv-mem.front { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 1px color-mix(in srgb, var(--k, #f2f1ee) 40%, transparent), 0 22px 48px -18px rgba(0, 0, 0, .85); }
+@keyframes mv-mem-in { from { opacity: 0; translate: 0 8px; } }
+.mv-mem header { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: grab; user-select: none; touch-action: none; }
+.mv-mem.moving header { cursor: grabbing; }
+.mv-mem header b { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: #f2f1ee; }
+.mv-mem header b::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--k, #f2f1ee); }
+.mv-mem-close { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-size: 14px; line-height: 1; cursor: pointer; }
+.mv-mem-close:hover { background: rgba(255, 255, 255, .16); }
+.mv-mem-text { margin: 0; font-size: 14.5px; line-height: 1.5; color: #f2f1ee; }
+.mv-mem-meta { margin: 0; font-family: var(--mono); font-size: 11px; color: rgba(242, 241, 238, .5); }
+@media (prefers-reduced-motion: reduce) { .mv-mem { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .mv, .mv.leaving, .mv-card { animation: none; } }

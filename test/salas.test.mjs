@@ -111,7 +111,7 @@ test('salas · the room lists every room, counts its archive without reading it 
 
 // THE MACROVERSE (docs/MACROVERSO.md, phases 2 and 3a): every room a NOSTROMO, imposing, and light
 // on the machine.
-test('salas · the macroverse draws every room with NOSTROMO\'s own engine, one live at a time, painted once and only moved, and rests when nobody looks', async () => {
+test('salas · the macroverse draws every room with NOSTROMO\'s own engine, one live at a time, the rest alive without their physics, and rests when nobody looks', async () => {
   const source = await readFile(join(import.meta.dirname, '..', 'public', 'macroverso.js'), 'utf8');
   const page = await readFile(join(import.meta.dirname, '..', 'public', 'salas-mac.js'), 'utf8');
   // No shader, no WebGL: canvas 2D, never denser than two pixels per point.
@@ -127,9 +127,19 @@ test('salas · the macroverse draws every room with NOSTROMO\'s own engine, one 
   assert.match(source, /const SPRITE_MAX = 1024;/);
   assert.match(source, /Math\.min\(SPRITE_MAX, /);
   assert.match(source, /bare: true/);
-  // One universe is the real thing at a time; the rest are sprites.
+  // One universe is the real thing at a time; the rest live without paying for their physics
+  // (frozen: they turn, beat and pulse), drawn at the size they show, sharing a few ms a frame.
   assert.match(source, /let live = null;/);
   assert.equal((source.match(/live = \{/g) ?? []).length, 1, 'more than one place makes a live scene');
+  assert.match(source, /scene\.frozen = true;/);
+  assert.match(source, /if \(performance\.now\(\) - started > FAR_BUDGET\) break;/);
+  assert.match(source, /resizeUniverse\(sprite, one\.shown, view\.dpr\)/);
+  const engineSource = await readFile(join(import.meta.dirname, '..', 'public', 'nostromo-engine.js'), 'utf8');
+  assert.match(engineSource, /if \(nostromo\.frozen\) \{/);
+  // A chosen universe: the whole space falls to black, never a square round it (the live scene
+  // darkens only what it draws).
+  assert.match(source, /ctx\.fillRect\(0, 0, view\.w, view\.h\)/);
+  assert.match(engineSource, /if \(nostromo\.bare\) ctx\.globalCompositeOperation = 'source-atop';/);
   // The camera is declared before it is used (S-015), and a resize settles before anything is
   // painted again (S-016).
   assert.ok(source.indexOf('const FOCUS_ZOOM = ') < source.indexOf('export function openMacroverso'), 'FOCUS_ZOOM is used before it is declared');

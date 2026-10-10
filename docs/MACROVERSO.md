@@ -653,3 +653,19 @@ Una línea por cambio de estado. Se añade al final, nunca se reescribe.
   el desenfoque de las píldoras dejaba de ver el paisaje y quedaba solo su relleno. Ahora el
   desvanecido va en la píldora que el borde corta, medido al dibujar la fila y con un
   ResizeObserver. Verificado: la fila sin máscara, la tercera píldora con su desvanecido.
+- `2026-10-09` · Macroverso vivo, pedido con capturas: los universos despiertos y lejanos ya no son
+  imágenes fijas; giran, laten y mandan pulsos del núcleo a sus memorias (escena `frozen`, sin
+  física por cuadro, `animateFar` con tope de 7 ms por cuadro y 30 cuadros por segundo por
+  universo), dibujados al tamaño en que se ven. El motor ajusta luz y tamaños por distancia
+  (`nearness`): lejos, brillos suaves, memorias de 1.5 px como mínimo, núcleo 22 % mayor y
+  aberraciones compactas; esto también aplica al NOSTROMO de cada sala. Elegir un universo apaga
+  todo el espacio (`FOCUS_DARK` 0.62, y el velo del foco de una memoria encima); el cuadro negro
+  era el velo del motor llenando el lienzo cuadrado de la escena en vivo, que ahora solo oscurece
+  lo dibujado (`source-atop`). Las memorias se abren en ventanas movibles (hasta cuatro). Las venas
+  llevan pulsos de ambiente. Medido en la sala de Salas con cuatro universos: un cuadro cuesta en
+  promedio 2.9 ms (mediana 3.3, p90 5.3). Verificado en pantalla avanzando cuadros a mano: lejos,
+  de cerca (pulse redibujado a 512 px), elegido y con dos ventanas de memoria. No verificado: las
+  venas con pulsos (no hay un enlace vigente), y el movimiento en tiempo real en pantalla (el panel
+  del navegador estaba oculto). Una vez, el NOSTROMO de la sala pulse se vio con la cámara dentro del
+  núcleo tras ticks a mano; no se reprodujo en tres repeticiones (dos con el motor nuevo, una con el
+  anterior).

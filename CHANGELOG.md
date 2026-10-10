@@ -72,6 +72,10 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 - **Los botones del aviso de permiso CREATE**, en el estilo nuevo: cápsulas en la letra de la sala, en oración («Reenviar a @codex con CREATE», «Siempre para este agente»), sin contorno.
 - **El esfuerzo elegido solo para un mensaje ya no se subraya.**
 - **La respuesta citada dentro de la caja** queda dentro de su borde, con la esquina concéntrica; antes se salía por la izquierda.
+- **El Macroverso vivo.** Cada universo despierto gira y late, y los pulsos de su núcleo corren hacia sus memorias y entre ellas, sin pausa; las venas entre universos enlazados llevan pulsos aunque nadie haya cruzado. Cada universo se dibuja al tamaño en que se ve: al acercarte gana detalle y brillo, y de lejos sus luces se suavizan, sus memorias no se pierden y su núcleo se lee primero.
+- **Elegir un universo apaga todo el espacio**, de borde a borde, y más cuando tienes una memoria en la mira; ya no aparece el cuadro negro alrededor del universo.
+- **Las memorias del Macroverso se abren en ventanas**, como en NOSTROMO: se mueven por su encabezado, pasan al frente al tocarlas y se cierran con su ×; hasta cuatro a la vez.
+- **Las aberraciones lejanas**, en el Macroverso y en el NOSTROMO de cada sala, se ven como un punto oscuro con su anillo de luz fría, en lugar de una mancha negra con polvo gris.
 - **NOSTROMO abre varias memorias a la vez.** Cada memoria se abre en su propia ficha, que se mueve por su encabezado, pasa al frente al tocarla y se cierra con su ×; caben cuatro, y al abrir una quinta se cierra la más vieja. En el teléfono sigue siendo una.
 - **NOSTROMO más amplio.** MADRE es un 10 % más grande, las memorias se separan más y la constelación ocupa más del lienzo.
 - **El núcleo, en el lenguaje de la sala.** Deja la terminal verde: es una ventana como Ajustes y MU/TH/UR, con sus pestañas como selector, cifras en fichas, filas en tarjetas, textos en oración y letra mono solo para lo literal. Abre sin la animación de arranque. Se ve igual de bien en tema claro y oscuro.

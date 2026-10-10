@@ -455,6 +455,7 @@ function macroWords() {
     wake: t('Wake'),
     waking: t('Waking…'),
     all: t('All the universes'),
+    close: t('Close'),
   };
 }
 // The macroverse is night in either theme, so it wears the accent as the night does: the hex the

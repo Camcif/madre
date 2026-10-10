@@ -175,7 +175,7 @@ const HUD_GREEN = '57, 255, 110';
 // is seen. Dragging while it is held hands the turning back to the human; letting it go brings
 // the rest of the archive back up.
 const FOCUS_TURN = 0.07;      // how much of the remaining turn is taken each frame
-const FOCUS_VEIL = 0.7;       // how far everything else falls back
+export const FOCUS_VEIL = 0.7;       // how far everything else falls back
 
 const HEART_PERIOD = 1.15;   // seconds per beat: slow, deliberate, alive
 const WAVE_SPEED = 260;      // world units per second a beat travels outward
@@ -1209,69 +1209,75 @@ export function createNostromo(nostromo) {
     for (const node of nodes) {
       if (node.wx === undefined) { node.wx = node.x; node.wy = node.y; node.wz = 0; }
     }
-    for (const node of nodes) {
-      let fx = 0;
-      let fy = 0;
-      let fz = 0;
-      const dist = Math.hypot(node.wx, node.wy, node.wz) || 1;
-      // A soft shell around the core, in the shape of a brain: too close is pushed out, too far
-      // pulled in. The outline gives the reach at this bearing seen from the side; the width
-      // gives it toward the temples. `shell` is 1 exactly on the surface.
-      const target = NOSTROMO_ORBIT * brainRadius(Math.atan2(node.wy, node.wx)) * shellDepth(node);
-      const shell = Math.hypot(Math.hypot(node.wx, node.wy) / target, node.wz / (BRAIN_WIDTH * target)) || 1;
-      const pull = (1 / shell - 1) * dist * 0.004;
-      fx += (node.wx / dist) * pull;
-      fy += (node.wy / dist) * pull;
-      fz += (node.wz / dist) * pull;
-      if (dist < CORE_R * 1.7) { const push = (CORE_R * 1.7 - dist) * 0.02; fx += (node.wx / dist) * push; fy += (node.wy / dist) * push; fz += (node.wz / dist) * push; }
-      // The fissure: out of the midline, back toward the hemisphere it already leans into.
-      const gap = FISSURE * NOSTROMO_ORBIT;
-      if (Math.abs(node.wz) < gap) fz += Math.sign(node.wz || (frac(node.seed * 0.618) < 0.5 ? -1 : 1)) * (gap - Math.abs(node.wz)) * 0.02;
-      const own = node.r3 ?? node.r;
-      // Every pair, every frame: the far ones are turned away on the squared distance, before any
-      // square root is taken, and the rest without Math.hypot, which costs several times as much.
-      for (const other of nodes) {
-        if (other === node) continue;
-        const ox = node.wx - other.wx;
-        const oy = node.wy - other.wy;
-        const oz = node.wz - other.wz;
-        const reach = (own + (other.r3 ?? other.r) + 46) * 2.2;
-        const square = ox * ox + oy * oy + oz * oz;
-        if (square >= reach * reach) continue;
-        const d = Math.sqrt(square) || 1;
-        const push = ((reach - d) / reach) * 0.9;
-        fx += (ox / d) * push; fy += (oy / d) * push; fz += (oz / d) * push;
+    // A far universe in the Macroverso is `frozen`: its bodies already settled, it only lives —
+    // it turns, beats and sends its pulses — without paying for the forces every frame.
+    if (nostromo.frozen) {
+      for (const node of nodes) node.spin = (node.spin ?? node.seed) + dt * 0.012 * (1 + (node.seed % 1));
+    } else {
+      for (const node of nodes) {
+        let fx = 0;
+        let fy = 0;
+        let fz = 0;
+        const dist = Math.hypot(node.wx, node.wy, node.wz) || 1;
+        // A soft shell around the core, in the shape of a brain: too close is pushed out, too far
+        // pulled in. The outline gives the reach at this bearing seen from the side; the width
+        // gives it toward the temples. `shell` is 1 exactly on the surface.
+        const target = NOSTROMO_ORBIT * brainRadius(Math.atan2(node.wy, node.wx)) * shellDepth(node);
+        const shell = Math.hypot(Math.hypot(node.wx, node.wy) / target, node.wz / (BRAIN_WIDTH * target)) || 1;
+        const pull = (1 / shell - 1) * dist * 0.004;
+        fx += (node.wx / dist) * pull;
+        fy += (node.wy / dist) * pull;
+        fz += (node.wz / dist) * pull;
+        if (dist < CORE_R * 1.7) { const push = (CORE_R * 1.7 - dist) * 0.02; fx += (node.wx / dist) * push; fy += (node.wy / dist) * push; fz += (node.wz / dist) * push; }
+        // The fissure: out of the midline, back toward the hemisphere it already leans into.
+        const gap = FISSURE * NOSTROMO_ORBIT;
+        if (Math.abs(node.wz) < gap) fz += Math.sign(node.wz || (frac(node.seed * 0.618) < 0.5 ? -1 : 1)) * (gap - Math.abs(node.wz)) * 0.02;
+        const own = node.r3 ?? node.r;
+        // Every pair, every frame: the far ones are turned away on the squared distance, before any
+        // square root is taken, and the rest without Math.hypot, which costs several times as much.
+        for (const other of nodes) {
+          if (other === node) continue;
+          const ox = node.wx - other.wx;
+          const oy = node.wy - other.wy;
+          const oz = node.wz - other.wz;
+          const reach = (own + (other.r3 ?? other.r) + 46) * 2.2;
+          const square = ox * ox + oy * oy + oz * oz;
+          if (square >= reach * reach) continue;
+          const d = Math.sqrt(square) || 1;
+          const push = ((reach - d) / reach) * 0.9;
+          fx += (ox / d) * push; fy += (oy / d) * push; fz += (oz / d) * push;
+        }
+        if (!nostromo.reduced) {
+          fx += Math.sin(node.seed + t * 0.38) * 0.02;
+          fy += Math.cos(node.seed * 1.3 + t * 0.32) * 0.02;
+          fz += Math.sin(node.seed * 0.7 + t * 0.29) * 0.02;
+        }
+        node.fx = fx;
+        node.fy = fy;
+        node.fz = fz;
       }
-      if (!nostromo.reduced) {
-        fx += Math.sin(node.seed + t * 0.38) * 0.02;
-        fy += Math.cos(node.seed * 1.3 + t * 0.32) * 0.02;
-        fz += Math.sin(node.seed * 0.7 + t * 0.29) * 0.02;
+      for (const link of nostromo.links) {
+        const a = byId.get(link.a);
+        const b = byId.get(link.b);
+        if (!a || !b) continue;
+        const dx = b.wx - a.wx;
+        const dy = b.wy - a.wy;
+        const dz = b.wz - a.wz;
+        const d = Math.hypot(dx, dy, dz) || 1;
+        const rest = (a.r3 ?? a.r) + (b.r3 ?? b.r) + 96;
+        const k = (d - rest) * 0.0035 * link.weight;
+        a.fx += (dx / d) * k; a.fy += (dy / d) * k; a.fz += (dz / d) * k;
+        b.fx -= (dx / d) * k; b.fy -= (dy / d) * k; b.fz -= (dz / d) * k;
       }
-      node.fx = fx;
-      node.fy = fy;
-      node.fz = fz;
-    }
-    for (const link of nostromo.links) {
-      const a = byId.get(link.a);
-      const b = byId.get(link.b);
-      if (!a || !b) continue;
-      const dx = b.wx - a.wx;
-      const dy = b.wy - a.wy;
-      const dz = b.wz - a.wz;
-      const d = Math.hypot(dx, dy, dz) || 1;
-      const rest = (a.r3 ?? a.r) + (b.r3 ?? b.r) + 96;
-      const k = (d - rest) * 0.0035 * link.weight;
-      a.fx += (dx / d) * k; a.fy += (dy / d) * k; a.fz += (dz / d) * k;
-      b.fx -= (dx / d) * k; b.fy -= (dy / d) * k; b.fz -= (dz / d) * k;
-    }
-    for (const node of nodes) {
-      node.wvx = ((node.wvx ?? 0) + node.fx * dt) * 0.86;
-      node.wvy = ((node.wvy ?? 0) + node.fy * dt) * 0.86;
-      node.wvz = ((node.wvz ?? 0) + node.fz * dt) * 0.86;
-      node.wx += node.wvx * dt;
-      node.wy += node.wvy * dt;
-      node.wz += node.wvz * dt;
-      node.spin = (node.spin ?? node.seed) + dt * 0.012 * (1 + (node.seed % 1));
+      for (const node of nodes) {
+        node.wvx = ((node.wvx ?? 0) + node.fx * dt) * 0.86;
+        node.wvy = ((node.wvy ?? 0) + node.fy * dt) * 0.86;
+        node.wvz = ((node.wvz ?? 0) + node.fz * dt) * 0.86;
+        node.wx += node.wvx * dt;
+        node.wy += node.wvy * dt;
+        node.wz += node.wvz * dt;
+        node.spin = (node.spin ?? node.seed) + dt * 0.012 * (1 + (node.seed % 1));
+      }
     }
     // A forgotten memory goes on the clock, not by a fixed step a frame, so the implosion takes
     // the same time on any screen; the dust drifts and goes out on the same clock.
@@ -1504,7 +1510,13 @@ export function createNostromo(nostromo) {
     ctx.translate(w / 2, h / 2);
     ctx.scale(cam.scale, cam.scale);
     ctx.translate(-cam.x, -cam.y);
-    const R = CORE_R * (1 + 0.07 * beat + 0.12 * alarm);
+    // Seen from far (the Macroverso, or a room's map zoomed out), a body is a few pixels: the core
+    // reads a little larger so the universe is read by its sun, every glow is softer so a crowd of
+    // stars does not run together into a white blot, and a memory never shrinks below a point the
+    // eye can still hold. Close up, all of it is as it always was.
+    const nearness = Math.min(1, Math.max(0, (cam.scale - 0.1) / 0.3));   // 0 far · 1 near
+    const glowAt = 0.5 + 0.5 * nearness;
+    const R = CORE_R * (1 + 0.07 * beat + 0.12 * alarm) * (1 + 0.22 * (1 - nearness));
 
     // Plasma between linked memories: they share a theme, so a filament runs between them. Drawn
     // as a wide breath of colour and a thin bright thread: the same glow as a blur, far cheaper.
@@ -1535,7 +1547,7 @@ export function createNostromo(nostromo) {
         { mid: hexAlpha(hexMix(near.color, far.color, 0.5), Math.min(0.8, 0.3 * link.weight * gain)), end: hexAlpha(far.color, Math.min(0.95, 0.6 * link.weight * gain)) },
         spark, 0.18 + 0.7 * charged);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(link.cx, link.cy, b.x, b.y);
-      ctx.globalAlpha = Math.min(0.7, 0.3 * gain); ctx.lineWidth = (3.4 + 1.6 * charged) * (gain > 1 ? 1.25 : 1) / cam.scale; ctx.stroke();
+      ctx.globalAlpha = Math.min(0.7, 0.3 * gain) * glowAt; ctx.lineWidth = (3.4 + 1.6 * charged) * (gain > 1 ? 1.25 : 1) / cam.scale; ctx.stroke();
       ctx.globalAlpha = 1; ctx.lineWidth = (0.7 + 0.4 * charged + 0.35 * Math.abs(Math.sin(t * 4 + a.seed))) * (gain > 1 ? 1.5 : 1) / cam.scale; ctx.stroke();
     }
 
@@ -1607,7 +1619,8 @@ export function createNostromo(nostromo) {
     // MOTHER before her, so she hides them, and the ones in front after her.
     const drawMemory = (node) => {
       const micro = 1 + 0.05 * Math.sin(t * node.rate + node.seed);
-      const r = node.r * node.scale * micro;
+      // Never smaller than a point and a half on screen, while it is there at all.
+      const r = node.scale > 0.01 ? Math.max(node.r * node.scale * micro, 1.5 / cam.scale) : 0;
       if (r <= 0) return;
       const arrive = Math.min(1.2, node.lit ?? 0);
       // Two things decide how brightly a dwarf burns. Maturity is what the room has made of it
@@ -1629,6 +1642,19 @@ export function createNostromo(nostromo) {
         const field = hole * 2.4;
         const turn = node.seed + node.spin * 0.12;
         const lit = 0.45 + 0.55 * burn;
+
+        // Seen from far, the field of dust and the arcs are smaller than a pixel and only smear
+        // into a grey stain round a black blot. A small void reads by what it is: a dark point with
+        // one thin cold rim of bent light, its colour the kind's.
+        if (hole * cam.scale < 9) {
+          ctx.fillStyle = 'rgba(0, 0, 3, .92)';
+          ctx.beginPath(); ctx.arc(node.x, node.y, hole, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = hexAlpha(hexMix(node.color, '#a8ccff', 0.55), (0.45 + 0.35 * lit) * glowAt);
+          ctx.lineWidth = 1 / cam.scale;
+          ctx.beginPath(); ctx.arc(node.x, node.y, hole + 0.6 / cam.scale, 0, Math.PI * 2); ctx.stroke();
+          if (node === nostromo.hover && !nostromo.selected) drawSight(ctx, node.x, node.y, hole * 1.6, t, cam.scale);
+          return;
+        }
 
         // The field it sits in: specks of dust and far stars, each on its own slow flicker.
         ctx.globalCompositeOperation = 'lighter';
@@ -1740,8 +1766,8 @@ export function createNostromo(nostromo) {
       // light falling away from the body, with no seam and no ring. A cooling dwarf gives less of
       // it, in the same proportion its face has dimmed.
       const cooling = node.cold ? COLD_GLOW : 1;
-      air.addColorStop(0, hexAlpha(hexMix(node.color, '#ffffff', 0.2 + 0.3 * burn), (0.16 + 0.34 * burn) * cooling + 0.2 * arrive));
-      air.addColorStop(0.25, hexAlpha(hexMix(node.color, '#ffffff', 0.1 + 0.2 * burn), (0.07 + 0.16 * burn) * cooling + 0.1 * arrive));
+      air.addColorStop(0, hexAlpha(hexMix(node.color, '#ffffff', 0.2 + 0.3 * burn), ((0.16 + 0.34 * burn) * cooling + 0.2 * arrive) * glowAt));
+      air.addColorStop(0.25, hexAlpha(hexMix(node.color, '#ffffff', 0.1 + 0.2 * burn), ((0.07 + 0.16 * burn) * cooling + 0.1 * arrive) * glowAt));
       air.addColorStop(1, hexAlpha(node.color, 0));
       ctx.fillStyle = air;
       ctx.beginPath(); ctx.arc(node.x, node.y, r * 1.34, 0, Math.PI * 2); ctx.fill();
@@ -1958,6 +1984,9 @@ export function createNostromo(nostromo) {
       const held = lock.node;
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // In a bare scene (the Macroverso's live universe) the veil darkens only what is drawn here;
+      // the space around is the holder's to darken, all of it, so no square of dark shows.
+      if (nostromo.bare) ctx.globalCompositeOperation = 'source-atop';
       ctx.fillStyle = `rgba(2, 1, 4, ${FOCUS_VEIL * lock.fade})`;
       ctx.fillRect(0, 0, w, h);
       ctx.restore();

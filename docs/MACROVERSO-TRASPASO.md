@@ -42,7 +42,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `925e63c` | Claude | UX · «sigue abierto aquí» sin bisel, con el vidrio de modo · modelo · esfuerzo |
 | `abee3ff` | Claude | UX · detener plan redondo, botones del aviso CREATE, sin subrayado en el esfuerzo, cita dentro de la caja |
 | `09eb9a1` | Claude | UX · el vidrio de «sigue abierto» vuelve: el desvanecido pasa de la fila a la píldora cortada |
-| *este commit* | Claude | Cierre de la jornada de UX del 2026-10-09: resumen en §1·b |
+| `ae60641` | Claude | Cierre de la jornada de UX del 2026-10-09: resumen en §1·b |
+| *este commit* | Claude | Macroverso vivo: universos lejanos animados (`frozen`), luz y tamaño por distancia, oscuridad de borde a borde, ventanas de memoria, venas con pulsos |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -231,6 +232,13 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
 - **Una máscara, filtro u opacidad en un contenedor lo vuelve la raíz del fondo de sus hijos**: un
   `backdrop-filter` dentro ya no ve el paisaje. Por eso el desvanecido de «sigue abierto» va en la
   píldora cortada (`.cut-end`, `--fade-end`) y no en `.openq-rail`.
+- **Macroverso vivo**: un universo lejano conserva su escena con `scene.frozen` (el motor no calcula
+  fuerzas, solo gira, late y pulsa) y se redibuja en `animateFar`, a lo más `FAR_FPS` por segundo y
+  con `FAR_BUDGET` ms por cuadro entre todos; su lienzo sigue su tamaño en pantalla
+  (`resizeUniverse`, pasos de `SIDE_STEP`). La luz y los tamaños por distancia viven en el motor
+  (`nearness` desde `cam.scale`), así que valen también para el NOSTROMO de cada sala. En una escena
+  `bare` el velo del foco usa `source-atop`; el Macroverso oscurece su propio espacio.
+  `__macroverso.step(now)` avanza un cuadro a mano (en un panel oculto no hay cuadros).
 - **Planos de la conversación** (THE CANVAS IN PLANES, final de styles.css): un mensaje nuevo se
   clasifica asignándole `--plane: var(--depth-…)`; la sombra sale sola de la fórmula. Nada de
   `backdrop-filter` dentro de `#messages` (dibujaba bloques vacíos al desplazar).

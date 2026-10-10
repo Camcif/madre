@@ -3,9 +3,12 @@
 //
 // Each room is drawn the way its own NOSTROMO is drawn, by the same engine (nostromo-engine.js):
 // MOTHER of molten rock at the centre, every memory a dwarf in its kind's colour, the veins between
-// those that share a theme. Far away, a universe is one scene placed, settled and painted once into
-// a sprite, and from then on only moved and scaled. Chosen, it is the real thing: one live scene,
-// its physics and its magma running, composed over the space. Never more than one.
+// those that share a theme. Far away, a universe is one scene placed and settled once, and from
+// then on it lives without paying for its physics (`frozen`): it turns, MOTHER beats, and her
+// pulses run out to its memories and between them. It is drawn at the size it shows on screen, so
+// coming closer brings its detail and its light up; far ones share a few milliseconds a frame,
+// turn by turn. Chosen, it is the real thing: one live scene, its physics and its magma running,
+// composed over the space, and the whole space falls to black round it. Never more than one.
 //
 // The space is open: dragged, it moves; the wheel brings it closer; it has no edge. The Mac stays
 // at the origin, the open rooms orbit near it and the sleeping ones far and cold, and RECENTER
@@ -17,7 +20,7 @@
 // for less motion gets one still frame redrawn when something changes. No line joins two universes
 // until a link exists (phase 3c).
 
-import { MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, alongCurve, createNostromo, currentAlong, hexAlpha, hexMix, magmaMap, texturesReady } from './nostromo-engine.js';
+import { FOCUS_VEIL, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, alongCurve, createNostromo, currentAlong, hexAlpha, hexMix, magmaMap, texturesReady } from './nostromo-engine.js';
 
 const KINDS = Object.keys(MEMORY_COLORS);
 const TILT = 0.42;                 // how flat the orbits read: the plane seen a little from above
@@ -26,7 +29,15 @@ const TURN = (Math.PI * 2) / 900;  // a whole orbit in fifteen minutes: alive, n
 const FOCUS_ZOOM = 2.1;            // how close the camera comes to a chosen universe
 const ZOOM_MIN = 0.25, ZOOM_MAX = FOCUS_ZOOM * 1.5;
 const SPRITE_MAX = 1024;           // the widest a sprite is ever painted, in pixels
-const FAR_MEMORIES = 300;          // the most a far universe draws, the most alive first; its card says the rest
+const FAR_MEMORIES = 220;          // the most a far universe draws, the most alive first; its card says the rest
+const FAR_TURN = 0.0016;           // radians a frame a far universe turns on its own
+const FAR_FPS = 30;                // the most a far universe is drawn again in a second
+const FAR_BUDGET = 7;              // ms a frame all the far universes may take between them
+const SIDE_STEP = 1.3;             // a far universe's own canvas is resized only past this ratio
+const SIDE_MIN = 96;               // nor ever smaller than this, in css px
+const FOCUS_DARK = 0.62;           // how far the space falls to black round a chosen universe
+const VEIN_AMBIENT = 0.45;         // pulses a second along a vein even when no crossing was counted
+const MEMORY_WINDOWS = 4;          // memory windows open at once; the oldest gives way
 const RELAX_STEPS = 60;            // steps of physics before a sprite is painted
 const BODY_REACH = 520;            // world units from MOTHER to the edge of the brain, with room for its glow
 const LIVE_SIDE = 760;             // css px of the live scene's own canvas
@@ -77,8 +88,8 @@ function farMemories(data) {
 
 // One universe painted once: its scene placed, settled and drawn into a sprite by the engine. A
 // room that is asleep, sealed, outdated or unreachable is MOTHER alone: cold, or caged.
-function paintUniverse(one, dpr) {
-  const side = Math.min(SPRITE_MAX, Math.round(one.reach * 2 * dpr));
+function paintUniverse(one, dpr, shown = null) {
+  const side = Math.min(SPRITE_MAX, Math.round(Math.max(SIDE_MIN, shown ?? one.reach * 2) * dpr));
   const css = side / dpr;
   const canvas = canvasOf(side, side);
   const { scene, engine } = sceneFor(canvas, css, css, dpr, true);
@@ -104,7 +115,23 @@ function paintUniverse(one, dpr) {
     ctx.fillRect(0, 0, side, side);
     ctx.globalCompositeOperation = 'source-over';
   }
-  return { canvas, css, ready: texturesReady(), scene };
+  // From now on it lives: its bodies stay where they settled (no forces a frame), and it beats
+  // and pulses unless someone asked for less motion. A sleeping room stays the ember it was.
+  scene.frozen = true;
+  scene.reduced = reducedMotion() || !one.room.open;
+  return { canvas, css, ready: texturesReady(), scene, engine };
+}
+
+// A far universe drawn again at the size it now shows, when that has changed by more than a step:
+// its own canvas and its camera follow, so close up it is sharp and far away it costs little.
+function resizeUniverse(sprite, shown, dpr) {
+  const side = Math.min(SPRITE_MAX, Math.round(Math.max(SIDE_MIN, shown) * dpr));
+  const css = side / dpr;
+  sprite.canvas.width = side;
+  sprite.canvas.height = side;
+  sprite.css = css;
+  sprite.scene.size = { w: css, h: css, dpr };
+  sprite.scene.cam.scale = (css / 2 - 4) / BODY_REACH;
 }
 
 // The ground: deep space and three slow glows, painted once per window size.
@@ -185,6 +212,8 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   let live = null;          // the one universe drawn as the real thing: its scene, its canvas
   let veins = [];           // one per contract between two universes here, with its pulses in flight
   let linking = null;       // a universe being carried onto another, to link them
+  let dark = 0;             // how far the space has fallen to black round a chosen universe
+  let windows = [];         // the memory windows open over the macroverse, the front one last
   let raf = 0;
   let last = performance.now();
   let clock = 0;
@@ -275,7 +304,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     const next = [focus, ...universes].find((one) => one && one.dirty);
     if (!next) return false;
     if (!next.data) { if (!next.loading?.data) void load(next); return false; }
-    next.sprite = paintUniverse(next, view.dpr);
+    next.sprite = paintUniverse(next, view.dpr, next.shown ?? null);
     next.dirty = false;
     return true;
   }
@@ -356,7 +385,29 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     live.one.settled = new Map(live.scene.nodes.map((node) => [node.memory.id, { wx: node.wx, wy: node.wy, wz: node.wz, wvx: 0, wvy: 0, wvz: 0 }]));
     live.one.dirty = true;
     live = null;
-    showMemory(null);
+    closeMemories();
+  }
+
+  // ---- The far universes, alive. Each one that is awake and on screen is drawn again at most
+  // FAR_FPS times a second, the least recently drawn first, until the frame's few milliseconds
+  // are spent: with many rooms each one simply moves a little less often, and nothing stalls.
+  function animateFar(now) {
+    const started = performance.now();
+    const due = universes
+      .filter((one) => one.room.open && one.sprite?.engine && one.onScreen && live?.one !== one && now - (one.drawnAt ?? 0) >= 1000 / FAR_FPS)
+      .sort((a, b) => (a.drawnAt ?? 0) - (b.drawnAt ?? 0));
+    for (const one of due) {
+      if (performance.now() - started > FAR_BUDGET) break;
+      const sprite = one.sprite;
+      if (one.shown && Math.abs(Math.log(Math.max(SIDE_MIN, one.shown) / sprite.css)) > Math.log(SIDE_STEP)) resizeUniverse(sprite, one.shown, view.dpr);
+      const { scene, engine } = sprite;
+      const dt = Math.min(48, now - (one.drawnAt || now - 16)) / 16;
+      one.drawnAt = now;
+      scene.yaw = (scene.yaw ?? 0) + dt * FAR_TURN;
+      engine.stepNostromo(dt, now / 1000);
+      engine.projectNostromo();
+      engine.drawNostromo(now / 1000);
+    }
   }
   // The pointer, in the live scene's own frame: what it is over there, or null when it is outside.
   function liveAt(event) {
@@ -370,6 +421,12 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   }
 
   function frame(now) {
+    advance(now);
+    raf = reduced && !camera.to ? 0 : requestAnimationFrame(frame);
+  }
+  // One frame's worth of everything, without asking for the next: what frame() does, and what
+  // whoever measures the macroverse (`__macroverso.step`) runs when the screen gives no frames.
+  function advance(now) {
     const dt = Math.min(64, now - last) / 1000;
     last = now;
     clock += dt;
@@ -387,9 +444,22 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       camera.x = at.x + aside;
       camera.y = at.y;
     }
+    // The space falls to black round a chosen universe, and comes back when it is let go.
+    const want = focus ? FOCUS_DARK : 0;
+    dark = reduced ? want : dark + (want - dark) * Math.min(1, dt * 3.5);
     if (live) stepLive(now);
+    if (!reduced) {
+      animateFar(now);
+      // A vein is alive while its contract is: a pulse every couple of seconds even when no
+      // crossing was counted, more of them the more it is read.
+      for (const vein of veins) {
+        const busy = 1 + 2 * Math.min(1, (vein.enlace.traffic?.reads1h ?? 0) / 6);
+        if (vein.pulses.length < VEIN_PULSES && Math.random() < dt * VEIN_AMBIENT * busy) {
+          vein.pulses.push({ born: clock, back: vein.enlace.direction === 'b→a' || (vein.enlace.direction === 'both' && Math.random() < 0.5) });
+        }
+      }
+    }
     draw();
-    raf = reduced && !camera.to ? 0 : requestAnimationFrame(frame);
   }
   // One frame when something changed, for a still macroverse; and the next while there is still a
   // sprite to paint or a texture to finish.
@@ -449,74 +519,90 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     // The universes, far ones first.
     const beat = reduced ? 0.4 : 0.5 + 0.5 * Math.sin(clock * 5.46);
     const order = universes.map((one) => ({ one, at: placed(one) })).sort((a, b) => a.at.depth - b.at.depth);
-    for (const { one, at } of order) {
-      const p = toScreen(at.x, at.y);
-      const glance = one.room.glance ?? {};
-      const awake = Boolean(one.room.open);
-      const isLive = live?.one === one;
-      // On screen: the live scene at its own size, or the sprite at the universe's.
-      const breath = glance.working?.length && !reduced && !isLive ? 1 + 0.035 * Math.sin(clock * 3.2) : 1;
-      const side = isLive ? LIVE_SIDE * (camera.zoom / FOCUS_ZOOM) : one.reach * 2 * at.scale * camera.zoom * breath;
-      const r = isLive ? side * 0.19 : one.reach * at.scale * camera.zoom * 0.2;   // MOTHER's radius on screen, for the rings and the names
-      one.screen = { x: p.x, y: p.y, r: side / 2 };
-      if (p.x < -side || p.x > view.w + side || p.y < -side || p.y > view.h + side) { if (isLive) live.screen = null; continue; }
-      // MOTHER's warmth on the dark, breathing with her heart; a sleeping room gives off a cold glow.
-      ctx.globalCompositeOperation = 'lighter';
-      const halo = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * (3.2 + 0.4 * beat));
-      halo.addColorStop(0, awake ? `rgba(226, 40, 22, ${(0.22 + 0.1 * beat) * at.light})` : `rgba(120, 150, 200, ${0.12 * at.light})`);
-      halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = halo;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r * (3.2 + 0.4 * beat), 0, Math.PI * 2); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = at.light * (hover && hover !== one && !focus ? 0.7 : 1) * (awake ? 1 : 0.6);
-      if (isLive) {
-        live.screen = { x: p.x - side / 2, y: p.y - side / 2, side };
-        ctx.drawImage(live.canvas, p.x - side / 2, p.y - side / 2, side, side);
-      } else if (one.sprite) {
-        ctx.drawImage(one.sprite.canvas, p.x - side / 2, p.y - side / 2, side, side);
-      } else {
-        // Not read yet: an ember where it will be.
-        const ember = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-        ember.addColorStop(0, awake ? '#ff7a3a' : '#56637a');
-        ember.addColorStop(1, awake ? 'rgba(168, 23, 12, 0)' : 'rgba(27, 33, 48, 0)');
-        ctx.fillStyle = ember;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      // Waiting for you: a ring in the accent, breathing.
-      if (glance.waitingCount) {
-        const pulse = reduced ? 0.6 : 0.45 + 0.35 * Math.sin(clock * 2.4);
-        ctx.strokeStyle = accent;
-        ctx.globalAlpha = pulse;
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.ellipse(p.x, p.y, side * 0.56, side * 0.56 * 0.8, 0, 0, Math.PI * 2); ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      if ((one === hover && !isLive) || one.room.id === here) {
-        ctx.strokeStyle = one === focus ? '#ffffff' : 'rgba(255, 255, 255, .55)';
-        ctx.lineWidth = one === focus ? 1.6 : 1;
-        ctx.beginPath(); ctx.arc(p.x, p.y, side * 0.52, 0, Math.PI * 2); ctx.stroke();
-      }
-      // Its name, under it.
-      const below = p.y + side * 0.5 + 8;
-      ctx.font = `600 ${Math.round(13 + 3 * at.depth)}px Geist, -apple-system, BlinkMacSystemFont, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      // Over a galaxy a name needs its own dark edge to be read.
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = 'rgba(3, 3, 5, .75)';
-      ctx.lineWidth = 4;
-      ctx.fillStyle = awake ? 'rgba(242, 241, 238, .95)' : 'rgba(200, 210, 225, .6)';
-      ctx.globalAlpha = at.light;
-      ctx.strokeText(one.room.name, p.x, below);
-      ctx.fillText(one.room.name, p.x, below);
-      ctx.font = '500 11px Geist, -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.lineWidth = 3;
-      ctx.fillStyle = glance.waitingCount ? accent : 'rgba(242, 241, 238, .6)';
-      ctx.strokeText(words.state(one.room), p.x, below + 19);
-      ctx.fillText(words.state(one.room), p.x, below + 19);
-      ctx.globalAlpha = 1;
+    // The chosen universe stands in front of the dark; everything else falls behind it.
+    const lifted = live?.one ?? focus;
+    for (const { one, at } of order) if (one !== lifted) drawUniverse(ctx, one, at, beat);
+    // The space falls to black round a chosen universe — all of it, edge to edge, never a square
+    // round the universe — and further while one of its memories is held (the live scene darkens
+    // its own bodies by the same amount, so the two meet without a seam).
+    const held = live?.scene.lock?.fade ?? 0;
+    const veil = 1 - (1 - dark) * (1 - FOCUS_VEIL * held);
+    if (veil > 0.004) { ctx.fillStyle = `rgba(2, 1, 4, ${veil})`; ctx.fillRect(0, 0, view.w, view.h); }
+    const top = order.find((entry) => entry.one === lifted);
+    if (top) drawUniverse(ctx, top.one, top.at, beat);
+  }
+
+  // One universe on screen: MOTHER's warmth, the live scene or its own living canvas, its rings
+  // and its name.
+  function drawUniverse(ctx, one, at, beat) {
+    const p = toScreen(at.x, at.y);
+    const glance = one.room.glance ?? {};
+    const awake = Boolean(one.room.open);
+    const isLive = live?.one === one;
+    // On screen: the live scene at its own size, or the sprite at the universe's.
+    const breath = glance.working?.length && !reduced && !isLive ? 1 + 0.035 * Math.sin(clock * 3.2) : 1;
+    const side = isLive ? LIVE_SIDE * (camera.zoom / FOCUS_ZOOM) : one.reach * 2 * at.scale * camera.zoom * breath;
+    const r = isLive ? side * 0.19 : one.reach * at.scale * camera.zoom * 0.2;   // MOTHER's radius on screen, for the rings and the names
+    one.screen = { x: p.x, y: p.y, r: side / 2 };
+    one.shown = side;
+    one.onScreen = !(p.x < -side || p.x > view.w + side || p.y < -side || p.y > view.h + side);
+    if (!one.onScreen) { if (isLive) live.screen = null; return; }
+    // MOTHER's warmth on the dark, breathing with her heart; a sleeping room gives off a cold glow.
+    ctx.globalCompositeOperation = 'lighter';
+    const halo = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * (3.2 + 0.4 * beat));
+    halo.addColorStop(0, awake ? `rgba(226, 40, 22, ${(0.22 + 0.1 * beat) * at.light})` : `rgba(120, 150, 200, ${0.12 * at.light})`);
+    halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * (3.2 + 0.4 * beat), 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = at.light * (hover && hover !== one && !focus ? 0.7 : 1) * (awake ? 1 : 0.6);
+    if (isLive) {
+      live.screen = { x: p.x - side / 2, y: p.y - side / 2, side };
+      ctx.drawImage(live.canvas, p.x - side / 2, p.y - side / 2, side, side);
+    } else if (one.sprite) {
+      ctx.drawImage(one.sprite.canvas, p.x - side / 2, p.y - side / 2, side, side);
+    } else {
+      // Not read yet: an ember where it will be.
+      const ember = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      ember.addColorStop(0, awake ? '#ff7a3a' : '#56637a');
+      ember.addColorStop(1, awake ? 'rgba(168, 23, 12, 0)' : 'rgba(27, 33, 48, 0)');
+      ctx.fillStyle = ember;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
     }
+    ctx.globalAlpha = 1;
+    // Waiting for you: a ring in the accent, breathing.
+    if (glance.waitingCount) {
+      const pulse = reduced ? 0.6 : 0.45 + 0.35 * Math.sin(clock * 2.4);
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = pulse;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, side * 0.56, side * 0.56 * 0.8, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if ((one === hover && !isLive) || one.room.id === here) {
+      ctx.strokeStyle = one === focus ? '#ffffff' : 'rgba(255, 255, 255, .55)';
+      ctx.lineWidth = one === focus ? 1.6 : 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, side * 0.52, 0, Math.PI * 2); ctx.stroke();
+    }
+    // Its name, under it.
+    const below = p.y + side * 0.5 + 8;
+    ctx.font = `600 ${Math.round(13 + 3 * at.depth)}px Geist, -apple-system, BlinkMacSystemFont, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    // Over a galaxy a name needs its own dark edge to be read.
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(3, 3, 5, .75)';
+    ctx.lineWidth = 4;
+    ctx.fillStyle = awake ? 'rgba(242, 241, 238, .95)' : 'rgba(200, 210, 225, .6)';
+    ctx.globalAlpha = at.light;
+    ctx.strokeText(one.room.name, p.x, below);
+    ctx.fillText(one.room.name, p.x, below);
+    ctx.font = '500 11px Geist, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.lineWidth = 3;
+    ctx.fillStyle = glance.waitingCount ? accent : 'rgba(242, 241, 238, .6)';
+    ctx.strokeText(words.state(one.room), p.x, below + 19);
+    ctx.fillText(words.state(one.room), p.x, below + 19);
+    ctx.globalAlpha = 1;
   }
 
   // The veins between universes: one per contract, drawn as NOSTROMO draws the vein between two
@@ -600,19 +686,83 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     else fly({ x: 0, y: 0, zoom: 1 });
   }
 
-  // The memory chosen in the live scene, said on the card: its kind and its words.
-  function showMemory(node) {
-    const slot = card.querySelector('.mv-memory');
-    if (!slot) return;
-    slot.replaceChildren();
-    slot.hidden = !node;
-    if (!node) return;
+  // ---- Memory windows. A memory picked inside the chosen universe opens in a window of its own,
+  // as NOSTROMO's cards do: moved by its header, brought forward by a touch, closed with its ×,
+  // several at once (MEMORY_WINDOWS; the oldest gives way). The one in front is the memory the
+  // live scene holds in its sight.
+  const shelf = document.createElement('div');
+  shelf.className = 'mv-windows';
+  layer.append(shelf);
+  function raiseMemory(win) {
+    windows = [...windows.filter((one) => one !== win), win];
+    windows.forEach((one, index) => { one.el.style.zIndex = String(10 + index); one.el.classList.toggle('front', one === win); });
+    if (live) { live.scene.selected = win.node; if (reduced) { stepLive(performance.now()); redraw(); } }
+  }
+  function closeMemory(win) {
+    windows = windows.filter((one) => one !== win);
+    win.el.remove();
+    const front = windows.at(-1);
+    if (front) raiseMemory(front);
+    else if (live) { live.scene.selected = null; if (reduced) { stepLive(performance.now()); redraw(); } }
+  }
+  function closeMemories() {
+    for (const win of windows) win.el.remove();
+    windows = [];
+  }
+  function openMemory(node) {
+    const already = windows.find((win) => win.node.memory.id === node.memory.id);
+    if (already) { raiseMemory(already); return; }
+    while (windows.length >= MEMORY_WINDOWS) closeMemory(windows[0]);
+    const memory = node.memory;
+    const el = document.createElement('aside');
+    el.className = 'mv-mem';
+    el.style.setProperty('--k', node.color);
+    const step = windows.length;
+    // Each one a step right and down of the last, far enough that every header stays in reach.
+    el.style.left = `${40 + step * 44}px`;
+    el.style.top = `${150 + step * 56}px`;
+    const head = document.createElement('header');
     const kind = document.createElement('b');
-    kind.style.setProperty('--k', node.color);
-    kind.textContent = words.kind(node.memory.kind);
+    kind.textContent = words.kind(memory.kind);
+    const shut = document.createElement('button');
+    shut.type = 'button';
+    shut.className = 'mv-mem-close';
+    shut.setAttribute('aria-label', words.close ?? 'Close');
+    shut.textContent = '×';
+    head.append(kind, shut);
     const text = document.createElement('p');
-    text.textContent = node.memory.text ?? '';
-    slot.append(kind, text);
+    text.className = 'mv-mem-text';
+    text.textContent = memory.text ?? '';
+    const meta = document.createElement('p');
+    meta.className = 'mv-mem-meta';
+    const span = memory.fromSequence ? (memory.fromSequence === memory.throughSequence ? `#${memory.fromSequence}` : `#${memory.fromSequence}–#${memory.throughSequence}`) : null;
+    meta.textContent = [span, memory.agent ? `@${memory.agent}` : null, memory.created ? new Date(memory.created).toLocaleString() : null].filter(Boolean).join(' · ');
+    el.append(head, text);
+    if (meta.textContent) el.append(meta);
+    shelf.append(el);
+    const win = { node, el };
+    windows.push(win);
+    shut.addEventListener('click', (event) => { event.stopPropagation(); closeMemory(win); });
+    el.addEventListener('pointerdown', () => { if (windows.at(-1) !== win) raiseMemory(win); });
+    // Moved by its header, inside the macroverse.
+    head.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || event.target.closest('button')) return;
+      event.preventDefault();
+      const room = layer.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      const dx = event.clientX - box.left, dy = event.clientY - box.top;
+      el.classList.add('moving');
+      try { head.setPointerCapture(event.pointerId); } catch { /* the pointer already left */ }
+      const move = (moving) => {
+        el.style.left = `${clamp(moving.clientX - room.left - dx, 0, room.width - 80)}px`;
+        el.style.top = `${clamp(moving.clientY - room.top - dy, 0, room.height - 48)}px`;
+      };
+      const drop = () => { head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', drop); head.removeEventListener('pointercancel', drop); el.classList.remove('moving'); };
+      head.addEventListener('pointermove', move);
+      head.addEventListener('pointerup', drop);
+      head.addEventListener('pointercancel', drop);
+    });
+    raiseMemory(win);
   }
 
   function drawCard(one) {
@@ -662,10 +812,6 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       }
       card.append(links);
     }
-    const memory = document.createElement('div');
-    memory.className = 'mv-memory';
-    memory.hidden = true;
-    card.append(memory);
     const row = document.createElement('div');
     row.className = 'mv-actions';
     if (room.open) {
@@ -699,7 +845,6 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     row.append(out);
     card.append(row);
     card.hidden = false;
-    if (live?.one === one && live.scene.selected) showMemory(live.scene.selected);
   }
 
   function choose(one) {
@@ -792,9 +937,11 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     const over = liveAt(event);
     if (over?.inside && live) {
       // Inside the chosen universe: a memory is picked and read on the card; the dark lets go of it on the next click.
+      // A memory opens in its own window; the dark lets go of the one in the sight, and the
+      // windows stay open until they are closed.
       const node = over.at && over.at !== 'core' ? over.at : null;
-      live.scene.selected = node;
-      showMemory(node);
+      if (node) openMemory(node);
+      else { live.scene.selected = null; for (const win of windows) win.el.classList.remove('front'); }
       if (reduced) { stepLive(performance.now()); redraw(); }
       if (node || over.at === 'core') return;
     }
@@ -827,7 +974,8 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   function onKey(event) {
     if (event.key !== 'Escape') return;
     event.preventDefault();
-    if (live?.scene.selected) { live.scene.selected = null; showMemory(null); if (reduced) { stepLive(performance.now()); redraw(); } }
+    if (windows.length) closeMemory(windows.at(-1));
+    else if (live?.scene.selected) { live.scene.selected = null; if (reduced) { stepLive(performance.now()); redraw(); } }
     else if (focus) choose(null);
     else close();
   }
@@ -861,7 +1009,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   redraw();
   canvas.focus({ preventScroll: true });
   // A window on the macroverse for whoever is measuring it, the way the room leaves `__pulse`.
-  globalThis.__macroverso = { peek: () => ({ live, universes, veins, camera, textures: { ...textures, whole: texturesReady() }, raf }) };
+  globalThis.__macroverso = { peek: () => ({ live, universes, veins, camera, dark, windows, textures: { ...textures, whole: texturesReady() }, raf }), step: (now) => advance(now), choose: (index) => choose(universes[index] ?? null), open: (node) => openMemory(node) };
 
   return {
     update(next, nextEnlaces = enlaces) { rooms = next; enlaces = nextEnlaces; layout(next); redraw(); },
