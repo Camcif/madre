@@ -43,7 +43,7 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `abee3ff` | Claude | UX · detener plan redondo, botones del aviso CREATE, sin subrayado en el esfuerzo, cita dentro de la caja |
 | `09eb9a1` | Claude | UX · el vidrio de «sigue abierto» vuelve: el desvanecido pasa de la fila a la píldora cortada |
 | `ae60641` | Claude | Cierre de la jornada de UX del 2026-10-09: resumen en §1·b |
-| *este commit* | Claude | Macroverso vivo: universos lejanos animados (`frozen`), luz y tamaño por distancia, oscuridad de borde a borde, ventanas de memoria, venas con pulsos |
+| `6f1f4b4` | Claude | Macroverso vivo: universos lejanos animados (`frozen`), luz y tamaño por distancia, oscuridad de borde a borde, ventanas de memoria, venas con pulsos |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
