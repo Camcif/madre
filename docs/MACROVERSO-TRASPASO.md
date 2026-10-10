@@ -56,7 +56,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `bc4c5fb` | Claude | Lobby: barra superior como la de las salas (proyectos abiertos, agentes, te esperan, versión, enlaces, macroverso; recargar y ajustes aparte) |
 | `a2538f0` | Claude | Lobby: sin título ni subtítulo, herramientas al centro; fondo de pantalla de la sala en Ajustes del lobby |
 | `717a42a` | Claude | Lobby: Apariencia con todo PERSONALIZAR de la sala (capa/mesh, intensidad, desenfoque, burbujas, texto; mismas claves `pulse.*`); tarjetas del bento con la fórmula de planos de la conversación en lugar del brillo neumórfico |
-| *este commit* | Claude | Lobby: AJUSTES como los de la sala (ventana `#settings`, tablero Tú / La tripulación / Sistema, hoja sobre el tablero, búsqueda, vista previa); salas ancladas en la barra (`pulse.lobbyBar`: clic derecho o arrastrar la tarjeta; ordenar y quitar como en la barra de la sala); el scroll de los modales va fuera de la ventana |
+| `ce68328` | Claude | Lobby: AJUSTES como los de la sala (ventana `#settings`, tablero Tú / La tripulación / Sistema, hoja sobre el tablero, búsqueda, vista previa); salas ancladas en la barra (`pulse.lobbyBar`: clic derecho o arrastrar la tarjeta; ordenar y quitar como en la barra de la sala); el scroll de los modales va fuera de la ventana |
+| *este commit* | Claude | Lobby: Apariencia a todo lo ancho de Ajustes, en dos columnas y sin scroll a 900 px; los términos del enlace en una franja bajo la escena, sin tapar la animación |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas

@@ -757,9 +757,12 @@ function openLinkSheet({ reader = null, source = null } = {}) {
   // The scene over every step, in the welcome's own style (wizardScene): the room that serves and
   // the one that reads, arriving and floating; BISHOP with its ring; between them the wire, its dashes
   // running the way the notes travel (both ways when both read), and the notes themselves crossing it,
-  // one dot per kind that crosses, in its kind's colour. Under them, the link's terms. It is made once
-  // and kept across the steps; a choice redraws what it says, not the scene.
+  // one dot per kind that crosses, in its kind's colour. Under the scene, in a strip of their own so
+  // they never cover it, the link's terms. It is made once and kept across the steps; a choice
+  // redraws what it says, not the scene.
   const stage = el('div', 'sm-scene scene-link');
+  const field = el('div', 'lw-field');
+  stage.append(field);
   const shown = { head: null, page: null };
   stage.setAttribute('aria-hidden', 'true');
   const ends = { source: null, reader: null };
@@ -768,7 +771,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     node.style.left = role === 'source' ? '20%' : '80%';
     node.style.top = '42%';
     node.style.setProperty('--d', role === 'source' ? '0ms' : '160ms');
-    stage.append(node);
+    field.append(node);
     return node;
   }
   function paintEnd(node, id, role) {
@@ -788,7 +791,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     paintEnd(ends.reader, pick.reader, pick.both ? t('Reads and serves') : t('Reads'));
     stage.querySelector('.lw-wires')?.remove();
     stage.querySelector('.lw-terms')?.remove();
-    const box = stage.getBoundingClientRect();
+    const box = field.getBoundingClientRect();
     if (box.width) {
       // In the scene's own pixels, so the dots stay round and the wire meets the bodies.
       const W = box.width, H = box.height, y = H * 0.42, x0 = W * 0.2 + 34, x1 = W * 0.8 - 34;
@@ -811,7 +814,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
         dot.append(move, svgNode('animate', { attributeName: 'opacity', values: '0;1;1;0', keyTimes: '0;.12;.88;1', dur: '2.6s', repeatCount: 'indefinite', begin }));
         wires.append(dot);
       }));
-      stage.prepend(wires);
+      field.prepend(wires);
     }
     const terms = el('p', 'lw-terms');
     const said = [
@@ -2179,12 +2182,19 @@ function lookPreview(looks) {
 function fillLook(host) {
   host.classList.add('settings-look');
   const looks = readLooks();
-  host.append(el('p', 'sx-intro', t('Kept in this browser, for the lobby and for the room served at this address.')));
-  const frame = el('div', 'sx-look');
+  // Where the choices are kept, and the way back to MADRE as it comes, on one line above it all.
+  const top = el('div', 'sm-look-top');
+  top.append(el('p', 'sx-intro', t('Kept in this browser, for the lobby and for the room served at this address.')));
+  host.append(top);
+  // Two columns when the window is wide (it opens over the whole window): the preview, with how
+  // the conversation reads and the language under it; the colours and the wallpaper beside it. So
+  // the whole of Appearance is seen at once.
+  const frame = el('div', 'sx-look sm-look');
+  const side = el('div', 'sm-look-side');
   const preview = lookPreview(looks);
-  sxBlock(frame, t('Preview'), t('Your choices, in the bubbles the conversation draws.'), { className: 'sx-preview' }).rows.append(preview);
+  sxBlock(side, t('Preview'), t('Your choices, in the bubbles the conversation draws.'), { className: 'sx-preview' }).rows.append(preview);
   const page = el('div', 'sx-look-controls');
-  frame.append(page);
+  frame.append(side, page);
 
   const named = el('span', 'custom-current', ACCENT_WORDS[looks.accent]());
   const colour = sxBlock(page, t('Colour'), null, { aside: named });
@@ -2254,11 +2264,11 @@ function fillLook(host) {
     ? t('A photograph wears the room\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
     : t('Behind the lobby, and behind the conversation of the room served at this address. Light and dark each have their own.')).rows.append(paperBox);
 
-  const talk = sxBlock(page, t('Conversation'));
+  const talk = sxBlock(side, t('Conversation'));
   sxRow(talk, t('Bubbles'), null, customSeg(BUBBLES.map((value) => [value, BUBBLE_WORDS[value]()]), looks.bubbles, (value) => saveLooks({ bubbles: value })), { stack: true });
   sxRow(talk, t('Text'), null, customSeg(TEXTS.map((value) => [value, TEXT_WORDS[value]()]), looks.text, (value) => saveLooks({ text: value })), { stack: true });
 
-  const words = sxBlock(page, t('Language'));
+  const words = sxBlock(side, t('Language'));
   sxRow(words, t('Interface'), t('The page reloads in it when you choose to.'), customSeg([['es', 'Español'], ['en', 'English']], language, async (code) => {
     try { localStorage.setItem('pulse.language', code); } catch { /* no storage */ }
     await post('/api/language', { language: code });
@@ -2267,12 +2277,10 @@ function fillLook(host) {
 
   const atDefault = looks.accent === 'madre' && looks.wallpaper === 'default' && looks.style === 'veil' && looks.veil === TUNES.veil.value && looks.blur === TUNES.blur.value && looks.bubbles === BUBBLES[0] && looks.text === TEXTS[0];
   if (!atDefault) {
-    const acts = el('div', 'sx-actions end');
-    acts.append(sxButton(t('Back to default'), () => {
+    top.append(sxButton(t('Back to default'), () => {
       for (const name of ['veil', 'blur']) saveTune(name, TUNES[name].value);
       saveLooks({ accent: 'madre', wallpaper: 'default', style: 'veil', bubbles: BUBBLES[0], text: TEXTS[0] });
     }));
-    page.append(acts);
   }
   host.append(frame);
 }
@@ -2422,12 +2430,16 @@ function openSettings(section = null) {
     stop();
     if (state.query.trim()) { body.replaceChildren(results()); return; }
     if (!state.open) { body.replaceChildren(board()); return; }
-    const scrim = el('div', 'settings-scrim');
-    scrim.addEventListener('click', () => closeCategory());
-    const sheet = el('div', 'settings-sheet');
+    // Appearance has more to show than a sheet holds: it takes the whole window, as a category
+    // does in the room when a sheet would be cramped (app.js, «push»). The others open over the board.
+    const full = state.open === 'look';
+    const sheet = el('div', `settings-sheet${full ? ' full' : ''}`);
     const scroll = el('div', 'settings-scroll');
     scroll.append(detail(state.open));
     sheet.append(scroll);
+    if (full) { body.replaceChildren(sheet); return; }
+    const scrim = el('div', 'settings-scrim');
+    scrim.addEventListener('click', () => closeCategory());
     body.replaceChildren(board(), scrim, sheet);
   };
   const openCategory = (id, landOn = null) => {
