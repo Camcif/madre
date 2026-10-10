@@ -50,7 +50,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `24ae480` | Claude | Lobby: resumen de @madre de lo último trabajado, decisiones recientes, «Te necesita», bienvenida animada; rieles, buscador y cerrar de la sala |
 | `a99015a` | Claude | Macroverso: BISHOP al centro con las venas de sus enlaces, enlazar llevando un universo a BISHOP, teclas de la sala de noche, menos brillo y pulsos más chicos a lo lejos |
 | `a801530` | Claude | Macroverso: BISHOP como esfera de gas nebuloso con un ojo que todo lo ve |
-| *este commit* | Claude | BISHOP más real (esfera iluminada, nebulosa, ojo sobre la esfera que parpadea y sigue al puntero) y enlazar como asistente paso a paso |
+| `e457bd3` | Claude | BISHOP más real (esfera iluminada, nebulosa, ojo sobre la esfera que parpadea y sigue al puntero) y enlazar como asistente paso a paso |
+| *este commit* | Claude | Lobby: hojas con el material de la ventana de Ajustes; enlazar rehecho en el lenguaje de Ajustes; carpetas que caen en su casilla; el pulso detrás de las salas |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -270,7 +271,9 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   cuerpo `0.36 + 0.64·depth`, halo más chico, y en el motor, solo en escenas `bare`, resplandor,
   pulsos y anillos del latido se atenúan y achican con `nearness` (`farLight`, `farSize`).
 - **Enlazar es un asistente** (`openLinkSheet`, 2026-10-10): pasos Quién lee · Qué cruza · Cuánto
-  tiempo · Órdenes (solo con BISHOP de un lado) · Revisión, con la escena de las dos salas y su vena.
+  tiempo · Órdenes (solo con BISHOP de un lado) · Revisión; cada paso dice qué decide, las opciones
+  van en filas como Ajustes (lo seguro marcado «Recomendado») y abajo «Así queda el enlace».
+  Todas las hojas del lobby llevan el material de `dialog.settings-window` (`--bg-2` al 94 %).
   Valores seguros por defecto: **una semana** (antes 30 días), decisiones y hechos, sin recuerdo,
   sin órdenes; avisa si la que entrega duerme o corre una MADRE vieja; con órdenes exige la
   designación; la revisión dice el contrato en frases. El cuerpo del POST no cambió.

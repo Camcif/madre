@@ -628,13 +628,13 @@ function drawMap(projects, enlaces) {
 }
 
 // LINKING TWO ROOMS, step by step. A link lets one room read the notes of another; nothing is
-// written across. The assistant asks one thing at a time, in plain words, with the safe choice
-// already made: who reads whom (and says when the one that serves is asleep or older), which kinds
-// of note cross, for how long (a week unless the person says otherwise) and whether they arrive on
-// their own, and — only when BISHOP is on one side — whether BISHOP may send orders (off unless
-// the person turns it on, and then only with the room's designation typed, as arming #3 asks).
-// The last step says the whole contract in sentences before it is signed. Over every step, the two
-// rooms and the vein between them, the way the notes would travel.
+// written across. The assistant asks one thing at a time, in the room's own material — the step,
+// the question and what it decides; the choices on a card, each saying what it does, the safe one
+// marked; and, under every step, the link as it stands so far, in words: who serves, what crosses,
+// who reads, until when, how the notes arrive, whether orders go. Safe from the start: a week,
+// decisions and facts, notes read only when asked, no orders. Orders appear only with BISHOP on
+// one side, off, and ask for the room's designation typed, as arming #3 does. It warns when the
+// room that serves is asleep or older, and says the whole contract before it is signed.
 const LINK_KINDS = ['decision', 'fact', 'preference', 'question'];
 const LINK_KIND_NOTES = { decision: () => t('What was agreed: the choices the room made.'), fact: () => t('What is known: data and findings the room settled.'), preference: () => t('How you like to work: conventions and tastes.'), question: () => t('What is open: questions still waiting for an answer.') };
 const LINK_DAYS = [[1, () => t('A day')], [7, () => t('A week')], [30, () => t('30 days')], [0, () => t('No expiry')]];
@@ -653,50 +653,43 @@ function openLinkSheet({ reader = null, source = null } = {}) {
   };
   pick.source = source ?? (rooms.find((room) => room.id !== pick.reader && ready(room)) ?? rooms.find((room) => room.id !== pick.reader))?.id;
   const roomOf = (id) => rooms.find((room) => room.id === id) ?? null;
+  const nameOf = (id) => { const room = roomOf(id); return room ? roomLabel(room) : ''; };
   // Orders only with BISHOP on one side; they would go into the other.
   const ordersInto = () => (data.salas && [pick.reader, pick.source].includes(data.salas) ? [pick.reader, pick.source].find((id) => id !== data.salas) ?? null : null);
   const stepsNow = () => ['who', 'what', 'time', ...(ordersInto() ? ['orders'] : []), 'review'];
   const STEP_WORDS = { who: () => t('Who reads'), what: () => t('What crosses'), time: () => t('How long'), orders: () => t('Orders'), review: () => t('Review') };
-  let at = 0;
-  sheet = el('dialog', 'sm-sheet sm-wide sm-wizard sm-link-wizard');
-  const inner = el('div', 'sm-sheet-body');
-  sheet.append(inner);
-  document.body.append(sheet);
   // The kinds as a sentence says them: «decisiones y hechos».
   const KIND_PLURALS = { decision: () => t('decisions'), fact: () => t('facts'), preference: () => t('preferences'), question: () => t('questions') };
   const kindsSaid = () => new Intl.ListFormat(language, { type: 'conjunction' }).format(LINK_KINDS.filter((kind) => pick.kinds.has(kind)).map((kind) => KIND_PLURALS[kind]()));
+  const until = () => new Date(Date.now() + pick.days * 86400000).toLocaleDateString(language, { day: 'numeric', month: 'long' });
+  let at = 0;
+  sheet = el('dialog', 'sm-sheet sm-wide sm-link-wizard');
+  const inner = el('div', 'sm-sheet-body');
+  sheet.append(inner);
+  document.body.append(sheet);
 
-  // The two rooms and the vein between them: the one that serves on the left, the one that reads on
-  // the right, the notes running from one to the other (both ways when both read).
-  function scene() {
-    const box = el('div', `sm-scene scene-link${pick.both ? ' both' : ''}`);
-    box.setAttribute('aria-hidden', 'true');
-    const end = (id, role) => {
-      const room = roomOf(id);
-      const node = el('div', `sm-link-end ${role}${id === data.salas ? ' is-bishop' : ''}${room?.open ? '' : ' asleep'}`);
-      node.append(el('span', 'sm-link-orb'), el('b', null, room ? roomLabel(room) : ''), el('small', null, role === 'source' ? (pick.both ? t('Reads and serves') : t('Serves')) : (pick.both ? t('Reads and serves') : t('Reads'))));
-      return node;
-    };
-    const vein = svgNode('svg', { class: 'sm-link-vein', viewBox: '0 0 200 60', preserveAspectRatio: 'none' });
-    vein.append(svgNode('path', { class: 'there', d: 'M4 30 C 60 6, 140 54, 196 30', 'vector-effect': 'non-scaling-stroke' }));
-    if (pick.both) vein.append(svgNode('path', { class: 'back', d: 'M196 30 C 140 6, 60 54, 4 30', 'vector-effect': 'non-scaling-stroke' }));
-    box.append(end(pick.source, 'source'), vein, end(pick.reader, 'reader'));
-    return box;
-  }
-  // A field names its control; only a select or a box is wrapped in a label (a label round a rail
-  // would press its first option when its name is touched).
-  const field = (words, control) => { const node = el(control.matches('select, input') ? 'label' : 'div', 'sm-field'); node.append(el('span', null, words), control); return node; };
-  const switchRow = (words, note, on, change) => {
-    const row = el('div', 'sm-switch-row');
-    const text = el('div', 'sm-switch-words');
-    text.append(el('b', null, words));
-    if (note) text.append(el('span', null, note));
-    const toggle = el('label', 'settings-switch');
-    const box = el('input'); box.type = 'checkbox'; box.checked = on; box.setAttribute('aria-label', words);
+  // ---- The pieces every step is made of.
+  const card = () => el('div', 'lw-card');
+  // A row: what it is and what it does on the left, its control on the right.
+  const row = (title, note, control, { recommended = false, dot = null } = {}) => {
+    const line = el('div', 'lw-row');
+    const words = el('div', 'lw-words');
+    const head = el('div', 'lw-title');
+    if (dot) head.append(el('i', `lw-dot k-${dot}`));
+    head.append(el('b', null, title));
+    if (recommended) head.append(el('span', 'lw-tag', t('Recommended')));
+    words.append(head);
+    if (note) words.append(el('span', 'lw-note', note));
+    line.append(words);
+    if (control) line.append(control);
+    return line;
+  };
+  const toggle = (on, change, label) => {
+    const wrap = el('label', 'settings-switch');
+    const box = el('input'); box.type = 'checkbox'; box.checked = on; box.setAttribute('aria-label', label);
     box.addEventListener('change', () => change(box.checked));
-    toggle.append(box, el('i'));
-    row.append(text, toggle);
-    return row;
+    wrap.append(box, el('i'));
+    return wrap;
   };
   const rail = (options, current, choose, label) => {
     const seg = el('div', 'sx-seg');
@@ -710,13 +703,15 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     }
     return seg;
   };
-  const roomSelect = (chosen, change) => {
-    const select = el('select');
+  const roomSelect = (chosen, change, label) => {
+    const select = el('select', 'lw-select');
+    select.setAttribute('aria-label', label);
     for (const room of rooms) { const option = el('option', null, roomLabel(room)); option.value = room.id; if (room.id === chosen) option.selected = true; select.append(option); }
     select.addEventListener('change', () => change(select.value));
     return select;
   };
-  // What the person should know about the rooms chosen, before going on.
+  const caution = (words) => { const line = el('div', 'lw-caution'); line.append(el('i'), el('span', null, words)); return line; };
+  // What the person should know about the rooms chosen.
   function cautions() {
     const said = [];
     for (const id of pick.both ? [pick.source, pick.reader] : [pick.source]) {
@@ -726,6 +721,27 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       else if (room.glance?.outdated) said.push(t('{room} runs an older MADRE: it may hand nothing over until you update it.', { room: roomLabel(room) }));
     }
     return said;
+  }
+  // The link as it stands so far: who serves, what crosses, who reads; and its terms.
+  function contract({ swap = null } = {}) {
+    const box = el('section', 'lw-contract');
+    box.setAttribute('aria-label', t('The link as it stands'));
+    const top = el('div', 'lw-contract-head');
+    top.append(el('span', 'lw-eyebrow', t('The link as it stands')));
+    if (swap) top.append(swap);
+    box.append(top);
+    const flow = el('div', `lw-flow${pick.both ? ' both' : ''}`);
+    const end = (id, role) => { const node = el('span', `lw-room${id === data.salas ? ' is-bishop' : ''}`); node.append(el('b', null, nameOf(id)), el('small', null, role)); return node; };
+    const wire = el('span', 'lw-wire');
+    wire.append(el('em', null, pick.kinds.size ? kindsSaid() : t('nothing yet')), el('i'));
+    flow.append(end(pick.source, pick.both ? t('Reads and serves') : t('Serves')), wire, end(pick.reader, pick.both ? t('Reads and serves') : t('Reads')));
+    const terms = [
+      pick.days ? t('Ends {date}', { date: until() }) : t('No expiry'),
+      pick.recall ? t('On every turn') : t('Only when asked'),
+      ...(ordersInto() ? [pick.orders ? t('Orders up to #{n}', { n: pick.maxMode }) : t('No orders')] : []),
+    ];
+    box.append(flow, el('p', 'lw-terms', terms.join(' · ')));
+    return box;
   }
 
   function render({ back = false } = {}) {
@@ -737,73 +753,78 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     const dots = el('ol', 'sm-steps');
     steps.forEach((name, index) => dots.append(el('li', index === at ? 'on' : index < at ? 'done' : null, STEP_WORDS[name]())));
     head.append(dots, closeKey(() => sheet.close()));
-    const page = el('div', `sm-step${back ? ' back' : ''}`);
+    const page = el('div', `sm-step lw-step${back ? ' back' : ''}`);
+    const intro = (title, lead) => {
+      const box = el('div', 'lw-intro');
+      box.append(el('span', 'lw-eyebrow', t('Step {n} of {total}', { n: at + 1, total: steps.length })), el('h3', null, title));
+      if (lead) box.append(el('p', 'lw-lead', lead));
+      page.append(box);
+    };
     const error = el('p', 'error');
     const actions = el('div', 'actions');
     const next = (check) => button('sm-btn primary', t('Continue'), () => { const wrong = check?.(); if (wrong) { error.textContent = wrong; return; } at += 1; render(); });
     if (at > 0) actions.append(button('sm-btn', t('Back'), () => { at -= 1; render({ back: true }); }));
 
     if (kind === 'who') {
-      page.append(el('h3', null, t('Which room reads, and from which?')));
-      const pair = el('div', 'sm-pair');
-      const swap = button('sm-icon-key', null, () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); });
-      swap.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7h10M12 4l3 3-3 3M15 13H5M8 10l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      swap.title = t('Swap them');
-      swap.setAttribute('aria-label', t('Swap them'));
-      pair.append(field(t('The one that serves'), roomSelect(pick.source, (id) => { pick.source = id; render(); })), swap, field(t('The one that reads'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); })));
-      page.append(pair);
-      const a = roomOf(pick.reader), b = roomOf(pick.source);
-      if (a && b && a.id !== b.id) page.append(el('p', 'hint', pick.both ? t('{a} and {b} can look up each other\'s notes when their agents need them. Nothing is ever written into either.', { a: roomLabel(a), b: roomLabel(b) }) : t('{reader} can look up the notes of {source} when its agents need them. Nothing is ever written into {source}.', { reader: roomLabel(a), source: roomLabel(b) })));
-      page.append(switchRow(t('Both ways'), t('Each one reads the other. Leave it off if only one needs it.'), pick.both, (on) => { pick.both = on; render(); }));
-      for (const caution of cautions()) page.append(el('p', 'sm-caution', caution));
+      intro(t('Which room reads, and from which?'), t('A link lets one room look up the notes of another. The one that reads asks; the one that serves answers with its notes. Nothing is ever written into the one that serves.'));
+      const box = card();
+      box.append(row(t('The one that serves'), t('Its notes are read. Nothing is written into it.'), roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('The one that serves'))));
+      box.append(row(t('The one that reads'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The one that reads'))));
+      box.append(row(t('Both ways'), t('Each one reads the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
+      for (const said of cautions()) box.append(caution(said));
+      page.append(box);
       actions.append(next(() => (pick.reader === pick.source ? t('Choose two different rooms.') : null)));
     } else if (kind === 'what') {
-      page.append(el('h3', null, t('Which notes cross?')));
-      const cards = el('div', 'sm-kind-cards');
+      intro(t('Which notes cross?'), t('Turn on only what the room that reads needs. Decisions and facts are usually enough.'));
+      const box = card();
       for (const kindOf of LINK_KINDS) {
-        const card = el('label', 'sm-kind-card');
-        const box = el('input'); box.type = 'checkbox'; box.checked = pick.kinds.has(kindOf);
-        box.addEventListener('change', () => { if (box.checked) pick.kinds.add(kindOf); else pick.kinds.delete(kindOf); error.textContent = ''; });
-        const words = el('span', 'sm-kind-words');
-        words.append(el('b', null, kindWord(kindOf)), el('small', null, LINK_KIND_NOTES[kindOf]()));
-        card.append(box, el('i', `sm-kind-dot k-${kindOf}`), words);
-        cards.append(card);
+        box.append(row(kindWord(kindOf), LINK_KIND_NOTES[kindOf](), toggle(pick.kinds.has(kindOf), (on) => { if (on) pick.kinds.add(kindOf); else pick.kinds.delete(kindOf); error.textContent = ''; render(); }, kindWord(kindOf)), { recommended: kindOf === 'decision' || kindOf === 'fact', dot: kindOf }));
       }
-      page.append(cards, el('p', 'hint', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the room that serves. Never the ledger, files, med bay or jettisoned.')));
+      page.append(box, el('p', 'lw-foot', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the room that serves. Never the ledger, files, med bay or jettisoned.')));
       actions.append(next(() => (pick.kinds.size ? null : t('Choose at least one kind.'))));
     } else if (kind === 'time') {
-      page.append(el('h3', null, t('For how long?')));
-      page.append(field(t('It ends'), rail(LINK_DAYS.map(([value, words]) => [value, words()]), pick.days, (value) => { pick.days = value; }, t('It ends'))));
-      page.append(el('p', 'hint', t('A week is enough to try it; signing it again takes a moment.')));
-      page.append(switchRow(t('Recall on every turn'), t('The room that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.'), pick.recall, (on) => { pick.recall = on; }));
+      intro(t('For how long?'), t('A link ends on its own when it expires. Until then, the room that reads looks the notes up only when its agents ask, unless you want them to arrive on every turn.'));
+      const box = card();
+      const ends = el('div', 'lw-control');
+      ends.append(rail(LINK_DAYS.map(([value, words]) => [value, words()]), pick.days, (value) => { pick.days = value; }, t('It ends')));
+      box.append(row(t('It ends'), t('A week is enough to try it; signing it again takes a moment.'), ends, { recommended: pick.days === 7 }));
+      box.append(row(t('Recall on every turn'), t('The room that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.'), toggle(pick.recall, (on) => { pick.recall = on; render(); }, t('Recall on every turn'))));
+      page.append(box);
       actions.append(next());
     } else if (kind === 'orders') {
-      const into = roomOf(ordersInto());
-      const name = into ? roomLabel(into) : '';
-      page.append(el('h3', null, t('Orders from the super agent')));
-      page.append(el('p', 'hint', t('With orders, BISHOP can send a task to {room}, and its agents carry it out there. Without them, BISHOP only reads. #3 and #4 never travel: they arrive as a proposal you arm in that room.', { room: name })));
-      page.append(switchRow(t('Allow orders into {room}', { room: name }), t('Leave it off unless you need BISHOP to act in {room}.', { room: name }), pick.orders, (on) => { pick.orders = on; render(); }));
+      const name = nameOf(ordersInto());
+      intro(t('Orders from the super agent'), t('With orders, BISHOP can send a task to {room}, and its agents carry it out there. Without them, BISHOP only reads. #3 and #4 never travel: they arrive as a proposal you arm in that room.', { room: name }));
+      const box = card();
+      box.append(row(t('Allow orders into {room}', { room: name }), t('Leave it off unless you need BISHOP to act in {room}.', { room: name }), toggle(pick.orders, (on) => { pick.orders = on; render(); }, t('Allow orders into {room}', { room: name })), { recommended: !pick.orders }));
       if (pick.orders) {
-        page.append(field(t('Up to which mode'), rail([1, 2].map((n) => [n, `#${n} ${MODE_NAMES[n]}`]), pick.maxMode, (value) => { pick.maxMode = value; }, t('Up to which mode'))));
-        page.append(field(t('How many an hour'), rail([3, 6, 12].map((n) => [n, String(n)]), pick.perHour, (value) => { pick.perHour = value; }, t('How many an hour'))));
-        const typed = el('input'); typed.type = 'text'; typed.autocomplete = 'off'; typed.spellcheck = false; typed.value = pick.designation;
+        const modes = el('div', 'lw-control');
+        modes.append(rail([1, 2].map((n) => [n, `#${n} ${MODE_NAMES[n]}`]), pick.maxMode, (value) => { pick.maxMode = value; }, t('Up to which mode')));
+        box.append(row(t('Up to which mode'), null, modes));
+        const hourly = el('div', 'lw-control');
+        hourly.append(rail([3, 6, 12].map((n) => [n, String(n)]), pick.perHour, (value) => { pick.perHour = value; }, t('How many an hour')));
+        box.append(row(t('How many an hour'), null, hourly));
+        const typed = el('input', 'lw-input'); typed.type = 'text'; typed.autocomplete = 'off'; typed.spellcheck = false; typed.value = pick.designation;
+        typed.setAttribute('aria-label', t('Type the designation of {room} to allow orders into it', { room: name }));
         typed.addEventListener('input', () => { pick.designation = typed.value; error.textContent = ''; });
-        page.append(field(t('Type the designation of {room} to allow orders into it', { room: name }), typed));
+        const said = row(t('Type the designation of {room} to allow orders into it', { room: name }), null, null);
+        said.classList.add('lw-stack');
+        said.append(typed);
+        box.append(said);
       }
+      page.append(box);
       actions.append(next(() => (pick.orders && !pick.designation.trim() ? t('Type the designation to allow orders, or turn them off.') : null)));
     } else {
-      page.append(el('h3', null, t('Read it before you sign')));
-      const reader = roomOf(pick.reader), source = roomOf(pick.source);
-      const list = el('ul', 'sm-review');
+      intro(t('Read it before you sign'), t('This is the whole contract. Nothing is signed until you press Sign.'));
+      const list = el('ul', 'lw-card lw-review');
       const said = (words) => list.append(el('li', null, words));
-      said(pick.both ? t('{a} and {b} will read each other\'s {kinds}.', { a: roomLabel(reader), b: roomLabel(source), kinds: kindsSaid() }) : t('{reader} will read the {kinds} of {source}.', { reader: roomLabel(reader), source: roomLabel(source), kinds: kindsSaid() }));
-      said(pick.days ? t('Until {date}.', { date: new Date(Date.now() + pick.days * 86400000).toLocaleDateString(language, { day: 'numeric', month: 'long' }) }) : t('With no expiry: it lasts until you revoke it.'));
+      said(pick.both ? t('{a} and {b} will read each other\'s {kinds}.', { a: nameOf(pick.reader), b: nameOf(pick.source), kinds: kindsSaid() }) : t('{reader} will read the {kinds} of {source}.', { reader: nameOf(pick.reader), source: nameOf(pick.source), kinds: kindsSaid() }));
+      said(pick.days ? t('Until {date}.', { date: until() }) : t('With no expiry: it lasts until you revoke it.'));
       said(pick.recall ? t('On every turn, up to 3 of these notes arrive without being asked for.') : t('Its agents read them only when they choose to.'));
-      const into = roomOf(ordersInto());
-      if (into) said(pick.orders ? t('BISHOP may send orders into {room}, up to #{n}, {k} an hour.', { room: roomLabel(into), n: pick.maxMode, k: pick.perHour }) : t('No orders cross: BISHOP only reads.'));
+      if (ordersInto()) said(pick.orders ? t('BISHOP may send orders into {room}, up to #{n}, {k} an hour.', { room: nameOf(ordersInto()), n: pick.maxMode, k: pick.perHour }) : t('No orders cross: BISHOP only reads.'));
       said(t('Nothing is written across, and you can revoke it at any moment from Links.'));
       page.append(list);
-      for (const caution of cautions()) page.append(el('p', 'sm-caution', caution));
+      const warn = cautions();
+      if (warn.length) { const box = card(); for (const words of warn) box.append(caution(words)); page.append(box); }
       const sign = button('sm-btn primary', t('Sign'), async () => {
         error.textContent = '';
         const body = {
@@ -825,8 +846,11 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       });
       actions.append(sign);
     }
+    // On the first step the direction can be turned round from the link itself.
+    const turn = kind === 'who' ? button('sm-btn small', t('Swap them'), () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); }) : null;
+    if (kind !== 'review') page.append(contract({ swap: turn }));
     page.append(error, actions);
-    inner.append(head, scene(), page);
+    inner.append(head, page);
   }
   sheet.addEventListener('close', () => { sheet.remove(); sheet = null; });
   render();
@@ -1283,16 +1307,15 @@ function wizardScene(kind) {
     scene.prepend(wires);
     scene.append(core);
   } else if (kind === 'projects') {
+    // Each folder lives in its own slot of the tray and drops into it, one after another.
     const tray = el('div', 'sm-tray');
     for (let index = 0; index < 5; index += 1) {
       const slot = el('i', 'sm-slot');
       slot.style.setProperty('--i', String(index));
-      tray.append(slot);
       const folder = el('span', 'sm-fly');
-      folder.style.setProperty('--i', String(index));
-      folder.style.left = `${22 + index * 14}%`;
       folder.innerHTML = FOLDER_GLYPH; // trusted: drawn here
-      scene.append(folder);
+      slot.append(folder);
+      tray.append(slot);
     }
     scene.append(tray);
   } else {
@@ -1305,7 +1328,7 @@ function wizardScene(kind) {
     }
     const beat = svgNode('svg', { class: 'sm-beat', viewBox: '0 0 420 44', preserveAspectRatio: 'none' });
     beat.append(svgNode('path', { d: BEAT_PATH, pathLength: 100, 'vector-effect': 'non-scaling-stroke' }));
-    scene.append(rooms, beat);
+    scene.append(beat, rooms);
   }
   return scene;
 }
