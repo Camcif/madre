@@ -1614,6 +1614,7 @@ export function createNostromo(nostromo) {
     // Shockwaves: one ring per beat, expanding and thinning.
     for (const ring of nostromo.rings) {
       const age = t - ring.born;
+      if (age < 0) continue;   // a clock driven by hand can step back: a ring not yet born is not drawn
       const radius = R + age * WAVE_SPEED * farSize;
       ctx.strokeStyle = `rgba(255, 60, 40, ${Math.max(0, 0.32 - age * 0.14) * farLight})`;
       ctx.lineWidth = Math.max(0.4, 2.4 - age * 1.1) * farSize / cam.scale;

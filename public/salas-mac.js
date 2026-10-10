@@ -892,8 +892,8 @@ ui.macro.addEventListener('click', async () => {
     enlaces: data.enlaces ?? [],
     accent: darkAccent(),
     accentInk: darkAccentInk(),
-    // BISHOP at the centre (D-S12), in its own colours and with its own mark (brands.js).
-    bishop: data.salas ? { id: data.salas, mark: brandOf('bishop').mark(), color: brandOf('bishop').color, ink: brandOf('bishop').ink } : null,
+    // BISHOP at the centre (D-S12): the macroverse draws its body itself (macroverso.js, bishopOrb).
+    bishop: data.salas ? { id: data.salas } : null,
     words: macroWords(),
     actions: {
       wake: async (room) => { await startRoom(room); },

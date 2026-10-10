@@ -61,6 +61,169 @@ function canvasOf(width, height) {
   return canvas;
 }
 
+// ---- BISHOP, as the macroverse sees it: a gaseous, nebulous sphere floating at the centre, an eye
+// that sees everything, in violets, purples and blues. Drawn here, on canvas 2D, from nothing but
+// noise: a fractal gas wrapped on a sphere that turns, darker at the limb and lit at the rim; a
+// vortex winding into an iris of light round a dark pupil that follows what the person looks at;
+// an atmosphere, wisps of gas round it and motes of light in orbit. The sphere is painted small
+// and scaled up (gas is soft), at most ORB_FPS times a second; the wisps are painted once.
+const ORB_SIDE = 168;              // px of the sphere's own canvas
+const ORB_FPS = 30;                // the most the sphere is painted again in a second
+const ORB_MOTES = 18;              // motes of light in orbit round it
+// The gas, from the deep to the lit: indigo, violet, purple, blue, a pale lilac at the brightest.
+const ORB_GAS = [[0, 9, 4, 28], [0.2, 34, 12, 84], [0.4, 72, 30, 176], [0.56, 122, 58, 238], [0.7, 150, 82, 255], [0.82, 72, 112, 255], [0.92, 146, 176, 255], [1, 232, 222, 255]];
+
+// Fractal value noise on a band that wraps round in x (a sphere's longitude), 0..1, stretched.
+function orbNoise(width, height, seed, octaves, stretch = 0.5) {
+  const field = new Float32Array(width * height);
+  const cell = (x, y, o) => {
+    let h = Math.imul(x + 1, 374761393) ^ Math.imul(y + 7, 668265263) ^ Math.imul(seed * 31 + o, 2246822519);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+  };
+  let amp = 1;
+  for (let o = 0; o < octaves; o += 1) {
+    const cols = Math.min(6 << o, Math.floor(width / 3));
+    const rows = Math.max(2, Math.min(Math.round(cols * stretch), Math.floor(height / 4)));
+    for (let y = 0; y < height; y += 1) {
+      const fy = (y / height) * rows, y0 = Math.floor(fy), ty = fy - y0, sy = ty * ty * (3 - 2 * ty);
+      for (let x = 0; x < width; x += 1) {
+        const fx = (x / width) * cols, x0 = Math.floor(fx) % cols, tx = fx - Math.floor(fx), sx = tx * tx * (3 - 2 * tx);
+        const x1 = (x0 + 1) % cols;
+        const a = cell(x0, y0, o), b = cell(x1, y0, o), c = cell(x0, y0 + 1, o), d = cell(x1, y0 + 1, o);
+        field[y * width + x] += amp * (a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy);
+      }
+    }
+    amp *= 0.52;
+  }
+  let low = Infinity, high = -Infinity;
+  for (const value of field) { low = Math.min(low, value); high = Math.max(high, value); }
+  for (let i = 0; i < field.length; i += 1) field[i] = (field[i] - low) / (high - low || 1);
+  return field;
+}
+const smooth = (edge0, edge1, x) => { const k = clamp((x - edge0) / (edge1 - edge0), 0, 1); return k * k * (3 - 2 * k); };
+
+function bishopOrb() {
+  const side = ORB_SIDE;
+  const W = 256, H = 128;
+  const gas = orbNoise(W, H, 7, 5, 1.1);
+  const fine = orbNoise(W, H, 13, 4, 0.9);
+  const air = orbNoise(W, H, 19, 4);
+  const sample = (field, u, v) => {
+    const x = (((u % 1) + 1) % 1) * W, y = clamp(v, 0, 0.999) * (H - 1);
+    const x0 = Math.floor(x), y0 = Math.floor(y), tx = x - x0, ty = y - y0;
+    const x1 = (x0 + 1) % W, y1 = Math.min(H - 1, y0 + 1);
+    const a = field[y0 * W + x0], b = field[y0 * W + x1], c = field[y1 * W + x0], d = field[y1 * W + x1];
+    return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
+  };
+  // The palette, read by index.
+  const lut = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i += 1) {
+    const k = i / 255;
+    const at = ORB_GAS.findIndex((stop) => stop[0] >= k);
+    const hi = ORB_GAS[Math.max(1, at)], lo = ORB_GAS[Math.max(0, at - 1)];
+    const f = hi[0] === lo[0] ? 0 : (k - lo[0]) / (hi[0] - lo[0]);
+    for (let c = 0; c < 3; c += 1) lut[i * 3 + c] = lo[c + 1] + (hi[c + 1] - lo[c + 1]) * f;
+  }
+  // The disc, once: for every pixel inside it, its depth and where on the sphere it looks.
+  const depth = new Float32Array(side * side), lon = new Float32Array(side * side), lat = new Float32Array(side * side), inside = new Uint8Array(side * side);
+  for (let py = 0; py < side; py += 1) {
+    for (let px = 0; px < side; px += 1) {
+      const i = py * side + px;
+      const nx = ((px + 0.5) / side) * 2 - 1, ny = ((py + 0.5) / side) * 2 - 1;
+      const d2 = nx * nx + ny * ny;
+      if (d2 > 1) continue;
+      const z = Math.sqrt(1 - d2);
+      inside[i] = 1; depth[i] = z;
+      lon[i] = Math.atan2(nx, z); lat[i] = Math.asin(clamp(-ny, -1, 1));
+    }
+  }
+  const canvas = canvasOf(side, side);
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(side, side);
+  const data = image.data;
+
+  // The wisps round it, painted once: gas in a ring from the rim outward, thinning away.
+  const WS = 320, REACH = 2.5;
+  const wisps = canvasOf(WS, WS);
+  {
+    const wctx = wisps.getContext('2d');
+    const out = wctx.createImageData(WS, WS);
+    for (let py = 0; py < WS; py += 1) {
+      for (let px = 0; px < WS; px += 1) {
+        const dx = (px - WS / 2) / (WS / 2), dy = (py - WS / 2) / (WS / 2);
+        const rr = Math.hypot(dx, dy) * REACH;
+        if (rr < 0.82 || rr > REACH) continue;
+        const angle = Math.atan2(dy, dx) / (Math.PI * 2) + 0.5;
+        const f = sample(air, angle * 2, rr / REACH) * 0.65 + sample(air, angle * 3 + 0.21, (rr / REACH) * 0.6 + 0.3) * 0.35;
+        const fall = smooth(0.86, 1.08, rr) * (1 - smooth(1.2, REACH, rr));
+        const a = fall * f ** 2.4;
+        const o = (py * WS + px) * 4;
+        const blue = smooth(0.35, 0.85, f);
+        out.data[o] = 120 - 60 * blue; out.data[o + 1] = 60 + 50 * blue; out.data[o + 2] = 245; out.data[o + 3] = 255 * a;
+      }
+    }
+    wctx.putImageData(out, 0, 0);
+  }
+
+  // One frame of the sphere: the gas turned by `t`, wound round the eye at `gaze` (where on the
+  // disc the eye looks out, -1..1), its pupil opened by `open`, dimmed while BISHOP sleeps.
+  function paint(t, gaze, open, asleep) {
+    const ex = gaze.x * 0.5, ey = gaze.y * 0.5;
+    const turn = t * 0.028;
+    const pupil = 0.055 + 0.035 * open;
+    const irisIn = pupil + 0.014, irisOut = 0.22 + 0.025 * open;
+    const life = asleep ? 0.45 : 1;
+    for (let i = 0; i < side * side; i += 1) {
+      const o = i * 4;
+      if (!inside[i]) { data[o + 3] = 0; continue; }
+      const px = i % side, py = (i - px) / side;
+      const nx = ((px + 0.5) / side) * 2 - 1, ny = ((py + 0.5) / side) * 2 - 1;
+      const dx = nx - ex, dy = ny - ey;
+      const r2 = dx * dx + dy * dy;
+      // The vortex: the gas winds into the eye, faster the nearer it is.
+      const wind = 1.25 / (1 + r2 * 38) + t * 0.32 / (1 + r2 * 90);
+      const c = Math.cos(wind), sn = Math.sin(wind);
+      const sx = ex + dx * c - dy * sn, sy = ey + dx * sn + dy * c;
+      let j = Math.round(((sy + 1) / 2) * side - 0.5) * side + Math.round(((sx + 1) / 2) * side - 0.5);
+      if (j < 0 || j >= side * side || !inside[j]) j = i;
+      const u = lon[j] / (Math.PI * 2) + turn, v = lat[j] / Math.PI + 0.5;
+      const filament = sample(fine, u * 7 + 0.11, v * 5.2);
+      let g = sample(gas, u, v) * 0.62 + sample(fine, u * 3 + 0.37, v * 2.6) * 0.38;
+      g = smooth(0.1, 0.9, g) + (filament - 0.5) * 0.2 + Math.sin(lat[j] * 7 + g * 5) * 0.045;
+      const z = depth[i];
+      const shade = (0.24 + 0.9 * z ** 0.8) * life;
+      const k = clamp(Math.round(g * 255), 0, 255) * 3;
+      let r = lut[k] * shade, gr = lut[k + 1] * shade, b = lut[k + 2] * shade;
+      // The rim, lit from behind: blue.
+      const rim = (1 - z) ** 2.6 * 0.95 * life;
+      r += 60 * rim; gr += 96 * rim; b += 255 * rim;
+      // The eye: an iris of light with its fibres, a dark pupil, a glint.
+      const e = Math.sqrt(r2);
+      if (e < irisOut + 0.2) {
+        const ring = smooth(irisIn, irisIn + 0.025, e) * (1 - smooth(irisOut - 0.04, irisOut + 0.05, e));
+        const fibre = 0.78 + 0.22 * Math.sin(Math.atan2(dy, dx) * 13 + g * 16 + filament * 9);
+        const light = ring * fibre * life * 0.8;
+        r += 110 * light; gr += 150 * light; b += 255 * light;
+        // Light scattered in the gas round the iris: a soft corona.
+        const corona = Math.exp(-(((e - irisOut) / 0.07) ** 2)) * 0.45 * life;
+        r += 70 * corona; gr += 120 * corona; b += 255 * corona;
+        const near = (1 - smooth(irisIn, irisIn + 0.07, e)) * life * 0.4;
+        r += 150 * near; gr += 130 * near; b += 220 * near;
+        const dark = 1 - smooth(pupil - 0.012, pupil + 0.006, e);
+        r += (6 - r) * dark; gr += (3 - gr) * dark; b += (18 - b) * dark;
+        const glint = Math.max(0, 1 - Math.hypot(dx + 0.045, dy + 0.05) / 0.022) * life;
+        r += 255 * glint; gr += 255 * glint; b += 255 * glint;
+      }
+      data[o] = r; data[o + 1] = gr; data[o + 2] = b;
+      // The edge is gas, not a line: it thins out, ragged with the gas itself.
+      data[o + 3] = 255 * (1 - smooth(0.9 + (g - 0.5) * 0.08, 1.0, Math.sqrt(1 - z * z)));
+    }
+    ctx.putImageData(image, 0, 0);
+  }
+  return { canvas, wisps, reach: REACH, paint, paintedAt: -1 };
+}
+
 // How big a universe reads at zoom 1, in css px of radius: it grows slowly with what it holds.
 const reachOf = (room) => 60 + 14 * Math.log2(1 + (room.glance?.census?.memories ?? 0) / 10);
 
@@ -224,13 +387,13 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   let queued = false;
   let resizeTimer = 0;
   const drag = { active: false, moved: false, turning: false, link: null, x: 0, y: 0, x0: 0, y0: 0 };
-  // BISHOP at the centre: its room when the lobby knows it, and its mark, drawn once into an image.
+  // BISHOP at the centre: its room when the lobby knows it, and its body (bishopOrb), made on first
+  // sight. Where its eye looks, how open it is, and where the pointer is over the space.
   const core = { centre: true, room: null, screen: null };
-  const coreMark = new Image();
-  if (bishop?.mark) {
-    coreMark.onload = () => redraw();
-    coreMark.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(bishop.mark.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" color="${bishop.ink}" `))}`;
-  }
+  let orb = null;
+  const gaze = { x: 0, y: 0, open: 0, at: 0 };
+  let pointer = null;
+  const motes = Array.from({ length: ORB_MOTES }, (_, i) => { const rnd = random(hash(`mote${i}`)); return { phase: rnd() * Math.PI * 2, reach: 1.3 + rnd() * 0.65, speed: 0.12 + rnd() * 0.2, tilt: (rnd() - 0.5) * 0.5, size: 0.35 + rnd() * 0.6 }; });
 
   function layout(all) {
     // BISHOP's own room is the centre, not a universe on an orbit.
@@ -610,41 +773,90 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     ctx.globalAlpha = 1;
   }
 
-  // BISHOP at the centre: its own blue, its mark, a slow breath; dim and cold while its room
-  // sleeps. Its name and its state under it, as a universe's. A ring in the accent while a universe
-  // is carried onto it, and while it waits for the person.
+  // BISHOP at the centre: a gaseous sphere floating, an eye that sees everything (bishopOrb). Its
+  // eye follows what the person looks at — the chosen universe, the one under the pointer, the one
+  // being carried — and the pointer itself when nothing is; its pupil opens while a universe is
+  // carried onto it. Dim and slow while its room sleeps. Its name and its state under it.
   function drawCentre(ctx, beat) {
     if (!bishop) return;
-    const p = toScreen(0, 0);
-    const r = 20 * Math.max(0.75, Math.min(1.6, camera.zoom));
-    core.screen = { x: p.x, y: p.y, r: r * 1.5 };
+    if (!orb) orb = bishopOrb();
     const room = core.room;
     const awake = Boolean(room?.open);
+    const float = reduced ? 0 : Math.sin(clock * 0.8) * 3;
+    const centre = toScreen(0, 0);
+    const p = { x: centre.x, y: centre.y + float * Math.max(0.6, camera.zoom) };
+    const r = 30 * clamp(camera.zoom, 0.75, 1.8);
+    core.screen = { x: p.x, y: p.y, r: r * 1.3 };
+    // Where it looks.
+    const seen = (focus && !focus.centre ? focus : null) ?? linking?.from ?? (hover && !hover.centre ? hover : null);
+    let target = seen?.screen ?? pointer;
+    if (!target && !reduced) target = { x: p.x + Math.cos(clock * 0.21) * 160, y: p.y + Math.sin(clock * 0.34) * 90 };
+    const toward = target ? { x: target.x - p.x, y: target.y - p.y } : { x: 0, y: 0 };
+    const far = Math.hypot(toward.x, toward.y) + 240;
+    const step = reduced ? 1 : clamp((clock - gaze.at) * 4, 0, 1);
+    gaze.at = clock;
+    gaze.x += (toward.x / far - gaze.x) * step;
+    gaze.y += (toward.y / far - gaze.y) * step;
+    gaze.open += ((linking?.over === core ? 1 : hover === core ? 0.45 : 0) - gaze.open) * step;
+    if (clock - orb.paintedAt >= 1 / ORB_FPS || orb.paintedAt < 0) { orb.paint(reduced ? 0 : clock, gaze, gaze.open, !awake); orb.paintedAt = clock; }
+    const life = awake ? 1 : 0.5;
+    // The atmosphere: violet into blue, breathing slowly.
     ctx.globalCompositeOperation = 'lighter';
-    const glow = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * (2.6 + 0.15 * beat));
-    glow.addColorStop(0, hexAlpha(bishop.color, awake ? 0.3 : 0.12));
-    glow.addColorStop(1, hexAlpha(bishop.color, 0));
-    ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r * (2.6 + 0.15 * beat), 0, Math.PI * 2); ctx.fill();
+    const air = ctx.createRadialGradient(p.x, p.y, r * 0.8, p.x, p.y, r * (2.7 + 0.12 * beat));
+    air.addColorStop(0, `rgba(122, 58, 238, ${0.3 * life})`);
+    air.addColorStop(0.45, `rgba(72, 112, 255, ${0.12 * life})`);
+    air.addColorStop(1, 'rgba(40, 20, 120, 0)');
+    ctx.fillStyle = air;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * (2.7 + 0.12 * beat), 0, Math.PI * 2); ctx.fill();
+    // The wisps, turning two ways at once, as gas does.
+    const span = r * orb.reach * 2;
+    for (const [speed, alpha] of [[0.05, 0.8], [-0.033, 0.5]]) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(reduced ? 0 : clock * speed);
+      ctx.globalAlpha = alpha * life;
+      ctx.drawImage(orb.wisps, -span / 2, -span / 2, span, span);
+      ctx.restore();
+    }
+    // The motes behind it, then the sphere, then the motes in front.
+    const drawMotes = (front) => {
+      for (const mote of motes) {
+        const a = mote.phase + (reduced ? 0 : clock * mote.speed);
+        const ahead = Math.sin(a) > 0;
+        if (ahead !== front) continue;
+        const mx = p.x + Math.cos(a) * r * mote.reach;
+        const my = p.y + Math.sin(a) * r * mote.reach * 0.3 + mote.tilt * r * Math.cos(a);
+        const size = mote.size * (ahead ? 1 : 0.7) * clamp(camera.zoom, 0.7, 1.4);
+        const glow = ctx.createRadialGradient(mx, my, 0, mx, my, size * 3);
+        glow.addColorStop(0, `rgba(214, 206, 255, ${(ahead ? 0.6 : 0.25) * life})`);
+        glow.addColorStop(1, 'rgba(120, 140, 255, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(mx, my, size * 3, 0, Math.PI * 2); ctx.fill();
+      }
+    };
+    drawMotes(false);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = awake ? 1 : 0.55;
-    ctx.fillStyle = bishop.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-    if (coreMark.complete && coreMark.naturalWidth) ctx.drawImage(coreMark, p.x - r * 0.64, p.y - r * 0.64, r * 1.28, r * 1.28);
+    ctx.globalAlpha = awake ? 1 : 0.8;
+    ctx.drawImage(orb.canvas, p.x - r, p.y - r, r * 2, r * 2);
     ctx.globalAlpha = 1;
-    const target = linking?.over === core;
-    if (target || room?.glance?.waitingCount) {
+    ctx.globalCompositeOperation = 'lighter';
+    drawMotes(true);
+    ctx.globalCompositeOperation = 'source-over';
+    // A ring in the accent while a universe is carried onto it, and while it waits for the person;
+    // a white one while it is pointed at or chosen.
+    const target2 = linking?.over === core;
+    if (target2 || room?.glance?.waitingCount) {
       ctx.strokeStyle = accent;
-      ctx.globalAlpha = target ? 0.95 : reduced ? 0.6 : 0.45 + 0.35 * Math.sin(clock * 2.4);
+      ctx.globalAlpha = target2 ? 0.95 : reduced ? 0.6 : 0.45 + 0.35 * Math.sin(clock * 2.4);
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.45, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.5, 0, Math.PI * 2); ctx.stroke();
       ctx.globalAlpha = 1;
     } else if (core === hover || core === focus) {
-      ctx.strokeStyle = core === focus ? '#ffffff' : 'rgba(255, 255, 255, .55)';
-      ctx.lineWidth = core === focus ? 1.6 : 1;
-      ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.45, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = core === focus ? 'rgba(255, 255, 255, .85)' : 'rgba(255, 255, 255, .4)';
+      ctx.lineWidth = core === focus ? 1.4 : 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.5, 0, Math.PI * 2); ctx.stroke();
     }
-    const below = p.y + r * 1.6 + 6;
+    const below = p.y + r * 1.62 + 8;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.lineJoin = 'round';
@@ -1020,6 +1232,8 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     try { canvas.setPointerCapture(event.pointerId); } catch { /* the pointer already left */ }
   });
   canvas.addEventListener('pointermove', (event) => {
+    const box = canvas.getBoundingClientRect();
+    pointer = { x: event.clientX - box.left, y: event.clientY - box.top };
     if (drag.active) {
       const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
       if (Math.hypot(dx, dy) > 3) drag.moved = true;
@@ -1071,7 +1285,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
-  canvas.addEventListener('pointerleave', () => { hover = null; if (live) live.scene.hover = null; redraw(); });
+  canvas.addEventListener('pointerleave', () => { hover = null; pointer = null; if (live) live.scene.hover = null; redraw(); });
   canvas.addEventListener('click', (event) => {
     if (drag.moved) { drag.moved = false; return; }
     const over = liveAt(event);
