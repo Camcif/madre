@@ -10,9 +10,11 @@
 // turn by turn. Chosen, it is the real thing: one live scene, its physics and its magma running,
 // composed over the space, and the whole space falls to black round it. Never more than one.
 //
-// The space is open: dragged, it moves; the wheel brings it closer; it has no edge. The Mac stays
-// at the origin, the open rooms orbit near it and the sleeping ones far and cold, and RECENTER
-// brings it all home. Dragging a chosen universe turns it in the hand, as in its room.
+// The space is open: dragged, it moves; the wheel brings it closer; it has no edge. BISHOP stands
+// at the origin (D-S12: the centre of the macroverse is the super agent), the open rooms orbit near
+// it and the sleeping ones far and cold, and RECENTER brings it all home. A vein runs from BISHOP
+// to every room it may read, because a contract says so, and nowhere else; a universe carried
+// onto BISHOP asks for one. Dragging a chosen universe turns it in the hand, as in its room.
 //
 // What it costs: canvas 2D, no shaders. A sprite is never wider than SPRITE_MAX pixels and is
 // painted again only when what it shows has changed; the live scene has one canvas of its own;
@@ -167,11 +169,13 @@ function paintStars(seed, count, biggest, dpr) {
   return { canvas, side };
 }
 
-export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bff66', words, actions }) {
+export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bff66', accentInk = '#0a1405', bishop = null, words, actions }) {
   const reduced = reducedMotion();
   const layer = document.createElement('section');
   layer.className = 'mv';
   layer.setAttribute('aria-label', words.title);
+  layer.style.setProperty('--mv-acc', accent);
+  layer.style.setProperty('--mv-acc-ink', accentInk);
   const canvas = document.createElement('canvas');
   canvas.className = 'mv-canvas';
   canvas.tabIndex = 0;
@@ -182,7 +186,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   const sub = document.createElement('p');
   const back = document.createElement('button');
   back.type = 'button';
-  back.className = 'mv-back';
+  back.className = 'mv-back sm-btn';
   back.textContent = words.back;
   head.append(title, sub, back);
   const card = document.createElement('aside');
@@ -220,8 +224,18 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   let queued = false;
   let resizeTimer = 0;
   const drag = { active: false, moved: false, turning: false, link: null, x: 0, y: 0, x0: 0, y0: 0 };
+  // BISHOP at the centre: its room when the lobby knows it, and its mark, drawn once into an image.
+  const core = { centre: true, room: null, screen: null };
+  const coreMark = new Image();
+  if (bishop?.mark) {
+    coreMark.onload = () => redraw();
+    coreMark.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(bishop.mark.replace('<svg ', `<svg xmlns="http://www.w3.org/2000/svg" color="${bishop.ink}" `))}`;
+  }
 
-  function layout(list) {
+  function layout(all) {
+    // BISHOP's own room is the centre, not a universe on an orbit.
+    core.room = bishop ? all.find((room) => room.id === bishop.id) ?? null : null;
+    const list = bishop ? all.filter((room) => room.id !== bishop.id) : all;
     const kept = new Map(universes.map((one) => [one.room.id, one]));
     const open = list.filter((room) => room.open);
     const asleep = list.filter((room) => !room.open);
@@ -249,6 +263,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     // flight is not lost; a crossing counted since the last look sends a new one.
     const veinsKept = new Map(veins.map((vein) => [vein.enlace.id, vein]));
     const byId = new Map(universes.map((one) => [one.room.id, one]));
+    if (core.room) byId.set(core.room.id, core);
     veins = (enlaces ?? []).map((enlace) => {
       const a = byId.get(enlace.rooms?.a), b = byId.get(enlace.rooms?.b);
       if (!a || !b) return null;
@@ -261,7 +276,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       return vein;
     }).filter(Boolean);
     sub.textContent = words.sub(list);
-    if (focus) focus = universes.find((one) => one.room.id === focus.room.id) ?? null;
+    if (focus) focus = focus.centre ? (core.room ? core : null) : universes.find((one) => one.room.id === focus.room.id) ?? null;
     if (live && (!focus || live.one.room.id !== focus.room.id)) leaveLive();
     if (live && focus) live.one = focus;
     if (focus) drawCard(focus);
@@ -325,6 +340,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
 
   // Where a universe is now: on its orbit round the Mac, the far side smaller and fainter.
   function placed(one) {
+    if (one.centre) return { x: 0, y: 0, scale: 1, light: 1, depth: 1 };
     const angle = one.phase + (reduced ? 0 : clock * TURN);
     const span = Math.min(view.w, view.h * 1.7);
     const depth = (Math.sin(angle) + 1) / 2;   // 0 far, 1 near
@@ -332,7 +348,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       x: Math.cos(angle) * span * one.orbit,
       y: Math.sin(angle) * span * one.orbit * TILT,
       scale: 0.72 + 0.42 * depth,
-      light: 0.55 + 0.45 * depth,
+      light: 0.36 + 0.64 * depth,
       depth,
     };
   }
@@ -445,7 +461,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       camera.y = at.y;
     }
     // The space falls to black round a chosen universe, and comes back when it is let go.
-    const want = focus ? FOCUS_DARK : 0;
+    const want = focus && !focus.centre ? FOCUS_DARK : 0;   // BISHOP chosen: its card, not the dark
     dark = reduced ? want : dark + (want - dark) * Math.min(1, dt * 3.5);
     if (live) stepLive(now);
     if (!reduced) {
@@ -486,7 +502,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       }
     });
 
-    // The orbits, faint, round the Mac at the centre.
+    // The orbits, faint, round BISHOP at the centre.
     const centre = toScreen(0, 0);
     const span = Math.min(view.w, view.h * 1.7);
     ctx.lineWidth = 1;
@@ -498,26 +514,11 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       ctx.stroke();
     }
     ctx.setLineDash([]);
-    // This Mac: the white star everything turns round, and its name.
-    const mac = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, 46 * camera.zoom);
-    mac.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    mac.addColorStop(0.12, 'rgba(225, 238, 255, .75)');
-    mac.addColorStop(0.4, 'rgba(160, 200, 255, .14)');
-    mac.addColorStop(1, 'rgba(160, 200, 255, 0)');
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = mac;
-    ctx.beginPath(); ctx.arc(centre.x, centre.y, 46 * camera.zoom, 0, Math.PI * 2); ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = 'rgba(242, 241, 238, .5)';
-    ctx.fillText(words.mac, centre.x, centre.y + 22 * camera.zoom);
-
+    const beat = reduced ? 0.4 : 0.5 + 0.5 * Math.sin(clock * 5.46);
     drawVeins(ctx);
+    drawCentre(ctx, beat);
 
     // The universes, far ones first.
-    const beat = reduced ? 0.4 : 0.5 + 0.5 * Math.sin(clock * 5.46);
     const order = universes.map((one) => ({ one, at: placed(one) })).sort((a, b) => a.at.depth - b.at.depth);
     // The chosen universe stands in front of the dark; everything else falls behind it.
     const lifted = live?.one ?? focus;
@@ -549,11 +550,14 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     if (!one.onScreen) { if (isLive) live.screen = null; return; }
     // MOTHER's warmth on the dark, breathing with her heart; a sleeping room gives off a cold glow.
     ctx.globalCompositeOperation = 'lighter';
-    const halo = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * (3.2 + 0.4 * beat));
-    halo.addColorStop(0, awake ? `rgba(226, 40, 22, ${(0.22 + 0.1 * beat) * at.light})` : `rgba(120, 150, 200, ${0.12 * at.light})`);
+    // Far (the back of an orbit, or the camera drawn back) it is smaller and dimmer: the near ones lead.
+    const away = at.light * at.light * (0.55 + 0.45 * Math.min(1, camera.zoom));
+    const reach = r * (2.3 + 0.2 * beat);
+    const halo = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, reach);
+    halo.addColorStop(0, awake ? `rgba(226, 40, 22, ${(0.16 + 0.05 * beat) * away})` : `rgba(120, 150, 200, ${0.08 * away})`);
     halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = halo;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r * (3.2 + 0.4 * beat), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, reach, 0, Math.PI * 2); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = at.light * (hover && hover !== one && !focus ? 0.7 : 1) * (awake ? 1 : 0.6);
     if (isLive) {
@@ -594,7 +598,8 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     ctx.strokeStyle = 'rgba(3, 3, 5, .75)';
     ctx.lineWidth = 4;
     ctx.fillStyle = awake ? 'rgba(242, 241, 238, .95)' : 'rgba(200, 210, 225, .6)';
-    ctx.globalAlpha = at.light;
+    // A name keeps more of its light than its body: far, it is dimmer, never unreadable.
+    ctx.globalAlpha = 0.62 + 0.38 * at.depth;
     ctx.strokeText(one.room.name, p.x, below);
     ctx.fillText(one.room.name, p.x, below);
     ctx.font = '500 11px Geist, -apple-system, BlinkMacSystemFont, sans-serif';
@@ -603,6 +608,58 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     ctx.strokeText(words.state(one.room), p.x, below + 19);
     ctx.fillText(words.state(one.room), p.x, below + 19);
     ctx.globalAlpha = 1;
+  }
+
+  // BISHOP at the centre: its own blue, its mark, a slow breath; dim and cold while its room
+  // sleeps. Its name and its state under it, as a universe's. A ring in the accent while a universe
+  // is carried onto it, and while it waits for the person.
+  function drawCentre(ctx, beat) {
+    if (!bishop) return;
+    const p = toScreen(0, 0);
+    const r = 20 * Math.max(0.75, Math.min(1.6, camera.zoom));
+    core.screen = { x: p.x, y: p.y, r: r * 1.5 };
+    const room = core.room;
+    const awake = Boolean(room?.open);
+    ctx.globalCompositeOperation = 'lighter';
+    const glow = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * (2.6 + 0.15 * beat));
+    glow.addColorStop(0, hexAlpha(bishop.color, awake ? 0.3 : 0.12));
+    glow.addColorStop(1, hexAlpha(bishop.color, 0));
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * (2.6 + 0.15 * beat), 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = awake ? 1 : 0.55;
+    ctx.fillStyle = bishop.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+    if (coreMark.complete && coreMark.naturalWidth) ctx.drawImage(coreMark, p.x - r * 0.64, p.y - r * 0.64, r * 1.28, r * 1.28);
+    ctx.globalAlpha = 1;
+    const target = linking?.over === core;
+    if (target || room?.glance?.waitingCount) {
+      ctx.strokeStyle = accent;
+      ctx.globalAlpha = target ? 0.95 : reduced ? 0.6 : 0.45 + 0.35 * Math.sin(clock * 2.4);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.45, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else if (core === hover || core === focus) {
+      ctx.strokeStyle = core === focus ? '#ffffff' : 'rgba(255, 255, 255, .55)';
+      ctx.lineWidth = core === focus ? 1.6 : 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.45, 0, Math.PI * 2); ctx.stroke();
+    }
+    const below = p.y + r * 1.6 + 6;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(3, 3, 5, .75)';
+    ctx.font = '650 15px Geist, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.lineWidth = 4;
+    ctx.fillStyle = 'rgba(242, 241, 238, .95)';
+    ctx.strokeText(words.bishop ?? 'BISHOP', p.x, below);
+    ctx.fillText(words.bishop ?? 'BISHOP', p.x, below);
+    ctx.font = '500 11px Geist, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.lineWidth = 3;
+    ctx.fillStyle = room?.glance?.waitingCount ? accent : 'rgba(242, 241, 238, .6)';
+    const said = room ? words.state(room) : (words.asleep ?? '');
+    ctx.strokeText(said, p.x, below + 19);
+    ctx.fillText(said, p.x, below + 19);
   }
 
   // The veins between universes: one per contract, drawn as NOSTROMO draws the vein between two
@@ -640,12 +697,12 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       for (const pulse of vein.pulses) {
         const u = Math.min(1, (clock - pulse.born) / VEIN_LIFE);
         const at = alongCurve(pa.x, pa.y, cx, cy, pb.x, pb.y, pulse.back ? 1 - u : u);
-        const size = (2 + 1.6 * Math.sin(u * Math.PI)) * Math.max(0.6, camera.zoom);
-        const halo = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, size * 4);
-        halo.addColorStop(0, hexAlpha(accent, 0.8));
+        const size = (1.3 + 1 * Math.sin(u * Math.PI)) * Math.max(0.6, Math.min(1.4, camera.zoom));
+        const halo = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, size * 3);
+        halo.addColorStop(0, hexAlpha(accent, 0.6));
         halo.addColorStop(1, hexAlpha(accent, 0));
         ctx.fillStyle = halo;
-        ctx.beginPath(); ctx.arc(at.x, at.y, size * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(at.x, at.y, size * 3, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = 'rgba(255, 248, 243, .95)';
         ctx.beginPath(); ctx.arc(at.x, at.y, size, 0, Math.PI * 2); ctx.fill();
       }
@@ -667,7 +724,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left, y = event.clientY - rect.top;
     let best = null;
-    for (const one of universes) {
+    for (const one of core.room ? [core, ...universes] : universes) {
       if (!one.screen) continue;
       const d = Math.hypot(one.screen.x - x, one.screen.y - y);
       if (d <= Math.max(26, one.screen.r * 1.1) && (!best || d < best.d)) best = { one, d };
@@ -682,7 +739,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   function home() {
     camera.manual = false;
     recenter.hidden = true;
-    if (focus) { follow = true; const where = placed(focus); fly({ x: where.x + aside, y: where.y, zoom: FOCUS_ZOOM }); }
+    if (focus) { follow = true; const where = placed(focus); fly({ x: where.x + aside, y: where.y, zoom: focus.centre ? 1.4 : FOCUS_ZOOM }); }
     else fly({ x: 0, y: 0, zoom: 1 });
   }
 
@@ -724,12 +781,19 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     const head = document.createElement('header');
     const kind = document.createElement('b');
     kind.textContent = words.kind(memory.kind);
+    // The room's close: a sunk track and the cross that turns (styles.css, .x-close).
+    const track = document.createElement('span');
+    track.className = 'surface-modes';
     const shut = document.createElement('button');
     shut.type = 'button';
-    shut.className = 'mv-mem-close';
+    shut.className = 'surface-mode close x-close x-only';
     shut.setAttribute('aria-label', words.close ?? 'Close');
-    shut.textContent = '×';
-    head.append(kind, shut);
+    const cross = document.createElement('span');
+    cross.className = 'x-icon';
+    cross.innerHTML = '<svg viewBox="0 0 20 20" focusable="false" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    shut.append(cross);
+    track.append(shut);
+    head.append(kind, track);
     const text = document.createElement('p');
     text.className = 'mv-mem-text';
     text.textContent = memory.text ?? '';
@@ -766,6 +830,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   }
 
   function drawCard(one) {
+    if (one.centre) { drawCentreCard(); return; }
     const room = one.room;
     const glance = room.glance ?? {};
     const census = glance.census;
@@ -847,6 +912,79 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     card.hidden = false;
   }
 
+  // BISHOP's card: its state, the rooms it reads (a vein each) and the ones it does not yet, each a
+  // key that asks for the link; the way into its room.
+  function drawCentreCard() {
+    const room = core.room;
+    card.replaceChildren();
+    const name = document.createElement('h3');
+    name.textContent = words.bishop ?? 'BISHOP';
+    const state = document.createElement('p');
+    state.className = 'mv-state';
+    state.textContent = room ? words.state(room) : (words.asleep ?? '');
+    card.append(name, state);
+    if (words.bishopAbout) { const about = document.createElement('p'); about.className = 'mv-about'; about.textContent = words.bishopAbout; card.append(about); }
+    if (room?.glance?.waiting?.length) { const wait = document.createElement('p'); wait.className = 'mv-wait'; wait.textContent = words.ask(room.glance.waiting[0]); card.append(wait); }
+    const mine = (enlaces ?? []).filter((enlace) => enlace.rooms?.a === bishop.id || enlace.rooms?.b === bishop.id);
+    const reads = document.createElement('p');
+    reads.className = 'mv-counts';
+    reads.textContent = words.bishopReads?.(mine.length) ?? '';
+    card.append(reads);
+    if (mine.length) {
+      const links = document.createElement('ul');
+      links.className = 'mv-links';
+      for (const enlace of mine) {
+        const row = document.createElement('li');
+        row.textContent = words.linkRow?.(enlace, bishop.id) ?? enlace.id;
+        links.append(row);
+      }
+      card.append(links);
+    }
+    // The rooms it does not read yet: a key each, that opens the sheet with BISHOP as the reader.
+    const linked = new Set(mine.flatMap((enlace) => [enlace.rooms?.a, enlace.rooms?.b]));
+    const unlinked = universes.filter((one) => !linked.has(one.room.id));
+    if (unlinked.length && actions.link && room) {
+      const label = document.createElement('p');
+      label.className = 'mv-counts';
+      label.textContent = words.notLinked ?? '';
+      const keys = document.createElement('div');
+      keys.className = 'mv-actions mv-unlinked';
+      for (const one of unlinked.slice(0, 8)) {
+        const key = document.createElement('button');
+        key.type = 'button';
+        key.className = 'sm-btn small';
+        key.textContent = one.room.name;
+        key.addEventListener('click', () => actions.link(one.room, room));
+        keys.append(key);
+      }
+      card.append(label, keys);
+    }
+    const row = document.createElement('div');
+    row.className = 'mv-actions';
+    if (room?.open) {
+      const go = document.createElement('a');
+      go.className = 'sm-btn primary';
+      go.textContent = words.talk ?? words.enter;
+      go.href = room.id === here ? '/' : `http://127.0.0.1:${room.open.port}/`;
+      row.append(go);
+    } else if (room) {
+      const wake = document.createElement('button');
+      wake.type = 'button';
+      wake.className = 'sm-btn primary';
+      wake.textContent = words.wake;
+      wake.addEventListener('click', async () => { wake.disabled = true; wake.textContent = words.waking; await actions.wake(room); });
+      row.append(wake);
+    }
+    const out = document.createElement('button');
+    out.type = 'button';
+    out.className = 'sm-btn';
+    out.textContent = words.all;
+    out.addEventListener('click', () => choose(null));
+    row.append(out);
+    card.append(row);
+    card.hidden = false;
+  }
+
   function choose(one) {
     if (focus && focus !== one) leaveLive();
     focus = one;
@@ -859,11 +997,13 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
       return;
     }
     drawCard(one);
-    aside = (view.w * 0.16) / FOCUS_ZOOM;
+    // BISHOP is not a universe to enter: the camera comes a little closer and its card opens.
+    const zoom = one.centre ? 1.4 : FOCUS_ZOOM;
+    aside = (view.w * 0.16) / zoom;
     follow = true;
     const where = placed(one);
-    fly({ x: where.x + aside, y: where.y, zoom: FOCUS_ZOOM });
-    enterLive(one);
+    fly({ x: where.x + aside, y: where.y, zoom });
+    if (!one.centre) enterLive(one);
   }
 
   // Pointer: a drag on the space moves it; a drag on the chosen universe turns it; a click picks a

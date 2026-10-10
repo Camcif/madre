@@ -296,6 +296,22 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 body.sm-in-macro { overflow: hidden; }
 
 .mv { position: fixed; inset: 0; z-index: 20; background: #030305; color: #f2f1ee; animation: mv-in 420ms var(--ease-out, ease-out); }
+/* The macroverse is night in either theme: it wears the night's tokens (styles.css, the dark
+   scheme), so its keys, rails and closes are the room's at night, and the accent as the night
+   wears it (salas-mac.js, darkAccent and its ink). */
+.mv {
+  --surface: #1c1f1d; --panel: #101310; --panel-2: #171b17;
+  --text: #eef1ea; --text-2: #9aa197; --text-3: #626a5f;
+  --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .13);
+  --neu-hi: rgba(255, 255, 255, .045); --neu-lo: rgba(0, 0, 0, .42);
+  --key-rest: -1.5px -1.5px 4px var(--neu-hi), 2px 2.5px 6px var(--neu-lo);
+  --key-over: -2px -2px 5px var(--neu-hi), 3px 3.5px 8px var(--neu-lo);
+  --key-down: inset 2px 2px 4px var(--neu-lo), inset -1.5px -1.5px 3px var(--neu-hi);
+  --key-track: inset 1px 1px 2.5px var(--neu-lo), inset -1px -1px 2.5px var(--neu-hi);
+  --raise: -2px -2px 8px var(--neu-hi), 3px 4px 14px var(--neu-lo);
+  --danger: #ff7b72;
+  --s-acc: var(--mv-acc, #9bff66); --s-acc-ink: var(--mv-acc-ink, #0a1405);
+}
 .mv.leaving { animation: mv-out 260ms ease-in forwards; }
 @keyframes mv-in { from { opacity: 0; transform: scale(1.04); } }
 @keyframes mv-out { to { opacity: 0; transform: scale(1.03); } }
@@ -303,8 +319,7 @@ body.sm-in-macro { overflow: hidden; }
 .mv-head { position: absolute; left: 40px; top: 30px; right: 40px; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "title back" "sub back"; align-items: start; pointer-events: none; }
 .mv-head h2 { grid-area: title; margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 700; letter-spacing: -.025em; line-height: 1; text-shadow: 0 2px 30px rgba(0, 0, 0, .6); }
 .mv-head p { grid-area: sub; margin: 10px 0 0; font-size: 14.5px; color: rgba(242, 241, 238, .62); }
-.mv-back { grid-area: back; pointer-events: auto; height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); }
-.mv-back:hover { background: rgba(255, 255, 255, .14); }
+.mv-back { grid-area: back; pointer-events: auto; }
 .mv-hint { position: absolute; left: 40px; bottom: 26px; margin: 0; font-size: 12.5px; color: rgba(242, 241, 238, .42); pointer-events: none; }
 
 .mv-card { position: absolute; right: 40px; top: 50%; translate: 0 -50%; width: min(360px, 34vw); display: grid; gap: 10px; padding: 22px 22px 18px; border-radius: 22px; background: rgba(18, 18, 22, .78); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 30px 60px -30px rgba(0, 0, 0, .9); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); animation: mv-card-in 420ms var(--ease-out, ease-out); }
@@ -324,10 +339,12 @@ body.sm-in-macro { overflow: hidden; }
 .mv-links li.none { padding-left: 0; color: rgba(242, 241, 238, .45); }
 .mv-links li.none::before { display: none; }
 .mv-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.mv .sm-btn.ghost { background: rgba(255, 255, 255, .08); color: rgba(242, 241, 238, .85); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
-.mv .sm-btn.ghost:hover { background: rgba(255, 255, 255, .14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
-.mv-recenter { position: absolute; left: 40px; bottom: 54px; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
-.mv-recenter:hover { background: rgba(255, 255, 255, .14); }
+.mv-about { margin: 0; font-size: 13px; line-height: 1.45; color: rgba(242, 241, 238, .72); }
+.mv-unlinked { margin-top: 0; gap: 6px; }
+/* RECENTER is a bar key, as the room's: mono capitals, 26 px, 6 px corners, the surface raised. */
+.mv-recenter { position: absolute; left: 40px; bottom: 54px; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: var(--surface); color: var(--text-2); box-shadow: var(--key-rest); font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
+.mv-recenter:hover { color: var(--text); box-shadow: var(--key-over); }
+.mv-recenter:active { box-shadow: var(--key-down); }
 .mv-recenter[hidden] { display: none; }
 /* The memories picked inside the chosen universe, each in a window of its own (2026-10-09), as
    NOSTROMO's cards are: dark glass, the kind as a dot and a word, the words under it, where it came
@@ -340,8 +357,6 @@ body.sm-in-macro { overflow: hidden; }
 .mv-mem.moving header { cursor: grabbing; }
 .mv-mem header b { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: #f2f1ee; }
 .mv-mem header b::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--k, #f2f1ee); }
-.mv-mem-close { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-size: 14px; line-height: 1; cursor: pointer; }
-.mv-mem-close:hover { background: rgba(255, 255, 255, .16); }
 .mv-mem-text { margin: 0; font-size: 14.5px; line-height: 1.5; color: #f2f1ee; }
 .mv-mem-meta { margin: 0; font-family: var(--mono); font-size: 11px; color: rgba(242, 241, 238, .5); }
 @media (prefers-reduced-motion: reduce) { .mv-mem { animation: none; } }

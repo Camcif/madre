@@ -809,9 +809,14 @@ async function closeRoom(room) {
 function macroWords() {
   return {
     title: t('Macroverse'),
-    mac: (data?.mac ?? t('This Mac')).toUpperCase(),
     back: t('Back to the lobby'),
-    hint: t('Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · drag one onto another to link them · ← → from one to the next · Esc to come back'),
+    hint: t('Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · carry one onto BISHOP for BISHOP to read it, or onto another to link them · ← → from one to the next · Esc to come back'),
+    bishop: 'BISHOP',
+    bishopAbout: t('Your super agent. It reads across your projects, signs the links between them and carries an order from one to another.'),
+    bishopReads: (n) => (n ? (n === 1 ? t('It reads 1 project by a link') : t('It reads {n} projects by links', { n })) : t('It reads no project yet: each one it reads is a link you sign.')),
+    notLinked: t('Not linked yet: touch one to link it'),
+    talk: t('Talk to BISHOP'),
+    asleep: t('Asleep'),
     recenter: t('RECENTER'),
     veins: (n) => t('{n} veins', { n }),
     links: t('Links'),
@@ -827,7 +832,7 @@ function macroWords() {
       const open = rooms.filter((room) => room.open);
       const memories = open.reduce((sum, room) => sum + (room.glance?.census?.memories ?? 0), 0);
       const waiting = open.filter((room) => room.glance?.waitingCount).length;
-      return [t('{n} universes', { n: rooms.length }), waiting ? t('{n} waiting for you', { n: waiting }) : null, t('{n} memories', { n: memories })].filter(Boolean).join(' · ');
+      return [data?.mac ?? null, t('{n} universes', { n: rooms.length }), waiting ? t('{n} waiting for you', { n: waiting }) : null, t('{n} memories', { n: memories })].filter(Boolean).join(' · ');
     },
     state: (room) => stateOf(room).words,
     path: homeWord,
@@ -860,6 +865,22 @@ function darkAccent() {
   } catch { /* no sheets to read: the house accent */ }
   return '#9bff66';
 }
+// And the ink that accent wears, read the same way.
+function darkAccentInk() {
+  const wanted = `[data-accent="${root.dataset.accent || 'madre'}"]`;
+  try {
+    for (const sheet of document.styleSheets) {
+      let rules;
+      try { rules = sheet.cssRules; } catch { continue; }
+      for (const rule of rules) {
+        if (rule.selectorText !== wanted) continue;
+        const hex = rule.style.getPropertyValue('--acc-ink').trim();
+        if (/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+      }
+    }
+  } catch { /* no sheets to read: the house ink */ }
+  return '#0a1405';
+}
 ui.macro.addEventListener('click', async () => {
   if (macro || !data) return;
   const { openMacroverso } = await import('./macroverso.js');
@@ -870,6 +891,9 @@ ui.macro.addEventListener('click', async () => {
     here: data.here,
     enlaces: data.enlaces ?? [],
     accent: darkAccent(),
+    accentInk: darkAccentInk(),
+    // BISHOP at the centre (D-S12), in its own colours and with its own mark (brands.js).
+    bishop: data.salas ? { id: data.salas, mark: brandOf('bishop').mark(), color: brandOf('bishop').color, ink: brandOf('bishop').ink } : null,
     words: macroWords(),
     actions: {
       wake: async (room) => { await startRoom(room); },

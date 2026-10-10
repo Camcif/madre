@@ -3976,7 +3976,6 @@ export const ES = {
   'on · {links} links let this room read · {n} readings in 24 h': 'encendido · {links} enlaces dejan leer a esta sala · {n} lecturas en 24 h',
   // THE MACROVERSE (macroverso.js).
   'Macroverse': 'Macroverso',
-  'Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · drag one onto another to link them · ← → from one to the next · Esc to come back': 'Arrastra el espacio para moverlo · rueda para acercarte · clic en un universo para verlo · arrástralo para girarlo · arrastra uno sobre otro para enlazarlos · ← → de uno a otro · Esc para volver',
   '{n} veins': '{n} venas',
   // ENLACES en la interfaz (docs/MACROVERSO.md, fase 3c): la línea en la sala, la sección de Salas, la hoja de firma y el Macroverso.
   'LINK': 'ENLACE',
@@ -4163,4 +4162,10 @@ export const ES = {
   'What it brings': 'Qué trae',
   'And {n} more.': 'Y {n} más.',
   'Already open': 'Ya abierto',
+  // The Macroverse with BISHOP at its centre (2026-10-10).
+  'Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · carry one onto BISHOP for BISHOP to read it, or onto another to link them · ← → from one to the next · Esc to come back': 'Arrastra el espacio para moverlo · rueda para acercarte · clic en un universo para verlo · arrástralo para girarlo · llévalo a BISHOP para que BISHOP lo lea, o a otro para enlazarlos · ← → de uno a otro · Esc para volver',
+  'It reads 1 project by a link': 'Lee 1 proyecto por un enlace',
+  'It reads {n} projects by links': 'Lee {n} proyectos por enlaces',
+  'It reads no project yet: each one it reads is a link you sign.': 'Todavía no lee ningún proyecto: cada uno que lee es un enlace que firmas.',
+  'Not linked yet: touch one to link it': 'Sin enlace todavía: toca uno para enlazarlo',
 };

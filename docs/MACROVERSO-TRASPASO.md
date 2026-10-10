@@ -47,7 +47,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `65ca14d` | Claude | El lobby: primera pantalla de `npx madre`, agregar proyectos con botón, BISHOP como sección, asistente de primera vez |
 | `b0f8868` | Claude | El lobby como tablero (propuesta C2 de Bento): BISHOP al centro y abrible en pestaña nueva, buscador y filtro, te esperan, mapa de enlaces, memoria, agentes, apariencia y ajustes del lobby |
 | `82f03d8` | Claude | Lobby: las teclas son las de la sala |
-| *este commit* | Claude | Lobby: resumen de @madre de lo último trabajado, decisiones recientes, «Te necesita», bienvenida animada; rieles, buscador y cerrar de la sala |
+| `24ae480` | Claude | Lobby: resumen de @madre de lo último trabajado, decisiones recientes, «Te necesita», bienvenida animada; rieles, buscador y cerrar de la sala |
+| *este commit* | Claude | Macroverso: BISHOP al centro con las venas de sus enlaces, enlazar llevando un universo a BISHOP, teclas de la sala de noche, menos brillo y pulsos más chicos a lo lejos |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -255,6 +256,15 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   (`settings-search`) y cerrar (`surface-modes` + `x-close`) son las clases de la sala, no copias. El
   panel de vista previa de la app abre `_blank` en la misma pestaña: en un navegador normal es pestaña
   nueva. Tema y acento se guardan con las mismas llaves que la sala (`pulse.theme`, `pulse.accent`).
+- **BISHOP, centro del Macroverso** (2026-10-10, D-S12): la sala de BISHOP no es un universo en
+  órbita sino el centro (`core`, `drawCentre`): su azul, su marca (brands.js, en una imagen) y su
+  estado. Sus venas son los contratos vigentes con su sala, que salen del centro; ninguna sin
+  contrato. Llevar un universo a BISHOP abre la hoja con BISHOP como el que lee; su tarjeta lista lo
+  que lee y una tecla por cada proyecto sin enlace. Elegido, no se entra (no hay escena viva) ni se
+  oscurece el espacio. `.mv` lleva los tokens de la noche, así que sus teclas, el cerrar de las
+  ventanas de memoria, «Volver al lobby» y RECENTRAR son los de la sala en oscuro. A lo lejos: luz del
+  cuerpo `0.36 + 0.64·depth`, halo más chico, y en el motor, solo en escenas `bare`, resplandor,
+  pulsos y anillos del latido se atenúan y achican con `nearness` (`farLight`, `farSize`).
 - **Macroverso vivo**: un universo lejano conserva su escena con `scene.frozen` (el motor no calcula
   fuerzas, solo gira, late y pulsa) y se redibuja en `animateFar`, a lo más `FAR_FPS` por segundo y
   con `FAR_BUDGET` ms por cuadro entre todos; su lienzo sigue su tamaño en pantalla

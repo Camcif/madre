@@ -1515,7 +1515,12 @@ export function createNostromo(nostromo) {
     // stars does not run together into a white blot, and a memory never shrinks below a point the
     // eye can still hold. Close up, all of it is as it always was.
     const nearness = Math.min(1, Math.max(0, (cam.scale - 0.1) / 0.3));   // 0 far · 1 near
-    const glowAt = 0.5 + 0.5 * nearness;
+    // In the Macroverso (a bare scene) a universe seen from far is one small thing among others:
+    // its glow, its pulses and its heartbeat's rings dim and shrink with the distance, so the near
+    // ones lead and the far ones do not blaze. A room's own NOSTROMO is not bare, and keeps them.
+    const farLight = nostromo.bare ? 0.4 + 0.6 * nearness : 1;
+    const farSize = nostromo.bare ? 0.45 + 0.55 * nearness : 1;
+    const glowAt = (0.5 + 0.5 * nearness) * farLight;
     const R = CORE_R * (1 + 0.07 * beat + 0.12 * alarm) * (1 + 0.22 * (1 - nearness));
 
     // Plasma between linked memories: they share a theme, so a filament runs between them. Drawn
@@ -1596,9 +1601,9 @@ export function createNostromo(nostromo) {
         at = alongCurve(from.x, from.y, node.cx ?? node.x / 2, node.cy ?? node.y / 2, to.x, to.y, u);
         color = outward ? '#ffd0c0' : node.color;
       }
-      const size = PULSE_SCALE * (1.9 + 1.3 * Math.sin(u * Math.PI)) / cam.scale;
+      const size = PULSE_SCALE * (1.9 + 1.3 * Math.sin(u * Math.PI)) * farSize / cam.scale;
       const halo = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, size * 4.5);
-      halo.addColorStop(0, hexAlpha(color, 0.85));
+      halo.addColorStop(0, hexAlpha(color, 0.85 * farLight));
       halo.addColorStop(1, hexAlpha(color, 0));
       ctx.fillStyle = halo;
       ctx.beginPath(); ctx.arc(at.x, at.y, size * 4.5, 0, Math.PI * 2); ctx.fill();
@@ -1609,9 +1614,9 @@ export function createNostromo(nostromo) {
     // Shockwaves: one ring per beat, expanding and thinning.
     for (const ring of nostromo.rings) {
       const age = t - ring.born;
-      const radius = R + age * WAVE_SPEED;
-      ctx.strokeStyle = `rgba(255, 60, 40, ${Math.max(0, 0.32 - age * 0.14)})`;
-      ctx.lineWidth = Math.max(0.4, 2.4 - age * 1.1) / cam.scale;
+      const radius = R + age * WAVE_SPEED * farSize;
+      ctx.strokeStyle = `rgba(255, 60, 40, ${Math.max(0, 0.32 - age * 0.14) * farLight})`;
+      ctx.lineWidth = Math.max(0.4, 2.4 - age * 1.1) * farSize / cam.scale;
       ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.stroke();
     }
 

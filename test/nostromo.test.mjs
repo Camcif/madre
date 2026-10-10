@@ -969,7 +969,10 @@ test('nostromo: a pulse is something passing, never something to look at', async
   assert.ok(dot < smallest * 0.4, `a pulse is ${(dot / smallest * 100).toFixed(0)}% of the smallest memory, so it competes with it`);
 
   // And it is scaled in one place, so the order of importance can be changed without hunting.
-  assert.match(source, /const size = PULSE_SCALE \* \(1\.9 \+ 1\.3 \* Math\.sin\(u \* Math\.PI\)\) \/ cam\.scale;/);
+  assert.match(source, /const size = PULSE_SCALE \* \(1\.9 \+ 1\.3 \* Math\.sin\(u \* Math\.PI\)\) \* farSize \/ cam\.scale;/);
+  // In the Macroverso (a bare scene) a far universe's pulses shrink with the distance (2026-10-10);
+  // a room's own NOSTROMO is not bare, and its pulses are the size they always were.
+  assert.match(source, /const farSize = nostromo\.bare \? 0\.45 \+ 0\.55 \* nearness : 1;/);
   assert.equal((source.match(/PULSE_SCALE/g) ?? []).length, 2, 'the pulse size is set in more than one place');
   // Its halo follows the dot, so shrinking one shrinks both.
   assert.match(source, /size \* 4\.5/, 'the halo no longer follows the dot it belongs to');
