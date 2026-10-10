@@ -1,6 +1,6 @@
 # Traspaso · Salas, Macroverso, Enlaces y BISHOP
 
-Estado al `2026-10-08`, en `main` local, **sin push y sin publicar**. Escrito para que otra
+Estado al `2026-10-09`, en `main` local, **sin push y sin publicar**. Escrito para que otra
 sesión (Codex, Claude u otro agente) continúe sin leer las conversaciones que lo produjeron. Este
 repositorio no lleva `.ahp/`: este archivo es el relevo, y **se reescribe al cerrar cada fase**
 (la versión de 3d quedó desfasada dos fases y se corrigió en el commit de 4b). Las reglas de
@@ -41,11 +41,59 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `dbac08f` | Claude | UX · «sigue abierto aquí» en vidrio líquido (el de la barra, más claro) |
 | `925e63c` | Claude | UX · «sigue abierto aquí» sin bisel, con el vidrio de modo · modelo · esfuerzo |
 | `abee3ff` | Claude | UX · detener plan redondo, botones del aviso CREATE, sin subrayado en el esfuerzo, cita dentro de la caja |
-| *este commit* | Claude | UX · el vidrio de «sigue abierto» vuelve: el desvanecido pasa de la fila a la píldora cortada |
+| `09eb9a1` | Claude | UX · el vidrio de «sigue abierto» vuelve: el desvanecido pasa de la fila a la píldora cortada |
+| *este commit* | Claude | Cierre de la jornada de UX del 2026-10-09: resumen en §1·b |
 
-Árbol limpio al cerrar S-021 y 3e. Suite **646/646** y `npm run pack:check` en verde. Una prueba de
-NOSTROMO con muestra aleatoria falla a veces (vista por Codex y por Claude: 636/637 o 639/640 en
-una corrida, verde al repetir); no es de BISHOP.
+Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
+verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
+de tiempo (un turno detenido por el humano, split, Ollama, una de MCP): cada una pasa sola; no son de
+los cambios de UX. La de NOSTROMO con muestra aleatoria sigue fallando a veces, verde al repetir.
+
+### 1·b · Jornada de UX del 2026-10-09 (de `a38e095` a este commit)
+
+Diez rondas pedidas por el humano con capturas, cada una en su commit, verificadas en el navegador
+(Claude Browser, sala `pulse` en 4401). Lo esencial, para no tener que leer los diez:
+
+- **La conversación en planos** (`c3b91f7`, THE CANVAS IN PLANES al final de `public/styles.css`):
+  `--depth-user` 60 · `--depth-critical` 50 · `--depth-system` 40 · `--depth-agent` 30 ·
+  `--depth-metadata` 20 · `--depth-canvas` 0. Profundidad por material (sólido → translúcido),
+  borde de contacto y una sola fórmula de elevación que crece con el plano. Sustituyó la escalera
+  de tonos de blanco de `a38e095`, que sigue solo para la caja de texto (capa 4, con su hundido).
+- **Vidrio**: las preguntas de «sigue abierto aquí» llevan el material de la fila modo · modelo ·
+  esfuerzo (`925e63c`), no el bisel de la barra (lo pidió así tras verlo en `dbac08f`). Su fila
+  encaja por pregunta y desvanece solo la píldora cortada (`09eb9a1`).
+- **Barras**: segunda barra (casa, recargar, engrane) de la ronda anterior; la casa se sacude y el
+  engrane gira y se ilumina con el centro hueco; las esferas de agente son planas y ya no son
+  «escritorio» para el gesto de apartar ventanas (`dc50ec9`).
+- **NOSTROMO**: fichas de memoria como ventanas (hasta cuatro, se mueven por el encabezado),
+  `CORE_R` 114 y `NOSTROMO_ORBIT` 360 (`a7e5867`).
+- **El núcleo**: deja la terminal verde por el lenguaje de Ajustes y MU/TH/UR; sus frases siguen en
+  mayúsculas en el código y se leen en oración con `coreWords` (`a7e5867`).
+- **Precios** (`5edf35a`, `src/prices.mjs`): Codex, Gemini y OpenCode con «≈ $» a precio de lista
+  de su modelo, solo para modelos leídos dos veces en la página del proveedor el 2026-10-09.
+  Confirmado en vivo: una respuesta de Codex (gpt-5.6-luna) mostró «≈ < $0.01».
+- **Pequeños**: chip de memoria en Ajustes; ficha de consumo por grupos; tablas con encabezados y
+  cifras a la derecha; tableros de módulos alineados; MU/TH/UR con sus herramientas junto al riel;
+  indicadores de sesión verde/ámbar/rojo de la marca; selector con los no elegidos atenuados;
+  editor con tipo junto al nombre y LEER · EDITAR · ABRIR EN CRUDO en un chip; detener plan como
+  botón redondo; botones del aviso CREATE en cápsulas; la cita de respuesta dentro de la caja.
+
+**Reglas visuales que dejó el humano en esta jornada** (vigentes para lo que siga):
+- Profundidad por planos, no por sombras grandes; sin glow, halo, neón ni bordes brillantes; sin
+  desenfoque del texto; no cambiar tamaños, letra, colores de marca ni alineación del chat.
+- Vidrio de las píldoras sobre la caja = el de la fila modo · modelo · esfuerzo (sin bisel).
+- Los textos de las piezas nuevas, en oración y en la letra de la sala; mono solo para lo literal.
+- Los indicadores de sesión son lo único con tres colores de estado (verde, ámbar, rojo de marca).
+
+**Sin verificar en pantalla**: el modal de desinstalar con un módulo propio (no hay uno instalado);
+el giro y la sacudida de la casa y el engrane (el panel del navegador no anima oculto); el
+teléfono; un turno real de Gemini u OpenCode con precio. OpenCode solo tendrá precio con un modelo
+elegido en la caja o `PULSE_OPENCODE_MODEL`, y no para variantes `-fast` (no están en la tabla).
+
+**Trampas técnicas** (detalle en §5): `backdrop-filter` nunca dentro de `#messages`; una máscara o
+filtro en un contenedor corta el vidrio de sus hijos; `#messages#messages` existe para ganarle a
+las reglas de los fondos de paisaje; sin fondo de paisaje la página borra `data-wallpaper`; en el
+panel oculto del navegador no avanzan transiciones, `requestAnimationFrame` ni `ResizeObserver`.
 
 ## 2 · Mapa de lo construido
 
