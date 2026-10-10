@@ -49,7 +49,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `82f03d8` | Claude | Lobby: las teclas son las de la sala |
 | `24ae480` | Claude | Lobby: resumen de @madre de lo último trabajado, decisiones recientes, «Te necesita», bienvenida animada; rieles, buscador y cerrar de la sala |
 | `a99015a` | Claude | Macroverso: BISHOP al centro con las venas de sus enlaces, enlazar llevando un universo a BISHOP, teclas de la sala de noche, menos brillo y pulsos más chicos a lo lejos |
-| *este commit* | Claude | Macroverso: BISHOP como esfera de gas nebuloso con un ojo que todo lo ve |
+| `a801530` | Claude | Macroverso: BISHOP como esfera de gas nebuloso con un ojo que todo lo ve |
+| *este commit* | Claude | BISHOP más real (esfera iluminada, nebulosa, ojo sobre la esfera que parpadea y sigue al puntero) y enlazar como asistente paso a paso |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -268,6 +269,11 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   ventanas de memoria, «Volver al lobby» y RECENTRAR son los de la sala en oscuro. A lo lejos: luz del
   cuerpo `0.36 + 0.64·depth`, halo más chico, y en el motor, solo en escenas `bare`, resplandor,
   pulsos y anillos del latido se atenúan y achican con `nearness` (`farLight`, `farSize`).
+- **Enlazar es un asistente** (`openLinkSheet`, 2026-10-10): pasos Quién lee · Qué cruza · Cuánto
+  tiempo · Órdenes (solo con BISHOP de un lado) · Revisión, con la escena de las dos salas y su vena.
+  Valores seguros por defecto: **una semana** (antes 30 días), decisiones y hechos, sin recuerdo,
+  sin órdenes; avisa si la que entrega duerme o corre una MADRE vieja; con órdenes exige la
+  designación; la revisión dice el contrato en frases. El cuerpo del POST no cambió.
 - **Macroverso vivo**: un universo lejano conserva su escena con `scene.frozen` (el motor no calcula
   fuerzas, solo gira, late y pulsa) y se redibuja en `animateFar`, a lo más `FAR_FPS` por segundo y
   con `FAR_BUDGET` ms por cuadro entre todos; su lienzo sigue su tamaño en pantalla

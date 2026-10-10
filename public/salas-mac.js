@@ -627,130 +627,209 @@ function drawMap(projects, enlaces) {
   ui.map.append(svg);
 }
 
-// The sheet that signs a link. Two rooms, who reads whom (or both), what crosses, until when;
-// and, only when one of the two is the room of SALAS (the super agent's), whether orders may enter
-// the other and up to which mode, which asks for that room's designation, as arming #3 does.
+// LINKING TWO ROOMS, step by step. A link lets one room read the notes of another; nothing is
+// written across. The assistant asks one thing at a time, in plain words, with the safe choice
+// already made: who reads whom (and says when the one that serves is asleep or older), which kinds
+// of note cross, for how long (a week unless the person says otherwise) and whether they arrive on
+// their own, and — only when BISHOP is on one side — whether BISHOP may send orders (off unless
+// the person turns it on, and then only with the room's designation typed, as arming #3 asks).
+// The last step says the whole contract in sentences before it is signed. Over every step, the two
+// rooms and the vein between them, the way the notes would travel.
+const LINK_KINDS = ['decision', 'fact', 'preference', 'question'];
+const LINK_KIND_NOTES = { decision: () => t('What was agreed: the choices the room made.'), fact: () => t('What is known: data and findings the room settled.'), preference: () => t('How you like to work: conventions and tastes.'), question: () => t('What is open: questions still waiting for an answer.') };
+const LINK_DAYS = [[1, () => t('A day')], [7, () => t('A week')], [30, () => t('30 days')], [0, () => t('No expiry')]];
 let sheet = null;
 function openLinkSheet({ reader = null, source = null } = {}) {
   if (!data || sheet) return;
-  const rooms = [...data.rooms].sort((x, y) => Number(Boolean(y.open)) - Number(Boolean(x.open)) || x.name.localeCompare(y.name));
-  sheet = el('dialog', 'sm-sheet');
-  const form = el('form');
-  form.method = 'dialog';
-  form.append(el('h3', null, t('Link two rooms')));
-  const choose = (labelWords, chosen) => {
-    const label = el('label', null, labelWords);
+  const rooms = [...data.rooms].sort((x, y) => Number(Boolean(y.open)) - Number(Boolean(x.open)) || roomLabel(x).localeCompare(roomLabel(y)));
+  if (rooms.length < 2) return;
+  // Where it starts, unless it was asked for a pair: BISHOP reading, from a room that can hand
+  // notes over now (open and up to date) when there is one.
+  const ready = (room) => room.open && !room.glance?.outdated && !room.glance?.unreachable;
+  const pick = {
+    reader: reader ?? (source !== data.salas && rooms.some((room) => room.id === data.salas) ? data.salas : rooms.find((room) => room.id !== source)?.id),
+    source: null, both: false, kinds: new Set(['decision', 'fact']), days: 7, recall: false,
+    orders: false, maxMode: 1, perHour: 6, designation: '',
+  };
+  pick.source = source ?? (rooms.find((room) => room.id !== pick.reader && ready(room)) ?? rooms.find((room) => room.id !== pick.reader))?.id;
+  const roomOf = (id) => rooms.find((room) => room.id === id) ?? null;
+  // Orders only with BISHOP on one side; they would go into the other.
+  const ordersInto = () => (data.salas && [pick.reader, pick.source].includes(data.salas) ? [pick.reader, pick.source].find((id) => id !== data.salas) ?? null : null);
+  const stepsNow = () => ['who', 'what', 'time', ...(ordersInto() ? ['orders'] : []), 'review'];
+  const STEP_WORDS = { who: () => t('Who reads'), what: () => t('What crosses'), time: () => t('How long'), orders: () => t('Orders'), review: () => t('Review') };
+  let at = 0;
+  sheet = el('dialog', 'sm-sheet sm-wide sm-wizard sm-link-wizard');
+  const inner = el('div', 'sm-sheet-body');
+  sheet.append(inner);
+  document.body.append(sheet);
+  // The kinds as a sentence says them: «decisiones y hechos».
+  const KIND_PLURALS = { decision: () => t('decisions'), fact: () => t('facts'), preference: () => t('preferences'), question: () => t('questions') };
+  const kindsSaid = () => new Intl.ListFormat(language, { type: 'conjunction' }).format(LINK_KINDS.filter((kind) => pick.kinds.has(kind)).map((kind) => KIND_PLURALS[kind]()));
+
+  // The two rooms and the vein between them: the one that serves on the left, the one that reads on
+  // the right, the notes running from one to the other (both ways when both read).
+  function scene() {
+    const box = el('div', `sm-scene scene-link${pick.both ? ' both' : ''}`);
+    box.setAttribute('aria-hidden', 'true');
+    const end = (id, role) => {
+      const room = roomOf(id);
+      const node = el('div', `sm-link-end ${role}${id === data.salas ? ' is-bishop' : ''}${room?.open ? '' : ' asleep'}`);
+      node.append(el('span', 'sm-link-orb'), el('b', null, room ? roomLabel(room) : ''), el('small', null, role === 'source' ? (pick.both ? t('Reads and serves') : t('Serves')) : (pick.both ? t('Reads and serves') : t('Reads'))));
+      return node;
+    };
+    const vein = svgNode('svg', { class: 'sm-link-vein', viewBox: '0 0 200 60', preserveAspectRatio: 'none' });
+    vein.append(svgNode('path', { class: 'there', d: 'M4 30 C 60 6, 140 54, 196 30', 'vector-effect': 'non-scaling-stroke' }));
+    if (pick.both) vein.append(svgNode('path', { class: 'back', d: 'M196 30 C 140 6, 60 54, 4 30', 'vector-effect': 'non-scaling-stroke' }));
+    box.append(end(pick.source, 'source'), vein, end(pick.reader, 'reader'));
+    return box;
+  }
+  // A field names its control; only a select or a box is wrapped in a label (a label round a rail
+  // would press its first option when its name is touched).
+  const field = (words, control) => { const node = el(control.matches('select, input') ? 'label' : 'div', 'sm-field'); node.append(el('span', null, words), control); return node; };
+  const switchRow = (words, note, on, change) => {
+    const row = el('div', 'sm-switch-row');
+    const text = el('div', 'sm-switch-words');
+    text.append(el('b', null, words));
+    if (note) text.append(el('span', null, note));
+    const toggle = el('label', 'settings-switch');
+    const box = el('input'); box.type = 'checkbox'; box.checked = on; box.setAttribute('aria-label', words);
+    box.addEventListener('change', () => change(box.checked));
+    toggle.append(box, el('i'));
+    row.append(text, toggle);
+    return row;
+  };
+  const rail = (options, current, choose, label) => {
+    const seg = el('div', 'sx-seg');
+    seg.setAttribute('role', 'radiogroup');
+    seg.setAttribute('aria-label', label);
+    for (const [value, words] of options) {
+      const one = button(null, words, () => { choose(value); render(); });
+      one.setAttribute('role', 'radio');
+      one.setAttribute('aria-checked', String(value === current));
+      seg.append(one);
+    }
+    return seg;
+  };
+  const roomSelect = (chosen, change) => {
     const select = el('select');
     for (const room of rooms) { const option = el('option', null, roomLabel(room)); option.value = room.id; if (room.id === chosen) option.selected = true; select.append(option); }
-    label.append(select);
-    return { label, select };
+    select.addEventListener('change', () => change(select.value));
+    return select;
   };
-  const readerPick = choose(t('The one that reads'), reader ?? rooms.find((room) => room.id !== source)?.id ?? null);
-  const sourcePick = choose(t('The one that serves'), source ?? rooms.find((room) => room.id !== readerPick.select.value)?.id ?? null);
-  const pair = el('div', 'pair');
-  pair.append(readerPick.label, el('span', 'arrow', '←'), sourcePick.label);
-  form.append(pair);
-  const both = el('label', 'row');
-  const bothBox = el('input'); bothBox.type = 'checkbox';
-  both.append(bothBox, document.createTextNode(t('Both ways')));
-  form.append(both);
-  const kinds = el('label', null, t('What crosses'));
-  const kindRow = el('div', 'row');
-  const kindBoxes = [];
-  for (const kind of KINDS) {
-    if (kind === 'aberration') continue;
-    const one = el('label', 'row');
-    const box = el('input'); box.type = 'checkbox'; box.value = kind; box.checked = kind === 'decision' || kind === 'fact';
-    one.append(box, document.createTextNode(KIND_WORDS[kind].toLowerCase()));
-    kindRow.append(one);
-    kindBoxes.push(box);
+  // What the person should know about the rooms chosen, before going on.
+  function cautions() {
+    const said = [];
+    for (const id of pick.both ? [pick.source, pick.reader] : [pick.source]) {
+      const room = roomOf(id);
+      if (!room) continue;
+      if (!room.open) said.push(t('{room} is asleep: while it sleeps, it hands nothing over.', { room: roomLabel(room) }));
+      else if (room.glance?.outdated) said.push(t('{room} runs an older MADRE: it may hand nothing over until you update it.', { room: roomLabel(room) }));
+    }
+    return said;
   }
-  kinds.append(kindRow, el('p', 'hint', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the room that serves. Never the ledger, files, med bay or jettisoned.')));
-  form.append(kinds);
-  const expires = el('label', null, t('Expires'));
-  const expiresPick = el('select');
-  for (const [value, words] of [['1', t('In a day')], ['7', t('In a week')], ['30', t('In 30 days')], ['', t('Never')]]) { const option = el('option', null, words); option.value = value; if (value === '30') option.selected = true; expiresPick.append(option); }
-  expires.append(expiresPick);
-  form.append(expires);
-  // Fase 3e: off unless ticked. The room that reads gets, on every turn, up to 3 of these notes
-  // without asking for them; each turn that does is one reading of the hourly limit.
-  const recall = el('label', 'row');
-  const recallBox = el('input'); recallBox.type = 'checkbox';
-  recall.append(recallBox, document.createTextNode(t('Recall on every turn')));
-  form.append(recall, el('p', 'hint', t('The room that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.')));
-  // Orders: only with the room of SALAS on one side, and never automatic above #2.
-  const orders = el('div', 'orders');
-  const allow = el('label', 'row');
-  const allowBox = el('input'); allowBox.type = 'checkbox';
-  const allowWords = document.createTextNode('');
-  allow.append(allowBox, allowWords);
-  const ceiling = el('label', 'row');
-  const modePick = el('select');
-  for (const n of [1, 2]) { const option = el('option', null, `#${n} ${MODE_NAMES[n]}`); option.value = String(n); if (n === 1) option.selected = true; modePick.append(option); }
-  const perHourPick = el('select');
-  for (const n of [3, 6, 12]) { const option = el('option', null, String(n)); option.value = String(n); if (n === 6) option.selected = true; perHourPick.append(option); }
-  ceiling.append(document.createTextNode(t('up to')), modePick, document.createTextNode(`· ${t('per hour')}`), perHourPick);
-  const designation = el('label', null, '');
-  const designationInput = el('input'); designationInput.type = 'text'; designationInput.autocomplete = 'off'; designationInput.spellcheck = false;
-  designation.append(designationInput);
-  orders.append(el('p', 'hint', t('Orders from the super agent')), allow, ceiling, designation);
-  form.append(orders);
-  const error = el('p', 'error');
-  form.append(error);
-  const actions = el('div', 'actions');
-  const cancel = button('sm-btn ghost', t('Cancel'), () => sheet.close());
-  const sign = el('button', 'sm-btn primary', t('Sign'));
-  sign.type = 'submit';
-  actions.append(cancel, sign);
-  form.append(actions);
-  sheet.append(form);
-  document.body.append(sheet);
 
-  // The orders block follows the pair: it is there only when one side is the room of SALAS, and
-  // it names the other side, the one that would receive them.
-  const target = () => {
-    const ids = [readerPick.select.value, sourcePick.select.value];
-    if (!data.salas || !ids.includes(data.salas)) return null;
-    return ids.find((id) => id !== data.salas) ?? null;
-  };
-  const syncOrders = () => {
-    const other = target();
-    orders.hidden = !other;
-    if (!other) { allowBox.checked = false; return; }
-    allowWords.textContent = t('Allow orders into {room}', { room: roomName(other) });
-    ceiling.hidden = !allowBox.checked;
-    designation.hidden = !allowBox.checked;
-    designation.firstChild.textContent = t('Type the designation of {room} to allow orders into it', { room: roomName(other) });
-  };
-  for (const control of [readerPick.select, sourcePick.select, allowBox]) control.addEventListener('change', syncOrders);
-  syncOrders();
+  function render({ back = false } = {}) {
+    const steps = stepsNow();
+    at = Math.min(at, steps.length - 1);
+    const kind = steps[at];
+    inner.replaceChildren();
+    const head = el('header', 'sm-sheet-head');
+    const dots = el('ol', 'sm-steps');
+    steps.forEach((name, index) => dots.append(el('li', index === at ? 'on' : index < at ? 'done' : null, STEP_WORDS[name]())));
+    head.append(dots, closeKey(() => sheet.close()));
+    const page = el('div', `sm-step${back ? ' back' : ''}`);
+    const error = el('p', 'error');
+    const actions = el('div', 'actions');
+    const next = (check) => button('sm-btn primary', t('Continue'), () => { const wrong = check?.(); if (wrong) { error.textContent = wrong; return; } at += 1; render(); });
+    if (at > 0) actions.append(button('sm-btn', t('Back'), () => { at -= 1; render({ back: true }); }));
 
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    error.textContent = '';
-    const readerId = readerPick.select.value, sourceId = sourcePick.select.value;
-    if (readerId === sourceId) { error.textContent = t('Choose two different rooms.'); return; }
-    const chosenKinds = kindBoxes.filter((box) => box.checked).map((box) => box.value);
-    if (!chosenKinds.length) { error.textContent = t('Choose at least one kind.'); return; }
-    const days = Number(expiresPick.value);
-    const body = {
-      a: sourceId, b: readerId, direction: bothBox.checked ? 'both' : 'a→b', kinds: chosenKinds,
-      expires: days ? new Date(Date.now() + days * 86400000).toISOString() : null,
-      orders: allowBox.checked && !orders.hidden ? { allowed: true, maxMode: Number(modePick.value), perHour: Number(perHourPick.value) } : { allowed: false, maxMode: 0, perHour: Number(perHourPick.value) },
-      designation: allowBox.checked && !orders.hidden ? designationInput.value.trim() : undefined,
-      recall: recallBox.checked,
-    };
-    sign.disabled = true;
-    sign.textContent = t('Signing…');
-    const answer = await fetch('/api/salas/enlaces', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-      .then(async (response) => ({ ok: response.ok, body: await response.json().catch(() => ({})) })).catch(() => ({ ok: false, body: {} }));
-    sign.disabled = false;
-    sign.textContent = t('Sign');
-    if (!answer.ok) { error.textContent = answer.body.error ?? t('The link could not be signed.'); return; }
-    sheet.close();
-    await refresh();
-  });
+    if (kind === 'who') {
+      page.append(el('h3', null, t('Which room reads, and from which?')));
+      const pair = el('div', 'sm-pair');
+      const swap = button('sm-icon-key', null, () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); });
+      swap.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 7h10M12 4l3 3-3 3M15 13H5M8 10l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      swap.title = t('Swap them');
+      swap.setAttribute('aria-label', t('Swap them'));
+      pair.append(field(t('The one that serves'), roomSelect(pick.source, (id) => { pick.source = id; render(); })), swap, field(t('The one that reads'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); })));
+      page.append(pair);
+      const a = roomOf(pick.reader), b = roomOf(pick.source);
+      if (a && b && a.id !== b.id) page.append(el('p', 'hint', pick.both ? t('{a} and {b} can look up each other\'s notes when their agents need them. Nothing is ever written into either.', { a: roomLabel(a), b: roomLabel(b) }) : t('{reader} can look up the notes of {source} when its agents need them. Nothing is ever written into {source}.', { reader: roomLabel(a), source: roomLabel(b) })));
+      page.append(switchRow(t('Both ways'), t('Each one reads the other. Leave it off if only one needs it.'), pick.both, (on) => { pick.both = on; render(); }));
+      for (const caution of cautions()) page.append(el('p', 'sm-caution', caution));
+      actions.append(next(() => (pick.reader === pick.source ? t('Choose two different rooms.') : null)));
+    } else if (kind === 'what') {
+      page.append(el('h3', null, t('Which notes cross?')));
+      const cards = el('div', 'sm-kind-cards');
+      for (const kindOf of LINK_KINDS) {
+        const card = el('label', 'sm-kind-card');
+        const box = el('input'); box.type = 'checkbox'; box.checked = pick.kinds.has(kindOf);
+        box.addEventListener('change', () => { if (box.checked) pick.kinds.add(kindOf); else pick.kinds.delete(kindOf); error.textContent = ''; });
+        const words = el('span', 'sm-kind-words');
+        words.append(el('b', null, kindWord(kindOf)), el('small', null, LINK_KIND_NOTES[kindOf]()));
+        card.append(box, el('i', `sm-kind-dot k-${kindOf}`), words);
+        cards.append(card);
+      }
+      page.append(cards, el('p', 'hint', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the room that serves. Never the ledger, files, med bay or jettisoned.')));
+      actions.append(next(() => (pick.kinds.size ? null : t('Choose at least one kind.'))));
+    } else if (kind === 'time') {
+      page.append(el('h3', null, t('For how long?')));
+      page.append(field(t('It ends'), rail(LINK_DAYS.map(([value, words]) => [value, words()]), pick.days, (value) => { pick.days = value; }, t('It ends'))));
+      page.append(el('p', 'hint', t('A week is enough to try it; signing it again takes a moment.')));
+      page.append(switchRow(t('Recall on every turn'), t('The room that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.'), pick.recall, (on) => { pick.recall = on; }));
+      actions.append(next());
+    } else if (kind === 'orders') {
+      const into = roomOf(ordersInto());
+      const name = into ? roomLabel(into) : '';
+      page.append(el('h3', null, t('Orders from the super agent')));
+      page.append(el('p', 'hint', t('With orders, BISHOP can send a task to {room}, and its agents carry it out there. Without them, BISHOP only reads. #3 and #4 never travel: they arrive as a proposal you arm in that room.', { room: name })));
+      page.append(switchRow(t('Allow orders into {room}', { room: name }), t('Leave it off unless you need BISHOP to act in {room}.', { room: name }), pick.orders, (on) => { pick.orders = on; render(); }));
+      if (pick.orders) {
+        page.append(field(t('Up to which mode'), rail([1, 2].map((n) => [n, `#${n} ${MODE_NAMES[n]}`]), pick.maxMode, (value) => { pick.maxMode = value; }, t('Up to which mode'))));
+        page.append(field(t('How many an hour'), rail([3, 6, 12].map((n) => [n, String(n)]), pick.perHour, (value) => { pick.perHour = value; }, t('How many an hour'))));
+        const typed = el('input'); typed.type = 'text'; typed.autocomplete = 'off'; typed.spellcheck = false; typed.value = pick.designation;
+        typed.addEventListener('input', () => { pick.designation = typed.value; error.textContent = ''; });
+        page.append(field(t('Type the designation of {room} to allow orders into it', { room: name }), typed));
+      }
+      actions.append(next(() => (pick.orders && !pick.designation.trim() ? t('Type the designation to allow orders, or turn them off.') : null)));
+    } else {
+      page.append(el('h3', null, t('Read it before you sign')));
+      const reader = roomOf(pick.reader), source = roomOf(pick.source);
+      const list = el('ul', 'sm-review');
+      const said = (words) => list.append(el('li', null, words));
+      said(pick.both ? t('{a} and {b} will read each other\'s {kinds}.', { a: roomLabel(reader), b: roomLabel(source), kinds: kindsSaid() }) : t('{reader} will read the {kinds} of {source}.', { reader: roomLabel(reader), source: roomLabel(source), kinds: kindsSaid() }));
+      said(pick.days ? t('Until {date}.', { date: new Date(Date.now() + pick.days * 86400000).toLocaleDateString(language, { day: 'numeric', month: 'long' }) }) : t('With no expiry: it lasts until you revoke it.'));
+      said(pick.recall ? t('On every turn, up to 3 of these notes arrive without being asked for.') : t('Its agents read them only when they choose to.'));
+      const into = roomOf(ordersInto());
+      if (into) said(pick.orders ? t('BISHOP may send orders into {room}, up to #{n}, {k} an hour.', { room: roomLabel(into), n: pick.maxMode, k: pick.perHour }) : t('No orders cross: BISHOP only reads.'));
+      said(t('Nothing is written across, and you can revoke it at any moment from Links.'));
+      page.append(list);
+      for (const caution of cautions()) page.append(el('p', 'sm-caution', caution));
+      const sign = button('sm-btn primary', t('Sign'), async () => {
+        error.textContent = '';
+        const body = {
+          a: pick.source, b: pick.reader, direction: pick.both ? 'both' : 'a→b', kinds: [...pick.kinds],
+          expires: pick.days ? new Date(Date.now() + pick.days * 86400000).toISOString() : null,
+          orders: pick.orders && ordersInto() ? { allowed: true, maxMode: pick.maxMode, perHour: pick.perHour } : { allowed: false, maxMode: 0, perHour: pick.perHour },
+          designation: pick.orders && ordersInto() ? pick.designation.trim() : undefined,
+          recall: pick.recall,
+        };
+        sign.disabled = true;
+        sign.textContent = t('Signing…');
+        const answer = await fetch('/api/salas/enlaces', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+          .then(async (response) => ({ ok: response.ok, body: await response.json().catch(() => ({})) })).catch(() => ({ ok: false, body: {} }));
+        sign.disabled = false;
+        sign.textContent = t('Sign');
+        if (!answer.ok) { error.textContent = answer.body.error ?? t('The link could not be signed.'); return; }
+        sheet.close();
+        await refresh();
+      });
+      actions.append(sign);
+    }
+    page.append(error, actions);
+    inner.append(head, scene(), page);
+  }
   sheet.addEventListener('close', () => { sheet.remove(); sheet = null; });
+  render();
   sheet.showModal();
 }
 ui.link.addEventListener('click', () => openLinkSheet());
