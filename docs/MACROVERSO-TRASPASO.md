@@ -45,7 +45,9 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `ae60641` | Claude | Cierre de la jornada de UX del 2026-10-09: resumen en §1·b |
 | `6f1f4b4` | Claude | Macroverso vivo: universos lejanos animados (`frozen`), luz y tamaño por distancia, oscuridad de borde a borde, ventanas de memoria, venas con pulsos |
 | `65ca14d` | Claude | El lobby: primera pantalla de `npx madre`, agregar proyectos con botón, BISHOP como sección, asistente de primera vez |
-| *este commit* | Claude | El lobby como tablero (propuesta C2 de Bento): BISHOP al centro y abrible en pestaña nueva, buscador y filtro, te esperan, mapa de enlaces, memoria, agentes, apariencia y ajustes del lobby |
+| `b0f8868` | Claude | El lobby como tablero (propuesta C2 de Bento): BISHOP al centro y abrible en pestaña nueva, buscador y filtro, te esperan, mapa de enlaces, memoria, agentes, apariencia y ajustes del lobby |
+| `82f03d8` | Claude | Lobby: las teclas son las de la sala |
+| *este commit* | Claude | Lobby: resumen de @madre de lo último trabajado, decisiones recientes, «Te necesita», bienvenida animada; rieles, buscador y cerrar de la sala |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -238,14 +240,21 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   `~/.pulse/salas`), y la primera pantalla de un `madre` sin palabra de comando. Agregar un proyecto
   es `associateProject` (escribe `project.json`, no abre); `PULSE_LOBBY_HOME` cambia la carpeta de
   usuario que explora (para pruebas). Una sala vieja sin `project.json` se reconoce por su id.
-  Desde el 2026-10-10 es un tablero en mosaicos (`.sm-bento`, 12 columnas): BISHOP, «Te esperan» y
-  Enlaces arriba; los proyectos (buscador + filtro, sin datos inventados); memoria, agentes y
-  apariencia abajo. Lo que se escribe para BISHOP viaja en la dirección como `#para=…`: la sala lo
-  deja en su caja **sin enviarlo** y borra la dirección (bloque al final de app.js). Los dos accesos
-  a BISHOP son enlaces (`target="_blank"` el de pestaña nueva); dormido, se despierta primero y la
-  pestaña se abre al presionar (`about:blank`) para que no la bloqueen. El panel de vista previa de
-  la app abre `_blank` en la misma pestaña: en un navegador normal es pestaña nueva. Tema y acento
-  se guardan con las mismas llaves que la sala (`pulse.theme`, `pulse.accent`), por dirección.
+  Desde el 2026-10-10 es un tablero en mosaicos (`.sm-bento`, 12 columnas): BISHOP con «Lo último
+  trabajado», «Te esperan» y Enlaces arriba; los proyectos (buscador + filtro); Decisiones
+  recientes, «Te necesita» y Memoria abajo. Agentes y Apariencia viven en Ajustes del lobby. Desde
+  el lobby **no se le escribe a BISHOP**: sus dos accesos son enlaces (`target="_blank"` el de
+  pestaña nueva); dormido, se despierta primero y la pestaña se abre al presionar (`about:blank`).
+  «Lo último trabajado» es `/api/salas/work` (`src/lobby-work.mjs`): lee de las carpetas de las salas
+  (abiertas o dormidas) las conversaciones más nuevas y sus últimas líneas, sin pedirles nada, y
+  @madre (Ollama, el modelo de la sala) escribe una línea por conversación **numerada**; el proyecto
+  lo pone el lobby por el número, nunca el modelo (qwen2.5:7b mezclaba proyectos). Se guarda en
+  `lobby-work.json` junto al registro de BISHOP y se reescribe a lo más cada 5 min o al pedirlo.
+  «Decisiones recientes» es `/api/salas/decisions`: las decisiones que viajan (hold/bridge) de las
+  salas abiertas, por su `/api/memory`, con caché de 5 min. Teclas, rieles (`sx-seg`), buscador
+  (`settings-search`) y cerrar (`surface-modes` + `x-close`) son las clases de la sala, no copias. El
+  panel de vista previa de la app abre `_blank` en la misma pestaña: en un navegador normal es pestaña
+  nueva. Tema y acento se guardan con las mismas llaves que la sala (`pulse.theme`, `pulse.accent`).
 - **Macroverso vivo**: un universo lejano conserva su escena con `scene.frozen` (el motor no calcula
   fuerzas, solo gira, late y pulsa) y se redibuja en `animateFar`, a lo más `FAR_FPS` por segundo y
   con `FAR_BUDGET` ms por cuadro entre todos; su lienzo sigue su tamaño en pantalla

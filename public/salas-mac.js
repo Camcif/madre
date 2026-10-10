@@ -15,14 +15,15 @@ const ui = {
   add: $('sm-add'), search: $('sm-search'), filter: $('sm-filter'), projects: $('sm-projects'), none: $('sm-none'),
   bishop: {
     box: $('sm-bishop'), mark: $('sm-bishop-mark'), state: $('sm-bishop-state'), go: $('sm-bishop-go'), tab: $('sm-bishop-tab'), about: $('sm-bishop-about'),
-    last: $('sm-bishop-last'), asks: $('sm-bishop-asks'), error: $('sm-bishop-error'), form: $('sm-bishop-form'), input: $('sm-bishop-input'), hint: $('sm-bishop-hint'),
+    asks: $('sm-bishop-asks'), error: $('sm-bishop-error'),
   },
+  work: { box: $('sm-work'), title: $('sm-work-title'), by: $('sm-work-by'), again: $('sm-work-again'), list: $('sm-work-list'), note: $('sm-work-note') },
   waiting: { box: $('sm-waiting'), title: $('sm-waiting-title'), count: $('sm-waiting-count'), body: $('sm-waiting-body') },
   map: $('sm-map'), linksTileTitle: $('sm-links-tile-title'), linksSum: $('sm-links-sum'), linksAll: $('sm-links-all'), link: $('sm-link'),
   linksSheet: $('sm-links-sheet'), linksTitle: $('sm-links-title'), linksNote: $('sm-links-note'), links: $('sm-links'), linksClose: $('sm-links-close'), linkMore: $('sm-link-more'),
   memory: { title: $('sm-memory-title'), total: $('sm-memory-total'), body: $('sm-memory-body') },
-  agents: { title: $('sm-agents-title'), state: $('sm-agents-state'), body: $('sm-agents-body') },
-  looks: { title: $('sm-looks-title'), body: $('sm-looks-body'), more: $('sm-looks-more') },
+  decisions: { title: $('sm-decisions-title'), list: $('sm-decisions-list') },
+  attention: { title: $('sm-attention-title'), count: $('sm-attention-count'), list: $('sm-attention-list') },
 };
 let language = 'es';
 let timer = 0;
@@ -31,6 +32,9 @@ let data = null;
 let macro = null;              // the macroverse, while it is open
 let welcomed = false;          // the first-run wizard was offered this visit
 let agentsSeen = null;         // what /api/settings said of the agents, last time it was asked
+let versionSeen = null;        // what /api/version said of MADRE, last time it was asked
+let work = null;               // MADRE's summary of the last work (/api/salas/work)
+let decisions = null;          // the recent decisions of the open rooms (/api/salas/decisions)
 let filter = 'all';            // which projects show: all, open or asleep
 let query = '';                // what the search box holds
 // What each card is in the middle of, kept across the refreshes that redraw it.
@@ -64,11 +68,10 @@ function saveLooks({ theme, accent }) {
     if (accent) { if (accent === 'madre') localStorage.removeItem('pulse.accent'); else localStorage.setItem('pulse.accent', accent); }
   } catch { /* the choice lasts as long as the page */ }
   applyLooks();
-  drawLooks();
   settingsSheet?.paintLooks();
 }
 window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', applyLooks);
-window.addEventListener('storage', (event) => { if (event.key === 'pulse.theme' || event.key === 'pulse.accent') { applyLooks(); drawLooks(); } });
+window.addEventListener('storage', (event) => { if (event.key === 'pulse.theme' || event.key === 'pulse.accent') { applyLooks(); settingsSheet?.paintLooks(); } });
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -189,21 +192,13 @@ function card(room) {
   else if (asking.has(room.id)) {
     const why = room.here ? t('This page closes with it.') : glance.working?.length ? t('What is running stops.') : t('Nothing is running.');
     actions.append(el('span', 'sm-ask', why), button('sm-btn danger small', t('Close it'), () => closeRoom(room)), button('sm-btn ghost small', t('Cancel'), () => { asking.delete(room.id); draw(); }));
-  } else {
-    if (room.open) {
-      const go = el('a', 'sm-btn primary small', room.here ? t('Back to the room') : t('Open'));
-      go.href = addressOf(room);
-      actions.append(go);
-      if (!glance.outdated) actions.append(button('sm-btn ghost small', t('Close'), () => { failed.delete(room.id); asking.add(room.id); draw(); }));
-    } else if (room.root) {
-      actions.append(button('sm-btn primary small', t('Open'), () => startRoom(room, { enter: true })));
-    }
-    // A question about this project starts in BISHOP's box, where it can be read before it goes.
-    const about = button('sm-ask-bishop', null, () => askAbout(room));
-    about.append(mark('bishop', 30));
-    about.title = t('Ask BISHOP about {name}', { name: room.name });
-    about.setAttribute('aria-label', about.title);
-    actions.append(about);
+  } else if (room.open) {
+    const go = el('a', 'sm-btn primary small', room.here ? t('Back to the room') : t('Open'));
+    go.href = addressOf(room);
+    actions.append(go);
+    if (!glance.outdated) actions.append(button('sm-btn ghost small', t('Close'), () => { failed.delete(room.id); asking.add(room.id); draw(); }));
+  } else if (room.root) {
+    actions.append(button('sm-btn primary small', t('Open'), () => startRoom(room, { enter: true })));
   }
   node.append(actions);
   return node;
@@ -234,6 +229,7 @@ function draw() {
   ui.stop.hidden = !working;
   drawLinks(all);
   drawMemory();
+  drawAttention();
   // The macroverse wants a large screen: on a small one SALAS is the whole of it.
   ui.macro.hidden = !data.rooms.length || window.innerWidth < 900;
   macro?.update(data.rooms, data.enlaces ?? []);
@@ -312,7 +308,8 @@ function drawMemory() {
 }
 
 // AGENTS: the ones on this computer, with the session each has. Connected once, every project
-// uses them; the settings sheet installs or signs in the one that needs it.
+// uses them; the settings sheet installs or signs in the one that needs it, and «Needs you» says
+// which one does.
 function agentState(agent, answer) {
   const session = answer.sessions?.[agent.id]?.state;
   const busyNow = answer.loggingIn === agent.id;
@@ -323,31 +320,21 @@ async function loadAgents() {
   const answer = await fetch('/api/settings', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
   if (!answer?.agents) return;
   agentsSeen = answer;
-  drawAgents();
+  drawAttention();
 }
-function drawAgents() {
-  ui.agents.body.replaceChildren();
-  if (!agentsSeen) return;
-  const list = agentsSeen.agents.filter((agent) => agent.id !== 'madre');
-  const ready = list.filter((agent) => agentState(agent, agentsSeen).ok).length;
-  ui.agents.state.className = `session-lamp ${ready === list.length ? 'ok' : ready ? 'wait' : 'bad'}`;
-  ui.agents.state.textContent = ready === 1 ? t('1 connected') : t('{n} connected', { n: ready });
-  for (const agent of list) {
-    const state = agentState(agent, agentsSeen);
-    const key = button(`sm-agent-key ${state.key}`, null, () => openSettings('agents'));
-    key.append(mark(agent.id, 32));
-    key.title = `${agent.label ?? agent.id} · ${state.words}`;
-    key.setAttribute('aria-label', key.title);
-    ui.agents.body.append(key);
-  }
-  if (ready < list.length) ui.agents.body.append(button('sm-btn small sm-connect', t('Connect'), () => openSettings('agents')));
+// MADRE itself: the version this room runs and the newest one it knows of.
+async function loadVersion() {
+  const answer = await fetch('/api/version', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  if (!answer) return;
+  versionSeen = answer;
+  drawAttention();
 }
 
-// APPEARANCE: the theme and the accent, chosen here at once. The same three words and the same
-// colours as PERSONALIZE in the room; the rest of the looks belong to the conversation, in there.
+// APPEARANCE, in the settings sheet: the theme and the accent, chosen at once, on the room's own
+// rail. The same three words and the same colours as PERSONALIZE in the room.
 function themeSeg() {
   const { theme } = readLooks();
-  const seg = el('div', 'sm-seg');
+  const seg = el('div', 'sx-seg');
   seg.setAttribute('role', 'radiogroup');
   seg.setAttribute('aria-label', t('Theme'));
   for (const [value, words] of [['auto', t('Automatic')], ['light', t('Light')], ['dark', t('Dark')]]) {
@@ -374,10 +361,138 @@ function swatches() {
   }
   return row;
 }
-function drawLooks() {
-  ui.looks.body.replaceChildren(themeSeg(), swatches());
+
+// NEEDS YOU: what the person would want to know before anything else, from what the rooms, the
+// agents and MADRE itself say: a room on an older MADRE or not answering, an agent without a
+// session, a link about to expire, a newer MADRE. Nothing listed is a guess.
+function attentionItems() {
+  const items = [];
+  for (const room of data?.rooms ?? []) {
+    if (!room.open) continue;
+    const name = roomLabel(room);
+    if (room.glance?.outdated) items.push({ tone: 'wait', words: t('{room} runs an older MADRE.', { room: name }), hint: t('Update it to see it here and to link it.'), href: addressOf(room), go: t('Open') });
+    else if (room.glance?.unreachable) items.push({ tone: 'bad', words: t('{room} is not answering.', { room: name }), hint: t('It may be busy. If it stays like this, close it and open it again.') });
+  }
+  for (const agent of (agentsSeen?.agents ?? []).filter((one) => one.id !== 'madre')) {
+    const state = agentState(agent, agentsSeen);
+    if (!state.ok) items.push({ tone: state.key, words: `${agent.label ?? agent.id} · ${state.words}`, hint: t('Connected once, every project uses it.'), act: () => openSettings('agents'), go: t('Connect') });
+  }
+  const soon = Date.now() + 3 * 86400000;
+  for (const enlace of data?.enlaces ?? []) {
+    if (!enlace.expires || Date.parse(enlace.expires) > soon) continue;
+    const { source, reader } = endsOf(enlace);
+    items.push({ tone: 'wait', words: t('The link {reader} ← {source} ends {when}.', { reader: roomName(reader), source: roomName(source), when: ago(enlace.expires) }), hint: t('Sign it again if it should go on.'), act: () => ui.linksSheet.showModal(), go: t('See the links') });
+  }
+  if (versionSeen?.available && versionSeen.latest) items.push({ tone: 'ok', words: t('MADRE {version} is out.', { version: versionSeen.latest }), hint: t('You run {version}. Each room updates from its settings, in Version.', { version: versionSeen.current }), href: versionSeen.release, external: true, go: t('What it brings') });
+  return items;
 }
-ui.looks.more.addEventListener('click', () => openSettings('looks'));
+function drawAttention() {
+  const items = attentionItems();
+  ui.attention.count.textContent = String(items.length);
+  ui.attention.count.hidden = !items.length;
+  ui.attention.list.replaceChildren();
+  if (!items.length) {
+    const calm = el('li', 'sm-attention-item is-calm');
+    const words = el('div', 'sm-attention-words');
+    words.append(el('b', null, t('All in order.')), el('span', null, t('No room, agent or link needs you.')));
+    calm.append(el('i', 'dot'), words);
+    ui.attention.list.append(calm);
+    return;
+  }
+  for (const item of items.slice(0, 3)) {
+    const row = el('li', `sm-attention-item is-${item.tone}`);
+    const words = el('div', 'sm-attention-words');
+    words.append(el('b', null, item.words), el('span', null, item.hint));
+    row.append(el('i', 'dot'), words);
+    if (item.href) {
+      const go = el('a', 'sm-btn small', item.go);
+      go.href = item.href;
+      if (item.external) { go.target = '_blank'; go.rel = 'noopener'; }
+      row.append(go);
+    } else if (item.act) row.append(button('sm-btn small', item.go, item.act));
+    ui.attention.list.append(row);
+  }
+  if (items.length > 3) ui.attention.list.append(el('li', 'sm-hint', t('And {n} more.', { n: items.length - 3 })));
+}
+
+// RECENT DECISIONS: what the open rooms decided last, in their own words, as each archive keeps
+// them (the notes that travel into turns). Read through the lobby's route, which asks the rooms
+// at most every few minutes.
+async function loadDecisions() {
+  const answer = await fetch('/api/salas/decisions', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  if (!answer) return;
+  decisions = answer.decisions ?? [];
+  drawDecisions();
+}
+function drawDecisions() {
+  const list = ui.decisions.list;
+  list.replaceChildren();
+  if (!decisions) { list.append(el('li', 'sm-hint', t('Reading the open rooms…'))); return; }
+  if (!decisions.length) { list.append(el('li', 'sm-hint', t('No decisions yet in the open rooms. When an archive keeps one, it shows here.'))); return; }
+  for (const one of decisions.slice(0, 4)) {
+    const item = el('li', 'sm-decision');
+    const head = el('div', 'sm-decision-head');
+    head.append(roomTag(one.room, one.name), el('time', null, ago(one.at)));
+    item.append(head, el('p', null, one.text));
+    list.append(item);
+  }
+}
+// A project's name as a small tag: a way into it when it is open.
+function roomTag(id, name) {
+  const room = data?.rooms.find((one) => one.id === id) ?? null;
+  const tag = el(room?.open ? 'a' : 'span', 'sm-chip port sm-tag-room', name);
+  if (room?.open) tag.href = addressOf(room);
+  return tag;
+}
+
+// THE LAST WORK: MADRE's summary of the newest conversations of every project, written with its
+// local model in this Mac (src/lobby-work.mjs) and checked against them. Without the model, or
+// while it writes, the conversations show as they are.
+let workTimer = 0;
+async function loadWork({ again = false } = {}) {
+  clearTimeout(workTimer);
+  if (again) { ui.work.again.disabled = true; ui.work.box.classList.add('is-working'); }
+  const answer = await fetch('/api/salas/work', again ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' } : { cache: 'no-store' })
+    .then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  if (answer) { work = answer; drawWork(); }
+  // While MADRE writes, the tile asks again soon; otherwise every two minutes.
+  workTimer = setTimeout(() => { if (!document.hidden) void loadWork(); }, answer?.state === 'working' ? 3000 : 120000);
+}
+function drawWork() {
+  const w = ui.work;
+  w.list.replaceChildren();
+  const state = work?.state ?? 'loading';
+  w.box.classList.toggle('is-working', state === 'working');
+  w.again.hidden = !work || state === 'empty' || state === 'unavailable';
+  w.again.disabled = state === 'working';
+  if (!work) { w.by.textContent = ''; w.note.textContent = t('Reading your conversations…'); return; }
+  if (state === 'empty') { w.by.textContent = ''; w.note.textContent = t('No conversations in the last two weeks. What you work on in any project shows here, summarised by MADRE.'); return; }
+  const bullets = work.bullets ?? [];
+  if (bullets.length) {
+    // Each line's project is the conversation's it summarises, put by the lobby (src/lobby-work.mjs).
+    for (const one of bullets) {
+      const item = el('li');
+      item.append(roomTag(one.room, one.name), el('span', null, one.text));
+      w.list.append(item);
+    }
+  } else {
+    for (const one of (work.sources ?? []).slice(0, 5)) {
+      const item = el('li', 'raw');
+      const words = el('span');
+      words.append(el('b', null, chatName(one.title)));
+      if (one.last?.text) words.append(document.createTextNode(` — ${one.last.text}`));
+      item.append(roomTag(one.room, one.name), words, el('time', null, ago(one.at)));
+      w.list.append(item);
+    }
+  }
+  w.by.textContent = bullets.length && work.at ? `@madre · ${work.model ?? ''} · ${ago(new Date(work.at).toISOString())}` : '';
+  w.note.textContent = state === 'working' ? t('MADRE is summarising your latest conversations…')
+    : state === 'unavailable' ? (bullets.length ? t('MADRE\'s local model is off: this is the last summary it wrote.') : t('MADRE\'s local model is off: these are your latest conversations, as they are.'))
+    : state === 'failed' ? t('MADRE could not summarise them this time: these are your latest conversations, as they are.')
+    : work.stale ? t('There is newer work than this summary: it is written again in a few minutes, or now if you ask.')
+    : t('Written by MADRE on this Mac from your latest conversations.');
+}
+ui.work.again.addEventListener('click', () => void loadWork({ again: true }));
 
 // LINKS (docs/MACROVERSO.md, phase 3c): the contracts between rooms, read from /api/salas, each
 // one revocable here, and the sheet that signs a new one. A contract says which room reads which,
@@ -643,7 +758,7 @@ ui.link.addEventListener('click', () => openLinkSheet());
 async function refresh() {
   const answer = await fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
   if (!answer) { ui.foot.textContent = t('This room did not answer. It may have closed.'); return; }
-  if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawLooks(); drawAgents(); }
+  if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); }
   data = answer;
   ui.foot.textContent = t('Every project runs on this Mac, in a room of its own, with its own memory.');
   draw();
@@ -800,11 +915,10 @@ function mark(id, size = 40) {
   return node;
 }
 
-// BISHOP, as the heart of the lobby: the super agent that reads across the projects, signs links
-// between them and carries orders from one to another. It lives in a room of its own (MADRE's
-// folder, not a project), so talking to it opens that room, here or in a new tab; asleep, it is
-// woken first. Its last conversation and what it waits for are read from that room; nothing on
-// this tile is said that the room did not say.
+// BISHOP, at the head of the lobby: the super agent that reads across the projects, signs links
+// between them and carries orders from one to another. It is talked to in its own room (MADRE's
+// folder, not a project), here or in a new tab; asleep, it is woken first. What it waits for is
+// read from that room. Under it, the last work of every project, summarised by MADRE.
 ui.bishop.mark.replaceWith(mark('bishop', 44));
 function drawBishop(room) {
   const b = ui.bishop;
@@ -816,15 +930,6 @@ function drawBishop(room) {
   for (const way of [b.go, b.tab]) way.setAttribute('aria-disabled', String(waking));
   b.go.textContent = waking ? t('Waking…') : t('Talk to BISHOP');
   syncBishopLinks();
-  // Its last conversation, as the room keeps it: the name and the last line said in it.
-  b.last.replaceChildren();
-  b.last.hidden = !(glance.chat && !glance.outdated);
-  if (!b.last.hidden) {
-    const head = el('div', 'sm-bishop-last-head');
-    head.append(el('span', null, t('Last conversation')), el('time', null, ago(glance.chat.at)));
-    b.last.append(head, el('b', null, chatName(glance.chat.title)));
-    if (glance.chat.preview && glance.chat.preview !== glance.chat.title) b.last.append(el('p', null, glance.chat.preview));
-  }
   // What it waits for, each one a door into its room.
   b.asks.replaceChildren();
   b.asks.hidden = !glance.waiting?.length;
@@ -835,32 +940,24 @@ function drawBishop(room) {
   b.error.hidden = !failed.has(data?.salas);
   b.error.textContent = failed.get(data?.salas) ?? '';
 }
-// Into BISHOP's room, with what the box holds written there (never sent: `#para=` puts it in the
-// room's own box, app.js). Both ways in are links, so ⌘-click and «open in a new tab» do what they
-// always do. Asleep, it is woken first; a new tab is then opened at the press, while the press is
-// still the person's, and sent on when the room answers: a tab opened after waiting is blocked.
+// Both ways into BISHOP's room are links, so ⌘-click and «open in a new tab» do what they always
+// do. Asleep, it is woken first; a new tab is then opened at the press, while the press is still
+// the person's, and sent on when the room answers: a tab opened after waiting is blocked.
 function bishopAddress() {
   const room = data?.rooms.find((one) => one.id === data.salas);
-  if (!room?.open) return null;
-  const text = ui.bishop.input.value.trim();
-  return `${addressOf(room)}${text ? `#para=${encodeURIComponent(text)}` : ''}`;
+  return room?.open ? addressOf(room) : null;
 }
 function syncBishopLinks() {
   const address = bishopAddress() ?? '/salas';
   ui.bishop.go.href = address;
   ui.bishop.tab.href = address;
 }
-// Gone to another tab, the lobby stays as it was, without the words it already handed over.
-const handedOver = () => setTimeout(() => { ui.bishop.input.value = ''; syncBishopLinks(); }, 0);
 function wakeBishop({ newTab = false } = {}) {
-  const text = ui.bishop.input.value.trim();
   const tab = newTab ? window.open('about:blank', '_blank') : null;
   if (tab) tab.opener = null;
   void startRoom({ id: data.salas }).then((answer) => {
     if (!answer.ok || !answer.body.port) { tab?.close(); return; }
-    const address = `http://127.0.0.1:${answer.body.port}/${text ? `#para=${encodeURIComponent(text)}` : ''}`;
-    ui.bishop.input.value = '';
-    syncBishopLinks();
+    const address = `http://127.0.0.1:${answer.body.port}/`;
     if (tab) tab.location.href = address;
     else location.href = address;
   });
@@ -869,32 +966,17 @@ function openBishop({ newTab = false } = {}) {
   if (!data) return;
   const address = bishopAddress();
   if (!address) { wakeBishop({ newTab }); return; }
-  if (newTab) { window.open(address, '_blank', 'noopener'); handedOver(); }
+  if (newTab) window.open(address, '_blank', 'noopener');
   else location.href = address;
 }
 for (const [way, alwaysNew] of [[ui.bishop.go, false], [ui.bishop.tab, true]]) {
   way.addEventListener('click', (event) => {
     if (way.getAttribute('aria-disabled') === 'true' || !data) { event.preventDefault(); return; }
-    const newTab = alwaysNew || event.metaKey || event.ctrlKey || event.shiftKey;
-    // Awake, the link goes where it points; only a new tab leaves the lobby here to tidy.
-    if (bishopAddress()) { if (newTab) handedOver(); return; }
+    // Awake, the link goes where it points.
+    if (bishopAddress()) return;
     event.preventDefault();
-    wakeBishop({ newTab });
+    wakeBishop({ newTab: alwaysNew || event.metaKey || event.ctrlKey || event.shiftKey });
   });
-}
-ui.bishop.input.addEventListener('input', syncBishopLinks);
-ui.bishop.form.addEventListener('submit', (event) => { event.preventDefault(); if (ui.bishop.input.value.trim()) openBishop(); });
-// ⌘↩ (Ctrl+↩) takes it to BISHOP in a new tab and leaves the lobby where it is.
-ui.bishop.input.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && ui.bishop.input.value.trim()) { event.preventDefault(); openBishop({ newTab: true }); }
-});
-function askAbout(room) {
-  const input = ui.bishop.input;
-  input.value = `${t('About {name}:', { name: room.name })} `;
-  ui.bishop.box.scrollIntoView({ block: 'nearest', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
-  syncBishopLinks();
 }
 
 // ---- Choosing folders. Suggestions first (folders that look like projects in the places people
@@ -983,6 +1065,19 @@ function projectPicker({ onAdded, compact = false }) {
   return node;
 }
 
+// The room's close (styles.css, .surface-modes · .x-close): a sunk track holding one key, the
+// cross that turns as the pointer comes to it.
+function closeKey(onClick) {
+  const track = el('span', 'surface-modes');
+  const key = button('surface-mode close x-close x-only', null, onClick);
+  key.setAttribute('aria-label', t('Close'));
+  const icon = el('span', 'x-icon');
+  icon.innerHTML = '<svg viewBox="0 0 20 20" focusable="false" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  key.append(icon);
+  track.append(key);
+  return track;
+}
+
 // «Add a project», on its own: the picker in a sheet.
 let addSheet = null;
 function openAddSheet() {
@@ -990,8 +1085,7 @@ function openAddSheet() {
   addSheet = el('dialog', 'sm-sheet sm-wide');
   const inner = el('div', 'sm-sheet-body');
   const head = el('header', 'sm-sheet-head');
-  head.append(el('h3', null, t('Add a project')), button('sm-x', '×', () => addSheet.close()));
-  head.lastChild.setAttribute('aria-label', t('Close'));
+  head.append(el('h3', null, t('Add a project')), closeKey(() => addSheet.close()));
   inner.append(head, el('p', 'hint', t('A project is a folder: MADRE opens a room for it, with its own conversations and its own memory. Adding it does not open it; you open it from its card.')));
   inner.append(projectPicker({ onAdded: () => addSheet?.close() }));
   addSheet.append(inner);
@@ -1013,7 +1107,7 @@ function agentsPanel({ onPaint = null } = {}) {
     const answer = await fetch('/api/settings', { cache: 'no-store' }).then((response) => response.json()).catch(() => null);
     if (!answer?.agents) return;
     agentsSeen = answer;
-    drawAgents();
+    drawAttention();
     list.replaceChildren();
     let ready = 0;
     for (const agent of answer.agents.filter((one) => one.id !== 'madre')) {
@@ -1036,7 +1130,7 @@ function agentsPanel({ onPaint = null } = {}) {
       }
       list.append(item);
     }
-    onPaint?.(ready);
+    onPaint?.(ready, answer);
   };
   const live = () => {
     if (!list.isConnected || poll) return;
@@ -1057,7 +1151,61 @@ function agentsPanel({ onPaint = null } = {}) {
 }
 
 // ---- The first time: three steps. The agents (connected once, for every project: a CLI's session
-// is this computer's, not a project's), the projects, and which to open now.
+// is this computer's, not a project's), the projects, and which to open now. Over each step, a
+// scene of what it is about, moving: the agents come to MADRE and light up as they are connected;
+// the folders drop into the lobby; the rooms light up one after another as the beat runs through
+// them. Drawn here, from MADRE's own marks; still for whoever asked for less motion.
+const SCENE_AGENTS = [['codex', 17, 30], ['claude', 27, 78], ['gemini', 83, 30], ['opencode', 73, 78]];
+const FOLDER_GLYPH = '<svg viewBox="0 0 32 26" aria-hidden="true"><path d="M2 5.5A2.5 2.5 0 0 1 4.5 3h7.2l3 3.2h12.8A2.5 2.5 0 0 1 30 8.7v12.8a2.5 2.5 0 0 1-2.5 2.5h-23A2.5 2.5 0 0 1 2 21.5z" fill="currentColor"/><path d="M2 10h28" stroke="rgba(255,255,255,.35)" stroke-width="1.4"/></svg>';
+const BEAT_PATH = 'M0 22H70L78 22L86 6L96 38L104 22H190L198 22L206 6L216 38L224 22H320L328 22L336 6L346 38L354 22H420';
+function wizardScene(kind) {
+  const scene = el('div', `sm-scene scene-${kind}`);
+  scene.setAttribute('aria-hidden', 'true');
+  if (kind === 'agents') {
+    const wires = svgNode('svg', { class: 'sm-wires', viewBox: '0 0 100 100', preserveAspectRatio: 'none' });
+    SCENE_AGENTS.forEach(([id, x, y], index) => {
+      wires.append(svgNode('line', { class: 'sm-wire', 'data-agent': id, x1: 50, y1: 54, x2: x, y2: y, 'vector-effect': 'non-scaling-stroke' }));
+      const node = el('span', 'sm-scene-node agent');
+      node.dataset.agent = id;
+      node.style.left = `${x}%`;
+      node.style.top = `${y}%`;
+      node.style.setProperty('--d', `${index * 160}ms`);
+      node.append(mark(id, 42));
+      scene.append(node);
+    });
+    const core = el('span', 'sm-scene-node core');
+    core.style.left = '50%';
+    core.style.top = '54%';
+    core.append(mark('madre', 60));
+    scene.prepend(wires);
+    scene.append(core);
+  } else if (kind === 'projects') {
+    const tray = el('div', 'sm-tray');
+    for (let index = 0; index < 5; index += 1) {
+      const slot = el('i', 'sm-slot');
+      slot.style.setProperty('--i', String(index));
+      tray.append(slot);
+      const folder = el('span', 'sm-fly');
+      folder.style.setProperty('--i', String(index));
+      folder.style.left = `${22 + index * 14}%`;
+      folder.innerHTML = FOLDER_GLYPH; // trusted: drawn here
+      scene.append(folder);
+    }
+    scene.append(tray);
+  } else {
+    const rooms = el('div', 'sm-wins');
+    for (let index = 0; index < 3; index += 1) {
+      const win = el('span', 'sm-win');
+      win.style.setProperty('--i', String(index));
+      win.append(el('i', 'sm-win-bar'), el('i', 'sm-win-line'), el('i', 'sm-win-line short'));
+      rooms.append(win);
+    }
+    const beat = svgNode('svg', { class: 'sm-beat', viewBox: '0 0 420 44', preserveAspectRatio: 'none' });
+    beat.append(svgNode('path', { d: BEAT_PATH, pathLength: 100, 'vector-effect': 'non-scaling-stroke' }));
+    scene.append(rooms, beat);
+  }
+  return scene;
+}
 let wizard = null;
 function openWizard() {
   if (wizard) return;
@@ -1067,34 +1215,48 @@ function openWizard() {
   document.body.append(wizard);
   let step = 0;
   let panel = null;
+  let scene = null;
   const steps = [t('Agents'), t('Projects'), t('Open')];
+  const KINDS_OF_STEP = ['agents', 'projects', 'open'];
   const stop = () => { panel?.stop(); panel = null; };
-  const frame = (title, note, body, actions) => {
+  const frame = (title, note, body, actions, { back = false } = {}) => {
     stop();
     inner.replaceChildren();
     const head = el('header', 'sm-sheet-head');
     const dots = el('ol', 'sm-steps');
     steps.forEach((name, index) => { const item = el('li', index === step ? 'on' : index < step ? 'done' : null, name); dots.append(item); });
-    head.append(dots, button('sm-x', '×', () => wizard.close()));
-    head.lastChild.setAttribute('aria-label', t('Close'));
-    inner.append(head, el('h3', null, title));
-    if (note) inner.append(el('p', 'hint', note));
-    inner.append(body, actions);
+    head.append(dots, closeKey(() => wizard.close()));
+    scene = wizardScene(KINDS_OF_STEP[step]);
+    const page = el('div', `sm-step${back ? ' back' : ''}`);
+    page.append(el('h3', null, title));
+    if (note) page.append(el('p', 'hint', note));
+    page.append(body, actions);
+    inner.append(head, scene, page);
   };
-  async function agentsStep() {
+  async function agentsStep(options) {
     const actions = el('div', 'actions');
     const next = button('sm-btn primary', t('Continue'), () => { step = 1; projectsStep(); });
     actions.append(next);
-    const fresh = agentsPanel({ onPaint: (ready) => { next.textContent = ready ? t('Continue') : t('Continue without agents'); } });
-    frame(t('Connect your agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'), fresh.node, actions);
+    const fresh = agentsPanel({
+      onPaint: (ready, answer) => {
+        next.textContent = ready ? t('Continue') : t('Continue without agents');
+        // The scene lights the agents that are connected, and their wire to MADRE.
+        for (const agent of answer.agents) {
+          const on = agentState(agent, answer).ok;
+          scene?.querySelector(`.sm-scene-node[data-agent="${agent.id}"]`)?.classList.toggle('on', on);
+          scene?.querySelector(`.sm-wire[data-agent="${agent.id}"]`)?.classList.toggle('on', on);
+        }
+      },
+    });
+    frame(t('Connect your agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'), fresh.node, actions, options);
     panel = fresh;
     await fresh.paint();
     fresh.live();
   }
-  function projectsStep() {
+  function projectsStep(options) {
     const actions = el('div', 'actions');
-    actions.append(button('sm-btn ghost', t('Back'), () => { step = 0; void agentsStep(); }), button('sm-btn primary', t('Continue'), () => { step = 2; openStep(); }));
-    frame(t('Add your projects'), t('Choose the folders you work in. Adding them does not open them: you choose which to open in the next step.'), projectPicker({ compact: true }), actions);
+    actions.append(button('sm-btn', t('Back'), () => { step = 0; void agentsStep({ back: true }); }), button('sm-btn primary', t('Continue'), () => { step = 2; openStep(); }));
+    frame(t('Add your projects'), t('Choose the folders you work in. Adding them does not open them: you choose which to open in the next step.'), projectPicker({ compact: true }), actions, options);
   }
   function openStep() {
     const projects = (data?.rooms ?? []).filter((room) => room.id !== data?.salas);
@@ -1110,7 +1272,7 @@ function openWizard() {
       const words = el('span', 'sm-folder-words');
       words.append(el('b', null, room.name), el('small', null, homeWord(room.root ?? '')));
       item.append(box, words);
-      if (room.open) item.append(el('span', 'sm-tag is-project', t('Open')));
+      if (room.open) item.append(el('span', 'sm-tag is-project', t('Already open')));
       list.append(item);
     }
     if (!projects.length) list.append(el('p', 'hint', t('No projects yet. You can add them from the lobby whenever you like.')));
@@ -1123,7 +1285,7 @@ function openWizard() {
       }
       wizard.close();
     });
-    actions.append(button('sm-btn ghost', t('Back'), () => { step = 1; projectsStep(); }), go);
+    actions.append(button('sm-btn', t('Back'), () => { step = 1; projectsStep({ back: true }); }), go);
     frame(t('Open what you will use'), t('Each open project runs on this Mac with its own room. The rest stay in the lobby, asleep, until you open them.'), list, actions);
   }
   wizard.addEventListener('close', () => { stop(); wizard.remove(); wizard = null; void loadAgents(); });
@@ -1141,8 +1303,7 @@ function openSettings(section = null) {
   const dialog = el('dialog', 'sm-sheet sm-wide sm-settings');
   const inner = el('div', 'sm-sheet-body');
   const head = el('header', 'sm-sheet-head');
-  head.append(el('h3', null, t('Lobby settings')), button('sm-x', '×', () => dialog.close()));
-  head.lastChild.setAttribute('aria-label', t('Close'));
+  head.append(el('h3', null, t('Lobby settings')), closeKey(() => dialog.close()));
   inner.append(head);
   const block = (id, title, note) => {
     const node = el('section', 'sm-set');
@@ -1157,7 +1318,7 @@ function openSettings(section = null) {
   const looks = block('looks', t('Appearance'), t('Kept in this browser, for the lobby and for the room served at this address.'));
   const looksRows = el('div', 'sm-set-rows');
   looks.append(looksRows);
-  const languages = el('div', 'sm-seg');
+  const languages = el('div', 'sx-seg');
   for (const [code, name] of [['es', 'Español'], ['en', 'English']]) {
     const one = button(null, name, async () => {
       if (code === language) return;
@@ -1218,12 +1379,8 @@ function translateStatic() {
   ui.bishop.tab.title = t('Open BISHOP in a new tab');
   ui.bishop.tab.setAttribute('aria-label', t('Open BISHOP in a new tab'));
   ui.bishop.about.textContent = t('Your super agent. It reads across your projects, signs the links between them and carries an order from one to another.');
-  ui.bishop.input.placeholder = t('Write to BISHOP about any project…');
-  ui.bishop.input.setAttribute('aria-label', t('Write to BISHOP about any project…'));
-  const send = ui.bishop.form.querySelector('.sm-send');
-  send.title = t('Take it to BISHOP');
-  send.setAttribute('aria-label', t('Take it to BISHOP'));
-  ui.bishop.hint.textContent = t('BISHOP\'s room opens with this written; you send it from there.');
+  ui.work.title.textContent = t('The last work');
+  ui.work.again.textContent = t('Summarise again');
   ui.waiting.title.textContent = t('Waiting on you');
   ui.linksTileTitle.textContent = t('Links');
   ui.link.textContent = t('Link projects');
@@ -1232,19 +1389,24 @@ function translateStatic() {
   ui.linksClose.setAttribute('aria-label', t('Close'));
   ui.linkMore.textContent = t('Link projects');
   ui.memory.title.textContent = t('Memory');
-  ui.agents.title.textContent = t('Agents');
-  ui.looks.title.textContent = t('Appearance');
-  ui.looks.more.textContent = t('Settings');
+  ui.decisions.title.textContent = t('Recent decisions');
+  ui.attention.title.textContent = t('Needs you');
   for (const kind of KINDS) KIND_WORDS[kind] = t(kind.toUpperCase());
 }
 
 translateStatic();
-drawLooks();
+drawWork();
+drawDecisions();
 await refresh();
 void loadAgents();
+void loadVersion();
+void loadWork();
+void loadDecisions();
 // `#welcome`: the first-run wizard again, on purpose (to connect an agent or add projects in steps).
 if (location.hash === '#welcome') { history.replaceState(null, '', location.pathname); welcomed = true; openWizard(); }
 // Sent here for the Macroverso (the key in BISHOP's room): straight into it, on a large screen.
 if (location.hash === '#macroverso' && data && !ui.macro.hidden) { history.replaceState(null, '', location.pathname); ui.macro.click(); }
 timer = setInterval(() => { if (!document.hidden && !busy.size) void refresh(); }, 4000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { void refresh(); void loadAgents(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { void refresh(); void loadAgents(); void loadWork(); void loadDecisions(); } });
+// The decisions are asked again every few minutes (the route itself asks the rooms no oftener).
+setInterval(() => { if (!document.hidden) void loadDecisions(); }, 5 * 60 * 1000);

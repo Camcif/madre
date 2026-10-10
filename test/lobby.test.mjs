@@ -106,22 +106,81 @@ test('lobby · the routes answer only its own page on this Mac: not a phone, not
   }
 });
 
-// The lobby as a dashboard (2026-10-10): BISHOP at its heart. A question written there goes to
-// BISHOP's room in the address (`#para=`), waits in that room's box unsent, and the address
-// forgets it at once; BISHOP opens here or in a new tab, by plain links.
-test('lobby · a question for BISHOP reaches its room\'s box unsent, here or in a new tab', async () => {
+// The lobby as a dashboard (2026-10-10): BISHOP opens in its room, here or in a new tab, by plain
+// links; under it, MADRE's summary of the last work, read from the rooms' folders and checked
+// against them; beside it, the recent decisions of the open rooms. Only this page reads either.
+test('lobby · BISHOP opens by links, here or in a new tab, and nothing is written to it from the lobby', async () => {
   const read = (file) => readFile(join(import.meta.dirname, '..', 'public', file), 'utf8');
   const [app, page, html] = await Promise.all([read('app.js'), read('salas-mac.js'), read('salas-mac.html')]);
-  // The room takes `#para=` into its box only when the box is empty, and never sends it.
-  const arrival = app.slice(app.indexOf("const said = /^#para=(.*)$/s.exec("), app.indexOf("const said = /^#para=(.*)$/s.exec(") + 600);
-  assert.ok(arrival.length > 100, 'the room does not read #para= any more');
-  assert.match(arrival, /replaceState\?\.\(null, '', `\$\{globalThis\.location\.pathname\}\$\{globalThis\.location\.search\}`\)/, 'the address keeps the words');
-  assert.match(arrival, /!els\.input\.value\.trim\(\)\) \{ els\.input\.value = text; autosize\(\); els\.input\.focus\(\); \}/);
-  assert.doesNotMatch(arrival, /requestSubmit|\.submit\(|sendMessage|fetch\(/, 'the words are sent, not left in the box');
-  // The lobby writes them encoded, and BISHOP's two ways in are links: the second a new tab.
-  assert.match(page, /#para=\$\{encodeURIComponent\(text\)\}/);
   assert.match(html, /<a id="sm-bishop-go" class="sm-btn primary" href="\/">/);
   assert.match(html, /<a id="sm-bishop-tab" class="sm-icon-key" href="\/" target="_blank" rel="noopener"/);
   // Asleep, it is woken first and the new tab is opened at the press, so it is not blocked.
   assert.match(page, /const tab = newTab \? window\.open\('about:blank', '_blank'\) : null;/);
+  // No box to write to BISHOP, and no address that would carry words into its room.
+  assert.doesNotMatch(html, /sm-bishop-input|sm-ask-box/);
+  assert.doesNotMatch(page + app, /#para=/);
+});
+
+test('lobby · the last work is read from the rooms\' folders, newest first, and each of MADRE\'s lines takes its project from the conversation it numbers', async () => {
+  const { lastMessages, parseWork, recentWork, workPrompt } = await import('../src/lobby-work.mjs');
+  const state = await scratch('madre-lobby-work-');
+  try {
+    const now = Date.parse('2026-10-10T12:00:00Z');
+    const line = (type, payload, timestamp) => `${JSON.stringify({ id: 'x', sequence: 1, type, timestamp, payload })}\n`;
+    // A room asleep (no open.json) with one conversation, and one with an older one and a newer one.
+    const rooms = [{ id: 'shop-1', name: 'shop' }, { id: 'notes-2', name: 'notes' }];
+    for (const room of rooms) await mkdir(join(state, 'rooms', room.id, 'chats', 'abcdef0123'), { recursive: true });
+    await writeFile(join(state, 'rooms', 'shop-1', 'chats.json'), JSON.stringify({ active: 'main', chats: { main: { title: 'Precios', createdAt: '2026-10-09T10:00:00Z', updatedAt: '2026-10-09T10:05:00Z', messages: 2, preview: 'ok' } } }));
+    await writeFile(join(state, 'rooms', 'shop-1', 'events.jsonl'), [
+      line('quota.updated', { agent: 'codex' }, '2026-10-09T10:00:00Z'),
+      line('message.created', { role: 'user', sender: 'human', text: 'Sube los precios un 5 %' }, '2026-10-09T10:01:00Z'),
+      line('message.created', { role: 'assistant', sender: 'claude', status: 'delegated', text: 'paso interno' }, '2026-10-09T10:02:00Z'),
+      line('message.created', { role: 'assistant', sender: 'claude', status: 'completed', text: 'Listo: precios +5 % en el catálogo.' }, '2026-10-09T10:05:00Z'),
+    ].join(''));
+    await writeFile(join(state, 'rooms', 'notes-2', 'chats.json'), JSON.stringify({ active: 'main', chats: {
+      main: { title: 'Viejo', createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-01T10:00:00Z', messages: 4, preview: 'viejo' },
+      abcdef0123: { title: 'Índice', createdAt: '2026-10-10T09:00:00Z', updatedAt: '2026-10-10T09:30:00Z', messages: 2, preview: 'hecho' },
+    } }));
+    await writeFile(join(state, 'rooms', 'notes-2', 'chats', 'abcdef0123', 'events.jsonl'), line('message.created', { role: 'assistant', sender: 'codex', text: 'Índice regenerado.' }, '2026-10-10T09:30:00Z'));
+
+    const said = await lastMessages(join(state, 'rooms', 'shop-1', 'events.jsonl'));
+    assert.deepEqual(said.map((one) => [one.who, one.text]), [['person', 'Sube los precios un 5 %'], ['claude', 'Listo: precios +5 % en el catálogo.']], 'a delegation or a quota reading was taken for something said');
+
+    const work = await recentWork({ stateRoot: state, rooms, now });
+    assert.deepEqual(work.map((item) => [item.name, item.title]), [['notes', 'Índice'], ['shop', 'Precios']], 'not newest first, or an old conversation crept in');
+    assert.match(workPrompt(work), /#1 · «Índice»[\s\S]*@codex: Índice regenerado\.[\s\S]*#2 · «Precios»[\s\S]*Persona: Sube los precios/);
+    assert.doesNotMatch(workPrompt(work), /shop|notes/, 'the model is told the projects, so it can mix them');
+
+    // The project of each line is the conversation's, by its number; a number it was not given, a
+    // second line for the same one, or a line without a number is not shown.
+    const bullets = parseWork('Aquí va:\n#2: Se subieron los precios un 5 %.\n#7: Se cerró el trimestre.\n- **#1.** Se regeneró el índice.\n#2: otra vez lo mismo\n[shop] sin número', work);
+    assert.deepEqual(parseWork('#1: Índice.\n#2: «Precios»', work), [], 'a line that only repeats the conversation\'s name was shown');
+    assert.deepEqual(bullets, [{ room: 'shop-1', name: 'shop', text: 'Se subieron los precios un 5 %.' }, { room: 'notes-2', name: 'notes', text: 'Se regeneró el índice.' }]);
+  } finally {
+    await rm(state, { recursive: true, force: true });
+  }
+});
+
+test('lobby · the last work and the decisions are read only by the lobby\'s own page, on this Mac', async () => {
+  const state = await scratch('madre-lobby-reads-');
+  const project = await scratch('madre-lobby-reads-project-');
+  let server = null;
+  try {
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: roster, invokers: {} }));
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    for (const path of ['/api/salas/work', '/api/salas/decisions']) {
+      assert.equal((await fetch(`${base}${path}`, { headers: { 'sec-fetch-site': 'cross-site' } })).status, 403, `another site read ${path}`);
+      assert.equal((await fetch(`${base}${path}`, { headers: { 'x-madre-device': 'phone-1' } })).status, 403, `a phone read ${path}`);
+    }
+    // Asking for the summary again is a POST: only with this page's origin.
+    assert.equal((await fetch(`${base}/api/salas/work`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 403, 'a process without an origin asked for a summary');
+    const work = await fetch(`${base}/api/salas/work`, { headers: { 'sec-fetch-site': 'same-origin' } }).then((response) => response.json());
+    assert.equal(work.state, 'empty', 'a lobby with no conversations made something up');
+    const decisions = await fetch(`${base}/api/salas/decisions`, { headers: { 'sec-fetch-site': 'same-origin' } }).then((response) => response.json());
+    assert.ok(Array.isArray(decisions.decisions));
+  } finally {
+    if (server) await close(server);
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
 });

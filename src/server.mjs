@@ -18,7 +18,7 @@ import { createEmbedder } from './embeddings.mjs';
 import { memoryServerFor } from './memory-tools.mjs';
 import { MotherChannel, CODE000_STRIKES } from './mother.mjs';
 import { ErrorSentinel } from './sentinel-errors.mjs';
-import { probeOllama, ollamaEmbedder, ollamaInvoker, pullModel, ollamaVersions, ownOllamaServers } from './ollama.mjs';
+import { probeOllama, ollamaEmbedder, ollamaGenerate, ollamaInvoker, pullModel, ollamaVersions, ownOllamaServers } from './ollama.mjs';
 import { recallForTurn } from './modules/enlaces.mjs';
 import { MODULES, moduleById, describeModules, findModuleRoute, toolsForTurn as modulesToolsForTurn, loadExternalModules, loadFailures, moduleFolders, moduleCommands, installModuleFile, installModuleText, verifyModuleText, moduleOrigin, removeExternalModule } from './modules/index.mjs';
 import { madreAgent, madreInvoker, MADRE_AGENT_ID, MADRE_ADAPTER } from './adapters/madre.mjs';
@@ -92,6 +92,7 @@ import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
 import { askRoom, associateProject, ensureSalasProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
+import { parseWork, recentWork, WORK_SYSTEM, workPrompt } from './lobby-work.mjs';
 import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
@@ -299,6 +300,11 @@ export async function createPulseServer({
   // Ollama, when it is there: local embeddings and a local archivist. Probed at
   // start and again from MODULES; wired live, no restart.
   let ollama = { running: false, host: null, models: [], embedModel: null, chatModel: null };
+  // The lobby's two readings (src/lobby-work.mjs): MADRE's summary of what was worked on last, kept
+  // beside this room's record so a restart does not lose it, and the recent decisions of the open
+  // rooms, asked of them at most every few minutes (each room works its zones out itself).
+  const lobbyWork = { file: join(roomDir, 'lobby-work.json'), loaded: false, key: null, at: 0, tried: 0, bullets: null, model: null, error: null, running: null };
+  const lobbyDecisions = { at: 0, list: null, running: null };
   // Every conversation's room other than the open one (see the note above mountChat); declared
   // here because the local wiring below reaches all of them.
   const parked = new Map();   // chatId -> { room, store, off, feed }
@@ -1533,7 +1539,7 @@ export async function createPulseServer({
       // folders (Sec-Fetch-Site) or to add one (Origin), and so is any host name but this Mac's
       // own, so a name pointed at it from outside reaches nothing. Folders are listed inside the
       // home folder only; what is listed is names, never what a file says.
-      if (url.pathname === '/api/salas/folders' || url.pathname === '/api/salas/suggestions' || url.pathname === '/api/salas/projects') {
+      if (url.pathname === '/api/salas/folders' || url.pathname === '/api/salas/suggestions' || url.pathname === '/api/salas/projects' || url.pathname === '/api/salas/work' || url.pathname === '/api/salas/decisions') {
         const host = String(request.headers.host ?? '');
         const localHost = /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host);
         const site = request.headers['sec-fetch-site'];
@@ -1548,6 +1554,66 @@ export async function createPulseServer({
         }
         if (request.method === 'GET' && url.pathname === '/api/salas/suggestions') {
           return sendJson(response, 200, { suggestions: await suggestProjects({ home, stateRoot: root }) });
+        }
+        // WHAT WAS WORKED ON LAST: the newest conversations of every room the lobby knows (read from
+        // their folders, open or asleep), and MADRE's summary of them with its local model. The
+        // summary is written in the background and kept until what it summarises changes; it is
+        // written again at most every five minutes, or when the person asks (POST). Without a local
+        // model the lobby shows the conversations as they are, and says why.
+        if (url.pathname === '/api/salas/work' && (request.method === 'GET' || request.method === 'POST')) {
+          const salas = salasRoomId(root);
+          const rooms = (await knownRooms(root)).map((one) => ({ id: one.id, name: one.id === salas ? 'BISHOP' : one.name }));
+          const items = await recentWork({ stateRoot: root, rooms, limit: 5 });
+          const sources = items.map(({ room, name, chat, title, at, said }) => ({ room, name, chat, title, at, last: said?.at(-1) ?? null }));
+          if (!items.length) return sendJson(response, 200, { state: 'empty', sources });
+          if (!lobbyWork.loaded) {
+            lobbyWork.loaded = true;
+            const kept = await readFile(lobbyWork.file, 'utf8').then((raw) => JSON.parse(raw)).catch(() => null);
+            if (kept?.bullets?.length) Object.assign(lobbyWork, { key: kept.key, at: kept.at, tried: kept.at, bullets: kept.bullets, model: kept.model ?? null });
+          }
+          const settings = await ollamaSettings();
+          const model = ollama.madreModel ?? ollama.chatModel;
+          if (!ollama.running || !model || !settings.enabled || settings.agent === false) return sendJson(response, 200, { state: 'unavailable', sources, bullets: lobbyWork.bullets, at: lobbyWork.at || null, model: lobbyWork.model });
+          const key = createHash('sha256').update(items.map((item) => `${item.room}:${item.chat}:${item.at}:${item.messages}`).join('|')).digest('hex').slice(0, 16);
+          const asked = request.method === 'POST';
+          const due = !lobbyWork.bullets || (lobbyWork.key !== key && Date.now() - lobbyWork.tried > 5 * 60 * 1000);
+          if (!lobbyWork.running && (asked || due)) {
+            lobbyWork.tried = Date.now();
+            const language = roomLanguage() === 'en' ? 'en' : 'es';
+            lobbyWork.running = ollamaGenerate({ host: ollama.host, model, system: WORK_SYSTEM[language], prompt: workPrompt(items, language), fetchImpl: reportFetch, timeoutMs: 120000, temperature: 0.1 })
+              .then(async (answer) => {
+                const bullets = parseWork(answer.text, items);
+                if (!bullets.length) throw new Error('MADRE answered nothing the lobby could check against the conversations.');
+                Object.assign(lobbyWork, { key, at: Date.now(), bullets, model, error: null });
+                await writeFile(lobbyWork.file, JSON.stringify({ key, at: lobbyWork.at, bullets, model })).catch(() => {});
+              })
+              .catch((error) => { lobbyWork.error = String(error?.message ?? error).slice(0, 200); })
+              .finally(() => { lobbyWork.running = null; });
+          }
+          const state = lobbyWork.running ? 'working' : lobbyWork.bullets ? 'ready' : 'failed';
+          return sendJson(response, 200, { state, sources, bullets: lobbyWork.bullets, at: lobbyWork.at || null, model: lobbyWork.model ?? model, stale: Boolean(lobbyWork.bullets) && lobbyWork.key !== key, error: state === 'failed' ? lobbyWork.error : null });
+        }
+        // RECENT DECISIONS: what the open rooms decided last, as each room keeps it (only the notes
+        // that travel into turns: hold and bridge; never med bay or jettisoned), newest first.
+        // Asked of the rooms at most every five minutes; a room asleep, sealed or older says nothing.
+        if (request.method === 'GET' && url.pathname === '/api/salas/decisions') {
+          if (!lobbyDecisions.running && (!lobbyDecisions.list || Date.now() - lobbyDecisions.at > 5 * 60 * 1000)) {
+            const salas = salasRoomId(root);
+            lobbyDecisions.running = (async () => {
+              const open = (await knownRooms(root)).filter((one) => one.open);
+              const lists = await Promise.all(open.map(async (one) => {
+                const answer = await askRoom(one.open.port, `/api/memory?designation=${encodeURIComponent(one.name)}`, { timeoutMs: 6000 });
+                if (!Array.isArray(answer?.memories)) return [];
+                return answer.memories
+                  .filter((note) => note.kind === 'decision' && (note.zone === 'hold' || note.zone === 'bridge') && typeof note.text === 'string')
+                  .map((note) => ({ room: one.id, name: one.id === salas ? 'BISHOP' : one.name, text: note.text.slice(0, 260), at: note.created ?? null }));
+              }));
+              lobbyDecisions.list = lists.flat().sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))).slice(0, 6);
+              lobbyDecisions.at = Date.now();
+            })().catch(() => {}).finally(() => { lobbyDecisions.running = null; });
+          }
+          if (!lobbyDecisions.list) await lobbyDecisions.running;
+          return sendJson(response, 200, { decisions: lobbyDecisions.list ?? [], at: lobbyDecisions.at || null });
         }
         if (request.method === 'POST' && url.pathname === '/api/salas/projects') {
           const payload = await body(request).catch(() => ({}));

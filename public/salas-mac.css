@@ -55,20 +55,14 @@ body.salas-mac {
 .sm-hero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; margin: 22px 0 24px; }
 .sm-hero h1 { margin: 0; font-size: clamp(40px, 5vw, 60px); font-weight: 700; letter-spacing: -.025em; line-height: 1.02; }
 .sm-sub { margin: 10px 0 0; font-size: 15px; color: var(--text-2); }
-.sm-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* The hero's tools stand on a raised bar, as the room's keys stand on its bar: the search and the
+   rail sink into it (the room's .settings-search and .sx-seg), the key that adds stands up. */
+.sm-tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 6px; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
+.sm-tools .sm-search { flex: 0 1 260px; min-width: 180px; }
+.sm-tools .sm-search input::-webkit-search-cancel-button { cursor: pointer; }
+/* The top bar's keys, on a raised bar of their own (the room's bar). */
+.sm-bar { display: inline-flex; align-items: center; gap: 6px; padding: 5px; border-radius: 12px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
 
-/* The search box and the segmented choice: a track sunk into the ground, the chosen one raised. */
-.sm-search { display: inline-flex; align-items: center; gap: 8px; height: 32px; min-width: 230px; padding: 0 10px; border-radius: 10px; background: color-mix(in srgb, var(--surface, var(--panel)) 55%, transparent); box-shadow: var(--key-track); color: var(--text-2); cursor: text; }
-.sm-search svg { flex: none; width: 16px; height: 16px; }
-.sm-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 13.5px; }
-.sm-search input::placeholder { color: var(--text-2); }
-.sm-search input::-webkit-search-cancel-button { cursor: pointer; }
-.sm-search:focus-within { box-shadow: var(--key-down), 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 40%, transparent); }
-.sm-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 10px; box-shadow: var(--key-track); background: transparent; }
-.sm-seg button { min-width: 36px; height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font-family: var(--read); font-size: 12.5px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
-.sm-seg button:hover { color: var(--text); }
-.sm-seg button[aria-checked="true"] { background: var(--surface, var(--panel)); color: var(--text); font-weight: 650; box-shadow: var(--key-rest); }
-.sm-seg button:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
 
 /* THE BENTO: twelve columns, rows of 118 px that grow when a tile needs more. A tile is the room's
    surface raised by the one light every card shares (--raise); nothing glows, nothing has a rim
@@ -77,7 +71,7 @@ body.salas-mac {
 .sm-bento + .sm-bento, .sm-none + .sm-bento, .sm-bento + .sm-none { margin-top: 16px; }
 .sm-projects, .sm-low { grid-auto-rows: auto; }
 .sm-tile { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 18px 20px; border-radius: 22px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
-.c-3 { grid-column: span 3; } .c-4 { grid-column: span 4; } .c-8 { grid-column: span 8; }
+.c-3 { grid-column: span 3; } .c-4 { grid-column: span 4; } .c-5 { grid-column: span 5; } .c-8 { grid-column: span 8; }
 .r-1 { grid-row: span 1; } .r-2 { grid-row: span 2; } .r-3 { grid-row: span 3; }
 .sm-projects > .sm-tile { grid-column: span 3; }
 .sm-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
@@ -140,9 +134,6 @@ body.salas-mac {
 @keyframes sm-turn { to { transform: rotate(360deg); } }
 .sm-error { margin: 0; font-size: 13px; color: var(--terror); }
 /* «Ask BISHOP about this one»: BISHOP's own mark, a key of its own at the end of the row. */
-.sm-ask-bishop { margin-left: auto; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; transition: transform 140ms var(--ease-out, ease-out); }
-.sm-ask-bishop:hover { transform: translateY(-1px); }
-.sm-ask-bishop:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
 
 .sm-none { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0; padding: 22px; border-radius: 22px; font-size: 14px; color: var(--text-2); box-shadow: var(--key-track); }
 .sm-foot { margin: 24px 0 0; font-size: 12.5px; color: var(--text-2); }
@@ -158,21 +149,26 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
 .sm-bishop-words h2 { margin: 0; font-family: var(--read); font-size: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
 .sm-bishop-keys { display: flex; align-items: center; gap: 8px; }
 .sm-bishop-about { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); max-width: 680px; }
-.sm-bishop-last { display: grid; gap: 3px; max-width: 86%; padding: 11px 14px; border-radius: 16px; border-bottom-left-radius: 6px; background: color-mix(in srgb, var(--text) 5%, var(--surface, var(--panel))); box-shadow: var(--key-rest); }
-.sm-bishop-last-head { display: flex; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-2); }
-.sm-bishop-last-head time { margin-left: auto; font-family: var(--mono); font-size: 11px; }
-.sm-bishop-last b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-bishop-last p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .sm-bishop-asks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* THE LAST WORK, under BISHOP: MADRE's summary, a line per thing done, each led by its project. */
+.sm-work { display: grid; gap: 10px; margin-top: 4px; padding: 14px 16px 12px; border-radius: 16px; box-shadow: var(--key-track); flex: 1; align-content: start; }
+.sm-work-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sm-work-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; color: var(--text); }
+.sm-work-by { flex: 1; min-width: 0; font-family: var(--mono); font-size: 11px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-work-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.sm-work-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--text); animation: sm-line-in calc(320ms * var(--motion-scale, 1)) var(--ease-out, ease-out) both; }
+.sm-work-list li:nth-child(2) { animation-delay: 60ms; } .sm-work-list li:nth-child(3) { animation-delay: 120ms; } .sm-work-list li:nth-child(4) { animation-delay: 180ms; } .sm-work-list li:nth-child(5) { animation-delay: 240ms; }
+.sm-work-list li.raw { grid-template-columns: auto minmax(0, 1fr) auto; }
+.sm-work-list li.raw span { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-work-list li.raw b { color: var(--text); font-weight: 600; }
+.sm-work-list time { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+.sm-work > .sm-hint { margin-top: 2px; }
+.sm-work.is-working .sm-work-by::before, .sm-work.is-working > .sm-hint::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 7px; vertical-align: -1px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--s-acc) 30%, transparent); border-top-color: var(--s-acc); animation: sm-turn .8s linear infinite; }
+@keyframes sm-line-in { from { opacity: 0; transform: translateY(4px); } }
+/* A project's name as a tag: flat tone, a way into it when it is open. */
+.sm-tag-room { font-family: var(--read); font-size: 11.5px; font-weight: 600; letter-spacing: 0; color: var(--text); text-decoration: none; white-space: nowrap; }
+a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transparent); }
 .sm-chip.ask { max-width: 100%; padding: 5px 10px; border: 0; font-family: var(--read); font-size: 12.5px; font-weight: 600; letter-spacing: 0; color: color-mix(in srgb, var(--s-acc) 72%, var(--text)); background: color-mix(in srgb, var(--s-acc) 15%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.sm-ask-box { display: flex; align-items: center; gap: 10px; height: 46px; margin-top: auto; padding: 0 6px 0 18px; border-radius: 999px; box-shadow: var(--key-track); background: color-mix(in srgb, var(--surface, var(--panel)) 40%, transparent); }
-.sm-ask-box:focus-within { box-shadow: var(--key-track), 0 0 0 2px color-mix(in srgb, var(--s-acc) 55%, transparent); }
-.sm-ask-box input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; }
-.sm-ask-box input::placeholder { color: var(--text-2); }
-.sm-send { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: var(--s-acc); color: var(--s-acc-ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 2px 6px rgba(0, 0, 0, .08); cursor: pointer; }
-.sm-send svg { width: 17px; height: 17px; }
-.sm-send:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
-.sm-bishop .sm-hint { margin-top: -4px; padding-left: 18px; }
 
 /* Waiting for you: one number, green when nobody waits, the accent when someone does. */
 .sm-waiting.has .sm-big { color: var(--s-acc); }
@@ -194,7 +190,21 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
 .sm-map .label { font-family: var(--read); font-size: 11px; font-weight: 600; fill: var(--text-2); }
 .sm-map > .sm-hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 12px; }
 
-/* Memory, agents, appearance: the low row. */
+/* The low row: what was decided, what needs you, and the memory. */
+.sm-decisions { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.sm-decision { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line); }
+.sm-decision:first-child { border-top: 0; padding-top: 2px; }
+.sm-decision-head { display: flex; align-items: center; gap: 8px; }
+.sm-decision-head time { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+.sm-decision p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.sm-attention { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sm-attention-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; box-shadow: var(--key-track); }
+.sm-attention-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--session-wait); }
+.sm-attention-item.is-bad .dot { background: var(--session-bad); }
+.sm-attention-item.is-ok .dot, .sm-attention-item.is-calm .dot { background: var(--session-ok); }
+.sm-attention-words { display: grid; gap: 1px; min-width: 0; }
+.sm-attention-words b { font-size: 13px; font-weight: 600; color: var(--text); }
+.sm-attention-words span { font-size: 12px; line-height: 1.4; color: var(--text-2); }
 .sm-memory-body { display: grid; gap: 9px; }
 .sm-memory-body .sm-strip { height: 8px; }
 .sm-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--text-2); }
@@ -206,14 +216,6 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
 .sm-legend .k-question::before { background: var(--mem-question); }
 .sm-legend .k-aberration::before { background: var(--mem-aberration); }
 :root[data-scheme="light"] .sm-legend .k-fact::before { background: #b9c6d6; }
-.sm-agents-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.sm-agent-key { position: relative; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
-.sm-agent-key::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--session-ok); box-shadow: 0 0 0 2px var(--surface, var(--panel)); }
-.sm-agent-key.wait::after { background: var(--session-wait); }
-.sm-agent-key.bad::after { background: var(--session-bad); }
-.sm-agent-key:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 2px; }
-.sm-connect { margin-left: auto; }
-.sm-looks-body { display: grid; gap: 12px; justify-items: start; }
 .sm-swatches { display: flex; flex-wrap: wrap; gap: 7px; }
 .sm-swatch { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: var(--acc); box-shadow: var(--key-rest); cursor: pointer; }
 .sm-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface, var(--panel)), 0 0 0 4px var(--acc); }
@@ -240,7 +242,8 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
   .sm-top { padding: 16px 18px 0; }
   .sm-main { padding: 12px 18px 40px; }
   .sm-projects > .sm-tile { grid-column: 1 / -1; }
-  .sm-search { min-width: 0; flex: 1; }
+  .sm-tools { flex-wrap: wrap; width: 100%; }
+  .sm-tools .sm-search { flex: 1 1 100%; }
   .sm-bishop-head { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -272,7 +275,8 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
 .sm-sheet .pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; }
 .sm-sheet .pair .arrow { padding-bottom: 9px; font-size: 18px; color: var(--text-3); text-align: center; }
 .sm-sheet label { display: grid; gap: 5px; font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
-.sm-sheet select, .sm-sheet input[type="text"] { height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: var(--panel-2); color: var(--text); font: inherit; font-size: 14px; box-shadow: inset 0 0 0 1px var(--line); }
+.sm-sheet select, .sm-sheet input[type="text"] { height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: 14px; box-shadow: var(--key-track); outline: 0; }
+.sm-sheet select:focus, .sm-sheet input[type="text"]:focus { box-shadow: var(--key-down); }
 .sm-sheet .row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13.5px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text); }
 .sm-sheet .row input { accent-color: var(--s-acc); }
 .sm-sheet .hint { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
@@ -366,15 +370,59 @@ body.sm-in-macro { overflow: hidden; }
 .sm-sheet-body .error:empty { display: none; }
 .sm-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sm-sheet-head > h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
-.sm-x { flex: none; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 9px; background: var(--surface, var(--panel)); color: var(--text-2); box-shadow: var(--key-rest); font-size: 16px; line-height: 1; cursor: pointer; }
-.sm-x:hover { color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
-.sm-x:active { box-shadow: var(--key-down); }
 
-/* The wizard's steps: a track, the current one raised. */
-.sm-steps { display: inline-flex; gap: 3px; margin: 0; padding: 3px; list-style: none; border-radius: 999px; box-shadow: var(--key-track, inset 0 0 0 1px var(--line-2)); }
-.sm-steps li { padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text-3); }
-.sm-steps li.done { color: var(--text-2); }
-.sm-steps li.on { color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-rest, none); }
+/* The wizard's steps on the room's rail (.sx-seg): a sunk track, the current step raised and
+   heavier, the ones behind marked done. */
+.sm-steps { display: inline-flex; gap: 4px; margin: 0; padding: 4px; list-style: none; border-radius: 12px; box-shadow: var(--key-track); }
+.sm-steps li { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 450; color: var(--text-2); transition: color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-steps li.done::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--session-ok); }
+.sm-steps li.on { color: var(--text); font-weight: 700; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+
+/* The wizard's scenes: what each step is about, moving, over it. */
+.sm-scene { position: relative; height: 168px; overflow: hidden; border-radius: 18px; box-shadow: var(--key-track); background: radial-gradient(420px 180px at 50% 120%, color-mix(in srgb, var(--s-acc) 16%, transparent), transparent 70%), radial-gradient(360px 160px at 50% -40%, color-mix(in srgb, #4fc3f7 10%, transparent), transparent 70%); animation: sm-scene-in calc(420ms * var(--motion-scale, 1)) var(--ease-out, ease-out) both; }
+@keyframes sm-scene-in { from { opacity: 0; transform: scale(.985); } }
+.sm-step { display: grid; gap: 14px; animation: sm-step-in calc(380ms * var(--motion-scale, 1)) var(--ease-out, ease-out) both; }
+.sm-step.back { animation-name: sm-step-back; }
+@keyframes sm-step-in { from { opacity: 0; transform: translateX(18px); } }
+@keyframes sm-step-back { from { opacity: 0; transform: translateX(-18px); } }
+.sm-scene-node { position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; }
+/* 1 · The agents come to MADRE; each lights up, and its wire carries the beat, once connected. */
+.scene-agents .sm-wires { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sm-wire { stroke: var(--text-3); stroke-opacity: .45; stroke-width: 1.4; stroke-dasharray: 3 5; animation: sm-flow 1.6s linear infinite; }
+.sm-wire.on { stroke: var(--s-acc); stroke-opacity: .9; stroke-width: 2; stroke-dasharray: 6 8; animation-duration: .9s; }
+@keyframes sm-flow { to { stroke-dashoffset: -16; } }
+.scene-agents .agent { animation: sm-arrive calc(620ms * var(--motion-scale, 1)) var(--ease-out, ease-out) var(--d) both, sm-float 4.2s ease-in-out calc(var(--d) + 700ms) infinite alternate; }
+.scene-agents .agent .sm-mark { opacity: .55; filter: saturate(.4); transition: opacity 300ms, filter 300ms; }
+.scene-agents .agent.on .sm-mark { opacity: 1; filter: none; }
+.scene-agents .agent::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px; border-radius: 50%; background: var(--session-ok); box-shadow: 0 0 0 2px var(--surface, var(--panel)); transform: scale(0); transition: transform 260ms var(--ease-out, ease-out); }
+.scene-agents .agent.on::after { transform: scale(1); }
+@keyframes sm-arrive { from { opacity: 0; transform: translate(-50%, -50%) scale(.4); } }
+@keyframes sm-float { to { transform: translate(-50%, calc(-50% - 5px)); } }
+.scene-agents .core::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--s-acc) 50%, transparent); animation: sm-ring 2.4s ease-out infinite; }
+@keyframes sm-ring { from { transform: scale(.9); opacity: .9; } to { transform: scale(1.7); opacity: 0; } }
+/* 2 · The folders drop into the lobby, one after another, and its tiles light up. */
+.sm-tray { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: grid; grid-template-columns: repeat(5, 46px); gap: 10px; padding: 8px; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
+.sm-slot { height: 30px; border-radius: 8px; box-shadow: var(--key-track); animation: sm-slot 5s ease-out calc(var(--i) * 420ms + 900ms) infinite; }
+@keyframes sm-slot { 0%, 100% { background: transparent; } 12%, 70% { background: color-mix(in srgb, var(--s-acc) 26%, transparent); } }
+.sm-fly { position: absolute; top: 0; width: 30px; height: 25px; margin-left: -15px; color: color-mix(in srgb, var(--s-acc) 70%, var(--text-2)); animation: sm-drop 5s cubic-bezier(.3, .7, .4, 1) calc(var(--i) * 420ms) infinite; opacity: 0; }
+.sm-fly svg { width: 100%; height: 100%; display: block; }
+@keyframes sm-drop { 0% { opacity: 0; transform: translateY(-10px) rotate(-8deg); } 8% { opacity: 1; transform: translateY(16px) rotate(-4deg); } 18% { opacity: 1; transform: translateY(104px) rotate(0) scale(.9); } 24% { opacity: 0; transform: translateY(110px) scale(.6); } 100% { opacity: 0; transform: translateY(110px) scale(.6); } }
+/* 3 · The rooms light up one after another as the beat runs through them. */
+.sm-wins { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 26px; }
+.sm-win { display: grid; gap: 7px; align-content: start; width: 104px; height: 74px; padding: 9px 10px; border-radius: 12px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); animation: sm-win 3s ease-out calc(var(--i) * 500ms + 300ms) infinite; }
+.sm-win-bar { display: block; width: 26px; height: 6px; border-radius: 3px; background: var(--text-3); opacity: .5; }
+.sm-win-line { display: block; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.sm-win-line.short { width: 60%; }
+@keyframes sm-win { 0%, 100% { box-shadow: var(--raise, var(--key-rest)); } 14%, 46% { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 70%, transparent), var(--raise, var(--key-rest)); } }
+.sm-win .sm-win-line { animation: sm-win-line 3s ease-out calc(var(--i) * 500ms + 300ms) infinite; }
+@keyframes sm-win-line { 0%, 100% { background: color-mix(in srgb, var(--text) 10%, transparent); } 14%, 46% { background: color-mix(in srgb, var(--s-acc) 45%, transparent); } }
+.sm-beat { position: absolute; left: 0; right: 0; top: 50%; width: 100%; height: 44px; transform: translateY(-50%); pointer-events: none; }
+.sm-beat path { fill: none; stroke: var(--s-acc); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 18 82; animation: sm-beat-run 3s linear infinite; opacity: .85; }
+@keyframes sm-beat-run { from { stroke-dashoffset: 18; } to { stroke-dashoffset: -82; } }
+@media (prefers-reduced-motion: reduce) {
+  .sm-scene, .sm-step, .sm-wire, .scene-agents .agent, .scene-agents .core::before, .sm-slot, .sm-win, .sm-win .sm-win-line, .sm-beat path, .sm-work-list li { animation: none !important; }
+  .sm-fly { animation: none; opacity: 1; transform: translateY(40px); }
+}
 
 /* Folders: rows on a raised list, a box to choose each, its kind as a small tag. */
 .sm-picker { display: grid; gap: 16px; }
