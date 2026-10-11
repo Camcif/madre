@@ -64,6 +64,9 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `766f4fa` | Claude | Quitar un proyecto de MADRE (`POST /api/salas/forget`); transición entre páginas de MADRE; aviso al agregar; conexiones en los dos sentidos sin dirección; chevron propio de los desplegables; etiquetas bajo las burbujas a su medida; el conmutador sin parpadeo y con fondo de malla; teclas de los dos mapas según tema y acento |
 | `90d66e1` | Claude | El Mapa de proyectos lleva el encabezado del Mapa de memoria (`.nostromo-head`: nombre en mono, línea al lado, leyenda de estrellas, teclas al final); `dwarfChip` y `collapsedChip` pasan a `nostromo-engine.js` |
 | `29e6191` | Claude | Versión y autor al pie de Inicio; invitación a dejar estrella o reseña (`src/review-ask.mjs`, `public/review-ask.js`); carga con el pulso de MADRE (`public/loader.js`) en recargas, idioma, actualización, hoja de trabajos y tarjetas de Inicio |
+| `bf6cd98` | Claude | Conexiones: el servidor no firma un par que ya está conectado (409), los planes del Coordinador lo marcan como vigente |
+| `fa13bf4` | Claude | Recorrido 1.0, fase 1: `src/tour.mjs`, `~/.pulse/tour.json`, `/api/tour*`, proyectos de 0.7.2 de vuelta en Inicio, la invitación a reseñar callada el día del bonjour |
+| `e871f12` | Claude | Recorrido 1.0: bonjour, 12 capítulos (`public/tour.js`, `public/tour-chapters.js`), `?` para los gestos y pistas en Cambiar de proyecto, Conexiones y #4 |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -354,6 +357,15 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   teléfono nunca. Los enlaces (GitHub, `madre.run/resenas/`) los abre el navegador: no pasan por el
   registro de salidas. Para probar la hoja sin tocar el archivo real, interceptar `fetch` de
   `/api/review-ask/*` en la página.
+- **Recorrido de 1.0** (opción B con dos piezas de C, decidido el 2026-10-11): `src/tour.mjs` guarda en
+  `~/.pulse/tour.json` el camino (`new` o `back`), el día del bonjour, los capítulos leídos, dónde
+  iba y las pistas vistas. «De vuelta» es quien tiene salas con `events.jsonl` o `memory.sqlite`.
+  `public/tour.js` lo usa Inicio y cada proyecto: cada página le pasa `go` (qué hace «Llévame ahí»
+  en ella) y `ready` (en la sala espera un agente listo y ningún turno). En la sala reemplaza el
+  recorrido viejo (`TOUR_STEPS`) y Novedades 1.0, que marca vistas al empezar. Para probarlo sin
+  tocar el `~/.pulse` real: un Inicio con `PULSE_HOME` y `PULSE_LOBBY_HOME` en una carpeta
+  temporal (salas con `events.jsonl` vacío cuyo id coincida con carpetas de esa casa), y
+  `POST /api/tour {"reset": true}` para empezar otra vez.
 - **Carga de MADRE** (`public/loader.js`: `makeLoader`, `setLoader`, `creep`, `finishLoader`,
   `LOADER_MARK`): la barra nunca retrocede. La recarga guarda en `sessionStorage['madre.curtain']` el
   porcentaje alcanzado; index.html y salas-mac.html reponen el telón con ese porcentaje antes del
