@@ -30,12 +30,12 @@ async function detect(projectRoot) {
 async function preflight(projectRoot, { toplevel = gitToplevel, npx = findOnPath } = {}) {
   const root = await realpath(projectRoot).catch(() => resolve(projectRoot));
   const problems = [];
-  if (!(await npx('npx'))) problems.push('npx is not on PATH for the MADRE server; start MADRE from a terminal where `npx --version` works.');
+  if (!(await npx('npx'))) problems.push(t('npx is not on PATH for the MADRE server; start MADRE from a terminal where `npx --version` works.'));
   const top = await toplevel(root);
   if (!top) {
-    problems.push('The project is not a git repository. AHP+ pins itself to the git root: run `git init` in the project first.');
+    problems.push(t('The project is not a git repository. AHP+ pins itself to the git root: run `git init` in the project first.'));
   } else if (top !== root) {
-    problems.push(`The project's git root is ${top}, not the project itself. AHP+ would install there. Run \`git init\` inside the project, or remove the stray repository at ${top}.`);
+    problems.push(t('The project\'s git root is {top}, not the project itself. AHP+ would install there. Run `git init` inside the project, or remove the stray repository at {top}.', { top }));
   }
   return { ok: problems.length === 0, problems, gitRoot: top };
 }

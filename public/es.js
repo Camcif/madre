@@ -543,6 +543,13 @@ export const ES = {
   '.ahp/ with manifest, sessions, handoffs and evidence': '.ahp/ con manifiesto, sesiones, traspasos y evidencia',
   'a project-local pin of @jossuealcala/ahp-plus': 'una versión fijada de @jossuealcala/ahp-plus dentro del proyecto',
   'IDE adapter files for the detected agents': 'archivos adaptadores de IDE para los agentes detectados',
+  // Lo que la revisión previa de Continuidad encuentra antes de escribir nada (2026-10-11).
+  'npx is not on PATH for the MADRE server; start MADRE from a terminal where `npx --version` works.':
+    'El servidor de MADRE no encuentra npx. Abre MADRE desde una terminal donde `npx --version` funcione.',
+  'The project is not a git repository. AHP+ pins itself to the git root: run `git init` in the project first.':
+    'El proyecto no es un repositorio git. AHP+ se instala en la raíz de git: primero ejecuta `git init` en el proyecto.',
+  'The project\'s git root is {top}, not the project itself. AHP+ would install there. Run `git init` inside the project, or remove the stray repository at {top}.':
+    'La raíz de git del proyecto es {top}, no el proyecto mismo, y AHP+ se instalaría ahí. Ejecuta `git init` dentro del proyecto, o quita el repositorio que sobra en {top}.',
   'the project is a git repository': 'que el proyecto sea un repositorio git',
   'npx on the PATH of the terminal MADRE was started from': 'npx en el PATH de la terminal desde donde arrancó MADRE',
   'not in this project': 'no está en este proyecto',
