@@ -21,7 +21,7 @@ export function startReviewAsk({ busy = () => false } = {}) {
   async function tick() {
     if (document.hidden || dialog?.open) return;
     const answer = await post('/api/review-ask/tick');
-    if (!answer?.due || document.hidden || busy() || document.querySelector('dialog[open]')) return;
+    if (!answer?.due || document.hidden || busy() || document.querySelector('dialog[open], .reload-curtain')) return;
     ask(answer.due);
   }
   function ask(moment) {

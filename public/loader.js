@@ -62,6 +62,16 @@ export function creep(node, { to = 0.9, every = 160, rate = 0.035 } = {}) {
   return () => clearInterval(timer);
 }
 
+// A curtain over the whole page, in the top layer (a popover): above any window that is open and
+// its blurred backdrop, so nothing ever lies over the loader. Where popovers do not exist it is an
+// ordinary fixed layer.
+export function showCurtain(node) {
+  if (typeof node.showPopover === 'function') node.popover = 'manual';
+  document.body.append(node);
+  try { node.showPopover?.(); } catch { /* already shown, or not a popover: it is on the page */ }
+  return node;
+}
+
 // Done: the bar fills, holds a moment, and whoever waited goes on.
 export function finishLoader(node, { hold = 260 } = {}) {
   setLoader(node, 1);

@@ -8,7 +8,7 @@
 import { setLanguage, t } from './i18n.js';
 import { brandOf, monogram } from './brands.js';
 import { startReviewAsk } from './review-ask.js';
-import { creep, finishLoader, makeLoader, setLoader } from './loader.js';
+import { creep, finishLoader, makeLoader, setLoader, showCurtain } from './loader.js';
 
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
@@ -58,15 +58,21 @@ const WALLPAPER_WORDS = { default: () => t('Default'), jarrito: () => 'Jarrito',
 // The conversation's own looks (app.js, LOOKS.bubbles and LOOKS.text): the lobby has no
 // conversation, so here they are only chosen, for the room served at this address.
 const BUBBLES = ['comfortable', 'large', 'compact', 'fitted'];
-const BUBBLE_WORDS = { comfortable: () => t('Comfortable'), large: () => t('Large'), compact: () => t('Compact'), fitted: () => t('Fitted') };
 const TEXTS = ['comfortable', 'larger', 'smaller', 'visual'];
-const TEXT_WORDS = { comfortable: () => t('Comfortable'), larger: () => t('Larger'), smaller: () => t('Smaller'), visual: () => t('Visual') };
 // The photographs' two dials, as the room keeps them (app.js, TUNES): the first value is no key.
 const TUNES = {
   veil: { key: 'pulse.wallpaper.veil', min: 0, max: 140, step: 5, value: 100, shown: (v) => `${v}%`, apply: (v) => root.style.setProperty('--veil-k', String(v / 100)) },
   blur: { key: 'pulse.wallpaper.blur', min: 0, max: 24, step: 1, value: 0, shown: (v) => `${v}px`, apply: (v) => root.style.setProperty('--wp-blur', `${v}px`) },
 };
-const LOOK_KEYS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text'];
+// Home's own choices (2026-10-11): how its project cards read, how large its text is and in which
+// order the projects come. Kept in this browser for Home alone: a project keeps its conversation's
+// (bubbles and text) in its own Settings. The first value of each is Home as it always was.
+const HOME_LOOKS = {
+  cards: { key: 'pulse.home.cards', values: ['full', 'compact'], words: { full: () => t('With their last conversation'), compact: () => t('Name and state only') } },
+  text: { key: 'pulse.home.text', values: ['comfortable', 'larger', 'smaller'], words: { comfortable: () => t('Comfortable'), larger: () => t('Larger'), smaller: () => t('Smaller') } },
+  order: { key: 'pulse.home.order', values: ['attention', 'name', 'recent'], words: { attention: () => t('Attention'), name: () => t('Name'), recent: () => t('Recent') } },
+};
+const LOOK_KEYS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text', ...Object.values(HOME_LOOKS).map((one) => one.key)];
 function readLooks() {
   let theme = 'auto';
   let accent = null;
@@ -91,6 +97,11 @@ function readLooks() {
     blur: number(blur, 0, 24, 0),
     bubbles: BUBBLES.includes(bubbles) ? bubbles : BUBBLES[0],
     text: TEXTS.includes(text) ? text : TEXTS[0],
+    home: Object.fromEntries(Object.entries(HOME_LOOKS).map(([name, spec]) => {
+      let value = null;
+      try { value = localStorage.getItem(spec.key); } catch { /* no storage */ }
+      return [name, spec.values.includes(value) ? value : spec.values[0]];
+    })),
   };
 }
 function applyLooks() {
@@ -107,6 +118,9 @@ function applyLooks() {
   root.style.setProperty('--wp-blur', `${looks.blur}px`);
   if (looks.bubbles !== BUBBLES[0]) root.dataset.bubbles = looks.bubbles; else delete root.dataset.bubbles;
   if (looks.text !== TEXTS[0]) root.dataset.text = looks.text; else delete root.dataset.text;
+  // Home's own: its cards and its text (salas-mac.css, data-home-*); the order is draw()'s.
+  if (looks.home.cards !== 'full') root.dataset.homeCards = looks.home.cards; else delete root.dataset.homeCards;
+  if (looks.home.text !== 'comfortable') root.dataset.homeText = looks.home.text; else delete root.dataset.homeText;
 }
 applyLooks();
 function saveLooks({ theme, accent, wallpaper, style, bubbles, text }) {
@@ -121,6 +135,13 @@ function saveLooks({ theme, accent, wallpaper, style, bubbles, text }) {
     if (text) keep('pulse.text', text, TEXTS[0]);
   } catch { /* the choice lasts as long as the page */ }
   applyLooks();
+  settingsSheet?.paintLooks();
+}
+function saveHome(name, value) {
+  const spec = HOME_LOOKS[name];
+  try { if (value === spec.values[0]) localStorage.removeItem(spec.key); else localStorage.setItem(spec.key, value); } catch { /* the choice lasts as long as the page */ }
+  applyLooks();
+  if (name === 'order' && typeof draw === 'function') draw();
   settingsSheet?.paintLooks();
 }
 // A dial is saved when it is let go and shown while it moves; the sheet is not painted again under
@@ -297,7 +318,14 @@ function projectsInOrder() {
   const open = projects.filter((room) => room.open)
     .sort((a, b) => (ORDER[stateOf(a).key] - ORDER[stateOf(b).key]) || (Date.parse(b.glance?.chat?.at ?? 0) - Date.parse(a.glance?.chat?.at ?? 0)));
   const asleep = projects.filter((room) => !room.open).sort((a, b) => Date.parse(b.lastOpened ?? b.added ?? 0) - Date.parse(a.lastOpened ?? a.added ?? 0));
-  return { all: [...open, ...asleep], open, asleep };
+  // The order Home's Appearance chose: what needs the person first (as above), by name, or by the
+  // last thing that happened in each, open or asleep.
+  const order = readLooks().home.order;
+  const touched = (room) => Math.max(Date.parse(room.glance?.chat?.at ?? 0) || 0, Date.parse(room.lastOpened ?? room.added ?? 0) || 0);
+  const all = order === 'name' ? [...projects].sort((a, b) => a.name.localeCompare(b.name, language))
+    : order === 'recent' ? [...projects].sort((a, b) => touched(b) - touched(a))
+      : [...open, ...asleep];
+  return { all, open, asleep };
 }
 function draw() {
   if (!data) return;
@@ -408,13 +436,39 @@ async function loadAgents() {
   settingsSheet?.sync();
 }
 // MADRE itself: the version this room runs and the newest one it knows of.
+// Asked again every hour (the server asks npm at most once a day); the first time a newer MADRE
+// shows up while Home is open, it says so once, and the pill stays in the bar.
+let versionAnnounced = null;
 async function loadVersion() {
   const answer = await fetch('/api/version', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
   if (!answer) return;
   versionSeen = answer;
+  if (answer.available && answer.latest && versionAnnounced !== answer.latest) {
+    versionAnnounced = answer.latest;
+    toast(t('MADRE {version} is out. Update it from the bar.', { version: answer.latest }), 'look');
+  }
   drawAttention();
   drawTopbar();
   settingsSheet?.sync();
+}
+setInterval(() => { if (!document.hidden) void loadVersion(); }, 60 * 60 * 1000);
+
+// The open projects that run an older MADRE than Home: Home was updated, they were not restarted.
+const versionParts = (value) => String(value ?? '').split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+function olderVersion(a, b) {
+  const [x, y] = [versionParts(a), versionParts(b)];
+  for (let i = 0; i < Math.max(x.length, y.length); i += 1) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
+  return false;
+}
+function behindRooms() {
+  if (!data?.version) return [];
+  return data.rooms.filter((room) => room.open?.version && !room.here && room.id !== data.salas && olderVersion(room.open.version, data.version) && !busy.has(room.id));
+}
+// A project restarted with the MADRE Home runs: closed, then opened again where it was.
+async function restartRoom(room) {
+  await closeRoom(room);
+  if (data?.rooms.find((one) => one.id === room.id)?.open) return;
+  await startRoom(room);
 }
 
 // NEEDS YOU: what the person would want to know before anything else, from what the rooms, the
@@ -438,7 +492,9 @@ function attentionItems() {
     const { source, reader } = endsOf(enlace);
     items.push({ tone: 'wait', words: t('The connection {reader} ← {source} ends {when}.', { reader: roomName(reader), source: roomName(source), when: ago(enlace.expires) }), hint: t('Sign it again if it should go on.'), act: () => ui.linksSheet.showModal(), go: t('See the connections') });
   }
-  if (versionSeen?.available && versionSeen.latest) items.push({ tone: 'ok', words: t('MADRE {version} is out.', { version: versionSeen.latest }), hint: t('You run {version}. Each project updates from its settings, in Version.', { version: versionSeen.current }), href: versionSeen.release, external: true, go: t('What it brings') });
+  if (versionSeen?.available && versionSeen.latest) items.push({ tone: 'ok', words: t('MADRE {version} is out.', { version: versionSeen.latest }), hint: t('You run {version}. Home restarts with it from here.', { version: versionSeen.current }), act: () => openSettings('release'), go: t('Update') });
+  // After Home updated, the projects that stayed open still run the version they started with.
+  for (const room of behindRooms()) items.push({ tone: 'wait', words: t('{room} runs MADRE {version}.', { room: roomLabel(room), version: room.open.version }), hint: t('Restart it to bring it to {latest}: what is running stops.', { latest: data.version }), act: () => void restartRoom(room), go: t('Restart') });
   return items;
 }
 function drawAttention() {
@@ -1239,7 +1295,7 @@ function drawTopbar() {
   if (waiting) { b.waiting.href = addressOf(asking[0]); b.waiting.lastChild.textContent = t('{n} waiting for you', { n: waiting }); b.waiting.title = asking.map((room) => roomLabel(room)).join(' · '); }
   // A newer MADRE.
   b.update.hidden = !(versionSeen?.available && versionSeen.latest);
-  if (!b.update.hidden) { b.update.href = versionSeen.release ?? 'https://madre.run'; b.update.lastChild.textContent = `MADRE ${versionSeen.latest}`; b.update.title = t('MADRE {version} is out.', { version: versionSeen.latest }); }
+  if (!b.update.hidden) { b.update.lastChild.textContent = t('{version} AVAILABLE', { version: versionSeen.latest }); b.update.title = t('MADRE {version} is out.', { version: versionSeen.latest }); }
   // The links in force.
   const links = (data.enlaces ?? []).length;
   b.linksCount.hidden = !links;
@@ -1720,6 +1776,7 @@ function pinsIndexAt(x) {
 }
 
 ui.bar.links.addEventListener('click', () => { if ((data?.enlaces ?? []).length) { if (!ui.linksSheet.open) ui.linksSheet.showModal(); } else openLinkSheet(); });
+ui.bar.update.addEventListener('click', () => openSettings('release'));
 // RELOAD, as a room reloads (app.js, reloadWithGrace): the curtain of Home's own ground with MADRE's
 // loader; the page goes with the share it reached and the new one fills the rest (salas-mac.html).
 function reloadWithGrace() {
@@ -1727,7 +1784,7 @@ function reloadWithGrace() {
   const curtain = el('div', 'reload-curtain');
   const loader = makeLoader({ progress: 0.04 });
   curtain.append(loader);
-  document.body.append(curtain);
+  showCurtain(curtain);
   creep(loader, { to: 0.34, rate: 0.09 });
   setTimeout(() => {
     try { sessionStorage.setItem('madre.curtain', loader.dataset.p ?? '0.3'); } catch { /* the new page simply arrives */ }
@@ -2347,7 +2404,7 @@ const SET_CATS = {
 const SET_ORDER = ['look', 'bar', 'agents', 'bishop', 'projects', 'release'];
 // The words the search knows, each pointing to the category that holds it (app.js, SETTINGS_INDEX).
 const SET_INDEX = [
-  ['look', 'Preview'], ['look', 'Theme'], ['look', 'Accent'], ['look', 'Wallpaper'], ['look', 'Intensity'], ['look', 'Blur'], ['look', 'Bubbles'], ['look', 'Text'], ['look', 'Language'],
+  ['look', 'Preview'], ['look', 'Theme'], ['look', 'Accent'], ['look', 'Wallpaper'], ['look', 'Intensity'], ['look', 'Blur'], ['look', 'Project cards'], ['look', 'Text'], ['look', 'Project order'], ['look', 'Language'],
   ['bar', 'Arrange the bar'], ['bar', 'Back to default'],
   ['bishop', 'Talk to the Coordinator'], ['bishop', 'Open the Coordinator in a new tab'],
   ['projects', 'Add a project'], ['projects', 'See the welcome again'],
@@ -2458,30 +2515,36 @@ function setQuick(id) {
 // What MADRE looks like with these choices: the room's preview, built as the room builds it
 // (app.js, drawCustom), wearing the choices, so the bubbles and the text — which the lobby has no
 // conversation to show — are seen before they are lived with.
+// The preview is Home itself, small (2026-10-11): its bar with the projects on it, the
+// Coordinator, and two of your projects as cards, on the wallpaper, theme and accent chosen, with
+// the cards, the text and the order Home's own choices give them. It wears the room's preview
+// (styles.css, .look-preview) for the ground, so the wallpaper reads exactly as it will.
 function lookPreview(looks) {
-  const preview = el('div', 'look-preview');
+  const preview = el('div', 'look-preview sm-home-preview');
   preview.setAttribute('aria-hidden', 'true');
-  Object.assign(preview.dataset, { accent: looks.accent, bubbles: looks.bubbles, text: looks.text, wallpaper: looks.wallpaper, wpStyle: looks.style });
+  Object.assign(preview.dataset, { accent: looks.accent, wallpaper: looks.wallpaper, wpStyle: looks.style, homeCards: looks.home.cards, homeText: looks.home.text });
   preview.style.setProperty('--veil-k', String(looks.veil / 100));
   preview.style.setProperty('--wp-blur', `${looks.blur}px`);
   preview.dataset.scheme = root.dataset.scheme ?? 'dark';
-  const line = el('div', 'system');
-  line.append(el('b', null, t('MEMORY')), t('Read 8 exchanges and kept 5 memories.'));
-  const agent = el('div', 'row assistant');
-  const col = el('div', 'col');
-  const who = el('div', 'who');
-  who.append(el('span', null, 'CODEX'), el('span', 'badge mode m2', `#2 ${modeName(2)}`), el('span', 'badge ash', t('TOKEN SAVER')));
-  const bubble = el('div', 'bubble');
-  bubble.append(t('The project keeps what you decide. '), el('b', null, t('Bold reads like this')), ' · ', el('code', null, 'npm test'));
-  col.append(who, bubble);
-  agent.append(el('span', 'avatar'), col);
-  const you = el('div', 'row user');
-  const yours = el('div', 'col');
-  const stamp = el('div', 'stamp');
-  stamp.append(el('span', 'to', '→ @codex'), el('span', null, '08:46 PM'));
-  yours.append(el('div', 'bubble', t('Show me how my messages look.')), stamp);
-  you.append(yours);
-  preview.append(line, agent, you, el('span', 'look-button', t('A BUTTON')));
+  const shown = (data ? projectsInOrder().all : []).slice(0, 2);
+  const names = shown.length ? shown.map((room) => room.name) : ['pulse', 'tienda'];
+  const bar = el('div', 'hp-bar');
+  bar.append(el('i', 'hp-logo'), el('b', null, t('Home')));
+  for (const name of names) { const pin = el('span', 'hp-pin'); pin.append(el('i'), name); bar.append(pin); }
+  const grid = el('div', 'hp-grid');
+  const coord = el('div', 'hp-tile hp-coord');
+  const head = el('div', 'hp-head');
+  head.append(el('span', 'hp-mark'), el('b', null, t('Coordinator')));
+  coord.append(head, el('small', null, t('Calm')), el('span', 'hp-key', t('Talk to the Coordinator')));
+  grid.append(coord);
+  names.forEach((name, index) => {
+    const card = el('div', 'hp-tile hp-card');
+    const state = el('small', 'hp-state');
+    state.append(el('i'), index ? t('Asleep') : t('Calm'));
+    card.append(el('b', null, name), state, el('span', 'hp-chat'), el('span', 'hp-strip'), el('span', `hp-key${index ? '' : ' on'}`, t('Open')));
+    grid.append(card);
+  });
+  preview.append(bar, grid);
   return preview;
 }
 
@@ -2493,7 +2556,7 @@ function fillLook(host) {
   const looks = readLooks();
   // Where the choices are kept, and the way back to MADRE as it comes, on one line above it all.
   const top = el('div', 'sm-look-top');
-  top.append(el('p', 'sx-intro', t('Kept in this browser, for Home and for the project served at this address.')));
+  top.append(el('p', 'sx-intro', t('Kept in this browser. Theme, accent and wallpaper also dress the project served at this address.')));
   host.append(top);
   // Two columns when the window is wide (it opens over the whole window): the preview, with how
   // the conversation reads and the language under it; the colours and the wallpaper beside it. So
@@ -2501,7 +2564,7 @@ function fillLook(host) {
   const frame = el('div', 'sx-look sm-look');
   const side = el('div', 'sm-look-side');
   const preview = lookPreview(looks);
-  sxBlock(side, t('Preview'), t('Your choices, in the bubbles the conversation draws.'), { className: 'sx-preview' }).rows.append(preview);
+  sxBlock(side, t('Preview'), t('Your choices, on Home itself.'), { className: 'sx-preview' }).rows.append(preview);
   const page = el('div', 'sx-look-controls');
   frame.append(side, page);
 
@@ -2573,9 +2636,13 @@ function fillLook(host) {
     ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
     : t('Behind Home, and behind the conversation of the project served at this address. Light and dark each have their own.')).rows.append(paperBox);
 
-  const talk = sxBlock(side, t('Conversation'));
-  sxRow(talk, t('Bubbles'), null, customSeg(BUBBLES.map((value) => [value, BUBBLE_WORDS[value]()]), looks.bubbles, (value) => saveLooks({ bubbles: value })), { stack: true });
-  sxRow(talk, t('Text'), null, customSeg(TEXTS.map((value) => [value, TEXT_WORDS[value]()]), looks.text, (value) => saveLooks({ text: value })), { stack: true });
+  // Home's own: its cards, its text, the order of its projects. The conversation's bubbles and text
+  // are each project's, in its own Settings.
+  const home = sxBlock(side, t('Home'), t('Only for Home: each project keeps its conversation as you set it there.'));
+  const homeSeg = (name) => customSeg(HOME_LOOKS[name].values.map((value) => [value, HOME_LOOKS[name].words[value]()]), looks.home[name], (value) => saveHome(name, value), HOME_LOOKS[name].values.length === 2 ? 'two' : 'three');
+  sxRow(home, t('Project cards'), null, homeSeg('cards'), { stack: true });
+  sxRow(home, t('Text'), null, homeSeg('text'), { stack: true });
+  sxRow(home, t('Project order'), null, homeSeg('order'), { stack: true });
 
   const words = sxBlock(side, t('Language'));
   sxRow(words, t('Interface'), t('The page reloads in it when you choose to.'), customSeg([['es', 'Español'], ['en', 'English']], language, async (code) => {
@@ -2584,11 +2651,14 @@ function fillLook(host) {
     reloadWithGrace();
   }, 'two'));
 
-  const atDefault = looks.accent === 'madre' && looks.wallpaper === 'default' && looks.style === 'veil' && looks.veil === TUNES.veil.value && looks.blur === TUNES.blur.value && looks.bubbles === BUBBLES[0] && looks.text === TEXTS[0];
+  const homeDefault = Object.entries(HOME_LOOKS).every(([name, spec]) => looks.home[name] === spec.values[0]);
+  const atDefault = looks.accent === 'madre' && looks.wallpaper === 'default' && looks.style === 'veil' && looks.veil === TUNES.veil.value && looks.blur === TUNES.blur.value && homeDefault;
   if (!atDefault) {
     top.append(sxButton(t('Back to default'), () => {
       for (const name of ['veil', 'blur']) saveTune(name, TUNES[name].value);
-      saveLooks({ accent: 'madre', wallpaper: 'default', style: 'veil', bubbles: BUBBLES[0], text: TEXTS[0] });
+      for (const [name, spec] of Object.entries(HOME_LOOKS)) { try { localStorage.removeItem(spec.key); } catch { /* this page only */ } }
+      saveLooks({ accent: 'madre', wallpaper: 'default', style: 'veil' });
+      draw();
     }));
   }
   host.append(frame);
@@ -2626,7 +2696,7 @@ function fillProjects(host) {
 }
 function fillRelease(host) {
   const info = versionSeen;
-  const block = sxBlock(host, t('Version'), info ? t('You run {version}. Each project updates from its settings, in Version.', { version: info.current }) : null);
+  const block = sxBlock(host, t('Version'), info ? t('You run {version}. Home restarts with it from here.', { version: info.current }) : null);
   const check = info?.enabled ? sxButton(t('Check now'), async () => {
     check.disabled = true;
     const answer = await fetch('/api/version?force=1', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
@@ -2637,12 +2707,56 @@ function fillRelease(host) {
   }) : null;
   sxRow(block, `MADRE ${info?.current ?? ''}`.trim(), info ? (info.available ? t('{version} available', { version: info.latest }) : t('up to date')) : t('Reading…'), check);
   if (info?.available) {
-    const notes = el('a', 'sx-btn primary', t('What it brings'));
+    const notes = el('a', 'sx-btn', t('What it brings'));
     notes.href = info.release ?? 'https://madre.run';
     notes.target = '_blank';
     notes.rel = 'noopener';
     sxRow(block, `MADRE ${info.latest}`, t('MADRE {version} is out.', { version: info.latest }), notes);
+    // Home restarts with it, as a project does (app.js, drawRelease): the whole page waits on the
+    // curtain with MADRE's loader through the version arriving, Home closed, and Home back.
+    if (info.install !== 'source') {
+      const fresh = sxBlock(host, t('Restart Home with {version}', { version: info.latest }), t('Home closes, installs it and comes back on this same address in a few seconds. The open projects keep their version until you restart them.'));
+      const said = el('p', 'sx-hint');
+      const restart = sxButton(t('Restart with {version}', { version: info.latest }), () => void updateHome(info, restart, said), { tone: 'primary' });
+      sxRow(fresh, t('Restart here'), null, restart);
+      fresh.rows.append(said);
+    } else {
+      sxRow(block, t('Pull the repository and start it again.'), null);
+    }
   }
+  // Home already runs the newer one: the projects still on the older one, each with its restart.
+  const behind = behindRooms();
+  if (behind.length) {
+    const late = sxBlock(host, t('Projects on an older MADRE'), t('They keep running the version they started with until you restart them. What is running in them stops.'));
+    for (const room of behind) sxRow(late, roomLabel(room), `MADRE ${room.open.version}`, sxButton(t('Restart'), () => { settingsSheet?.close(); void restartRoom(room); }));
+  }
+}
+async function updateHome(info, key, said) {
+  key.disabled = true;
+  said.textContent = '';
+  const curtain = el('div', 'reload-curtain');
+  const loader = makeLoader({ progress: 0.04, label: t('Downloading MADRE {version}…', { version: info.latest }) });
+  curtain.append(loader);
+  showCurtain(curtain);
+  const drop = (words) => { stop(); curtain.classList.add('leaving'); setTimeout(() => curtain.remove(), 760); key.disabled = false; said.textContent = words; };
+  let stop = creep(loader, { to: 0.45, rate: 0.02 });
+  const answer = await post('/api/updates/apply');
+  if (!answer.ok) { drop(answer.body.error ?? t('The update did not start.')); return; }
+  stop();
+  setLoader(loader, 0.5, t('Restarting MADRE…'));
+  stop = creep(loader, { to: 0.88, rate: 0.015, every: 400 });
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const next = await fetch('/api/version', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+    if (next?.current && next.current !== info.current) {
+      stop();
+      setLoader(loader, 0.94, t('MADRE {version} is ready', { version: next.current }));
+      try { sessionStorage.setItem('madre.curtain', loader.dataset.p ?? '0.94'); } catch { /* it simply arrives */ }
+      setTimeout(() => location.reload(), 420);
+      return;
+    }
+  }
+  drop(t('Home did not come back on its own. Start MADRE again from your terminal.'));
 }
 const SET_FILL = { look: fillLook, bar: fillBar, agents: fillAgents, bishop: fillBishop, projects: fillProjects, release: fillRelease };
 

@@ -718,3 +718,39 @@ dialog.sm-sheet.sm-settings[open] { --sm-sheet-pad: 20px; }
 /* Home's notices (salas-mac.js, toast): the room's, at the foot of the screen, over any sheet. */
 .toast.sm-toast { position: fixed; inset: auto auto 28px 50%; z-index: 80; margin: 0; transform: translateX(-50%); overflow: visible; }
 @media (prefers-reduced-motion: reduce) { .sm-tb-open.is-editing > .sm-tb-room[data-bar-item] { animation: none; } }
+
+/* HOME'S OWN APPEARANCE (salas-mac.js, HOME_LOOKS; 2026-10-11). The preview is Home itself, small,
+   on the room's preview ground (styles.css, .look-preview), with its bar, the Coordinator and two
+   projects; and Home's choices on the page: cards with or without their last conversation, the
+   text a little larger or smaller, and the order of the projects (draw()). */
+.sm-home-preview { display: grid; align-content: start; gap: 8px; min-height: 0; padding: 10px !important; font-family: var(--read); }
+.sm-home-preview > * { position: relative; z-index: 1; }
+.hp-bar { display: flex; align-items: center; gap: 6px; min-width: 0; height: 26px; padding: 0 9px; border-radius: 9px; background: color-mix(in srgb, var(--bg) 84%, transparent); box-shadow: 0 1px 2px rgba(0, 0, 0, .16), 0 6px 14px -10px rgba(0, 0, 0, .4); font-size: 9.5px; color: var(--text-2); overflow: hidden; }
+.hp-logo { flex: none; width: 22px; height: 6px; border-radius: 3px; background: var(--acc, var(--phosphor)); }
+.hp-bar b { flex: none; color: var(--text); font-weight: 650; }
+.hp-pin { display: inline-flex; align-items: center; gap: 4px; min-width: 0; height: 16px; padding: 0 6px; border-radius: 5px; background: var(--panel); color: var(--text); font-family: var(--mono); font-size: 8.5px; white-space: nowrap; overflow: hidden; }
+.hp-pin i { flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--session-ok); }
+.hp-grid { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 8px; align-items: start; }
+.hp-tile { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 10px; border-radius: 12px; background: color-mix(in srgb, var(--panel) 90%, transparent); box-shadow: 0 1px 2px rgba(0, 0, 0, .16), 0 10px 20px -14px rgba(0, 0, 0, .5); font-size: 10px; color: var(--text); }
+.hp-tile b { min-width: 0; font-size: 11.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hp-tile small { font-size: 9px; color: var(--text-2); }
+.hp-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hp-mark { flex: none; width: 18px; height: 18px; border-radius: 50%; background: #5c255e; box-shadow: inset 0 0 0 4.5px #5c255e, inset 0 0 0 6px #ffffff; }
+.hp-state { display: flex; align-items: center; gap: 4px; }
+.hp-state i { width: 5px; height: 5px; border-radius: 50%; background: var(--session-ok); }
+.hp-card:nth-child(3) .hp-state i { background: transparent; box-shadow: inset 0 0 0 1.2px var(--text-3); }
+.hp-chat { height: 16px; border-radius: 4px; background: color-mix(in srgb, var(--text) 9%, transparent); }
+.hp-strip { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--mem-decision, #ffdc3c) 0 28%, var(--mem-fact, #dfeeff) 28% 70%, var(--mem-preference, #5cf07a) 70% 84%, var(--mem-question, #3dc6ff) 84%); }
+.hp-key { justify-self: start; margin-top: 2px; padding: 3px 8px; border-radius: 6px; background: var(--panel-2); font-size: 9px; font-weight: 600; white-space: nowrap; }
+.hp-key.on, .hp-coord .hp-key { background: var(--acc, var(--phosphor)); color: var(--acc-ink, var(--phosphor-ink)); }
+.sm-home-preview[data-home-cards="compact"] :is(.hp-chat, .hp-strip) { display: none; }
+.sm-home-preview[data-home-text="larger"] .hp-grid { zoom: 1.08; }
+.sm-home-preview[data-home-text="smaller"] .hp-grid { zoom: .92; }
+:root[data-home-cards="compact"] .sm-card :is(.sm-chat, .sm-strip, .sm-counts) { display: none; }
+:root[data-home-text="larger"] .sm-main { zoom: 1.08; }
+:root[data-home-text="smaller"] .sm-main { zoom: .93; }
+/* A newer MADRE in the bar: a key now, that opens Home's Version. */
+button.sm-pill { border: 0; cursor: pointer; }
+.sm-pill.is-update svg { width: 14px; height: 14px; flex: none; }
+.sm-pill.is-update:hover { background: color-mix(in srgb, var(--session-wait) 28%, transparent); }
+.sm-pill.is-update:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }

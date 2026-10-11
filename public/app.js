@@ -7,7 +7,7 @@ import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t
 import { createEditor } from './editor.js';
 import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
-import { LOADER_MARK, creep, finishLoader, makeLoader, setLoader } from './loader.js';
+import { LOADER_MARK, creep, finishLoader, makeLoader, setLoader, showCurtain } from './loader.js';
 import { familyOf, languageLabel, tokenize } from './syntax.js';
 import { COLLAPSED, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, activityOf, collapsedChip, createNostromo, dwarfChip, hexMix, rawActivity, travels } from './nostromo-engine.js';
 
@@ -9547,7 +9547,7 @@ function reloadWithGrace() {
   const curtain = el('div', 'reload-curtain');
   const loader = makeLoader({ progress: 0.04 });
   curtain.append(loader);
-  document.body.append(curtain);
+  showCurtain(curtain);
   document.documentElement.classList.add('reloading');
   creep(loader, { to: 0.34, rate: 0.09 });
   setTimeout(() => {
@@ -9563,7 +9563,7 @@ function waitCurtain({ label = '', progress = 0.04 } = {}) {
   const curtain = el('div', 'reload-curtain');
   const loader = makeLoader({ progress, label });
   curtain.append(loader);
-  document.body.append(curtain);
+  showCurtain(curtain);
   return { loader, done: () => { curtain.classList.add('leaving'); setTimeout(() => curtain.remove(), 760); } };
 }
 // The crew's column closes when the press lands anywhere else.
