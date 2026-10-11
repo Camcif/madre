@@ -594,6 +594,17 @@ body.sm-in-macro { overflow: hidden; }
 .lw-caution { display: flex; align-items: flex-start; gap: 10px; padding: 11px 0; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.45; color: var(--text); }
 .lw-caution i { flex: none; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--session-wait); }
 .lw-foot { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+/* What a connection allows, line by line (2026-10-11): a tick in the accent for what it lets
+   happen, a quiet cross for what it never does. */
+.lw-allows { display: grid; gap: 9px; padding: 12px 0 14px; border-top: 1px solid var(--line); }
+.lw-allows-head { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.lw-allows ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lw-allows li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--text); }
+.lw-allows li.no { color: var(--text-2); }
+.lw-allows li i { flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 0; border-radius: 50%; }
+.lw-allows li i svg { width: 12px; height: 12px; }
+.lw-allows li.yes i { color: color-mix(in srgb, var(--s-acc) 78%, var(--text)); background: color-mix(in srgb, var(--s-acc) 16%, transparent); }
+.lw-allows li.no i { color: var(--text-2); background: color-mix(in srgb, var(--text) 7%, transparent); }
 /* The scene over every step, in the welcome's style: the two rooms arriving and floating, BISHOP
    with its ring, the wire running the way the notes travel and the notes crossing it in their
    kinds' colours; under it, the link's terms as chips, with no rule between (2026-10-10). */
@@ -755,4 +766,4 @@ button.sm-pill { border: 0; cursor: pointer; }
 .sm-pill.is-update:hover { background: color-mix(in srgb, var(--session-wait) 28%, transparent); }
 .sm-pill.is-update:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
 /* A project's name inside the wizard's sentences stands out (salas-mac.js, sayBold). */
-:is(.lw-lead, .lw-note, .lw-review li, .lw-caution) b { font-weight: 650; color: var(--text); }
+:is(.lw-lead, .lw-note, .lw-review li, .lw-caution, .lw-allows li) b { font-weight: 650; color: var(--text); }

@@ -766,6 +766,8 @@ function sayBold(key, vars, bold = Object.keys(vars)) {
   out.append(template.slice(at));
   return out;
 }
+const ALLOWED_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.4l3.2 3.1L15 6.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const NOT_ALLOWED_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const BOTH_WAYS_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7.2h11.2L12.4 4.4M16 12.8H4.8l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function openLinkSheet({ reader = null, source = null } = {}) {
   if (!data || sheet) return;
@@ -850,6 +852,24 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     select.addEventListener('change', () => change(select.value));
     return select;
   };
+  // What the connection allows and what it does not, line by line (2026-10-11): a tick for what
+  // it lets happen, a cross for what it never does, each with its reason, so nobody has to
+  // guess why a choice is missing.
+  const allows = (lines) => {
+    const box = el('div', 'lw-allows');
+    const list = el('ul');
+    for (const [yes, words] of lines) {
+      const line = el('li', yes ? 'yes' : 'no');
+      const sign = el('i');
+      sign.innerHTML = yes ? ALLOWED_GLYPH : NOT_ALLOWED_GLYPH; // trusted: our own SVG strings
+      const said = el('span');
+      said.append(words);
+      line.append(sign, said);
+      list.append(line);
+    }
+    box.append(el('span', 'lw-allows-head', t('What this connection allows')), list);
+    return box;
+  };
   const caution = (words) => { const line = el('div', 'lw-caution'); const said = el('span'); said.append(words); line.append(el('i'), said); return line; };
   // What the person should know about the rooms chosen.
   function cautions() {
@@ -896,7 +916,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     ends.source ??= endNode('source');
     ends.reader ??= endNode('reader');
     paintEnd(ends.source, pick.source, pick.both ? t('Shares and looks up') : t('Shares'));
-    paintEnd(ends.reader, pick.reader, pick.both ? t('Shares and looks up') : t('Looks up'));
+    paintEnd(ends.reader, pick.reader, pick.both ? t('Shares and looks up') : coordinator(pick.reader) && pick.orders ? t('Looks up and gives orders') : t('Looks up'));
     stage.querySelector('.lw-wires')?.remove();
     stage.querySelector('.lw-terms')?.remove();
     const box = field.getBoundingClientRect();
@@ -947,8 +967,6 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     const page = el('div', `sm-step lw-step${back ? ' back' : ''}`);
     // The swap, on the first step: it turns the link round, and the scene shows it.
     const turn = button('sm-btn small', t('Swap'), () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); });
-    turn.disabled = coordinator(pick.reader);
-    if (turn.disabled) turn.title = t('The Coordinator never shares its memory: it is always the one that looks up.');
     const intro = (title, lead) => {
       const box = el('div', 'lw-intro');
       box.append(el('span', 'lw-eyebrow', t('Step {n} of {total}', { n: at + 1, total: steps.length })), el('h3', null, title));
@@ -961,7 +979,13 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     if (at > 0) actions.append(button('sm-btn', t('Back'), () => { at -= 1; render({ back: true }); }));
 
     if (kind === 'who') {
-      intro(t('Which projects do you want to connect?'), t('Connecting them lets one project look up what the other has already learned: its decisions, facts and preferences. It only reads; nothing in the other project ever changes.'));
+      // With the Coordinator at one end the step speaks of it: what it reads, the orders it may
+      // give, and why it is never read (src/enlaces.mjs). Between two projects, who reads whom.
+      const withCoordinator = coordinator(pick.reader);
+      const source = nameOf(pick.source), reader = nameOf(pick.reader);
+      intro(t('Which projects do you want to connect?'), withCoordinator
+        ? t('The Coordinator looks up what a project has already learned: its decisions, facts and preferences. If you allow it, it can also ask that project for tasks.')
+        : t('Connecting them lets one project look up what the other has already learned: its decisions, facts and preferences. It only reads; nothing in the other project ever changes.'));
       const box = card();
       if (pick.both) {
         // Both ways, neither only serves nor only reads: the two projects side by side, with no
@@ -975,15 +999,25 @@ function openLinkSheet({ reader = null, source = null } = {}) {
         line.append(pair);
         box.append(line);
       } else {
-        const serves = el('div', 'lw-control lw-pick');
-        serves.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('Shares its memory'), { shares: true }), turn);
-        box.append(row(t('Shares its memory'), t('Its notes can be read. Nothing is written into it.'), serves));
+        // Nothing to swap with the Coordinator: it is always the one that looks up, so its project
+        // is chosen alone, as wide as the one under it.
+        const sharing = roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('Shares its memory'), { shares: true });
+        const serves = withCoordinator ? sharing : el('div', 'lw-control lw-pick');
+        if (!withCoordinator) serves.append(sharing, turn);
+        box.append(row(t('Shares its memory'), withCoordinator ? t('The Coordinator reads its notes.') : t('Its notes can be read. Nothing is written into it.'), serves));
         box.append(row(t('Looks it up'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('Looks it up'))));
       }
-      // The Coordinator looks up and, if the Orders step allows it, gives orders #1 and #2; what it
-      // never does is share its own memory (src/enlaces.mjs).
-      if (coordinator(pick.reader) || coordinator(pick.source)) box.append(caution(sayBold('The Coordinator looks up {room} and can send it orders up to #2: you choose that in the Orders step. Its own memory it shares with no project.', { room: nameOf(ordersInto()) })));
-      else box.append(row(t('Both ways'), t('Each one looks up the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
+      if (!withCoordinator) box.append(row(t('Both ways'), t('Each one looks up the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
+      const looks = (who, whose) => sayBold('{reader} looks up the notes of {source}.', { reader: who, source: whose });
+      box.append(allows(withCoordinator
+        ? [
+          [true, sayBold('The Coordinator looks up the notes of {room}.', { room: source })],
+          [true, sayBold('It can ask {room} for tasks, up to #2, if you allow it in the Orders step.', { room: source })],
+          [false, sayBold('{room} does not look up the Coordinator: the Coordinator keeps what it read in all your projects, and {room} would see it without your signature.', { room: source })],
+        ]
+        : pick.both
+          ? [[true, looks(reader, source)], [true, looks(source, reader)], [false, t('Neither one writes in the other: nothing in either project changes.')]]
+          : [[true, looks(reader, source)], [false, sayBold('{source} does not look up {reader}. Turn on Both ways if it needs to.', { source, reader })], [false, t('Neither one writes in the other: nothing in either project changes.')]]));
       for (const said of cautions()) box.append(caution(said));
       page.append(box);
       actions.append(next(() => (pick.reader === pick.source ? t('Choose two different projects.') : coordinator(pick.source) ? t('The Coordinator never shares its memory: it is always the one that looks up.') : null)));
