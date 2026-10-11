@@ -108,6 +108,22 @@ test('phone · the policy: reading is wide, acting is narrow, and #3 and #4 stay
   assert.ok(!send({ text: '#3 fix the bug' }));
 });
 
+test('phone · every module the room\'s page imports reaches the phone', async () => {
+  // A module the bridge does not let through and app.js cannot load at all: the phone gets a page
+  // that does nothing (2026-10-11: loader.js, review-ask.js and tour.js were missing). Followed
+  // from app.js through every import, as the browser does.
+  const seen = new Set();
+  const walk = async (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const text = await readFile(new URL(`../public/${file}`, import.meta.url), 'utf8');
+    for (const [, name] of text.matchAll(/^import [^;]*? from '\.\/([\w.-]+\.js)';/gm)) await walk(name);
+  };
+  await walk('app.js');
+  assert.ok(seen.size > 10, 'the imports of app.js were not read');
+  for (const file of seen) assert.ok(phonePolicy({ method: 'GET', pathname: `/${file}` }).allow, `/${file} is imported by the room's page and the bridge refuses it`);
+});
+
 test('phone · cookies are read once each, and the bridge answers only to this Mac\'s own names', () => {
   assert.deepEqual(parseCookies('madre_phone=a%2Bb; madre_room=x; madre_phone=evil'), { madre_phone: 'a+b', madre_room: 'x' });
   const hosts = ownHosts(4316, { addresses: ['192.168.1.9'], name: 'MacBook-Air.local' });
