@@ -754,6 +754,10 @@ dialog.sm-sheet.sm-settings[open] { --sm-sheet-pad: 20px; }
 .hp-strip { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--mem-decision, #ffdc3c) 0 28%, var(--mem-fact, #dfeeff) 28% 70%, var(--mem-preference, #5cf07a) 70% 84%, var(--mem-question, #3dc6ff) 84%); }
 .hp-key { justify-self: start; margin-top: 2px; padding: 3px 8px; border-radius: 6px; background: var(--panel-2); font-size: 9px; font-weight: 600; white-space: nowrap; }
 .hp-key.on, .hp-coord .hp-key { background: var(--acc, var(--phosphor)); color: var(--acc-ink, var(--phosphor-ink)); }
+/* The Coordinator's key is the longest: inside its card it breaks into two lines rather than
+   running past the edge (2026-10-11). */
+.hp-key { max-width: 100%; box-sizing: border-box; }
+.hp-coord .hp-key { white-space: normal; line-height: 1.3; overflow-wrap: anywhere; }
 .sm-home-preview[data-home-cards="compact"] :is(.hp-chat, .hp-strip) { display: none; }
 .sm-home-preview[data-home-text="larger"] .hp-grid { zoom: 1.08; }
 .sm-home-preview[data-home-text="smaller"] .hp-grid { zoom: .92; }
