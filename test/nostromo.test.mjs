@@ -701,7 +701,8 @@ test('nostromo: the legend shows a real star for each class, not a swatch', asyn
     assert.match(page, new RegExp(`<i>${kind.toUpperCase()}</i>`, 'i'), `${kind} is not labelled`);
   }
   // The collapsed body gets a chip of its own, drawn as a hole with a ring rather than as a star.
-  const collapsed = app.slice(app.indexOf('function collapsedChip('), app.indexOf('// The legend:'));
+  // The chips live in the engine (2026-10-10), so the Project map draws the same ones.
+  const collapsed = engine.slice(engine.indexOf('export function collapsedChip('), engine.indexOf('// ---- A dwarf, drawn the way a star looks.'));
   for (const piece of ['VOID_DUST', "'#000000'", 'createElement']) {
     assert.ok(collapsed.includes(piece), `the collapsed chip is missing its ${piece}`);
   }
@@ -710,7 +711,7 @@ test('nostromo: the legend shows a real star for each class, not a swatch', asyn
 
   // The chip carries a drawn star, and it is drawn the way the ones in the constellation are:
   // a ground, the class's own boiling face, and a limb.
-  const chip = app.slice(app.indexOf('function dwarfChip('), app.indexOf('function paintLegend('));
+  const chip = engine.slice(engine.indexOf('export function dwarfChip('), engine.indexOf('export function collapsedChip('));
   for (const piece of ['createElement', 'clip()', 'dwarfTexture', 'drawImage', 'limb']) {
     assert.ok(chip.includes(piece), `the legend's star is missing its ${piece}`);
   }

@@ -1064,6 +1064,9 @@ function macroWords() {
     talk: t('Talk to the Coordinator'),
     asleep: t('Asleep'),
     recenter: t('RECENTER'),
+    // The legend under its name, in the Memory map's words.
+    legend: t('Memory kinds'),
+    kinds: { ...Object.fromEntries(KINDS.map((kind) => [kind, kindWord(kind)])), dim: t('OUT OF CIRCULATION') },
     veins: (n) => t('{n} connections', { n }),
     links: t('Connections'),
     link: t('Connect…'),

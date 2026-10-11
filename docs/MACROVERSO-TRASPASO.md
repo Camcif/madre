@@ -61,7 +61,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `64e0120` | Claude | Nombres claros en toda la interfaz (ver §1·c); #4 pide la misma llave dos veces en vez de AIRLOCK |
 | `70371bc` | Claude | Docs: los nombres nuevos en el README y en las guías |
 | `b6ecf5f` | Claude | Agregar proyecto y la bienvenida en mosaicos por páginas, sin desbordarse; resumen del Coordinador alineado; el Coordinador en #5C255E con robot blanco; desde 6 proyectos la barra de Inicio pasa a teclas cuadradas; tecla para cambiar de proyecto en la sala, con el estado de los demás |
-| *este commit* | Claude | Quitar un proyecto de MADRE (`POST /api/salas/forget`); transición entre páginas de MADRE; aviso al agregar; conexiones en los dos sentidos sin dirección; chevron propio de los desplegables; etiquetas bajo las burbujas a su medida; el conmutador sin parpadeo y con fondo de malla; teclas de los dos mapas según tema y acento; encabezado del Mapa de proyectos como el de una hoja de Ajustes |
+| `766f4fa` | Claude | Quitar un proyecto de MADRE (`POST /api/salas/forget`); transición entre páginas de MADRE; aviso al agregar; conexiones en los dos sentidos sin dirección; chevron propio de los desplegables; etiquetas bajo las burbujas a su medida; el conmutador sin parpadeo y con fondo de malla; teclas de los dos mapas según tema y acento |
+| *este commit* | Claude | El Mapa de proyectos lleva el encabezado del Mapa de memoria (`.nostromo-head`: nombre en mono, línea al lado, leyenda de estrellas, teclas al final); `dwarfChip` y `collapsedChip` pasan a `nostromo-engine.js` |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas

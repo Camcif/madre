@@ -7,7 +7,7 @@ import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t
 import { createEditor } from './editor.js';
 import { resay } from './resay.js';
 import { familyOf, languageLabel, tokenize } from './syntax.js';
-import { COLLAPSED, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, VOID_DUST, activityOf, createNostromo, dwarfTexture, hexMix, rawActivity, travels } from './nostromo-engine.js';
+import { COLLAPSED, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, activityOf, collapsedChip, createNostromo, dwarfChip, hexMix, rawActivity, travels } from './nostromo-engine.js';
 
 // The window split in two. The right half is this same page loaded with `?pane=split&chat=<id>`:
 // a second conversation with its transcript and its composer, and nothing of the bar. Everything
@@ -15295,79 +15295,7 @@ nostromo.gate.form?.addEventListener('submit', (event) => {
 // What each class of memory is called as a star, for the legend above the constellation.
 const DWARF_CLASS = { decision: t('YELLOW DWARF'), fact: t('WHITE DWARF'), preference: t('GREEN DWARF'), question: t('BLUE DWARF'), aberration: t('COLLAPSED') };
 
-// A real dwarf, small enough to sit in a chip: the same ground, the same boiling face and the
-// same limb the ones in the constellation wear, so the legend shows the thing and not a swatch.
-function dwarfChip(hex, px) {
-  const canvas = document.createElement('canvas');
-  const dpr = Math.min(3, window.devicePixelRatio || 1);
-  canvas.width = Math.round(px * dpr);
-  canvas.height = Math.round(px * dpr);
-  canvas.style.width = `${px}px`;
-  canvas.style.height = `${px}px`;
-  const paint = canvas.getContext('2d');
-  if (!paint) return canvas;
-  paint.scale(dpr, dpr);
-  const r = px / 2;
-  paint.save();
-  paint.beginPath(); paint.arc(r, r, r, 0, Math.PI * 2); paint.closePath();
-  const ground = paint.createRadialGradient(r * 0.72, r * 0.72, r * 0.04, r, r, r * 1.1);
-  ground.addColorStop(0, hexMix(hex, '#ffffff', 0.75));
-  ground.addColorStop(0.42, hex);
-  ground.addColorStop(1, hexMix(hex, '#000000', 0.62));
-  paint.fillStyle = ground;
-  paint.fill();
-  paint.clip();
-  const skin = dwarfTexture(hex);
-  if (skin) {
-    paint.globalAlpha = 0.72;
-    paint.drawImage(skin, 0, 0, skin.width * 0.28, skin.height, -r * 0.08, -r * 0.08, px * 1.08, px * 1.08);
-    paint.globalAlpha = 1;
-  }
-  const limb = paint.createRadialGradient(r, r, r * 0.3, r, r, r);
-  limb.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  limb.addColorStop(0.78, 'rgba(0, 0, 0, .18)');
-  limb.addColorStop(1, 'rgba(0, 0, 0, .6)');
-  paint.fillStyle = limb;
-  paint.fillRect(0, 0, px, px);
-  paint.restore();
-  return canvas;
-}
-
-// The collapsed body, small enough for a chip: a hole with the ring of what fell into it.
-function collapsedChip(hex, px) {
-  const canvas = document.createElement('canvas');
-  const dpr = Math.min(3, window.devicePixelRatio || 1);
-  canvas.width = Math.round(px * dpr);
-  canvas.height = Math.round(px * dpr);
-  canvas.style.width = `${px}px`;
-  canvas.style.height = `${px}px`;
-  const paint = canvas.getContext('2d');
-  if (!paint) return canvas;
-  paint.scale(dpr, dpr);
-  const r = px / 2;
-  // The same thing the constellation draws, small: dust, a round black nothing, a cold rim.
-  paint.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 14; i += 1) {
-    const speck = VOID_DUST[i * 4];
-    const at = r * (0.78 + 0.22 * speck.out);
-    const x = r + Math.cos(speck.angle) * at;
-    const y = r + Math.sin(speck.angle) * at;
-    paint.fillStyle = `rgba(${speck.colour}, ${0.8 - 0.4 * speck.out})`;
-    paint.beginPath(); paint.arc(x, y, 0.55, 0, Math.PI * 2); paint.fill();
-  }
-  paint.globalCompositeOperation = 'source-over';
-  paint.fillStyle = '#000000';
-  paint.beginPath(); paint.arc(r, r, r * 0.66, 0, Math.PI * 2); paint.fill();
-  paint.globalCompositeOperation = 'lighter';
-  paint.strokeStyle = 'rgba(168, 204, 255, .75)';
-  paint.lineWidth = 0.9;
-  paint.beginPath(); paint.arc(r, r, r * 0.69, 0.6, 3.5); paint.stroke();
-  paint.strokeStyle = 'rgba(140, 180, 245, .45)';
-  paint.beginPath(); paint.arc(r, r, r * 0.74, 3.9, 5.9); paint.stroke();
-  paint.globalCompositeOperation = 'source-over';
-  return canvas;
-}
-
+// The legend's stars (nostromo-engine.js: dwarfChip, collapsedChip) are the Project map's too.
 // The legend: one real star per class, with the kind of memory that burns as that class.
 function paintLegend() {
   const host = document.querySelector('.nostromo-legend');

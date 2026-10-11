@@ -22,7 +22,7 @@
 // for less motion gets one still frame redrawn when something changes. No line joins two universes
 // until a link exists (phase 3c).
 
-import { FOCUS_VEIL, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, alongCurve, createNostromo, currentAlong, hexAlpha, hexMix, magmaMap, texturesReady } from './nostromo-engine.js';
+import { COLLAPSED, FOCUS_VEIL, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, alongCurve, collapsedChip, createNostromo, currentAlong, dwarfChip, hexAlpha, hexMix, magmaMap, texturesReady } from './nostromo-engine.js';
 
 const KINDS = Object.keys(MEMORY_COLORS);
 const TILT = 0.42;                 // how flat the orbits read: the plane seen a little from above
@@ -416,36 +416,56 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   const canvas = document.createElement('canvas');
   canvas.className = 'mv-canvas';
   canvas.tabIndex = 0;
-  // Its head is a settings sheet's (styles.css, .settings-detail-head): the way back as a round
-  // key, the name, and what it holds in a line under it (2026-10-10).
+  // Its head is the Memory map's (styles.css, .nostromo-head; 2026-10-10): the name in small mono,
+  // what it holds in a line beside it, its keys at the end, and under them the kinds of memory as
+  // the same stars (nostromo-engine.js, dwarfChip). The two maps read as one family.
   const head = document.createElement('header');
-  head.className = 'mv-head settings-detail-head';
-  const line = document.createElement('div');
-  line.className = 'settings-detail-title';
+  head.className = 'mv-head nostromo-head';
+  const title = document.createElement('h2');
+  title.className = 'mother-title';
+  title.textContent = words.title;
+  const sub = document.createElement('span');
+  sub.className = 'mother-sub';
+  const legend = document.createElement('span');
+  legend.className = 'nostromo-legend';
+  legend.setAttribute('aria-label', words.legend ?? 'Memory kinds');
+  for (const [kind, hex] of Object.entries(MEMORY_COLORS)) {
+    const chip = document.createElement('span');
+    chip.className = `k ${kind}`;
+    const said = document.createElement('i');
+    said.textContent = words.kinds?.[kind] ?? kind;
+    chip.append(kind === COLLAPSED ? collapsedChip(hex, 14) : dwarfChip(hex, 14), said);
+    legend.append(chip);
+  }
+  {
+    const chip = document.createElement('span');
+    chip.className = 'k dim';
+    const said = document.createElement('i');
+    said.textContent = words.kinds?.dim ?? 'Out of circulation';
+    chip.append(dwarfChip(hexMix(MEMORY_COLORS.fact, '#0b0f16', 0.52), 14), said);
+    legend.append(chip);
+  }
+  const keys = document.createElement('span');
+  keys.className = 'nostromo-actions';
+  const recenter = document.createElement('button');
+  recenter.type = 'button';
+  recenter.className = 'mother-close mv-recenter';
+  recenter.textContent = words.recenter ?? 'RECENTER';
+  recenter.hidden = true;
   const back = document.createElement('button');
   back.type = 'button';
-  back.className = 'settings-back mv-back';
-  back.title = words.back;
-  back.setAttribute('aria-label', words.back);
-  back.innerHTML = '<span class="settings-back-icon chev-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 6.2 8 10l3.8-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'; // trusted: our own SVG
-  const title = document.createElement('h2');
-  title.textContent = words.title;
-  line.append(back, title);
-  const sub = document.createElement('p');
-  sub.className = 'settings-line';
-  head.append(line, sub);
+  back.className = 'mother-close mv-back';
+  back.append(words.back);
+  back.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'); // trusted: our own SVG
+  keys.append(recenter, back);
+  head.append(title, sub, legend, keys);
   const card = document.createElement('aside');
   card.className = 'mv-card';
   card.hidden = true;
   const hint = document.createElement('p');
   hint.className = 'mv-hint';
   hint.textContent = words.hint;
-  const recenter = document.createElement('button');
-  recenter.type = 'button';
-  recenter.className = 'mv-recenter';
-  recenter.textContent = words.recenter ?? 'RECENTER';
-  recenter.hidden = true;
-  layer.append(canvas, head, card, hint, recenter);
+  layer.append(canvas, head, card, hint);
   host.append(layer);
 
   const view = { w: 0, h: 0, dpr: 1 };

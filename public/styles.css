@@ -7082,19 +7082,23 @@ dialog.nostromo-key .room-ask-icon { --tone: #e5484d; }
    what frames it speaks like every other window: the name in small mono, the reading in
    sentences, the kinds as dots with words, and soft keys. Nothing glows.
    ========================================================================================== */
-#nostromo .nostromo-head { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "title sub actions" "legend legend legend"; gap: 10px 16px; padding: 14px 20px 12px; border-bottom: 1px solid rgba(255, 255, 255, .08); background: rgba(12, 12, 14, .72); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
-#nostromo .nostromo-head > .mother-title { align-self: center; font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .22em; color: #f2f1ee; text-shadow: none; }
+:is(#nostromo, .mv) .nostromo-head { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "title sub actions" "legend legend legend"; gap: 10px 16px; padding: 14px 20px 12px; border-bottom: 1px solid rgba(255, 255, 255, .08); background: rgba(12, 12, 14, .72); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+:is(#nostromo, .mv) .nostromo-head > .mother-title { align-self: center; font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .22em; color: #f2f1ee; text-shadow: none; }
 #nostromo .nostromo-head > .mother-sub { align-self: center; font-family: var(--read); font-size: 12.5px; letter-spacing: 0; color: rgba(242, 241, 238, .62); text-transform: lowercase; }
 #nostromo .nostromo-head > .mother-sub::first-letter { text-transform: uppercase; }
-#nostromo .nostromo-head > .nostromo-legend { justify-content: flex-start; gap: 14px; }
-#nostromo .nostromo-legend .k { gap: 6px; font-family: var(--read); font-size: 12px; letter-spacing: 0; }
-#nostromo .nostromo-legend .k i { display: inline-block; color: rgba(242, 241, 238, .78); text-transform: lowercase; }
-#nostromo .nostromo-legend .k i::first-letter { text-transform: uppercase; }
-#nostromo .nostromo-actions { gap: 8px; }
-#nostromo .nostromo-actions .mother-close { height: 30px; padding: 0 12px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-family: var(--read); font-size: 12.5px; font-weight: 550; letter-spacing: 0; text-transform: lowercase; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4); }
-#nostromo .nostromo-actions .mother-close::first-letter { text-transform: uppercase; }
-#nostromo .nostromo-actions .mother-close:hover { background: rgba(255, 255, 255, .14); }
-#nostromo .nostromo-actions .mother-close[aria-pressed="true"] { background: #f2f1ee; color: #111; }
+/* The Project map wears the same head (salas-mac.css, .mv-head); its line is not shouted, so it is
+   not lowered either. */
+.mv .nostromo-head > .mother-sub { align-self: center; min-width: 0; font-family: var(--read); font-size: 12.5px; letter-spacing: 0; color: rgba(242, 241, 238, .62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(#nostromo, .mv) .nostromo-head > .nostromo-legend { justify-content: flex-start; gap: 14px; }
+:is(#nostromo, .mv) .nostromo-legend .k { gap: 6px; font-family: var(--read); font-size: 12px; letter-spacing: 0; }
+:is(#nostromo, .mv) .nostromo-legend .k i { display: inline-block; color: rgba(242, 241, 238, .78); text-transform: lowercase; }
+:is(#nostromo, .mv) .nostromo-legend .k i::first-letter { text-transform: uppercase; }
+:is(#nostromo, .mv) .nostromo-actions { gap: 8px; }
+:is(#nostromo, .mv) .nostromo-actions .mother-close { height: 30px; padding: 0 12px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .08); color: #f2f1ee; font-family: var(--read); font-size: 12.5px; font-weight: 550; letter-spacing: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 2px rgba(0, 0, 0, .4); }
+#nostromo .nostromo-actions .mother-close, .mv .nostromo-actions .mv-recenter { text-transform: lowercase; }
+:is(#nostromo, .mv) .nostromo-actions .mother-close::first-letter { text-transform: uppercase; }
+:is(#nostromo, .mv) .nostromo-actions .mother-close:hover { background: rgba(255, 255, 255, .14); }
+:is(#nostromo, .mv) .nostromo-actions .mother-close[aria-pressed="true"] { background: #f2f1ee; color: #111; }
 #nostromo .nostromo-help { left: 20px; bottom: 14px; font-family: var(--read); font-size: 11.5px; letter-spacing: 0; color: rgba(242, 241, 238, .42); }
 #nostromo .nostromo-empty { font-family: var(--read); letter-spacing: 0; text-transform: lowercase; color: rgba(242, 241, 238, .6); }
 #nostromo .nostromo-empty::first-letter { text-transform: uppercase; }
@@ -8199,7 +8203,7 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
    ROUND OF 10 OCT, EVENING
    ------------------------------------------------------------------------------------------
    The tags under a bubble, the dropdowns' chevron, the way from one MADRE page to another and the
-   memory map's keys.
+   memory map's keys (and the Project map's, which wears the same head).
    ========================================================================================== */
 /* The tags under a bubble are as wide as what they say: a human's at the bubble's right, an
    agent's at its left. Only a wallpaper did that; on a plain ground the column stretched them to
@@ -8240,11 +8244,11 @@ html.madre-arriving body { animation: madre-rise calc(620ms * var(--motion-scale
 
 /* The memory map's keys are the room's (2026-10-10): its surface and ink in either theme, and what
    is on — the unused, the questions — in the accent. Its space stays dark; its keys do not. */
-#nostromo .nostromo-actions .mother-close { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-rest); transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out); }
-#nostromo .nostromo-actions .mother-close:hover { background: var(--surface, var(--panel)); box-shadow: var(--key-over, var(--key-rest)); }
-#nostromo .nostromo-actions .mother-close:active { box-shadow: var(--key-down, var(--key-rest)); }
+:is(#nostromo, .mv) .nostromo-actions .mother-close { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-rest); transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out); }
+:is(#nostromo, .mv) .nostromo-actions .mother-close:hover { background: var(--surface, var(--panel)); box-shadow: var(--key-over, var(--key-rest)); }
+:is(#nostromo, .mv) .nostromo-actions .mother-close:active { box-shadow: var(--key-down, var(--key-rest)); }
 #nostromo .nostromo-actions .mother-close:is(.ask, .cold) { color: var(--text); border: 0; }
-#nostromo .nostromo-actions .mother-close[aria-pressed="true"], #nostromo .nostromo-actions .mother-close:is(.ask, .cold)[aria-pressed="true"] { background: var(--acc, var(--phosphor)); color: var(--acc-ink, var(--phosphor-ink)); box-shadow: var(--key-rest); }
-#nostromo .nostromo-actions .mother-close:focus-visible { outline: 2px solid color-mix(in srgb, var(--acc, var(--phosphor)) 70%, transparent); outline-offset: 2px; }
+:is(#nostromo, .mv) .nostromo-actions .mother-close[aria-pressed="true"], #nostromo .nostromo-actions .mother-close:is(.ask, .cold)[aria-pressed="true"] { background: var(--acc, var(--phosphor)); color: var(--acc-ink, var(--phosphor-ink)); box-shadow: var(--key-rest); }
+:is(#nostromo, .mv) .nostromo-actions .mother-close:focus-visible { outline: 2px solid color-mix(in srgb, var(--acc, var(--phosphor)) 70%, transparent); outline-offset: 2px; }
 #nostromo .nostromo-card header .mother-close { background: var(--surface, var(--panel)); color: var(--text-2); box-shadow: var(--key-rest); }
 #nostromo .nostromo-card header .mother-close:hover { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
