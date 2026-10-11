@@ -1258,14 +1258,16 @@ export const ES = {
   '@madre': '@madre',
   'Diagnostics › the local model is answering real questions from this project. It takes a few minutes, it spends nothing, and the answer lands here.':
     'Diagnóstico › el modelo local está contestando preguntas reales de este proyecto. Tarda unos minutos, no gasta nada, y la respuesta cae aquí.',
-  'It answered {matched} of {n} real questions from this project where the agents answered them. It is ready to be worked in.':
-    'Contestó {matched} de {n} preguntas reales de este proyecto donde las contestaron los agentes. Ya se puede trabajar con él.',
-  'It answered {matched} of {n} real questions the way the agents did. Not yet — keep working, the archive fills where the work happens.':
-    'Contestó {matched} de {n} preguntas reales como lo hicieron los agentes. Todavía no — sigue trabajando, el archivo se llena donde ocurre el trabajo.',
+  'It answered like your agents on {matched} of {n} real questions from this project. You can give it work now.':
+    'Contestó como tus agentes en {matched} de {n} preguntas reales de este proyecto. Ya puedes darle trabajo.',
+  'It answered like your agents on {matched} of {n} real questions from this project. Not yet: keep working with your agents here and try it again later.':
+    'Contestó como tus agentes en {matched} de {n} preguntas reales de este proyecto. Todavía no: sigue trabajando con tus agentes aquí y pruébalo otra vez más adelante.',
   'SEND THE NEXT TURN TO @MADRE': 'MANDARLE EL PRÓXIMO TURNO A @MADRE',
-  'MEASURED {when}': 'MEDIDO {when}',
-  'It is in the project. Nobody has measured it against this project yet: running here is not the same as being of use here.':
-    'Está en el proyecto. Nadie lo ha medido contra este proyecto todavía: correr aquí no es lo mismo que servir aquí.',
+  'MEASURED {when}': 'PROBADO {when}',
+  '@madre is MADRE\'s own model, and it runs on this Mac. Before you give it work from this project, try it: it answers again up to 12 real questions your agents already answered here, and MADRE compares the answers. It takes a few minutes.':
+    '@madre es el modelo propio de MADRE y corre en esta Mac. Antes de darle trabajo de este proyecto, pruébalo: vuelve a contestar hasta 12 preguntas reales que tus agentes ya contestaron aquí, y MADRE compara las respuestas. Tarda unos minutos.',
+  'It needs a few conversations with your agents in this project first: without them there is nothing to compare.':
+    'Primero necesita algunas conversaciones con tus agentes en este proyecto: sin ellas no hay con qué compararlo.',
   'PURGE': 'PURGA',
   '{events} events · {entries} indexed exchanges · {memories} memories rewritten with the marker':
     '{events} eventos · {entries} intercambios indexados · {memories} memorias reescritas con el marcador',
@@ -1943,8 +1945,8 @@ export const ES = {
   'Is the local model ready to be worked in?': '¿El modelo local ya sirve para trabajar?',
   'Running is not the same as being of use. @madre being in the project means Ollama has a chat model; whether that model is worth your work on THIS project is a different question, and the project measures it: twelve real exchanges from this project are put back to the local model, and each answer is scored against what the agents actually answered that day — against a control, so that talking about the same project does not count. It takes minutes and spends nothing, because all of it runs on your machine.':
     'Correr no es lo mismo que servir. Que @madre esté en el proyecto significa que Ollama tiene un modelo de chat; si ese modelo vale para tu trabajo en ESTE proyecto es otra pregunta, y el proyecto la mide: se le devuelven al modelo local doce intercambios reales de este proyecto, y cada respuesta se califica contra lo que los agentes contestaron aquel día — contra un control, para que hablar del mismo proyecto no cuente. Tarda minutos y no gasta nada, porque todo corre en tu máquina.',
-  'The project says which of the two it has, once per model, in the line that begins "local · @madre". If nobody has measured it, that line carries CHECK IT AGAINST THIS PROJECT; the answer lands in the project when it finishes, with the one thing to do about it. A model that does not pass is not broken — the archive is still thin, and it fills where the work happens. The @madre sphere keeps the reading and its date after the line has scrolled away, and the same test lives in Memory map → MEMORY REVIEW.':
-    'El proyecto dice cuál de las dos tiene, una vez por modelo, en la línea que empieza con «local · @madre». Si nadie lo ha medido, esa línea trae MEDIRLO CONTRA ESTE PROYECTO; la respuesta cae en el proyecto al terminar, con la única cosa que hacer al respecto. Un modelo que no pasa no está roto — el archivo todavía está delgado, y se llena donde ocurre el trabajo. La esfera de @madre guarda la lectura con su fecha para cuando la línea ya se fue hacia arriba, y la misma prueba vive en Mapa de memoria → REVISIÓN DE LA MEMORIA.',
+  'The project says which of the two it has, once per model, in the line that begins "local · @madre". If nobody has measured it, that line carries TRY IT ON THIS PROJECT; the answer lands in the project when it finishes, with the one thing to do about it. A model that does not pass is not broken — the archive is still thin, and it fills where the work happens. The @madre sphere keeps the reading and its date after the line has scrolled away, and the same test lives in Memory map → MEMORY REVIEW.':
+    'El proyecto dice cuál de las dos tiene, una vez por modelo, en la línea que empieza con «local · @madre». Si nadie lo ha medido, esa línea trae PROBARLO CON ESTE PROYECTO; la respuesta cae en el proyecto al terminar, con la única cosa que hacer al respecto. Un modelo que no pasa no está roto — el archivo todavía está delgado, y se llena donde ocurre el trabajo. La esfera de @madre guarda la lectura con su fecha para cuando la línea ya se fue hacia arriba, y la misma prueba vive en Mapa de memoria → REVISIÓN DE LA MEMORIA.',
 
   'Temporary lock: the archive is sealed': 'Bloqueo temporal: el archivo está sellado',
   'Two doors ask for the project name before doing something that cannot be undone: opening the memory, and erasing all private data already recorded. Getting that name wrong is never part of doing the work — you either know the project you are standing in or you are trying names — so Diagnostics counts it. Eight wrong names inside five minutes and the Temporary lock comes down: the archive is sealed for ten minutes, the agents are told in code, and the Memory map asks for the project name again.':
@@ -2248,8 +2250,8 @@ export const ES = {
 
   // ── LA SALA EN MOVIMIENTO: PLANES, FRENOS, ADJUNTOS Y AVISOS ─────────────
   'answering @{agent}': 'contestándole a @{agent}',
-  'CHECK AGAIN': 'MEDIR OTRA VEZ',
-  'CHECK IT AGAINST THIS PROJECT': 'MEDIRLO CONTRA ESTE PROYECTO',
+  'CHECK AGAIN': 'PROBARLO OTRA VEZ',
+  'TRY IT ON THIS PROJECT': 'PROBARLO CON ESTE PROYECTO',
   'Came along because this project keeps carrying it with one of the others.':
     'Vino porque este proyecto la sigue cargando junto con otra.',
   'The archive matched this to what you asked.': 'El archivo la emparejó con lo que preguntaste.',
@@ -2466,8 +2468,8 @@ export const ES = {
     '# Módulos → + Agregar un módulo',
   '# docs/SDK.md is the whole contract, and docs/sdk/hello-module.mjs is one that works':
     '# docs/SDK.md es el contrato entero, y docs/sdk/hello-module.mjs es uno que funciona',
-  '# the line in the project: local · @madre → CHECK IT AGAINST THIS PROJECT':
-    '# la línea en el proyecto: local · @madre → MEDIRLO CONTRA ESTE PROYECTO',
+  '# the line in the project: local · @madre → TRY IT ON THIS PROJECT':
+    '# la línea en el proyecto: local · @madre → PROBARLO CON ESTE PROYECTO',
   '# or: Memory map → MEMORY REVIEW → the third test':
     '# o: Mapa de memoria → REVISIÓN DE LA MEMORIA → la tercera prueba',
   '# it needs smart search on and some turns answered by a CLI agent, which is what it compares against':
@@ -4203,6 +4205,14 @@ export const ES = {
   'Options': 'Opciones',
   'Images': 'Imágenes',
   'Continuity': 'Continuidad',
+  'Suggestion': 'Sugerencia',
+  'Continuity (AHP+) for this project': 'Continuidad (AHP+) para este proyecto',
+  'It keeps the project\'s state, decisions, evidence, checkpoints and handoffs in the repository itself, in .ahp/.': 'Guarda en el propio repositorio el estado del proyecto, sus decisiones, evidencia, puntos de control y traspasos, en .ahp/.',
+  'If the agent, the editor, the account or the computer changes, the next session starts from what was recorded, not from scratch.': 'Si cambia el agente, el editor, la cuenta o la computadora, la siguiente sesión parte de lo que quedó registrado, no de cero.',
+  'Claude Code, Codex and OpenCode read it through their own files, in MADRE and outside it.': 'Claude Code, Codex y OpenCode lo leen con sus propios archivos, dentro y fuera de MADRE.',
+  'It writes into the project and needs a git repository with at least one commit. Modules shows you everything it writes before you install it.': 'Escribe dentro del proyecto y necesita un repositorio git con al menos un commit. En Módulos ves todo lo que escribe antes de instalarlo.',
+  'See it in Modules': 'Verlo en Módulos',
+  'No, thanks': 'No, gracias',
   // Wordings the ledgers already hold, from before the plain names (2026-10-10): said again in
   // today's words (resay.js).
   "local room token budget (MADRE's own soft limit, not the provider's quota; cache reads count a tenth)": 'presupuesto local de tokens del proyecto (el límite blando de MADRE, no la cuota del proveedor; las lecturas de caché cuentan una décima)',
@@ -4290,6 +4300,17 @@ export const ES = {
   'Swap': 'Invertir',
   'The Coordinator never shares its memory: it is always the one that looks up.': 'El Coordinador no comparte su memoria: siempre es el que consulta.',
   'What this connection allows': 'Lo que permite esta conexión',
+  '{project} · already connected': '{project} · ya conectado',
+  'They are already connected': 'Ya están conectados',
+  '{a} and {b} already look each other up.': '{a} y {b} ya se consultan entre sí.',
+  '{reader} already looks up the notes of {source}.': '{reader} ya consulta las notas de {source}.',
+  'The Coordinator already looks up the notes of {source}.': 'El Coordinador ya consulta las notas de {source}.',
+  'A pair is connected once. To change what it looks up, how long or the orders, revoke it in Connections and make a new one.': 'Dos proyectos se conectan una sola vez. Para cambiar qué consulta, cuánto dura o las órdenes, revócala en Conexiones y crea otra.',
+  'These two are already connected. To change it, revoke it in Connections and make a new one.': 'Estos dos ya están conectados. Para cambiarla, revócala en Conexiones y crea otra.',
+  '{a} and {b} look each other up': '{a} y {b} se consultan entre sí',
+  'The Coordinator looks up {source}': 'El Coordinador consulta a {source}',
+  'and {n} more': 'y {n} más',
+  '{reader} looks up {source}': '{reader} consulta a {source}',
   'Looks up and gives orders': 'Consulta y da órdenes',
   'The Coordinator reads its notes.': 'El Coordinador lee sus notas.',
   'The Coordinator looks up what a project has already learned: its decisions, facts and preferences. If you allow it, it can also ask that project for tasks.': 'El Coordinador consulta lo que un proyecto ya aprendió: sus decisiones, hechos y preferencias. Si tú lo permites, también puede pedirle tareas.',

@@ -3174,6 +3174,52 @@ function renderEmptyStarts() {
     });
     box.append(chip);
   }
+  renderAhpSuggestion();
+}
+
+// A suggestion on a project's welcome (2026-10-11): Continuity (AHP+), the module that keeps the
+// project's verified state and the handoffs between sessions next to its code. Only suggested: it
+// writes into the project, so nothing is installed from here — the button opens it in Modules,
+// where it says what it writes and checks the project first. Not in the Coordinator's room, not
+// once it is installed, and never again in this project after «No, thanks».
+const AHP_SUGGESTION_KEY = 'pulse.suggest.ahp';
+function ahpSuggestionDeclined() {
+  try { return JSON.parse(localStorage.getItem(AHP_SUGGESTION_KEY) ?? '[]').includes(state.projectRoot); } catch { return false; }
+}
+function renderAhpSuggestion() {
+  const welcome = els.emptyStarts?.closest('.empty');
+  if (!welcome || state.salas || state.device || ahpSuggestionDeclined()) { welcome?.querySelector('.empty-suggest')?.remove(); return; }
+  void installedModules().then((list) => {
+    const ahp = list.find((item) => item.id === 'ahp');
+    if (!ahp || ahp.status?.installed || ahpSuggestionDeclined() || !welcome.isConnected || welcome.querySelector('.empty-suggest')) return;
+    const box = el('aside', 'empty-suggest');
+    box.setAttribute('aria-label', t('Suggestion'));
+    const head = el('div', 'empty-suggest-head');
+    head.append(el('span', 'empty-suggest-eyebrow', t('Suggestion')), el('b', null, t('Continuity (AHP+) for this project')));
+    const gains = el('ul', 'empty-suggest-gains');
+    for (const words of [
+      t('It keeps the project\'s state, decisions, evidence, checkpoints and handoffs in the repository itself, in .ahp/.'),
+      t('If the agent, the editor, the account or the computer changes, the next session starts from what was recorded, not from scratch.'),
+      t('Claude Code, Codex and OpenCode read it through their own files, in MADRE and outside it.'),
+    ]) gains.append(el('li', null, words));
+    const note = el('p', 'empty-suggest-note', t('It writes into the project and needs a git repository with at least one commit. Modules shows you everything it writes before you install it.'));
+    const acts = el('div', 'empty-suggest-acts');
+    const open = el('button', 'empty-suggest-open', t('See it in Modules'));
+    open.type = 'button';
+    open.addEventListener('click', async () => { openModules(); await refreshModules(); openModuleSheet('ahp'); });
+    const no = el('button', 'empty-suggest-no', t('No, thanks'));
+    no.type = 'button';
+    no.addEventListener('click', () => {
+      try {
+        const declined = JSON.parse(localStorage.getItem(AHP_SUGGESTION_KEY) ?? '[]');
+        localStorage.setItem(AHP_SUGGESTION_KEY, JSON.stringify([...new Set([...declined, state.projectRoot])].slice(-200)));
+      } catch { /* a private window asks again next time; no harm */ }
+      box.remove();
+    });
+    acts.append(open, no);
+    box.append(head, gains, note, acts);
+    welcome.append(box);
+  });
 }
 
 function bridgeCard(agent) {
@@ -4000,8 +4046,8 @@ function renderLocalModel(payload, { asked = false } = {}) {
     const n = checked?.n ?? payload.n ?? 0;
     const passed = checked ? checked.passed : payload.passed;
     line.textContent = passed
-      ? t('It answered {matched} of {n} real questions from this project where the agents answered them. It is ready to be worked in.', { matched, n })
-      : t('It answered {matched} of {n} real questions the way the agents did. Not yet — keep working, the archive fills where the work happens.', { matched, n });
+      ? t('It answered like your agents on {matched} of {n} real questions from this project. You can give it work now.', { matched, n })
+      : t('It answered like your agents on {matched} of {n} real questions from this project. Not yet: keep working with your agents here and try it again later.', { matched, n });
     if (passed) {
       const use = el('button', 'primary', t('SEND THE NEXT TURN TO @MADRE'));
       use.type = 'button';
@@ -4015,8 +4061,12 @@ function renderLocalModel(payload, { asked = false } = {}) {
     action.append(check(t('CHECK AGAIN')));
     if (checked?.at) action.append(el('span', 'note', t('MEASURED {when}', { when: agoWords(checked.at).toUpperCase() })));
   } else {
-    line.textContent = t('It is in the project. Nobody has measured it against this project yet: running here is not the same as being of use here.');
-    action.append(check(t('CHECK IT AGAINST THIS PROJECT')));
+    // Said plainly (2026-10-11): what @madre is, why it is worth trying before it is given work,
+    // what the trial does, and what it needs to have anything to compare.
+    line.textContent = t('@madre is MADRE\'s own model, and it runs on this Mac. Before you give it work from this project, try it: it answers again up to 12 real questions your agents already answered here, and MADRE compares the answers. It takes a few minutes.');
+    action.append(check(t('TRY IT ON THIS PROJECT')));
+    node.append(line, el('p', 'says small', t('It needs a few conversations with your agents in this project first: without them there is nothing to compare.')), action);
+    return node;
   }
   node.append(line, action);
   return node;

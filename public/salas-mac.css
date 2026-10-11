@@ -257,15 +257,29 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 .sm-waiting-row span { font-size: 12.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sm-waiting-row:hover { background: color-mix(in srgb, var(--s-acc) 18%, transparent); }
 
-/* The map of the links: spokes from BISHOP, an arrow per contract, a ring per project. */
+/* The map of the links (2026-10-11): hairline spokes from the Coordinator, a wire in the accent per
+   contract with the notes running along it, the projects it touches drawn whole and named in
+   full, the rest quiet round the edge. */
 .sm-map { position: relative; flex: 1; min-height: 150px; color: var(--s-acc); }
 .sm-map svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.sm-map .spoke { stroke: var(--text-3); stroke-opacity: .4; stroke-dasharray: 3 5; }
-.sm-map .vein { fill: none; stroke: var(--s-acc); stroke-width: 2.2; stroke-linecap: round; }
-.sm-map .node { fill: var(--surface, var(--panel)); stroke: var(--line-2); stroke-width: 1.5; }
-.sm-map .node.asleep { fill: transparent; stroke: var(--text-3); stroke-dasharray: 3 3; }
-.sm-map .node.waiting { stroke: var(--s-acc); stroke-width: 2; }
-.sm-map .label { font-family: var(--read); font-size: 11px; font-weight: 600; fill: var(--text-2); }
+.sm-map .spoke { stroke: var(--text-3); stroke-opacity: .22; stroke-width: 1; }
+.sm-map .spoke.linked { stroke-opacity: 0; }
+.sm-map .wire { fill: none; stroke: var(--s-acc); stroke-width: 2; stroke-linecap: round; }
+.sm-map .note { fill: var(--s-acc); }
+.sm-map .node { fill: var(--surface, var(--panel)); stroke: color-mix(in srgb, var(--text) 22%, transparent); stroke-width: 1.2; opacity: .7; }
+.sm-map .node.asleep { fill: transparent; stroke: var(--text-3); stroke-dasharray: 2.5 2.5; }
+.sm-map .node.linked { opacity: 1; fill: var(--surface, var(--panel)); stroke: var(--s-acc); stroke-width: 2; stroke-dasharray: none; }
+.sm-map .node.waiting { stroke: var(--s-acc); stroke-width: 2; opacity: 1; }
+.sm-map .label { font-family: var(--read); font-size: 11px; font-weight: 500; fill: var(--text-3); }
+.sm-map .label.linked { font-size: 12px; font-weight: 650; fill: var(--text); }
+.sm-map .bishop .halo { fill: none; stroke: var(--s-acc); stroke-opacity: .35; stroke-width: 1.5; }
+.sm-map-legend { display: grid; gap: 4px; margin: 2px 0 0; padding: 0; list-style: none; }
+.sm-map-legend li { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--text-2); }
+.sm-map-legend li i { flex: none; width: 14px; height: 2px; border-radius: 1px; background: var(--s-acc); }
+.sm-map-legend li b { font-weight: 650; color: var(--text); }
+.sm-map-legend .says { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-map-legend li.more { padding-left: 21px; }
+.sm-map-orders { flex: none; padding: 1px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--s-acc) 72%, var(--text)); background: color-mix(in srgb, var(--s-acc) 14%, transparent); }
 .sm-map > .sm-hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 12px; }
 
 /* The low row: what was decided, what needs you, and the memory. */
@@ -605,6 +619,11 @@ body.sm-in-macro { overflow: hidden; }
 .lw-allows li i svg { width: 12px; height: 12px; }
 .lw-allows li.yes i { color: color-mix(in srgb, var(--s-acc) 78%, var(--text)); background: color-mix(in srgb, var(--s-acc) 16%, transparent); }
 .lw-allows li.no i { color: var(--text-2); background: color-mix(in srgb, var(--text) 7%, transparent); }
+/* Two projects already connected: how, and where to change it, in place of a new connection. */
+.lw-already { justify-items: start; }
+.lw-already p { margin: 0; }
+.lw-already-says { font-size: 13.5px; line-height: 1.45; color: var(--text); }
+.lw-already .sm-btn { margin-top: 2px; }
 /* The scene over every step, in the welcome's style: the two rooms arriving and floating, BISHOP
    with its ring, the wire running the way the notes travel and the notes crossing it in their
    kinds' colours; under it, the link's terms as chips, with no rule between (2026-10-10). */
@@ -770,4 +789,4 @@ button.sm-pill { border: 0; cursor: pointer; }
 .sm-pill.is-update:hover { background: color-mix(in srgb, var(--session-wait) 28%, transparent); }
 .sm-pill.is-update:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
 /* A project's name inside the wizard's sentences stands out (salas-mac.js, sayBold). */
-:is(.lw-lead, .lw-note, .lw-review li, .lw-caution, .lw-allows li) b { font-weight: 650; color: var(--text); }
+:is(.lw-lead, .lw-note, .lw-review li, .lw-caution, .lw-allows li, .lw-already-says) b { font-weight: 650; color: var(--text); }

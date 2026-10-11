@@ -632,9 +632,9 @@ export const CONDITIONS = [
     title: 'Is the local model ready to be worked in?',
     match: /is .*(local|madre).*(ready|good|any good)|ready to be worked in|measured against this (room|project)|check it against this room|local\.present|not measured/i,
     diagnosis: 'Running is not the same as being of use. @madre being in the project means Ollama has a chat model; whether that model is worth your work on THIS project is a different question, and the project measures it: twelve real exchanges from this project are put back to the local model, and each answer is scored against what the agents actually answered that day — against a control, so that talking about the same project does not count. It takes minutes and spends nothing, because all of it runs on your machine.',
-    remedy: 'The project says which of the two it has, once per model, in the line that begins "local · @madre". If nobody has measured it, that line carries CHECK IT AGAINST THIS PROJECT; the answer lands in the project when it finishes, with the one thing to do about it. A model that does not pass is not broken — the archive is still thin, and it fills where the work happens. The @madre sphere keeps the reading and its date after the line has scrolled away, and the same test lives in Memory map → MEMORY REVIEW.',
+    remedy: 'The project says which of the two it has, once per model, in the line that begins "local · @madre". If nobody has measured it, that line carries TRY IT ON THIS PROJECT; the answer lands in the project when it finishes, with the one thing to do about it. A model that does not pass is not broken — the archive is still thin, and it fills where the work happens. The @madre sphere keeps the reading and its date after the line has scrolled away, and the same test lives in Memory map → MEMORY REVIEW.',
     fixes: same([
-      '# the line in the project: local · @madre → CHECK IT AGAINST THIS PROJECT',
+      '# the line in the project: local · @madre → TRY IT ON THIS PROJECT',
       '# or: Memory map → MEMORY REVIEW → the third test',
       '# it needs smart search on and some turns answered by a CLI agent, which is what it compares against',
     ]),

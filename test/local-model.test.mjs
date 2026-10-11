@@ -11,18 +11,20 @@ test('local model: running is not ready, and the room says which of the two it h
   // The line that already announced @madre now carries whether it has been measured against THIS
   // project, because that is the line a person actually reads.
   assert.match(app, /case 'local\.present': \{/);
-  assert.match(app, /Nobody has measured it against this project yet: running here is not the same as being of use here\./);
+  // Said plainly (2026-10-11): what @madre is, what the trial does, and what it needs.
+  assert.match(app, /try it: it answers again up to 12 real questions your agents already answered here, and MADRE compares the answers\./);
+  assert.match(app, /It needs a few conversations with your agents in this project first: without them there is nothing to compare\./);
   // And one button, which runs the test that already exists.
-  assert.match(app, /CHECK IT AGAINST THIS PROJECT/);
+  assert.match(app, /TRY IT ON THIS PROJECT/);
   assert.match(app, /body: JSON\.stringify\(\{ which: 'match' \}\)/);
   assert.match(app, /it spends nothing, and the answer lands here/);
 
   // The answer lands in the room, with the one thing to do about it.
   assert.match(app, /case 'local\.checked': \{/);
-  assert.match(app, /It is ready to be worked in\./);
+  assert.match(app, /You can give it work now\./);
   assert.match(app, /SEND THE NEXT TURN TO @MADRE/);
   // A test that cannot fail says nothing, so the failing sentence is written too.
-  assert.match(app, /Not yet — keep working, the archive fills where the work happens\./);
+  assert.match(app, /Not yet: keep working with your agents here and try it again later\./);
   // And the sphere keeps the reading between visits.
   assert.match(app, /t\('Measured against this project \{when\}: it landed where the agents landed on \{matched\} of \{n\} real questions\{verdict\}', \{ when: agoWords\(measured\.at\)/);
   assert.match(css, /\.system\.local-model \{/);
@@ -50,7 +52,7 @@ test('local model: MU/TH/UR can explain the difference between running and being
   const one = CONDITIONS.find((condition) => condition.id === 'local-ready');
   assert.ok(one, 'the catalogue cannot answer the question the room now raises');
   assert.match(one.diagnosis, /Running is not the same as being of use/);
-  assert.match(one.remedy, /CHECK IT AGAINST THIS PROJECT/);
+  assert.match(one.remedy, /TRY IT ON THIS PROJECT/);
   // A person who asks it in their own words finds it.
   for (const asked of ['is my local model ready', 'ready to be worked in', 'not measured against this room']) {
     assert.ok(diagnose(asked).some((condition) => condition.id === 'local-ready'), `"${asked}" does not reach it`);

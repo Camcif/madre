@@ -2528,6 +2528,7 @@ dialog.intents-window { width: 760px; height: 640px; }
 .system.local-model button:disabled { opacity: .5; cursor: default; }
 .system.local-model button.primary { border-color: var(--phosphor); color: var(--phosphor); }
 .system.local-model .note { font-size: 8.5px; letter-spacing: .14em; color: var(--text-3); }
+.system.local-model .says.small { color: var(--text-3); }
 
 /* THE BRIDGE: first contact, one card per agent with the one action it needs now. */
 .bridge { max-width: 640px; }
@@ -8312,3 +8313,21 @@ dialog.room-ask.review-ask:not(.console) .review-ask-note { margin: 0; font-size
 .madre-loader.small .madre-loader-said { order: 1; margin: 0; font-size: 12.5px; white-space: nowrap; }
 .madre-loader.small .madre-loader-bar { order: 2; width: 84px; }
 .madre-loader.small .madre-loader-pct { order: 3; min-width: 4ch; margin: 0; font-size: 11px; }
+
+/* ---------- A suggestion on a project's welcome (2026-10-11) ----------
+   Continuity (AHP+), offered and never installed from here: under the three openings, a hairline
+   apart, left-aligned to be read; the way into Modules in the accent, «No, thanks» quiet. */
+#messages .empty .empty-suggest { display: grid; gap: 8px; width: 100%; margin-top: 8px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent); text-align: left; }
+.empty-suggest-head { display: grid; gap: 2px; }
+.empty-suggest-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
+#messages .empty .empty-suggest-head b { font-size: 14px; font-weight: 650; color: var(--text); }
+.empty-suggest-gains { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.empty-suggest-gains li { position: relative; padding-left: 14px; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+.empty-suggest-gains li::before { content: ''; position: absolute; left: 1px; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--phosphor); }
+.empty-suggest-note { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--text-3); }
+.empty-suggest-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+.empty-suggest-acts button { font: inherit; font-size: 12.5px; font-weight: 600; border-radius: 10px; padding: 6px 12px; cursor: pointer; transition: background-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out); }
+.empty-suggest-open { border: 0; color: var(--phosphor-ink, #0b0b0b); background: var(--phosphor); }
+.empty-suggest-open:hover { background: color-mix(in srgb, var(--phosphor) 86%, var(--text)); }
+.empty-suggest-no { border: 0; color: var(--text-2); background: transparent; }
+.empty-suggest-no:hover { color: var(--text); background: color-mix(in srgb, var(--text) 7%, transparent); }
