@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { associateProject, knownRooms, listFolders, projectRoomId, suggestProjects } from '../src/salas.mjs';
+import { associateProject, knownRooms, listFolders, projectRoomId, salasRoomId, suggestProjects } from '../src/salas.mjs';
+import { loadConfig } from '../src/config.mjs';
+import { signContract } from '../src/enlaces.mjs';
 import { createPulseServer } from '../src/server.mjs';
 
 // THE LOBBY (2026-10-10): the first screen of MADRE. It adds projects by browsing the folders of
@@ -182,5 +184,58 @@ test('lobby · the last work and the decisions are read only by the lobby\'s own
   } finally {
     if (server) await close(server);
     for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Taking a project out of MADRE (2026-10-10): it leaves Home, its connections end with it, and
+// nothing of the Mac is touched — not its folder, and not its conversations or memory in MADRE,
+// which are there again if it is added again. Never the Coordinator's; only from Home's own page.
+test('lobby · a project taken out of MADRE leaves Home, ends its connections and keeps its folder and its memory', async () => {
+  const home = await realpath(await scratch('madre-lobby-forget-home-'));
+  const state = await realpath(await scratch('madre-lobby-forget-state-'));
+  const project = await realpath(await scratch('madre-lobby-forget-project-'));
+  const before = process.env.PULSE_LOBBY_HOME;
+  process.env.PULSE_LOBBY_HOME = home;
+  let server;
+  try {
+    for (const name of ['shop', 'notes']) await mkdir(join(home, name, '.git'), { recursive: true });
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: roster, invokers: {} }));
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    const post = (path, payload, headers = { origin: base }) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(payload) });
+    const added = (await (await post('/api/salas/projects', { roots: [join(home, 'shop'), join(home, 'notes')] })).json()).added;
+    const shop = added.find((one) => one.name === 'shop').id;
+    const notes = added.find((one) => one.name === 'notes').id;
+    await writeFile(join(state, 'rooms', shop, 'chats.json'), '{"active":"main","chats":{}}');
+    const link = await signContract(state, { rooms: { a: shop, b: notes }, direction: 'a→b', kinds: ['fact'] }, { rooms: [shop, notes] });
+
+    assert.equal((await post('/api/salas/forget', { room: shop }, {})).status, 403, 'a process without an origin took a project out');
+    assert.equal((await post('/api/salas/forget', { room: shop }, { origin: 'https://evil.example' })).status, 403, 'another site took a project out');
+    assert.equal((await post('/api/salas/forget', { room: shop }, { origin: base, 'x-madre-device': 'phone-1' })).status, 403, 'a phone took a project out');
+    assert.equal((await post('/api/salas/forget', { room: salasRoomId(state) })).status, 422, 'the Coordinator\'s project was taken out');
+    assert.equal((await post('/api/salas/forget', { room: 'nobody-0000000000000000' })).status, 404);
+    assert.equal((await post('/api/salas/forget', { room: '../shop' })).status, 404);
+
+    const gone = await post('/api/salas/forget', { room: shop });
+    assert.equal(gone.status, 200);
+    const said = await gone.json();
+    assert.equal(said.name, 'shop');
+    assert.deepEqual(said.ended, [link.id], 'its connection was left in force');
+    assert.ok((await loadConfig(state)).enlaces[link.id].revoked, 'the connection is not revoked in the record');
+    const lobby = await fetch(`${base}/api/salas`).then((response) => response.json());
+    assert.ok(!lobby.rooms.some((room) => room.id === shop), 'it is still in Home');
+    assert.ok(lobby.rooms.some((room) => room.id === notes), 'another project left with it');
+    // Nothing of the Mac touched: its folder, and its conversations beside its record.
+    assert.ok((await stat(join(home, 'shop', '.git'))).isDirectory(), 'its folder was touched');
+    assert.deepEqual((await readdir(join(state, 'rooms', shop))).sort(), ['chats.json', 'project.forgotten.json']);
+    // Added again: the same id, and what it had is there.
+    const again = (await (await post('/api/salas/projects', { roots: [join(home, 'shop')] })).json()).added[0];
+    assert.equal(again.id, shop);
+    assert.ok((await knownRooms(state)).some((room) => room.id === shop), 'added again, it did not come back');
+    assert.equal(await readFile(join(state, 'rooms', shop, 'chats.json'), 'utf8'), '{"active":"main","chats":{}}');
+  } finally {
+    if (before === undefined) delete process.env.PULSE_LOBBY_HOME; else process.env.PULSE_LOBBY_HOME = before;
+    if (server) await close(server);
+    for (const dir of [home, state, project]) await rm(dir, { recursive: true, force: true });
   }
 });

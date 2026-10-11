@@ -209,6 +209,9 @@ Cada módulo es un archivo. Los tuyos van en `~/.pulse/modules/` (todos los proy
 | **Cerrar** | Detiene lo que corre en ese proyecto y lo cierra, como `Ctrl+C` en su terminal. Pregunta antes |
 | **Despertar** | Abre un proyecto dormido como lo haría `madre start --project <carpeta>`; lo que dice al arrancar queda en `start.log`, junto a su registro |
 | **Detener todo** | Frena a todos los agentes de todos los proyectos |
+| **Quitar de MADRE** (⋯ en su tarjeta, o clic derecho) | Lo saca de Inicio. Si está abierto, lo cierra antes, y termina sus conexiones. Su carpeta en la Mac no se toca, y su memoria se queda en MADRE: si la vuelves a agregar, ahí está. Pregunta antes |
+
+En un proyecto, la tecla junto a la casa **cambia de proyecto**: su indicador dice quién te espera (un número), quién trabaja (late) y quién terminó mientras estabas en otro (verde). Abre un panel con los demás proyectos abiertos; un clic lleva ahí y ⌘-clic abre otra pestaña. Lo lee de `GET /api/salas/open`: las salas abiertas, cada una con su resumen y sin el censo; solo esta Mac.
 
 **El Mapa de proyectos**, desde Inicio en una pantalla de 900 px o más: tus proyectos en el espacio abierto, y cada uno es un Mapa de memoria dibujado por el mismo motor que el de su proyecto (`public/nostromo-engine.js`). Arrastra el espacio para moverlo, rueda para acercarte, **Recentrar** para volver a casa. Clic o ← → para volar a uno: el proyecto elegido es el único vivo, con su magma y sus pulsos; arrástralo para girarlo, toca una memoria para leerla en la ficha, Esc para soltarla y otra vez Esc para volver. De lejos cada proyecto se lee de su propio proceso sin las palabras de sus memorias (`GET /api/salas/universe?id=`); solo el elegido las pide (`&full=1`), y nunca desde el teléfono.
 
@@ -221,6 +224,7 @@ Cada módulo es un archivo. Los tuyos van en `~/.pulse/modules/` (todos los proy
 | Ruta | Qué | Quién |
 |---|---|---|
 | `POST /api/salas/enlaces` · `POST /api/salas/enlaces/revoke` | Firmar y revocar | La página de Inicio, nunca el teléfono |
+| `POST /api/salas/forget` | Quitar un proyecto de MADRE: lo cierra si está abierto, revoca sus conexiones y aparta su `project.json` como `project.forgotten.json`. Nunca el del Coordinador | La página de Inicio con su `Origin`, nunca un proceso ni el teléfono |
 | `GET /api/enlace/memories` | Lo que este proyecto entrega por un contrato: solo `travels()` y los tipos del contrato, redactado; 404 si el contrato no sirve a quien pide, 423 sellado, 429 sobre el tope | Otro proceso de MADRE con la llave del canal (`~/.pulse/credentials/enlaces.json`), sin `Origin` |
 | `POST /api/enlace/ask` | Lo que este proyecto pide a otro; solo para un turno que corre aquí (409 si no); registra `enlace.received` con agente y turno | El servidor `pulse-enlaces` de un turno, con la llave |
 | `POST /api/salas/enlaces/recall` | Marcar o quitar «Incluir siempre» de una conexión | La página de Inicio, nunca un proceso ni el teléfono |

@@ -41,6 +41,7 @@ let query = '';                // what the search box holds
 // What each card is in the middle of, kept across the refreshes that redraw it.
 const busy = new Map();       // room id → 'starting' | 'closing'
 const asking = new Set();      // room ids whose card asks before closing
+const forgetting = new Set();  // room ids whose card asks before leaving MADRE
 const failed = new Map();      // room id → what went wrong, said on its card
 const revoking = new Set();    // link ids whose row asks before revoking
 
@@ -221,6 +222,17 @@ function card(room) {
   head.append(el('h3', null, room.name));
   if (room.here) head.append(el('span', 'sm-chip here', t('You are here')));
   else if (room.open) head.append(el('span', 'sm-chip port', `:${room.open.port}`));
+  // What the right-click offers, for whoever does not right-click: a key of its own.
+  const more = button('sm-card-more', null, (event) => {
+    event.stopPropagation();
+    const box = more.getBoundingClientRect();
+    pinsMenu(event, room, { x: box.right - 214, y: box.bottom + 6 });
+  });
+  more.innerHTML = MORE_ICON; // trusted: our own SVG string
+  more.title = t('Options for {name}', { name: room.name });
+  more.setAttribute('aria-label', more.title);
+  more.setAttribute('aria-haspopup', 'menu');
+  head.append(more);
   node.append(head);
   if (room.root) node.append(el('p', 'sm-path', homeWord(room.root)));
 
@@ -251,7 +263,17 @@ function card(room) {
   if (failed.has(room.id)) node.append(el('p', 'sm-error', failed.get(room.id)));
   if (doing === 'starting') actions.append(el('span', 'sm-doing', t('Waking…')));
   else if (doing === 'closing') actions.append(el('span', 'sm-doing', t('Closing…')));
-  else if (asking.has(room.id)) {
+  else if (doing === 'forgetting') actions.append(el('span', 'sm-doing', t('Removing…')));
+  else if (forgetting.has(room.id)) {
+    // Taking it out of MADRE says what goes and what stays before it happens.
+    const links = (data.enlaces ?? []).filter((one) => one.rooms?.a === room.id || one.rooms?.b === room.id).length;
+    const why = [
+      room.open ? t('It closes and leaves Home.') : t('It leaves Home.'),
+      t('Its folder stays on this Mac, and its memory in MADRE.'),
+      ...(links ? [links === 1 ? t('Its connection ends.') : t('Its {n} connections end.', { n: links })] : []),
+    ].join(' ');
+    actions.append(el('span', 'sm-ask', why), button('sm-btn danger small', t('Remove'), () => void forgetRoom(room)), button('sm-btn ghost small', t('Cancel'), () => { forgetting.delete(room.id); draw(); }));
+  } else if (asking.has(room.id)) {
     const why = room.here ? t('This page closes with it.') : glance.working?.length ? t('What is running stops.') : t('Nothing is running.');
     actions.append(el('span', 'sm-ask', why), button('sm-btn danger small', t('Close it'), () => closeRoom(room)), button('sm-btn ghost small', t('Cancel'), () => { asking.delete(room.id); draw(); }));
   } else if (room.open) {
@@ -673,6 +695,7 @@ const LINK_KINDS = ['decision', 'fact', 'preference', 'question'];
 const LINK_KIND_NOTES = { decision: () => t('What was agreed: the choices the project made.'), fact: () => t('What is known: data and findings the project settled.'), preference: () => t('How you like to work: conventions and tastes.'), question: () => t('What is open: questions still waiting for an answer.') };
 const LINK_DAYS = [[1, () => t('A day')], [7, () => t('A week')], [30, () => t('30 days')], [0, () => t('No expiry')]];
 let sheet = null;
+const BOTH_WAYS_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7.2h11.2L12.4 4.4M16 12.8H4.8l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function openLinkSheet({ reader = null, source = null } = {}) {
   if (!data || sheet) return;
   const rooms = [...data.rooms].sort((x, y) => Number(Boolean(y.open)) - Number(Boolean(x.open)) || roomLabel(x).localeCompare(roomLabel(y)));
@@ -854,10 +877,23 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     if (kind === 'who') {
       intro(t('Which project reads, and from which?'), t('A connection lets one project look up the notes of another. The one that reads asks; the one that serves answers with its notes. Nothing is ever written into the one that serves.'));
       const box = card();
-      const serves = el('div', 'lw-control lw-pick');
-      serves.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('The one that serves')), turn);
-      box.append(row(t('The one that serves'), t('Its notes are read. Nothing is written into it.'), serves));
-      box.append(row(t('The one that reads'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The one that reads'))));
+      if (pick.both) {
+        // Both ways, neither only serves nor only reads: the two projects side by side, with no
+        // direction to choose and nothing to swap.
+        const pair = el('div', 'lw-pair');
+        const both = el('span', 'lw-both');
+        both.innerHTML = BOTH_WAYS_ICON; // trusted: our own SVG string
+        pair.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('One project')), both, roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The other project')));
+        const line = row(t('The two projects'), t('Each one reads the notes of the other. Nothing is written into either.'), null);
+        line.classList.add('lw-stack');
+        line.append(pair);
+        box.append(line);
+      } else {
+        const serves = el('div', 'lw-control lw-pick');
+        serves.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('The one that serves')), turn);
+        box.append(row(t('The one that serves'), t('Its notes are read. Nothing is written into it.'), serves));
+        box.append(row(t('The one that reads'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The one that reads'))));
+      }
       box.append(row(t('Both ways'), t('Each one reads the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
       for (const said of cautions()) box.append(caution(said));
       page.append(box);
@@ -967,9 +1003,24 @@ async function startRoom(room, { enter = false } = {}) {
   busy.delete(room.id);
   if (!answer.ok) failed.set(room.id, answer.body.error ?? t('The project did not open.'));
   // Opened from its card, the person goes in: that is what «Open» means.
-  else if (enter && answer.body.port) { location.href = `http://127.0.0.1:${answer.body.port}/`; return answer; }
+  else if (enter && answer.body.port) { leaveTo(`http://127.0.0.1:${answer.body.port}/`); return answer; }
   await refresh();
   return answer;
+}
+
+// Out of MADRE (2026-10-10): Home forgets it (src/salas.mjs, forgetProject); its folder and its
+// memory stay where they are, and adding the folder again brings them back.
+async function forgetRoom(room) {
+  forgetting.delete(room.id);
+  busy.set(room.id, 'forgetting');
+  failed.delete(room.id);
+  draw();
+  const answer = await post('/api/salas/forget', { room: room.id });
+  busy.delete(room.id);
+  if (!answer.ok) { failed.set(room.id, answer.body.error ?? t('It could not be taken out of MADRE.')); draw(); return; }
+  if (pinsStored()?.includes(room.id)) pinRemove(room.id);
+  toast(t('{name} left MADRE. Its folder is still on this Mac.', { name: answer.body.name ?? room.name }));
+  await refresh();
 }
 
 async function closeRoom(room) {
@@ -1169,6 +1220,8 @@ const PIN_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7
 const PIN_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.4 3.4h5.2l-.9 4.4 2.6 2.6v1.2H5.7v-1.2l2.6-2.6zM10 11.6v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const UNPIN_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.4 3.4h5.2l-.9 4.4 2.6 2.6v1.2H5.7v-1.2l2.6-2.6zM10 11.6v5M3.6 3.6l12.8 12.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ARRANGE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.6" y="5.4" width="14.8" height="9.2" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 10h2.2M11.6 10h2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const FORGET_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.6 11h4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+const MORE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="1.6" fill="currentColor"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><circle cx="15" cy="10" r="1.6" fill="currentColor"/></svg>';
 const pins = {
   saved: null,          // what this page decided, for when storage will not keep it
   chips: new Map(),     // room id → its key on the bar
@@ -1505,14 +1558,14 @@ function pinsDragEnd({ save = false } = {}) {
 
 // A project's card, right-clicked: pin it to the bar (or take it off), or arrange the bar.
 function pinsCloseMenu() { pins.menu?.remove(); pins.menu = null; }
-function pinsMenu(event, room) {
+function pinsMenu(event, room, at = null) {
   event.preventDefault();
   pinsCloseMenu();
   const menu = el('div', 'bar-card sm-menu');
   menu.setAttribute('role', 'menu');
   menu.setAttribute('aria-label', room.name);
-  const item = (words, icon, act) => {
-    const one = button('sm-menu-item', null, () => { pinsCloseMenu(); act(); });
+  const item = (words, icon, act, { danger = false } = {}) => {
+    const one = button(`sm-menu-item${danger ? ' danger' : ''}`, null, () => { pinsCloseMenu(); act(); });
     one.setAttribute('role', 'menuitem');
     one.innerHTML = icon; // trusted: our own SVG strings
     one.append(el('span', null, words));
@@ -1521,6 +1574,8 @@ function pinsMenu(event, room) {
   const on = pinsShown().includes(room.id);
   item(on ? t('Remove from the bar') : t('Pin to the bar'), on ? UNPIN_ICON : PIN_ICON, () => (on ? pinRemove(room.id) : pinAdd(room.id)));
   item(t('Arrange the bar'), ARRANGE_ICON, () => pinsEdit(true));
+  menu.append(el('i', 'sm-menu-sep'));
+  item(t('Remove from MADRE…'), FORGET_ICON, () => { forgetting.add(room.id); asking.delete(room.id); failed.delete(room.id); draw(); }, { danger: true });
   menu.addEventListener('keydown', (key) => {
     const items = [...menu.querySelectorAll('.sm-menu-item')];
     const at = items.indexOf(document.activeElement);
@@ -1531,8 +1586,9 @@ function pinsMenu(event, room) {
   pins.menu = menu;
   const width = menu.offsetWidth;
   const height = menu.offsetHeight;
-  menu.style.left = `${Math.round(Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX)))}px`;
-  menu.style.top = `${Math.round(Math.max(8, Math.min(window.innerHeight - height - 8, event.clientY)))}px`;
+  const point = at ?? { x: event.clientX, y: event.clientY };
+  menu.style.left = `${Math.round(Math.max(8, Math.min(window.innerWidth - width - 8, point.x)))}px`;
+  menu.style.top = `${Math.round(Math.max(8, Math.min(window.innerHeight - height - 8, point.y)))}px`;
   menu.style.right = 'auto';
   menu.querySelector('.sm-menu-item')?.focus({ preventScroll: true });
 }
@@ -1628,6 +1684,46 @@ function pinsIndexAt(x) {
 ui.bar.links.addEventListener('click', () => { if ((data?.enlaces ?? []).length) { if (!ui.linksSheet.open) ui.linksSheet.showModal(); } else openLinkSheet(); });
 ui.bar.reload.addEventListener('click', () => location.reload());
 
+// From Home into a project, and back (2026-10-10): the page settles back under a veil of its own
+// ground and goes (styles.css, madre-leaving); the room lifts the veil as it arrives. Every way in
+// is a link — a card, a key on the bar, a tag, the Coordinator, the map — so a plain press on any
+// link to a MADRE page goes through here; ⌘-click, a new tab or a page elsewhere is left alone.
+function leaveTo(url) {
+  if (motionStill()) { location.href = url; return; }
+  root.classList.add('madre-leaving');
+  setTimeout(() => { location.href = url; }, 200);
+  setTimeout(() => root.classList.remove('madre-leaving'), 2500);
+}
+window.addEventListener('pageshow', () => root.classList.remove('madre-leaving'));
+document.addEventListener('click', (event) => {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = event.target.closest?.('a[href]');
+  if (!link || (link.target && link.target !== '_self') || link.hasAttribute('download')) return;
+  let to = null;
+  try { to = new URL(link.href, location.href); } catch { return; }
+  if (to.protocol !== 'http:' || !/^(127\.0\.0\.1|localhost)$/.test(to.hostname)) return;
+  if (to.origin === location.origin && to.pathname === location.pathname) return;
+  event.preventDefault();
+  leaveTo(to.href);
+});
+
+// What just happened, in a line (the room's notice: styles.css, .toast), at the foot of the screen
+// and over any open sheet, for a few seconds.
+let toastNode = null;
+let toastTimer = 0;
+function toast(words, tone = 'done') {
+  toastNode?.remove();
+  const node = el('div', 'toast sm-toast');
+  node.setAttribute('role', 'status');
+  node.dataset.tone = tone;
+  node.append(el('i', 'toast-dot'), el('span', 'toast-text', words));
+  document.body.append(node);
+  if (typeof node.showPopover === 'function') { node.popover = 'manual'; node.showPopover(); }
+  toastNode = node;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { node.remove(); if (toastNode === node) toastNode = null; }, 5000);
+}
+
 // ---- THE LOBBY (2026-10-10). The first screen of MADRE: every project on this Mac, BISHOP above
 // them, and the way to add more. A bare `madre` opens here; `madre start` in a folder still opens
 // that project directly.
@@ -1689,7 +1785,7 @@ function wakeBishop({ newTab = false } = {}) {
     if (!answer.ok || !answer.body.port) { tab?.close(); return; }
     const address = `http://127.0.0.1:${answer.body.port}/`;
     if (tab) tab.location.href = address;
-    else location.href = address;
+    else leaveTo(address);
   });
 }
 function openBishop({ newTab = false } = {}) {
@@ -1697,7 +1793,7 @@ function openBishop({ newTab = false } = {}) {
   const address = bishopAddress();
   if (!address) { wakeBishop({ newTab }); return; }
   if (newTab) window.open(address, '_blank', 'noopener');
-  else location.href = address;
+  else leaveTo(address);
 }
 for (const [way, alwaysNew] of [[ui.bishop.go, false], [ui.bishop.tab, true]]) {
   way.addEventListener('click', (event) => {
@@ -1920,7 +2016,9 @@ function projectPicker({ onAdded = null, onChange = null, withAdd = true } = {})
     chosen.clear();
     sync();
     await refresh();
-    onAdded?.(answer.body.added ?? []);
+    const added = answer.body.added ?? [];
+    if (added.length) toast(added.length === 1 ? t('{name} was added to Home.', { name: added[0].name }) : t('{n} projects were added to Home.', { n: added.length }));
+    onAdded?.(added);
     void loadFound();
     if (here) void walk(here.path === here.home ? null : here.path);
     return true;

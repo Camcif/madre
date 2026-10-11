@@ -6,6 +6,9 @@
     <title>MADRE</title>
     <link rel="icon" type="image/svg+xml" href="/assets/brand/madre-favicon.svg">
     <link rel="stylesheet" href="/styles.css">
+    <!-- Arriving from another MADRE page (a room, Home): a veil of the theme's ground over the first
+         frame, lifted as the page rises (styles.css, madre-arriving). Not on a reload, nor on Back. -->
+    <script>try { var nav = performance.getEntriesByType('navigation')[0]; var from = document.referrer ? new URL(document.referrer) : null; if (nav && nav.type === 'navigate' && from && /^(127\.0\.0\.1|localhost)$/.test(from.hostname) && from.href !== location.href) { var theme = localStorage.getItem('pulse.theme'); var light = theme === 'light' || (theme !== 'dark' && matchMedia('(prefers-color-scheme: light)').matches); var root = document.documentElement; root.style.setProperty('--arrive-veil', light ? '#f4f5f2' : '#050605'); root.classList.add('madre-arriving'); setTimeout(function () { root.classList.remove('madre-arriving'); }, 900); } } catch (e) {}</script>
     <!-- The logo draws itself when MADRE starts, not on every reload of a room already running:
          a tab that has seen it once holds it still until the page learns the process restarted. -->
     <script>try { if (sessionStorage.getItem('madre.boot')) document.documentElement.classList.add('logo-still'); } catch {}</script>

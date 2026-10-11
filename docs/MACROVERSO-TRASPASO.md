@@ -60,7 +60,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `7f52582` | Claude | Lobby: Apariencia a todo lo ancho de Ajustes, en dos columnas y sin scroll a 900 px; los términos del enlace en una franja bajo la escena, sin tapar la animación |
 | `64e0120` | Claude | Nombres claros en toda la interfaz (ver §1·c); #4 pide la misma llave dos veces en vez de AIRLOCK |
 | `70371bc` | Claude | Docs: los nombres nuevos en el README y en las guías |
-| *este commit* | Claude | Agregar proyecto y la bienvenida en mosaicos por páginas, sin desbordarse; resumen del Coordinador alineado; el Coordinador en #5C255E con robot blanco; desde 6 proyectos la barra de Inicio pasa a teclas cuadradas; tecla para cambiar de proyecto en la sala, con el estado de los demás |
+| `b6ecf5f` | Claude | Agregar proyecto y la bienvenida en mosaicos por páginas, sin desbordarse; resumen del Coordinador alineado; el Coordinador en #5C255E con robot blanco; desde 6 proyectos la barra de Inicio pasa a teclas cuadradas; tecla para cambiar de proyecto en la sala, con el estado de los demás |
+| *este commit* | Claude | Quitar un proyecto de MADRE (`POST /api/salas/forget`); transición entre páginas de MADRE; aviso al agregar; conexiones en los dos sentidos sin dirección; chevron propio de los desplegables; etiquetas bajo las burbujas a su medida; el conmutador sin parpadeo y con fondo de malla; teclas de los dos mapas según tema y acento; encabezado del Mapa de proyectos como el de una hoja de Ajustes |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -334,6 +335,16 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   (`sessionStorage` `madre.switch`): una sala vista trabajando que paró, por 30 min o hasta ir a ella.
   El ícono de un proyecto son sus dos letras (`monogram` en brands.js), el mismo de las teclas
   cuadradas de Inicio desde 6 proyectos (`PINS_SQUARE`).
+- **Quitar de MADRE** (`forgetProject` en `src/salas.mjs`, `POST /api/salas/forget`): renombra
+  `project.json` a `project.forgotten.json`; la carpeta del proyecto y lo que MADRE guarda de él
+  (conversaciones, memoria) no se tocan, y volver a agregarlo da el mismo id. Abierto, se cierra
+  primero (espera hasta 10 s a que su proceso termine); sus conexiones en vigor se revocan. La ruta
+  vive después de `tellRooms` (que es un `const` del manejador) y repite la guarda del lobby.
+- **De una página de MADRE a otra** (`leaveTo` en app.js y salas-mac.js, `madre-leaving` /
+  `madre-arriving` al final de styles.css): un velo del fondo del tema sube 200 ms y la página nueva
+  lo levanta. La llegada se marca antes del primer cuadro con un script en el `<head>` de
+  index.html y salas-mac.html (referrer local, navegación nueva, no recarga ni Atrás). Las páginas son
+  de orígenes distintos (un puerto por sala), así que no hay View Transitions entre ellas.
 - **El color del Coordinador**: `solid` (#5C255E, el disco de su marca, con tinta blanca) se separa de
   `color` (#D598D7, su tono para texto y anillos sobre fondo oscuro); `--agent-solid` y la marca del
   lobby leen `solid` cuando existe.

@@ -17227,7 +17227,7 @@ function homeBar() {
     go.id = 'home-button';
     go.type = 'button';
     go.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${HOME_ICON}</svg>`; // trusted: our own SVG string
-    go.addEventListener('click', () => { globalThis.location.href = '/salas'; });
+    go.addEventListener('click', () => leaveTo('/salas'));
     home.append(go);
   }
   go.title = t('Home');
@@ -17374,47 +17374,96 @@ function switchOpen() {
   switcher.panel.querySelector('.switch-tile')?.focus();
   void switchPoll();
 }
+// Drawn in place: a project already in the panel keeps its tile and only what changed is
+// written into it, so the tile under the pointer is never taken away (that was the flicker on
+// hover, every four seconds).
+function switchTile(room) {
+  const tile = el('a', 'switch-tile');
+  tile.dataset.room = room.id;
+  const icon = el('span', 'switch-icon');
+  icon.append(el('span', 'switch-face'), el('i', 'switch-badge'));
+  tile.append(icon, el('span', 'switch-chip'), el('span', 'switch-state'));
+  tile.addEventListener('click', (event) => {
+    // Gone to, it is no longer news.
+    switcher.done.delete(room.id);
+    switchKeep();
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    switcher.panel?.close();
+    leaveTo(tile.href);
+  });
+  return tile;
+}
 function switchDraw() {
   const panel = switcher.panel;
   if (!panel) return;
-  const focused = document.activeElement?.closest?.('.switch-tile')?.dataset.room ?? null;
-  const body = el('div', 'switch-body');
+  let body = panel.querySelector('.switch-body');
+  if (!body) { body = el('div', 'switch-body'); panel.replaceChildren(body); }
   if (!switcher.rooms.length) {
-    body.append(el('p', 'switch-empty', t('No other projects are open.')));
-  } else {
-    const row = el('div', 'switch-row');
-    // Six to a row at most, and no more than the window holds.
-    const fits = Math.max(1, Math.floor(((globalThis.innerWidth ?? 800) - 60) / 122));
-    row.style.setProperty('--switch-cols', String(Math.min(6, fits, switcher.rooms.length)));
-    for (const room of switchOrder()) {
-      const state = switchState(room);
-      const name = switchName(room);
-      const tile = el('a', `switch-tile is-${state.key}`);
-      tile.href = `http://127.0.0.1:${room.port}/`;
-      tile.dataset.room = room.id;
-      tile.title = `${name} · ${state.words}`;
-      const icon = el('span', 'switch-icon');
-      if (room.id === switcher.salas) {
+    if (!body.querySelector('.switch-empty')) body.replaceChildren(el('p', 'switch-empty'));
+    body.querySelector('.switch-empty').textContent = t('No other projects are open.');
+    return;
+  }
+  let row = body.querySelector('.switch-row');
+  if (!row) { row = el('div', 'switch-row'); body.replaceChildren(row); }
+  // Six to a row at most, and no more than the window holds.
+  const fits = Math.max(1, Math.floor(((globalThis.innerWidth ?? 800) - 60) / 122));
+  row.style.setProperty('--switch-cols', String(Math.min(6, fits, switcher.rooms.length)));
+  const tiles = new Map([...row.querySelectorAll('.switch-tile')].map((tile) => [tile.dataset.room, tile]));
+  const order = switchOrder();
+  for (const [id, tile] of tiles) if (!order.some((room) => room.id === id)) { tile.remove(); tiles.delete(id); }
+  order.forEach((room, index) => {
+    const tile = tiles.get(room.id) ?? switchTile(room);
+    const state = switchState(room);
+    const name = switchName(room);
+    const href = `http://127.0.0.1:${room.port}/`;
+    if (tile.getAttribute('href') !== href) tile.href = href;
+    const kind = `switch-tile is-${state.key}`;
+    if (tile.className !== kind) tile.className = kind;
+    const said = `${name} · ${state.words}`;
+    if (tile.title !== said) tile.title = said;
+    const icon = tile.querySelector('.switch-icon');
+    const face = icon.querySelector('.switch-face');
+    const coordinator = room.id === switcher.salas;
+    if (face.dataset.of !== (coordinator ? 'coordinator' : room.name)) {
+      face.dataset.of = coordinator ? 'coordinator' : room.name;
+      icon.classList.toggle('is-coordinator', coordinator);
+      if (coordinator) {
         const brand = brandOf('bishop');
-        icon.classList.add('is-coordinator');
         icon.style.setProperty('--icon-solid', brand.solid ?? brand.color);
         icon.style.setProperty('--icon-ink', brand.ink ?? '#ffffff');
-        icon.innerHTML = brand.mark(); // trusted: our own SVG string from brands.js
-      } else icon.textContent = monogram(room.name);
-      const badge = el('i', 'switch-badge');
-      if (state.key === 'waiting') badge.textContent = String(state.count);
-      if (state.key === 'done') badge.innerHTML = SWITCH_TICK; // trusted: our own SVG string
-      icon.append(badge);
-      tile.append(icon, el('span', 'switch-chip', name), el('span', 'switch-state', state.words));
-      // Gone to, it is no longer news.
-      tile.addEventListener('click', () => { switcher.done.delete(room.id); switchKeep(); });
-      row.append(tile);
+        face.innerHTML = brand.mark(); // trusted: our own SVG string from brands.js
+      } else face.textContent = monogram(room.name);
     }
-    body.append(row);
-  }
-  panel.replaceChildren(body);
-  if (focused) panel.querySelector(`.switch-tile[data-room="${CSS.escape(focused)}"]`)?.focus();
+    const badge = icon.querySelector('.switch-badge');
+    const mark = state.key === 'waiting' ? `n${state.count}` : state.key;
+    if (badge.dataset.mark !== mark) {
+      badge.dataset.mark = mark;
+      if (state.key === 'waiting') badge.textContent = String(state.count);
+      else if (state.key === 'done') badge.innerHTML = SWITCH_TICK; // trusted: our own SVG string
+      else badge.replaceChildren();
+    }
+    const chip = tile.querySelector('.switch-chip');
+    if (chip.textContent !== name) chip.textContent = name;
+    const line = tile.querySelector('.switch-state');
+    if (line.textContent !== state.words) line.textContent = state.words;
+    if (row.children[index] !== tile) row.insertBefore(tile, row.children[index] ?? null);
+  });
 }
+
+// From one MADRE page to another (2026-10-10): the page settles back under a veil of its own
+// ground and goes (styles.css, madre-leaving); the next one lifts the veil as it arrives. Should
+// the page stay (the browser asked whether to leave unsaved work), the veil goes away again, and
+// a page brought back by the browser's Back comes without it.
+function leaveTo(url) {
+  const root = document.documentElement;
+  const still = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if (!root?.classList || still) { globalThis.location.href = url; return; }
+  root.classList.add('madre-leaving');
+  setTimeout(() => { globalThis.location.href = url; }, 200);
+  setTimeout(() => root.classList.remove('madre-leaving'), 2500);
+}
+globalThis.addEventListener?.('pageshow', () => document.documentElement?.classList?.remove('madre-leaving'));
 
 // Reads the order, builds what it needs and hides what is off. An id nobody knows — a module that
 // was deleted — is skipped, and AJUSTES is never in the list because it is never anywhere but last.

@@ -416,16 +416,24 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   const canvas = document.createElement('canvas');
   canvas.className = 'mv-canvas';
   canvas.tabIndex = 0;
+  // Its head is a settings sheet's (styles.css, .settings-detail-head): the way back as a round
+  // key, the name, and what it holds in a line under it (2026-10-10).
   const head = document.createElement('header');
-  head.className = 'mv-head';
-  const title = document.createElement('h2');
-  title.textContent = words.title;
-  const sub = document.createElement('p');
+  head.className = 'mv-head settings-detail-head';
+  const line = document.createElement('div');
+  line.className = 'settings-detail-title';
   const back = document.createElement('button');
   back.type = 'button';
-  back.className = 'mv-back sm-btn';
-  back.textContent = words.back;
-  head.append(title, sub, back);
+  back.className = 'settings-back mv-back';
+  back.title = words.back;
+  back.setAttribute('aria-label', words.back);
+  back.innerHTML = '<span class="settings-back-icon chev-icon"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 6.2 8 10l3.8-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'; // trusted: our own SVG
+  const title = document.createElement('h2');
+  title.textContent = words.title;
+  line.append(back, title);
+  const sub = document.createElement('p');
+  sub.className = 'settings-line';
+  head.append(line, sub);
   const card = document.createElement('aside');
   card.className = 'mv-card';
   card.hidden = true;

@@ -91,7 +91,7 @@ import { currentNetwork, lanAddresses } from './bridge/network.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
-import { askRoom, associateProject, ensureSalasProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
+import { askRoom, associateProject, ensureSalasProject, forgetProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
 import { parseWork, recentWork, WORK_SYSTEM, workPrompt } from './lobby-work.mjs';
 import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
 
@@ -1831,6 +1831,41 @@ export async function createPulseServer({
         if (!contract) return sendJson(response, 404, { error: NO_SUCH_LINK });
         if (!already) await tellRooms('enlace.revoked', contract, await knownRooms(root)).catch(() => null);
         return sendJson(response, 200, { contract });
+      }
+      // Taking a project out of MADRE (2026-10-10), from Home and only from its page on this Mac, as
+      // adding one is. Never the Coordinator's own, never the room that is asked. Open, it is closed
+      // first; its connections end with it, so none is left pointing at a project MADRE no longer
+      // knows; then its record goes aside (forgetProject). Its folder on the Mac is not touched.
+      if (request.method === 'POST' && url.pathname === '/api/salas/forget') {
+        const host = String(request.headers.host ?? '');
+        const site = request.headers['sec-fetch-site'];
+        if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host) || (site !== undefined && site !== 'same-origin' && site !== 'none') || request.headers.origin !== `http://${host}`) return sendJson(response, 403, { error: t('This is done from Home, on this Mac.') });
+        const payload = await body(request).catch(() => ({}));
+        const id = String(payload.room ?? '');
+        const salas = salasRoomId(root);
+        if (id === salas || id === basename(roomDir)) return sendJson(response, 422, { error: t('The Coordinator\'s project stays in MADRE.') });
+        const find = async () => (await knownRooms(root)).find((one) => one.id === id) ?? null;
+        let one = await find();
+        if (!one) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
+        if (one.open) {
+          const answer = await askRoom(one.open.port, '/api/room/close', { method: 'POST', body: {} });
+          if (answer.outdated) return sendJson(response, 409, { error: t('That project runs an older MADRE. Update it, or close it from its terminal.'), outdated: true });
+          if (answer.unreachable) return sendJson(response, 502, { error: t('That project did not answer.') });
+          for (let tries = 0; tries < 40 && one?.open; tries += 1) { await new Promise((resolve) => setTimeout(resolve, 250)); one = await find(); }
+          if (one?.open) return sendJson(response, 504, { error: t('That project did not close. Close it and try again.') });
+        }
+        const ended = [];
+        for (const contract of activeContracts(await readConfig(root), { salas })) {
+          if (contract.rooms.a !== id && contract.rooms.b !== id) continue;
+          const revoked = await revokeContract(root, contract.id);
+          if (!revoked) continue;
+          ended.push(revoked.id);
+          await tellRooms('enlace.revoked', revoked, await knownRooms(root)).catch(() => null);
+        }
+        const forgotten = await forgetProject({ stateRoot: root, id });
+        // A room from before MADRE kept the path has no record to set aside: closed, it is gone.
+        if (forgotten.error && await find()) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
+        return sendJson(response, 200, { id, name: forgotten.name ?? one?.name ?? id, root: forgotten.root ?? null, ended });
       }
       // ---------- fin ENLACES ----------
       // Where the person was, to pick it up on the other side (bridge/handoff.mjs).

@@ -185,6 +185,20 @@ export async function associateProject({ root, home, stateRoot, now = new Date()
   return { id, name: basename(folder), root: folder, already: Boolean(before) };
 }
 
+// Takes a project out of MADRE (2026-10-10): its record of where it is goes aside, so Home no
+// longer lists it. Nothing in the project's folder is touched, and its conversations and its
+// memory stay beside the record: added again, the folder gets the same id and finds them there.
+// A room that is open is closed first, by whoever calls; one with no record has nothing to forget.
+export async function forgetProject({ stateRoot, id }) {
+  if (typeof id !== 'string' || !/^[^/\\]+$/.test(id) || id === '.' || id === '..') return { error: 'unknown' };
+  const roomDir = join(stateRoot, 'rooms', id);
+  const file = join(roomDir, 'project.json');
+  const record = await readJson(file);
+  if (!record) return { error: 'unknown' };
+  await rename(file, join(roomDir, 'project.forgotten.json'));
+  return { id, name: typeof record.name === 'string' ? record.name : id, root: typeof record.root === 'string' ? record.root : null };
+}
+
 // Every room: the ones open now, and the ones asleep whose project is still on disk. A folder
 // with neither (a test's, a temporary one, a room from before MADRE kept the path) is not
 // offered: there is nothing to open (S-004).

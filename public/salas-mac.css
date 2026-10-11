@@ -371,30 +371,21 @@ dialog.sm-sheet > .sm-sheet-body { flex: none; width: min(var(--sm-sheet-w), 100
 body.sm-in-macro { overflow: hidden; }
 
 .mv { position: fixed; inset: 0; z-index: 20; background: #030305; color: #f2f1ee; animation: mv-in 420ms var(--ease-out, ease-out); }
-/* The macroverse is night in either theme: it wears the night's tokens (styles.css, the dark
-   scheme), so its keys, rails and closes are the room's at night, and the accent as the night
-   wears it (salas-mac.js, darkAccent and its ink). */
-.mv {
-  --surface: #1c1f1d; --panel: #101310; --panel-2: #171b17;
-  --text: #eef1ea; --text-2: #9aa197; --text-3: #626a5f;
-  --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .13);
-  --neu-hi: rgba(255, 255, 255, .045); --neu-lo: rgba(0, 0, 0, .42);
-  --key-rest: -1.5px -1.5px 4px var(--neu-hi), 2px 2.5px 6px var(--neu-lo);
-  --key-over: -2px -2px 5px var(--neu-hi), 3px 3.5px 8px var(--neu-lo);
-  --key-down: inset 2px 2px 4px var(--neu-lo), inset -1.5px -1.5px 3px var(--neu-hi);
-  --key-track: inset 1px 1px 2.5px var(--neu-lo), inset -1px -1px 2.5px var(--neu-hi);
-  --raise: -2px -2px 8px var(--neu-hi), 3px 4px 14px var(--neu-lo);
-  --danger: #ff7b72;
-  --s-acc: var(--mv-acc, #9bff66); --s-acc-ink: var(--mv-acc-ink, #0a1405);
-}
+/* The macroverse's space is night in either theme and what is drawn on it is light; its keys
+   are the room's in the theme you chose (2026-10-10), with the accent as the night wears it where
+   something is chosen (salas-mac.js, darkAccent and its ink). */
+.mv { --s-acc: var(--mv-acc, #9bff66); --s-acc-ink: var(--mv-acc-ink, #0a1405); }
 .mv.leaving { animation: mv-out 260ms ease-in forwards; }
 @keyframes mv-in { from { opacity: 0; transform: scale(1.04); } }
 @keyframes mv-out { to { opacity: 0; transform: scale(1.03); } }
 .mv-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
-.mv-head { position: absolute; left: 40px; top: 30px; right: 40px; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "title back" "sub back"; align-items: start; pointer-events: none; }
-.mv-head h2 { grid-area: title; margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 700; letter-spacing: -.025em; line-height: 1; text-shadow: 0 2px 30px rgba(0, 0, 0, .6); }
-.mv-head p { grid-area: sub; margin: 10px 0 0; font-size: 14.5px; color: rgba(242, 241, 238, .62); }
-.mv-back { grid-area: back; pointer-events: auto; }
+/* Its head is a settings sheet's (styles.css, .settings-detail-head): the round key back, the name,
+   and what it holds in a line under it — in the light of the space it sits on. */
+.mv-head { position: absolute; left: 32px; top: 26px; right: 32px; margin: 0; pointer-events: none; }
+.mv-head .settings-detail-title { gap: 12px; }
+.mv-head h2 { margin: 0; font-family: var(--read); font-size: 22px; font-weight: 650; letter-spacing: -.01em; line-height: 1.2; color: #f2f1ee; text-shadow: 0 1px 14px rgba(0, 0, 0, .55); }
+.mv-head .settings-line { margin: 0; font-size: 13.5px; color: rgba(242, 241, 238, .64); }
+.mv-back { pointer-events: auto; }
 .mv-hint { position: absolute; left: 40px; bottom: 26px; margin: 0; font-size: 12.5px; color: rgba(242, 241, 238, .42); pointer-events: none; }
 
 .mv-card { position: absolute; right: 40px; top: 50%; translate: 0 -50%; width: min(360px, 34vw); display: grid; gap: 10px; padding: 22px 22px 18px; border-radius: 22px; background: rgba(18, 18, 22, .78); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 30px 60px -30px rgba(0, 0, 0, .9); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); animation: mv-card-in 420ms var(--ease-out, ease-out); }
@@ -590,7 +581,7 @@ body.sm-in-macro { overflow: hidden; }
 .lw-card { display: grid; margin: 0; padding: 2px 16px; list-style: none; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
 .lw-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid var(--line); }
 .lw-card > :first-child { border-top: 0; }
-.lw-row.lw-stack { display: grid; gap: 8px; }
+.lw-row.lw-stack { display: grid; gap: 8px; justify-content: normal; }
 .lw-words { display: grid; gap: 3px; min-width: 0; }
 .lw-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lw-title b { font-size: 14px; font-weight: 600; color: var(--text); }
@@ -636,6 +627,11 @@ body.sm-in-macro { overflow: hidden; }
 .lw-card.lw-grid > .lw-row { border-top: 1px solid var(--line); }
 .lw-card.lw-grid > .lw-row:nth-child(-n+2) { border-top: 0; }
 .lw-pick { display: flex; align-items: center; gap: 8px; }
+/* Both ways: the two projects side by side, the sign that says each reads the other between them. */
+.lw-pair { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lw-pair .lw-select { flex: 1 1 0; width: auto; min-width: 0; }
+.lw-both { display: grid; place-items: center; flex: none; width: 22px; color: var(--text-2); }
+.lw-both svg { width: 18px; height: 18px; }
 .lw-pick .lw-select { width: 170px; }
 .lw-review li { position: relative; padding: 12px 0 12px 20px; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.5; color: var(--text); }
 .lw-review li:first-child { border-top: 0; }
@@ -712,4 +708,15 @@ dialog.sm-sheet.sm-settings[open] { --sm-sheet-pad: 20px; }
 .sm-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font-family: var(--read); font-size: 13px; text-align: left; cursor: pointer; }
 .sm-menu-item svg { flex: none; width: 16px; height: 16px; color: var(--phosphor); }
 .sm-menu-item:hover, .sm-menu-item:focus-visible { background: color-mix(in srgb, var(--text) 7%, transparent); outline: none; }
+.sm-menu-item.danger, .sm-menu-item.danger svg { color: var(--danger, var(--terror)); }
+.sm-menu-sep { display: block; height: 1px; margin: 4px 8px; background: var(--line); }
+/* The card's own key for that menu, for whoever does not right-click: quiet until the card is
+   under the pointer. */
+.sm-card-more { flex: none; display: grid; place-items: center; width: 26px; height: 26px; margin: -4px -6px -4px 0; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); opacity: .7; cursor: pointer; transition: opacity calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), background-color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-card-more svg { width: 16px; height: 16px; }
+.sm-card:hover .sm-card-more, .sm-card-more:focus-visible { opacity: 1; }
+.sm-card-more:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.sm-card-more:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
+/* Home's notices (salas-mac.js, toast): the room's, at the foot of the screen, over any sheet. */
+.toast.sm-toast { position: fixed; inset: auto auto 28px 50%; z-index: 80; margin: 0; transform: translateX(-50%); overflow: visible; }
 @media (prefers-reduced-motion: reduce) { .sm-tb-open.is-editing > .sm-tb-room[data-bar-item] { animation: none; } }

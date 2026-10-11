@@ -7767,17 +7767,28 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
 @keyframes switch-beat { 50% { opacity: .35; transform: scale(.75); } }
 dialog.room-switch { width: fit-content; max-width: calc(100vw - 32px); padding: 0; border: 0; border-radius: 26px; color: var(--text); background: color-mix(in srgb, var(--bg-2) 94%, transparent); -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2); box-shadow: var(--bevel), 0 30px 80px -24px rgba(0, 0, 0, .6), 0 8px 24px -10px rgba(0, 0, 0, .35); }
 dialog.room-switch[open] { animation: switch-in calc(180ms * var(--motion-scale, 1)) var(--ease-out); }
-dialog.room-switch::backdrop { background: rgba(0, 0, 0, .18); }
+/* Behind the panel, the room a little out of focus under a mesh of the accent and the ground,
+   barely there (2026-10-10): the panel lifts off the room without hiding it. */
+dialog.room-switch::backdrop {
+  background:
+    radial-gradient(60% 55% at 16% 10%, color-mix(in srgb, var(--acc, var(--phosphor)) 9%, transparent), transparent 72%),
+    radial-gradient(55% 65% at 88% 26%, color-mix(in srgb, var(--bg-2) 34%, transparent), transparent 72%),
+    radial-gradient(75% 55% at 44% 102%, color-mix(in srgb, var(--acc, var(--phosphor)) 7%, transparent), transparent 74%),
+    rgba(0, 0, 0, .12);
+  -webkit-backdrop-filter: blur(1.5px) saturate(1.06); backdrop-filter: blur(1.5px) saturate(1.06);
+}
+:root[data-scheme="light"] dialog.room-switch::backdrop { background: radial-gradient(60% 55% at 16% 10%, color-mix(in srgb, var(--acc, var(--phosphor)) 10%, transparent), transparent 72%), radial-gradient(55% 65% at 88% 26%, rgba(255, 255, 255, .34), transparent 72%), radial-gradient(75% 55% at 44% 102%, color-mix(in srgb, var(--acc, var(--phosphor)) 8%, transparent), transparent 74%), rgba(20, 30, 25, .06); }
 :root[data-scheme="light"] dialog.room-switch { box-shadow: var(--bevel), 0 30px 80px -26px rgba(20, 30, 25, .35), 0 8px 24px -12px rgba(20, 30, 25, .2); }
 @keyframes switch-in { from { opacity: 0; transform: scale(.96); } }
 .switch-body { padding: 14px; }
 /* As wide as its icons, six to a row at most (app.js sets how many columns). */
 .switch-row { display: grid; grid-template-columns: repeat(var(--switch-cols, 3), 116px); justify-content: center; gap: 6px; }
-.switch-tile { display: grid; justify-items: center; align-content: start; gap: 7px; width: 116px; padding: 14px 8px 11px; border-radius: 18px; color: var(--text); text-decoration: none; outline: none; transition: background-color var(--motion-fast) var(--ease-out); }
+.switch-tile { display: grid; justify-items: center; align-content: start; gap: 7px; width: 116px; padding: 14px 8px 11px; border-radius: 18px; color: var(--text); text-decoration: none; outline: none; }
 .switch-tile:hover, .switch-tile:focus-visible { background: color-mix(in srgb, var(--text) 10%, transparent); }
 .switch-tile:focus-visible { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc, var(--phosphor)) 60%, transparent); }
 .switch-icon { position: relative; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 17px; background: var(--surface, var(--panel)); box-shadow: var(--bevel), 0 1px 2px rgba(0, 0, 0, .22), 0 8px 18px -10px rgba(0, 0, 0, .5); font-family: var(--read); font-size: 24px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
 .switch-icon.is-coordinator { background: var(--icon-solid); color: var(--icon-ink); }
+.switch-face { display: grid; place-items: center; width: 100%; height: 100%; }
 .switch-icon.is-coordinator svg { width: 58%; height: 58%; display: block; }
 .switch-badge { position: absolute; top: -6px; right: -6px; display: none; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; font-family: var(--mono); font-size: 11.5px; font-style: normal; font-weight: 700; line-height: 1; box-shadow: 0 0 0 2.5px var(--bg-2); }
 .switch-badge svg { width: 13px; height: 13px; }
@@ -8182,3 +8193,58 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
 #messages .system.lease.missing .actions button:is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 26%, transparent) !important; outline: 0; }
 #messages .system.lease.missing .actions button.standing:is(:hover, :focus-visible) { color: var(--text); background: color-mix(in srgb, var(--text) 14%, transparent) !important; }
 #messages .system.lease.missing .actions button:disabled { opacity: .5; cursor: default; }
+
+
+/* ==========================================================================================
+   ROUND OF 10 OCT, EVENING
+   ------------------------------------------------------------------------------------------
+   The tags under a bubble, the dropdowns' chevron, the way from one MADRE page to another and the
+   memory map's keys.
+   ========================================================================================== */
+/* The tags under a bubble are as wide as what they say: a human's at the bubble's right, an
+   agent's at its left. Only a wallpaper did that; on a plain ground the column stretched them to
+   the bubble's whole width. */
+#messages .col > :is(.who, .stamp) { width: fit-content; max-width: 100%; }
+#messages .user .col > :is(.who, .stamp) { margin-left: auto; }
+/* The line an answer replies to is a reminder, not the line again: a short one, cut. */
+#messages .col > .who .reply { max-width: 42ch; }
+
+/* A dropdown says it opens with MADRE's own chevron — two short strokes, up and down, as the Mac's
+   pop-up menus do — in the theme's second ink, instead of each system's own arrow. */
+:root { --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14'%3E%3Cpath d='M2.2 5.2 5 2.4l2.8 2.8M2.2 8.8 5 11.6l2.8-2.8' fill='none' stroke='%239aa197' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+:root[data-scheme="light"] { --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14'%3E%3Cpath d='M2.2 5.2 5 2.4l2.8 2.8M2.2 8.8 5 11.6l2.8-2.8' fill='none' stroke='%235a615a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none; appearance: none;
+  padding-right: 30px !important;
+  background-image: var(--select-chevron) !important;
+  background-repeat: no-repeat !important;
+  background-position: right 11px center !important;
+  background-size: 10px 14px !important;
+  text-overflow: ellipsis;
+}
+
+/* From one MADRE page to another (2026-10-10): the page settles back a little while a veil of its
+   own ground comes up; the next one rises through the veil as it lifts (index.html and
+   salas-mac.html mark the arrival before the first frame, with the veil in the theme's ground).
+   Short, and nothing moves for whoever asked for less motion: the veil only fades. */
+html.madre-leaving::after, html.madre-arriving::after { content: ''; position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; background: var(--arrive-veil, var(--bg)); }
+html.madre-leaving::after { animation: madre-veil-in calc(200ms * var(--motion-scale, 1)) cubic-bezier(.4, 0, .7, .2) both; }
+html.madre-leaving body { animation: madre-settle calc(240ms * var(--motion-scale, 1)) cubic-bezier(.4, 0, .6, 1) both; }
+html.madre-arriving::after { animation: madre-veil-out calc(520ms * var(--motion-scale, 1)) cubic-bezier(.2, .7, .2, 1) 30ms both; }
+html.madre-arriving body { animation: madre-rise calc(620ms * var(--motion-scale, 1)) cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes madre-veil-in { from { opacity: 0; } }
+@keyframes madre-veil-out { to { opacity: 0; } }
+@keyframes madre-settle { to { transform: scale(.985); } }
+@keyframes madre-rise { from { transform: scale(1.012); } }
+@media (prefers-reduced-motion: reduce) { html.madre-leaving body, html.madre-arriving body { animation: none; } }
+
+/* The memory map's keys are the room's (2026-10-10): its surface and ink in either theme, and what
+   is on — the unused, the questions — in the accent. Its space stays dark; its keys do not. */
+#nostromo .nostromo-actions .mother-close { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-rest); transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out); }
+#nostromo .nostromo-actions .mother-close:hover { background: var(--surface, var(--panel)); box-shadow: var(--key-over, var(--key-rest)); }
+#nostromo .nostromo-actions .mother-close:active { box-shadow: var(--key-down, var(--key-rest)); }
+#nostromo .nostromo-actions .mother-close:is(.ask, .cold) { color: var(--text); border: 0; }
+#nostromo .nostromo-actions .mother-close[aria-pressed="true"], #nostromo .nostromo-actions .mother-close:is(.ask, .cold)[aria-pressed="true"] { background: var(--acc, var(--phosphor)); color: var(--acc-ink, var(--phosphor-ink)); box-shadow: var(--key-rest); }
+#nostromo .nostromo-actions .mother-close:focus-visible { outline: 2px solid color-mix(in srgb, var(--acc, var(--phosphor)) 70%, transparent); outline-offset: 2px; }
+#nostromo .nostromo-card header .mother-close { background: var(--surface, var(--panel)); color: var(--text-2); box-shadow: var(--key-rest); }
+#nostromo .nostromo-card header .mother-close:hover { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
