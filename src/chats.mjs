@@ -61,7 +61,7 @@ const withoutRelayHeader = (line) => {
   if (typeof line !== 'string' || !line.startsWith('BISHOP › ')) return line;
   const task = line.replace(/^BISHOP › .*?(?:other rooms(?: in this turn)?\.|ends with the answer\.)\s*/, '');
   // Cut short inside the header (titles and previews are kept short): only the sender is left.
-  return task && !task.startsWith('BISHOP › ') ? task : 'BISHOP';
+  return task && !task.startsWith('BISHOP › ') ? task : 'Coordinator';
 };
 const shape = (id, entry, active) => ({
   id,

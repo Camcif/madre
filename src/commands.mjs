@@ -24,7 +24,7 @@ export const COMMANDS = [
   {
     name: 'git',
     module: 'git-pulse',
-    title: 'Git Pulse',
+    title: 'Git',
     usage: '/git [status|log|diff|branches|commit "message"|push [confirm]]',
     summary: 'Repository status, recent commits, uncommitted changes and branches from the project itself; commit and push by your own hand, with a confirmation before anything leaves.',
     async available({ projectRoot }) {
@@ -51,41 +51,41 @@ export const COMMANDS = [
       } else if (what === 'commit') {
         // The human commits what the room produced. Everything in the tree, one message, local: reversible with git.
         const message = args.slice(1).join(' ').replace(/^["'“]+|["'”]+$/g, '').trim();
-        if (!message) return { ok: false, title: 'Git Pulse · commit', text: 'Give the commit a message: /git commit "what and why".' };
+        if (!message) return { ok: false, title: 'Git · commit', text: 'Give the commit a message: /git commit "what and why".' };
         // Without an identity git refuses the commit with a wall of advice; say the one thing to do.
         const email = await run('git', ['config', '--get', 'user.email'], projectRoot);
         const who = await run('git', ['config', '--get', 'user.name'], projectRoot);
         if (!email.text.trim() || !who.text.trim()) {
-          return { ok: false, title: 'Git Pulse · commit', text: 'This computer has no git identity, so the commit would have no author. Set it once in your terminal:\n\n  git config --global user.name "Your Name"\n  git config --global user.email you@example.com' };
+          return { ok: false, title: 'Git · commit', text: 'This computer has no git identity, so the commit would have no author. Set it once in your terminal:\n\n  git config --global user.name "Your Name"\n  git config --global user.email you@example.com' };
         }
         const staged = await run('git', ['add', '-A', '--', '.'], projectRoot);
-        if (!staged.ok) return { ok: false, title: 'Git Pulse · commit', text: staged.text };
+        if (!staged.ok) return { ok: false, title: 'Git · commit', text: staged.text };
         const committed = await run('git', ['-c', 'color.ui=never', 'commit', '-m', message], projectRoot);
-        if (!committed.ok) return { ok: false, title: 'Git Pulse · commit', text: committed.text || 'Nothing to commit.' };
+        if (!committed.ok) return { ok: false, title: 'Git · commit', text: committed.text || 'Nothing to commit.' };
         await add('committed', ['-c', 'color.ui=never', 'show', '--stat', '--format=%h %s', 'HEAD']);
-        return { ok: true, title: 'Git Pulse · commit', text: sections.join('\n\n') };
+        return { ok: true, title: 'Git · commit', text: sections.join('\n\n') };
       } else if (what === 'push') {
         // Nothing leaves without the word: first the preview of what would go, then /git push confirm.
         const upstream = await run('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], projectRoot);
-        if (!upstream.ok) return { ok: false, title: 'Git Pulse · push', text: `This branch has no upstream. Set it once from your terminal: git push -u <remote> <branch>.` };
+        if (!upstream.ok) return { ok: false, title: 'Git · push', text: `This branch has no upstream. Set it once from your terminal: git push -u <remote> <branch>.` };
         const ahead = await run('git', ['-c', 'color.ui=never', 'log', '--oneline', '@{u}..HEAD'], projectRoot);
         const commits = ahead.text ? ahead.text.split('\n').filter(Boolean) : [];
-        if (!commits.length) return { ok: true, title: 'Git Pulse · push', text: `Nothing to push: ${upstream.text} already has everything.` };
+        if (!commits.length) return { ok: true, title: 'Git · push', text: `Nothing to push: ${upstream.text} already has everything.` };
         if ((args[1] ?? '').toLowerCase() !== 'confirm') {
-          return { ok: true, title: 'Git Pulse · push · preview', text: `## would leave for ${upstream.text}\n${commits.join('\n')}\n\nThis leaves the machine and cannot be undone by MADRE. Send it with: /git push confirm` };
+          return { ok: true, title: 'Git · push · preview', text: `## would leave for ${upstream.text}\n${commits.join('\n')}\n\nThis leaves the machine and cannot be undone by MADRE. Send it with: /git push confirm` };
         }
         const pushed = await run('git', ['-c', 'color.ui=never', 'push'], projectRoot, 120000);
-        return { ok: pushed.ok, title: 'Git Pulse · push', text: `## sent to ${upstream.text}\n${commits.join('\n')}\n\n${pushed.text || '(pushed)'}` };
+        return { ok: pushed.ok, title: 'Git · push', text: `## sent to ${upstream.text}\n${commits.join('\n')}\n\n${pushed.text || '(pushed)'}` };
       } else {
-        return { ok: false, title: 'Git Pulse', text: `Unknown subcommand "${what}". Use /git status, /git log [n], /git diff, /git branches, /git commit "message" or /git push [confirm].` };
+        return { ok: false, title: 'Git', text: `Unknown subcommand "${what}". Use /git status, /git log [n], /git diff, /git branches, /git commit "message" or /git push [confirm].` };
       }
-      return { ok: true, title: `Git Pulse · ${what}`, text: sections.join('\n\n') };
+      return { ok: true, title: `Git · ${what}`, text: sections.join('\n\n') };
     },
   },
   {
     name: 'ahp',
     module: 'ahp',
-    title: 'AHP+',
+    title: 'Continuity',
     usage: '/ahp [status|check|context]',
     summary: 'Ask the AHP+ installed in this project for its verified status, checks or session context.',
     async available({ projectRoot }) {
@@ -98,9 +98,9 @@ export const COMMANDS = [
         check: ['project', 'check', '.'],
         context: ['session', 'context', '.', '--format', 'markdown', '--budget', '4000'],
       };
-      if (!map[what]) return { ok: false, title: 'AHP+', text: `Unknown subcommand "${what}". Use /ahp status, /ahp check or /ahp context.` };
+      if (!map[what]) return { ok: false, title: 'Continuity', text: `Unknown subcommand "${what}". Use /ahp status, /ahp check or /ahp context.` };
       const result = await run(join(projectRoot, 'node_modules', '.bin', 'ahp'), map[what], projectRoot, 60000);
-      return { ok: result.ok, title: `AHP+ · ${what}`, text: result.text || '(no output)' };
+      return { ok: result.ok, title: `Continuity · ${what}`, text: result.text || '(no output)' };
     },
   },
 ];

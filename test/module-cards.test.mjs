@@ -98,7 +98,7 @@ test('every card has the same floors, and the switch is always the last one', as
 
   // One shape for all of them: name and version, how it is doing, what it does, what it touches,
   // then the module's own panel and, last, the actions.
-  assert.ok(shell.includes("el('h4', null, item.name)"), 'the card does not name the module');
+  assert.ok(shell.includes("el('h4', null, t(item.name))"), 'the card does not name the module');
   assert.ok(shell.includes('versionLabel(item)'), 'the card does not say what version is running');
   assert.ok(shell.includes("cardFold(card, t('WHAT IT TOUCHES')"), 'the bullets are not a section of their own');
   assert.match(shell, /card\.append\(panel, actions\);/, 'the actions are not the last floor of the card');
@@ -116,7 +116,7 @@ test('every card has the same floors, and the switch is always the last one', as
 
   // What a module knows about itself belongs on its card: a reading, a setting, or both.
   assert.ok(app.includes("ashReading(panel)"), 'the economy is not on Ash\'s card');
-  assert.ok(app.includes("cardBlock(panel, t('LOCAL BRAIN'))"), 'Ollama does not report on its own card');
+  assert.ok(app.includes("cardBlock(panel, t('LOCAL AI'))"), 'Local AI does not report on its own card');
   assert.ok(app.includes("cardBlock(panel, t('ROLES'))"), 'the local roles are not settings on the card');
   // And the settings floor is declared, not drawn: any module gets one by saying what it has.
   assert.ok(app.includes("cardBlock(panel, t('SETTINGS'))"), 'a module cannot have settings on its card');

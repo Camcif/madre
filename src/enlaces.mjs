@@ -96,7 +96,7 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   const a = typeof rooms.a === 'string' ? rooms.a.trim() : '';
   const b = typeof rooms.b === 'string' ? rooms.b.trim() : '';
   if (!ROOM.test(a) || !ROOM.test(b)) fail('A link names two rooms, a and b.');
-  if (a === b) fail('A room cannot be linked to itself.');
+  if (a === b) fail('A project cannot be connected to itself.');
 
   const id = raw.id === undefined || raw.id === null ? contractId({ a, b }) : String(raw.id);
   if (!ID.test(id)) fail('That is not a link id.');
@@ -105,10 +105,10 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   const direction = String(raw.direction ?? '').replace('->', '→');
   if (!DIRECTIONS.includes(direction)) fail('The direction is a→b, b→a or both.');
 
-  if (!Array.isArray(raw.kinds) || !raw.kinds.length) fail('A link names the kinds that may cross.');
+  if (!Array.isArray(raw.kinds) || !raw.kinds.length) fail('A connection names the kinds that may cross.');
   const kinds = [...new Set(raw.kinds.map(String))];
   for (const kind of kinds) {
-    if (kind === 'aberration') fail('An aberration never crosses a link.');
+    if (kind === 'aberration') fail('An aberration never crosses a connection.');
     if (!LINK_KINDS.includes(kind)) fail(`"${kind}" is not a kind of memory.`);
   }
   kinds.sort((x, y) => LINK_KINDS.indexOf(x) - LINK_KINDS.indexOf(y));
@@ -136,8 +136,8 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   const allowed = Boolean(orders.allowed);
   if (salas) {
     const serves = direction === 'both' ? [a, b] : direction === 'a→b' ? [a] : [b];
-    if (serves.includes(salas)) fail('The room of Salas never serves a link: BISHOP gathers every room and is nobody\'s source.');
-    if (allowed && a !== salas && b !== salas) fail('Orders need the room of Salas at one end of the link.');
+    if (serves.includes(salas)) fail('The Coordinator\'s project never serves a connection: the Coordinator gathers every project and is nobody\'s source.');
+    if (allowed && a !== salas && b !== salas) fail('Orders need the Coordinator\'s project at one end of the connection.');
   }
 
   // Who signed it (D-S13): the human always may; BISHOP only a link to read, with no orders, that
@@ -145,11 +145,11 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   // contract: `activeContracts` skips it.
   const signed = raw.signed && typeof raw.signed === 'object' ? raw.signed : {};
   const by = signed.by === undefined || signed.by === null ? 'you' : signed.by;
-  if (by !== 'you' && by !== 'bishop') fail('Only you or BISHOP sign a link.');
+  if (by !== 'you' && by !== 'bishop') fail('Only you or the Coordinator sign a connection.');
   const at = signed.at === undefined || signed.at === null ? new Date(now).toISOString() : isoOrNull(signed.at, 'signed.at');
   if (by === 'bishop') {
-    if (allowed) fail('BISHOP signs only links to read; a link with orders is signed by you.');
-    if (expires === null || Date.parse(expires) - Date.parse(at) > BISHOP_SIGN_DAYS * DAY_MS + 60000) fail('BISHOP signs only links that expire within 7 days.'); // BISHOP_SIGN_DAYS, said literally for the catalogue
+    if (allowed) fail('The Coordinator signs only connections to read; a connection with orders is signed by you.');
+    if (expires === null || Date.parse(expires) - Date.parse(at) > BISHOP_SIGN_DAYS * DAY_MS + 60000) fail('The Coordinator signs only connections that expire within 7 days.'); // BISHOP_SIGN_DAYS, said literally for the catalogue
   }
 
   return {
@@ -220,7 +220,7 @@ export function mayServe({ contract, serving, asking, now = new Date() }) {
 export async function signContract(stateRoot, raw, { now = new Date(), rooms = null, salas = null, designation = null } = {}) {
   const contract = normalizeContract(raw, { now, salas });
   if (contract.revoked !== null) fail('A link is not signed already revoked.');
-  if (contract.expires !== null && Date.parse(contract.expires) <= new Date(now).getTime()) fail('That link would already have expired.');
+  if (contract.expires !== null && Date.parse(contract.expires) <= new Date(now).getTime()) fail('That connection would already have expired.');
   const known = new Map((rooms ?? await knownRooms(stateRoot)).map((room) => (typeof room === 'string' ? [room, { id: room, name: room }] : [room.id, room])));
   for (const id of [contract.rooms.a, contract.rooms.b]) if (!known.has(id)) fail(`MADRE does not know the room ${id} on this Mac.`, 'UNKNOWN_ROOM');
   const ordered = receivesOrders(contract, salas);

@@ -245,7 +245,7 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.equal(column.querySelector('.empty'), null, 'the empty state is gone once messages exist');
   const firstUser = column.children.find((child) => child instanceof FakeElement && child.classList.contains('user'));
   assert.ok(firstUser, 'a human message rendered');
-  assert.match(firstUser.textContent, /TÚ · TRIPULACIÓN/, 'human messages carry the crew label');
+  assert.match(firstUser.textContent, /TÚ · AGENTES/, 'human messages carry the agents label');
   assert.equal(registry.get('crew-label') !== undefined, true);
   // And the whole pipe, on a rendered page rather than on the catalogue alone: what the page
   // itself builds comes out in Spanish. (The markup's own words are walked through the catalogue
@@ -289,7 +289,7 @@ test('the room UI boots against a real transcript without throwing', async () =>
   const chosenTarget = registry.get('target').value;
   // Sent, it arms #2 for its message the way /image does, and goes.
   const moduleRequest = await globalThis.__pulse.runSlashCommand(message.value);
-  assert.match(registry.get('crew-label').textContent, /MODULE · CREATE/);
+  assert.match(registry.get('crew-label').textContent, /MÓDULO · CREAR/);
   assert.equal(moduleRequest.handled, false);
   assert.equal(moduleRequest.target, chosenTarget, '/module changed the selected agent');
   assert.equal(moduleRequest.draft, true, '/module asked for the whole project instead of its draft folder');
@@ -332,13 +332,13 @@ test('the room UI boots against a real transcript without throwing', async () =>
   await new Promise((resolve) => setTimeout(resolve, 0));
   // Nothing wired answers here but the verdict, and the board says what it could not read
   // instead of drawing figures nobody measured.
-  assert.match(panes.children[0].textContent, /TÚ[\s\S]*TU MODELO LOCAL[\s\S]*OLLAMA[\s\S]*LA CALIDAD[\s\S]*NO HAY NADA QUE LEER/);
+  assert.match(panes.children[0].textContent, /TÚ[\s\S]*TU MODELO LOCAL[\s\S]*IA LOCAL[\s\S]*LA CALIDAD[\s\S]*NO HAY NADA QUE LEER/);
   // Each one filled from the room, and each one with its own `==>` sections.
   // In the language MADRE speaks, which is the point of reading it here rather than in the
   // catalogue: the page, the panes and the words all came up together.
   assert.match(panes.children[1].textContent, /EL DOCUMENTO[\s\S]*MEMORIES[\s\S]*LO QUE CARGA/);
   assert.match(panes.children[2].textContent, /EL LANZAMIENTO[\s\S]*\/usr\/local\/bin\/codex/);
-  assert.match(panes.children[3].textContent, /LO QUE SALIÓ DE ESTA COMPUTADORA[\s\S]*the npm registry/);
+  assert.match(panes.children[3].textContent, /ENVÍOS[\s\S]*the npm registry/);
   // An inquiry that is already a pane opens it rather than printing it twice.
   const prompt = body.querySelector('.console-line');
   const ask = async (text) => { prompt.querySelector('INPUT').value = text; await prompt.listeners.submit[0]({ preventDefault() {} }); };
@@ -444,7 +444,7 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   assert.ok(['crew', 'modules', 'mother', 'nostromo', 'servers', 'ash', 'intents', 'ollama'].every((id) => tiles().includes(id)), `the card does not offer what is off the bar: ${tiles()}`);
   assert.ok(!tiles().some((id) => ['reload', 'salas'].includes(id)), 'the card offers a key of the second bar');
   assert.ok(!tiles().some((id) => ['finder', 'memory', 'settings'].includes(id)), 'the card offers what is already on the bar, or AJUSTES');
-  assert.equal(card.querySelectorAll('.bar-tile').find((tile) => tile.dataset.barItem === 'nostromo').getAttribute('aria-label'), 'Agregar NOSTROMO');
+  assert.equal(card.querySelectorAll('.bar-tile').find((tile) => tile.dataset.barItem === 'nostromo').getAttribute('aria-label'), 'Agregar Mapa de memoria');
   assert.match(card.textContent, /Listo/);
 
   // «−» takes the key off and remembers it; the key goes to the card.
@@ -684,7 +684,7 @@ test('/modules finds /module, and the menu offers something to say with it', () 
   // The rows under it are instructions, not commands, and they say what shape of module each is.
   const starters = found.filter((row) => row.classList.contains('starter'));
   assert.ok(starters.length >= 3, 'no starters under /module');
-  assert.match(starters.map((row) => row.textContent).join(' '), /conector/i, 'no starter shows that a connector is possible');
+  assert.match(starters.map((row) => row.textContent).join(' '), /integración/i, 'no starter shows that an integration is possible');
 
   // And picking one leaves an instruction in the box, ready to edit — never sent by itself.
   const pick = starters[0].listeners.mousedown?.[0];
@@ -708,11 +708,11 @@ test('the guide to creating a module says what one is and puts /module in the co
   const text = all.map((node) => node.textContent ?? '').join(' ');
   assert.match(text, /Un módulo es un archivo/, 'the guide did not render');
   assert.match(text, /\/module/, 'the guide never mentions the one command that writes a module for you');
-  assert.match(text, /conector/i, 'the guide never says a connector is possible');
+  assert.match(text, /integración/i, 'the guide never says an integration is possible');
   // Four steps, in the order they are taken.
   assert.match(text, /Pídelo[\s\S]*O escríbelo tú[\s\S]*Cárgalo[\s\S]*Si habla con un servicio/);
 
-  const button = all.find((node) => node.tagName === 'BUTTON' && node.textContent === 'Pedirlo en la sala');
+  const button = all.find((node) => node.tagName === 'BUTTON' && node.textContent === 'Pedirlo en el proyecto');
   assert.ok(button, 'there is no way from the guide into the composer');
   const input = registry.get('message');
   input.value = 'algo que estaba escribiendo';

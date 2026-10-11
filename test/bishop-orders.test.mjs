@@ -59,11 +59,11 @@ test('bishop · each order is checked: room, agent, link, ceiling; #3 and #4 onl
   const orders = ['aurora/codex #1: a', 'AURORA/codex #2: b', 'aurora/claude #3: c', 'boreal/codex #1: d', 'twin/codex #1: e', 'salas/codex #1: f', 'nadie/codex #1: g', 'aurora/robot #1: h'].map((line) => parsePlan(`\`\`\`pulse-salas\nm\n@${line}\n\`\`\``).orders[0]);
   const checked = resolveOrders({ orders, rooms, contracts, salas, agents: roster() });
   assert.deepEqual(checked.map((order) => order.status), ['ready', 'blocked', 'proposal', 'blocked', 'blocked', 'blocked', 'blocked', 'blocked']);
-  assert.equal(checked[1].why, 'That link allows orders up to #{n}.');
+  assert.equal(checked[1].why, 'That connection allows orders up to #{n}.');
   assert.deepEqual(checked[1].whyArgs, { n: 1 });
-  assert.match(checked[3].why, /No signed link/);
-  assert.match(checked[4].why, /Two rooms/);
-  assert.match(checked[5].why, /lives in this room/);
+  assert.match(checked[3].why, /No signed connection/);
+  assert.match(checked[4].why, /Two projects/);
+  assert.match(checked[5].why, /lives in this project/);
   assert.match(checked[7].why, /No such agent/);
 });
 

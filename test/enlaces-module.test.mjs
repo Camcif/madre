@@ -75,7 +75,7 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
 
     // ---- The module: nothing without a contract, nothing in #0, and never from the phone's side.
     assert.equal(enlaces.id, 'enlaces');
-    assert.equal(enlaces.name, 'ENLACES');
+    assert.equal(enlaces.name, 'Connections');
     assert.equal(enlaces.defaults.enabled, true, 'ENLACES is not on by default');
     assert.deepEqual(await enlaces.toolsForTurn(await ctxB(), turnB), [], 'a tool travelled with no link signed');
     assert.ok(!(await toolsOf(portB)).some((server) => server.name === SERVER_NAME), 'THE LAUNCH shows a server no link justifies');
@@ -95,7 +95,7 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.match((await fromSalas.json()).error, /never serves/);
     const ordersAlone = await post(portA, '/api/salas/enlaces', { a: idA, b: idB, direction: 'a→b', kinds: ['fact'], orders: { allowed: true, maxMode: 1, perHour: 6 } }, page(portA));
     assert.equal(ordersAlone.status, 422, 'orders without the room of Salas');
-    assert.match((await ordersAlone.json()).error, /need the room of Salas/);
+    assert.match((await ordersAlone.json()).error, /need the Coordinator's project/);
     const toSalas = { a: salas, b: idB, direction: 'b→a', kinds: ['fact'], orders: { allowed: true, maxMode: 2, perHour: 4 } };
     assert.equal((await post(portA, '/api/salas/enlaces', toSalas, page(portA))).status, 403, 'orders signed with no designation');
     assert.equal((await post(portA, '/api/salas/enlaces', { ...toSalas, designation: nameA }, page(portA))).status, 403, 'orders signed with the wrong room\'s name');
@@ -209,8 +209,8 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.ok(Number.isFinite(Date.parse(traffic.lastAt)));
     assert.deepEqual([traffic.lastAgent, traffic.lastRoom], ['codex', idB], 'Salas says who read last, and from which room');
     const cardB = (await (await fetch(`http://127.0.0.1:${portB}/api/extensions`)).json()).extensions.find((one) => one.id === 'enlaces');
-    assert.deepEqual(cardB.status, { installed: true, detail: 'on · one link lets this room read · 3 readings in 24 h' });
-    assert.equal(cardB.summary, 'What other rooms know, when a signed link lets this room read it. Read-only; nothing leaves this Mac.');
+    assert.deepEqual(cardB.status, { installed: true, detail: 'on · one connection lets this project read · 3 readings in 24 h' });
+    assert.equal(cardB.summary, 'What other projects know, when a signed connection lets this project read it. Read-only; nothing leaves this Mac.');
 
     // ---- The tools, in process, as the agent would see them.
     const roomsSeen = await callTool('enlace_rooms', {}, { env });
@@ -224,7 +224,7 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.equal(await callTool('enlace_search', { room: 'phobos', query: 'nothing of the sort xyzzy' }, { env, fetchImpl: empty }), 'Room phobos has no note that matches "nothing of the sort xyzzy" right now.');
     assert.equal(await callTool('enlace_search', { room: 'phobos', kinds: ['fact', 'rumour'] }, { env, fetchImpl: empty }), 'Room phobos has no note of kind fact that travels right now.');
     assert.equal(await callTool('enlace_search', { room: 'phobos', kinds: ['rumour'] }, { env, fetchImpl: empty }), 'Nothing was read: a kind is one of decision, fact, preference, question.');
-    assert.equal(await callTool('enlace_search', { room: nameA, kinds: ['question'] }, { env }), 'Nothing was read: This link lets this room read only: decision, fact.');
+    assert.equal(await callTool('enlace_search', { room: nameA, kinds: ['question'] }, { env }), 'Nothing was read: This connection lets this project read only: decision, fact.');
     assert.equal(await callTool('enlace_search', {}, { env }), 'Say which room to read from; enlace_rooms lists them.');
     assert.equal(await callTool('enlace_search', { room: nameB }, { env: { ...env, PULSE_ENLACES_ROOM: idA } }), `Nothing was read: ${NO_SUCH_LINK}`);
     const rpc = await handleRequest({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'enlace_search', arguments: { room: nameA, limit: 1 } } }, { env });

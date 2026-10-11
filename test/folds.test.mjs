@@ -9,7 +9,7 @@ test('mother: a window like AJUSTES, with the answer first and the list beside i
   const [app, page, css] = await Promise.all([read('app.js'), read('index.html'), read('styles.css')]);
   // MU/TH/UR is a window of the room now: carried by its head, pulled by its edges, remembered.
   assert.match(page, /<dialog id="mother" class="surface window settings-window mother-window"/);
-  assert.match(page, /<span class="custom-title mother-mark">MU\/TH\/UR 6000<\/span>/, 'the name is the one thing left of the terminal');
+  assert.match(page, /<span class="custom-title mother-mark">DIAGNOSTICS<\/span>/, 'the window says what it is');
   assert.match(app, /carryWindowBy\(head, node, \{ box: \(\) => motherWindow\.box, place: placeMother, done: rememberMotherBox \}\);/);
   assert.match(app, /windowEdgesFor\(node, \{ box: \(\) => motherWindow\.box, place: placeMother, done: rememberMotherBox, minW: 340, minH: 320 \}\);/);
   assert.match(app, /localStorage\.setItem\('pulse\.motherWindow'/);
@@ -60,7 +60,7 @@ test('mother: the list starts where the trouble is, and a search never comes bac
   const paint = app.slice(app.indexOf('function paintRemedies('), app.indexOf('function renderMotherOs('));
   // With nothing written and something recorded, the room's own records come first.
   assert.match(paint, /const filter = remedies\.filter \?\? \(!matches && records\.length \? 'room' : 'all'\);/);
-  for (const chip of ["t('This room')", "t('Blocking')", "t('Matches') : t('All')"]) assert.ok(paint.includes(chip), `the ${chip} chip is gone`);
+  for (const chip of ["t('This project')", "t('Blocking')", "t('Matches') : t('All')"]) assert.ok(paint.includes(chip), `the ${chip} chip is gone`);
   // A sentence that names no condition still finds the closest ones, ranked.
   assert.match(paint, /if \(!matches\.length\) matches = looseConditions\(text\);/);
   assert.match(app, /function looseConditions\(text\) \{/);
@@ -211,7 +211,7 @@ test('mother: one door to the crew, and the bridge is first contact and nothing 
   assert.ok(!readme.includes('⚑ CREW'), 'the README still sends people to a button that is gone');
   assert.match(page, /id="mother-settings-button" class="surface-gear"/);
   // MU/TH/UR's gear opens MU/TH/UR's own settings — the sentinel — and the report lives on each remedy.
-  assert.match(page, /title="MU\/TH\/UR's settings: what the sentinel keeps and whether it reports"/);
+  assert.match(page, /title="Diagnostics settings: what the sentinel keeps and whether it reports"/);
   assert.match(app, /settingsUI\.button\?\.addEventListener\('click', \(\) => openSettingsOn\('release', \{ part: 'sentinel' \}\)\);/);
   assert.ok(!page.includes('id="feedback-button"'), 'a second report button is back in the head');
 
@@ -221,7 +221,7 @@ test('mother: one door to the crew, and the bridge is first contact and nothing 
   assert.ok(!app.includes('function openBridge'), 'a way to open the bridge on a room that has a crew survives');
 
   // And what the bridge said about needing only one agent is said where the crew now lives.
-  assert.match(app, /One agent is enough to open the room/);
+  assert.match(app, /One agent is enough to open the project/);
 });
 
 test('settings: every sheet is built from the same blocks, and the sheet is as wide as you pull it', async () => {
@@ -308,7 +308,7 @@ test('modules: a press inside a dialog is never the desktop, the button brings a
   assert.match(app, /windowEdgesFor\(node, \{ box: \(\) => modulesWindow\.box, place: placeModules, done: rememberModulesBox, minW: 320, minH: 300 \}\);/);
   // Ash's economy is its window's own content, and its card's button opens that window.
   assert.match(app, /async function renderEconomy\(box = economyPanel\.body\)/);
-  assert.match(app, /if \(item\.id === 'ash'\) \{\n    const block = sxBlock\(host, t\('Economy'\)[\s\S]{0,260}void renderEconomy\(app\);/);
+  assert.match(app, /if \(item\.id === 'ash'\) \{\n    const block = sxBlock\(host, t\('Spending'\)[\s\S]{0,260}void renderEconomy\(app\);/);
   assert.match(app, /open\.addEventListener\('click', \(\) => floatModule\('ash'\)\);/);
   // A window carried keeps its own colour.
   assert.match(css, /dialog\.surface\.window:is\(\.settings-window, \.module-window\)\.lifted \{ background-color: var\(--bg-2\) !important; \}/);

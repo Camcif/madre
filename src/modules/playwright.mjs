@@ -134,12 +134,12 @@ export function playwrightServerFor({ port, outputDir, browser = 'chromium', hea
 
 export default defineModule({
   id: 'playwright',
-  name: 'PLAYWRIGHT',
+  name: 'Test browser',
   vendor: 'MADRE · Playwright MCP',
   tracks: { name: PLAYWRIGHT_PACKAGE, npm: PLAYWRIGHT_PACKAGE },
-  summary: 'Hands an agent a headless browser that reaches only this room and the servers you start from RUNS, on the turns that ask to look at a page, click through it, read its console or take screenshots.',
-  creates: ['nothing in the project \u00b7 screenshots land in .pulse/out/<turn>/', 'a switch in ~/.pulse/config.json', 'a browser per turn, started and stopped by the CLI', 'no origin but this room is reachable through it'],
-  requires: ['@playwright/mcp and a chromium browser on this machine', 'RIPLEY on, to have pages to open'],
+  summary: 'Hands an agent a headless browser that reaches only this project and the servers you start from COMMANDS, on the turns that ask to look at a page, click through it, read its console or take screenshots.',
+  creates: ['nothing in the project \u00b7 screenshots land in .pulse/out/<turn>/', 'a switch in ~/.pulse/config.json', 'a browser per turn, started and stopped by the CLI', 'no origin but this project is reachable through it'],
+  requires: ['@playwright/mcp and a chromium browser on this machine', 'PREVIEW on, to have pages to open'],
   settings: { enabled: false, browser: 'chromium', headless: true },
   card: 'switch',
   controls: [
@@ -187,7 +187,7 @@ export default defineModule({
     if (enabled) {
       const check = await playwrightStarts({ browser: ctx.settings.browser ?? 'chromium', env: ctx.env, cwd: ctx.projectRoot });
       forgetPlaywrightHealth(check);
-      if (!check.ok) return { status: 412, body: { error: t('PLAYWRIGHT did not start, so it stays off: {problem}. Install the server and its browser (npm install -g @playwright/mcp, then npx @playwright/mcp install-browser chrome-for-testing) and turn it on again.', { problem: String(check.problem).replace(/[.\s]+$/, '') }), code: 'MU-054' } };
+      if (!check.ok) return { status: 412, body: { error: t('TEST BROWSER did not start, so it stays off: {problem}. Install the server and its browser (npm install -g @playwright/mcp, then npx @playwright/mcp install-browser chrome-for-testing) and turn it on again.', { problem: String(check.problem).replace(/[.\s]+$/, '') }), code: 'MU-054' } };
     }
     await ctx.updateConfig({ modules: { playwright: { ...(ctx.config.modules?.playwright ?? {}), enabled } } });
     await ctx.record('extension.toggled', { id: 'playwright', name: 'PLAYWRIGHT', enabled });
@@ -197,9 +197,9 @@ export default defineModule({
     id: 'playwright-missing',
     code: 'MU-054',
     severity: 'informational',
-    title: 'PLAYWRIGHT: the browser server is not installed',
+    title: 'TEST BROWSER: the browser server is not installed',
     match: /@playwright\/mcp|playwright.*not (found|installed)|browser server/i,
-    diagnosis: 'The PLAYWRIGHT module runs @playwright/mcp per turn. Two different things have to be on this computer and only one of them is the package: the server, and the browser build that this version of it expects. A server that starts without its browser answers every tool call with "Browser … is not installed", and one that cannot start at all reaches the agent as CONNECTION_CLOSED.',
+    diagnosis: 'The TEST BROWSER module runs @playwright/mcp per turn. Two different things have to be on this computer and only one of them is the package: the server, and the browser build that this version of it expects. A server that starts without its browser answers every tool call with "Browser … is not installed", and one that cannot start at all reaches the agent as CONNECTION_CLOSED.',
     remedy: 'Install the server once, globally, then its browser — the browser is downloaded by the server itself, not by the playwright CLI — and RECHECK in MODULES.',
     fixes: { darwin: ['npm install -g @playwright/mcp', 'npx @playwright/mcp install-browser chrome-for-testing'], linux: ['npm install -g @playwright/mcp', 'npx @playwright/mcp install-browser chrome-for-testing'] },
   }],

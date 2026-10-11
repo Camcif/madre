@@ -30,7 +30,7 @@ export const INQUIRIES = [
     aliases: ['HELP', '?', 'WHAT CAN YOU TELL ME', 'COMMANDS', 'OPTIONS'],
     brief: t('what this interface answers'),
     answer: () => [
-      t('I ANSWER FROM WHAT IS ALREADY IN THIS ROOM. NOTHING IS ASKED OF THE CREW AND NOTHING LEAVES.'),
+      t('I ANSWER FROM WHAT IS ALREADY IN THIS PROJECT. NOTHING IS ASKED OF THE AGENTS AND NOTHING LEAVES.'),
       '',
       ...INQUIRIES.filter((one) => one.id !== 'help').map((one) => `  ${(one.takes ? `${one.aliases[0]} <${one.takes}>` : one.aliases[0]).padEnd(22)}${one.brief.toUpperCase()}`),
       '',
@@ -85,7 +85,7 @@ export const INQUIRIES = [
   {
     id: 'egress',
     aliases: ['EGRESS', 'OUTBOUND', 'WHAT LEFT THIS MACHINE', 'WHAT LEAVES'],
-    brief: t('every address this room can reach, and whether it is on'),
+    brief: t('every address this project can reach, and whether it is on'),
     answer: ({ outbound }) => (outbound?.destinations?.length
       ? [
         ...outbound.destinations.map((one) => `  ${(one.local ? 'LOCAL' : one.on === true ? 'ON' : one.on === false ? 'OFF' : '—').padEnd(6)}${one.to.slice(0, 44).padEnd(46)}${one.calls ? `${plural(one.calls, 'REQUEST')}` : ''}`),
@@ -97,10 +97,10 @@ export const INQUIRIES = [
   {
     id: 'window',
     aliases: ['WINDOW', 'TRANSCRIPT', 'WHAT IS CARRIED'],
-    brief: t('how much of this room the next turn carries'),
+    brief: t('how much of this project the next turn carries'),
     answer: ({ briefing }) => {
       const window = briefing?.window;
-      if (!window || !Number.isInteger(window.from)) return [t('THE WHOLE ROOM STILL FITS. NOTHING IS LEFT BEHIND.')];
+      if (!window || !Number.isInteger(window.from)) return [t('THE WHOLE PROJECT STILL FITS. NOTHING IS LEFT BEHIND.')];
       return [
         t('THE NEXT TURN CARRIES #{from} TO #{through} · {n} MESSAGES.', { from: window.from, through: window.through, n: window.carried }),
         window.omitted ? t('{n} OLDER ONES STAY BEHIND. THAT IS WHAT RECALL IS FOR.', { n: window.omitted }) : t('NOTHING IS LEFT BEHIND.'),
@@ -135,13 +135,13 @@ export const INQUIRIES = [
     id: 'privacy',
     aliases: ['PRIVACY', 'TERMS', 'WHAT IS PROTECTED'],
     needs: 'privacy',
-    brief: t('how many terms this room replaces before anything is said'),
+    brief: t('how many terms this project replaces before anything is said'),
     answer: ({ privacy }) => (privacy?.terms
       ? [
-        t('{n} TERMS ARE REPLACED WITH {marker} BEFORE ANYTHING LEAVES THIS ROOM.', { n: privacy.terms, marker: String(privacy.marker ?? '[ENTIDAD-ORG]') }),
+        t('{n} TERMS ARE REPLACED WITH {marker} BEFORE ANYTHING LEAVES THIS PROJECT.', { n: privacy.terms, marker: String(privacy.marker ?? '[ENTIDAD-ORG]') }),
         t('I WILL NOT PRINT THEM. THE WORDS LIVE IN YOUR CONFIG AND THE LEDGER KEEPS THE COUNT, NEVER THE WORD.'),
       ]
-      : [t('No term is being protected in this room. They go in Settings › Privacy.')]),
+      : [t('No term is being protected in this project. They go in Settings › Privacy.')]),
   },
   {
     id: 'status',
@@ -156,7 +156,7 @@ export const INQUIRIES = [
         t('NEXT: {what}', { what: String(verdict.next?.text ?? '').toUpperCase() }),
         verdict.next?.where ? t('WHERE: {where}', { where: verdict.next.where }) : '',
       ].filter((line) => line !== '')
-      : [t('NOTHING HAS BEEN MEASURED IN THIS ROOM YET.')]),
+      : [t('NOTHING HAS BEEN MEASURED IN THIS PROJECT YET.')]),
   },
   {
     id: 'order937',
@@ -165,11 +165,11 @@ export const INQUIRIES = [
     answer: () => [
       t('THERE IS NO ORDER YOU CANNOT READ.'),
       '',
-      t('EVERY INSTRUCTION THIS ROOM CARRIES IS IN THE DOCUMENT ABOVE, BLOCK BY BLOCK, IN THE WORDS IT IS SAID IN. NOTHING IS APPENDED AFTER YOU LOOK AWAY AND NOTHING IS KEPT BACK FROM YOU.'),
+      t('EVERY INSTRUCTION THIS PROJECT CARRIES IS IN THE DOCUMENT ABOVE, BLOCK BY BLOCK, IN THE WORDS IT IS SAID IN. NOTHING IS APPENDED AFTER YOU LOOK AWAY AND NOTHING IS KEPT BACK FROM YOU.'),
       t('THAT IS THE WHOLE DIFFERENCE BETWEEN THIS SHIP AND THE OTHER ONE.'),
     ],
   },
-  { id: 'close', aliases: ['CLOSE', 'EXIT', 'QUIT', 'BYE'], brief: t('leave the core'), closes: true, answer: () => [t('INTERFACE CLOSED.')] },
+  { id: 'close', aliases: ['CLOSE', 'EXIT', 'QUIT', 'BYE'], brief: t('leave What is sent'), closes: true, answer: () => [t('INTERFACE CLOSED.')] },
 ];
 
 const byAlias = INQUIRIES.flatMap((one) => one.aliases.map((alias) => [alias, one])).sort((a, b) => b[0].length - a[0].length);
@@ -205,7 +205,7 @@ export function answerFor(text, context = {}) {
       strikes,
       closes: strikes >= STRIKES,
       lines: strikes >= STRIKES
-        ? [REFUSALS[(strikes - 1) % REFUSALS.length], '', t('{n} INQUIRIES I COULD NOT PARSE. INTERFACE CLOSED.', { n: STRIKES }), t('THE CORE IS WHERE YOU LEFT IT. OPEN IT AGAIN WHENEVER YOU LIKE.')]
+        ? [REFUSALS[(strikes - 1) % REFUSALS.length], '', t('{n} INQUIRIES I COULD NOT PARSE. INTERFACE CLOSED.', { n: STRIKES }), t('WHAT IS SENT IS WHERE YOU LEFT IT. OPEN IT AGAIN WHENEVER YOU LIKE.')]
         : [REFUSALS[(strikes - 1) % REFUSALS.length], t('{n} ATTEMPTS LEFT BEFORE THIS INTERFACE CLOSES. HELP LISTS WHAT I ANSWER.', { n: left })],
     };
   }

@@ -19,10 +19,10 @@ import { t } from '../i18n.mjs';
 export default defineModule({
   id: 'runs',
   configKey: 'runs',
-  name: 'Runs',
+  name: 'Commands',
   vendor: 'MADRE',
   version: '1.0.0',
-  summary: 'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a checkpoint is taken first, and the output comes back to the room. Costs about 300 tokens of instruction per turn below AIRLOCK while it is on.',
+  summary: 'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a restore point is taken first, and the output comes back to the project. Costs about 300 tokens of instruction per turn below FULL ACCESS while it is on.',
   creates: ['nothing in the project', 'a switch in ~/.pulse/config.json'],
   async status(ctx) {
     return {

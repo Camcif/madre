@@ -56,7 +56,7 @@ const ACT_PATTERNS = [
 // The highest mode a phone may arm, and the rule's own words.
 export const PHONE_MAX_MODE = 2;
 const ON_THE_MAC = 'This is done on the Mac.';
-const MODE_ON_THE_MAC = '#3 CONTROL and #4 AIRLOCK are opened from the Mac.';
+const MODE_ON_THE_MAC = '#3 EDIT and #4 FULL ACCESS are opened from the Mac.';
 const PERMISSIONS_ON_THE_MAC = 'Permissions are changed on the Mac.';
 
 // The only bodies the bridge reads before passing them on.

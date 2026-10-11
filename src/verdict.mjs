@@ -13,7 +13,7 @@
 // language and read at call time, not when this file is imported.
 import { t } from './i18n.mjs';
 
-export const WHERE = { nostromo: 'NOSTROMO', ask: 'NOSTROMO · ASK', room: 'THE ROOM', tests: 'THE THREE TESTS' };
+export const WHERE = { nostromo: 'MEMORY MAP', ask: 'MEMORY MAP · ASK', room: 'THE PROJECT', tests: 'MEMORY REVIEW' };
 const where = (key) => t(WHERE[key]);
 
 export function verdictFor({ maturity = null, exams = {}, cold = null, asks = 0 } = {}) {
@@ -39,8 +39,8 @@ export function verdictFor({ maturity = null, exams = {}, cold = null, asks = 0 
       headline: stage?.label ?? null,
       says: coverage.says,
       next: asks
-        ? { text: t('Answer the {n} questions the room wrote for itself. They are the holes this test is finding.', { n: asks }), where: where('ask') }
-        : { text: t('Keep working in the room. The archive fills where the work happens, and this test measures exactly that.'), where: where('room') },
+        ? { text: t('Answer the {n} questions the project wrote for itself. They are the holes this test is finding.', { n: asks }), where: where('ask') }
+        : { text: t('Keep working in the project. The archive fills where the work happens, and this test measures exactly that.'), where: where('room') },
     };
   }
 
@@ -54,8 +54,8 @@ export function verdictFor({ maturity = null, exams = {}, cold = null, asks = 0 
   if (!match?.ran) {
     return {
       headline: stage?.label ?? null,
-      says: coverage?.ran ? coverage.says : t('Nothing contradicts anything and the archive answers what this room asks.'),
-      next: { text: t('Run the third test: it puts real questions from this room back to the local model and says whether it lands where the agents landed.'), where: where('tests') },
+      says: coverage?.ran ? coverage.says : t('Nothing contradicts anything and the archive answers what this project asks.'),
+      next: { text: t('Run the third test: it puts real questions from this project back to the local model and says whether it lands where the agents landed.'), where: where('tests') },
     };
   }
 
@@ -63,12 +63,12 @@ export function verdictFor({ maturity = null, exams = {}, cold = null, asks = 0 
   return {
     headline: stage?.label ?? null,
     says: match.passed
-      ? `${match.says} ${t('This room is ready to be worked in with the local model.')}`
+      ? `${match.says} ${t('This project is ready to be worked on with the local model.')}`
       : match.says,
     next: match.passed
       ? (dead
         ? { text: t('Nothing is wrong. {n} memories have had every chance and were never the answer: look at them and decide.', { n: dead }), where: where('nostromo') }
-        : { text: t('Nothing to fix. Keep using the room; the archive grows where the work is.'), where: where('room') })
+        : { text: t('Nothing to fix. Keep using the project; the archive grows where the work is.'), where: where('room') })
       : { text: t('The local model does not land where the agents land yet. Keep the archive growing and run this test again in a week.'), where: where('tests') },
   };
 }

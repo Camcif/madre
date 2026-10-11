@@ -173,7 +173,7 @@ export class ErrorSentinel {
       `**Agents** ${env.agents.join(', ') || 'none detected'}`,
       `**Kind** ${report.kind} · **Fingerprint** \`${report.fingerprint}\` · **Seen** ${report.count}× since ${report.at}`,
       '',
-      '### What MU/TH/UR recorded',
+      '### What Diagnostics recorded',
       '```', report.error.slice(0, 3000), '```',
       '',
       '### What I was doing',

@@ -503,7 +503,7 @@ test('after the QA: the browser fills its dock, the sealed preview says it keeps
   assert.throws(() => vm.runInContext('window.sessionStorage', context));
   assert.deepEqual(JSON.parse(JSON.stringify(sent.filter((message) => message.type === 'storage'))), [{ ripley: 1, type: 'storage', what: 'localStorage' }], 'said once, for the first store reached');
   assert.match(app, /\} else if \(data\.type === 'storage'\) \{\n    ripleyShowStorage\(/);
-  assert.match(app, /const open = el\('button', null, t\('OPEN SERVERS'\)\);/);
+  assert.match(app, /const open = el\('button', null, t\('OPEN YOUR SERVERS'\)\);/);
   // A command that is alive has a line of its own: where it serves, open it, stop it.
   assert.match(app, /case 'run\.serving': markRun\(event\.payload, 'serving', event\.payload\); return;/);
   assert.match(app, /fetch\('\/api\/runs\/stop', \{ method: 'POST'/);

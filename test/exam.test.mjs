@@ -119,7 +119,7 @@ test('exam: the match test never grades the local model against itself, and can 
   // Without embeddings it refuses rather than comparing two answers by their words.
   const refused = await matchExam({ events, ask, embed: null });
   assert.equal(refused.ran, false);
-  assert.match(refused.says, /needs embeddings/);
+  assert.match(refused.says, /needs smart search/);
 
   // And the human can stop it: what it has done so far is not reported as a result.
   const stopped = await matchExam({ events, ask, embed, stop: () => true });

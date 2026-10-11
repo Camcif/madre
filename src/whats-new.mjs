@@ -31,8 +31,8 @@ export const NEWS_ACTIONS = ['settings', 'mother', 'intents', 'permissions', 'gi
 export const NOTES = {
   '1.0.0': {
     intro: {
-      es: 'MADRE 1.0 se ve y se usa como un producto: todo lo que configuras en un solo lugar, ayudas que aprenden de cómo trabajas y una sala que acomodas a tu gusto.',
-      en: 'MADRE 1.0 looks and works like a product: everything you configure in one place, help that learns from how you work, and a room you arrange your way.',
+      es: 'MADRE 1.0 se ve y se usa como un producto: todo lo que configuras en un solo lugar, ayudas que aprenden de cómo trabajas y un proyecto que acomodas a tu gusto.',
+      en: 'MADRE 1.0 looks and works like a product: everything you configure in one place, help that learns from how you work, and a project you arrange your way.',
     },
     items: [
       {
@@ -41,8 +41,8 @@ export const NOTES = {
         image: '/assets/news/1.0/settings.webp',
         title: { es: 'Ajustes en una ventana', en: 'Settings in one window' },
         body: {
-          es: 'Todo lo que configuras está junto: apariencia, sala, agentes, memoria, permisos, privacidad y versión. Cada tarjeta dice cómo está antes de abrirla, y lo que más usas se cambia ahí mismo. Un buscador encuentra cualquier ajuste.',
-          en: 'Everything you configure is together: appearance, room, agents, memory, permissions, privacy and version. Each card tells you how things stand before you open it, and what you use most changes right there. A search finds any setting.',
+          es: 'Todo lo que configuras está junto: apariencia, proyecto, agentes, memoria, permisos, privacidad y versión. Cada tarjeta dice cómo está antes de abrirla, y lo que más usas se cambia ahí mismo. Un buscador encuentra cualquier ajuste.',
+          en: 'Everything you configure is together: appearance, project, agents, memory, permissions, privacy and version. Each card tells you how things stand before you open it, and what you use most changes right there. A search finds any setting.',
         },
         where: { es: 'El botón de ajustes de la barra · también ⌘,', en: 'The settings button in the bar · also ⌘,' },
         action: 'settings',
@@ -51,12 +51,12 @@ export const NOTES = {
         id: 'mother',
         icon: 'check',
         image: '/assets/news/1.0/mother.webp',
-        title: { es: 'MU/TH/UR te da el remedio', en: 'MU/TH/UR gives you the remedy' },
+        title: { es: 'Diagnóstico te da el remedio', en: 'Diagnostics gives you the remedy' },
         body: {
-          es: 'Escribe lo que pasa con tus palabras y ves qué hacer, con la tecla que lo resuelve sin salir de la sala. Lo que falló en esta sala aparece primero y marcado, para que no tengas que adivinar.',
-          en: 'Describe what is happening in your own words and you see what to do, with the key that fixes it without leaving the room. What failed in this room shows first and marked, so you do not have to guess.',
+          es: 'Escribe lo que pasa con tus palabras y ves qué hacer, con la tecla que lo resuelve sin salir del proyecto. Lo que falló en este proyecto aparece primero y marcado, para que no tengas que adivinar.',
+          en: 'Describe what is happening in your own words and you see what to do, with the key that fixes it without leaving the project. What failed in this project shows first and marked, so you do not have to guess.',
         },
-        where: { es: 'El botón MU/TH/UR de la barra', en: 'The MU/TH/UR button in the bar' },
+        where: { es: 'El botón DIAGNÓSTICO de la barra', en: 'The DIAGNOSTICS button in the bar' },
         action: 'mother',
       },
       {
@@ -87,7 +87,7 @@ export const NOTES = {
         id: 'github',
         icon: 'branch',
         image: '/assets/news/1.0/github.webp',
-        title: { es: 'GitHub en la sala', en: 'GitHub in the room' },
+        title: { es: 'GitHub en el proyecto', en: 'GitHub in the project' },
         body: {
           es: 'Revisa pull requests, CI e issues con /gh, usando la sesión de gh que ya tienes. Antes de publicar algo te enseña qué saldría y te pregunta, y los agentes solo publican en #4.',
           en: 'Check pull requests, CI and issues with /gh, using the gh session you already have. Before anything is posted it shows you what would go out and asks, and agents only post in #4.',
@@ -101,8 +101,8 @@ export const NOTES = {
         image: '/assets/news/1.0/bar.webp',
         title: { es: 'Tu barra, a tu gusto', en: 'Your bar, your way' },
         body: {
-          es: 'Clic derecho en la barra y los íconos tiemblan: quita con − lo que no usas y agrega Memoria, Ash, Intenciones, Ollama o cualquier módulo con ventana. En un teléfono, lo que no cabe espera detrás de «Más».',
-          en: 'Right-click the bar and the icons jiggle: take off what you do not use with − and add Memory, Ash, Intenciones, Ollama or any module with a window. On a phone, whatever does not fit waits behind “More”.',
+          es: 'Clic derecho en la barra y los íconos tiemblan: quita con − lo que no usas y agrega Memoria, Ahorro de tokens, Intenciones, IA local o cualquier módulo con ventana. En un teléfono, lo que no cabe espera detrás de «Más».',
+          en: 'Right-click the bar and the icons jiggle: take off what you do not use with − and add Memory, Token saver, Intenciones, Local AI or any module with a window. On a phone, whatever does not fit waits behind “More”.',
         },
         where: { es: 'Clic derecho en la barra · o déjala presionada', en: 'Right-click the bar · or press and hold it' },
         action: 'bar',
@@ -113,8 +113,8 @@ export const NOTES = {
         image: '/assets/news/1.0/modules.webp',
         title: { es: 'Módulos como apps', en: 'Modules as apps' },
         body: {
-          es: 'Los módulos son un tablero de mosaicos, cada uno con su interruptor y su ficha. Ash, Intenciones y Ollama se abren en su propia ventana, y las descargas e instalaciones muestran su avance real.',
-          en: 'Modules are a board of tiles, each with its switch and its sheet. Ash, Intenciones and Ollama open in a window of their own, and downloads and installs show their real progress.',
+          es: 'Los módulos son un tablero de mosaicos, cada uno con su interruptor y su ficha. Ahorro de tokens, Intenciones e IA local se abren en su propia ventana, y las descargas e instalaciones muestran su avance real.',
+          en: 'Modules are a board of tiles, each with its switch and its sheet. Token saver, Intenciones and Local AI open in a window of their own, and downloads and installs show their real progress.',
         },
         where: { es: 'El botón de módulos de la barra', en: 'The modules button in the bar' },
         action: 'modules',
@@ -123,24 +123,24 @@ export const NOTES = {
         id: 'nostromo',
         icon: 'orbit',
         image: '/assets/news/1.0/nostromo.webp',
-        title: { es: 'NOSTROMO a un clic', en: 'NOSTROMO one click away' },
+        title: { es: 'El Mapa de memoria a un clic', en: 'The Memory map one click away' },
         body: {
           es: 'El cerebro de la memoria tiene su propio botón en la barra. Las conexiones entre memorias se ven aunque Ollama esté apagado.',
           en: 'The memory brain has its own button in the bar. The links between memories show even with Ollama off.',
         },
-        where: { es: 'El botón NOSTROMO de la barra', en: 'The NOSTROMO button in the bar' },
+        where: { es: 'El botón Mapa de memoria de la barra', en: 'The Memory map button in the bar' },
         action: 'nostromo',
       },
       {
         id: 'room',
         icon: 'home',
         image: '/assets/news/1.0/room.webp',
-        title: { es: 'La sala, acomodada a tu gusto', en: 'The room, arranged your way' },
+        title: { es: 'El proyecto, acomodado a tu gusto', en: 'The project, arranged your way' },
         body: {
-          es: 'Cada panel se abre al lado o en una ventana que mueves. Varias conversaciones trabajan a la vez, los servidores de tu proyecto viven dentro de la sala y el visor edita código.',
-          en: 'Every panel opens beside you or in a window you move. Several conversations work at once, your project’s servers live inside the room, and the viewer edits code.',
+          es: 'Cada panel se abre al lado o en una ventana que mueves. Varias conversaciones trabajan a la vez, los servidores de tu proyecto viven dentro del proyecto y el visor edita código.',
+          en: 'Every panel opens beside you or in a window you move. Several conversations work at once, your project’s servers live inside the project, and the viewer edits code.',
         },
-        where: { es: 'El encabezado de cada panel · Ajustes › Sala y turnos', en: 'The header of every panel · Settings › Room and turns' },
+        where: { es: 'El encabezado de cada panel · Ajustes › Proyecto y turnos', en: 'The header of every panel · Settings › Project and turns' },
         action: 'room',
       },
       {
@@ -164,7 +164,7 @@ export const NOTES = {
           es: 'Las confirmaciones y las llaves de #3 y #4 llegan en una sola hoja clara, con lo que vas a aprobar a la vista. El menú «revisarlo con» ya no se corta.',
           en: 'Confirmations and the keys for #3 and #4 arrive as one clear sheet, with what you are approving in view. The “review it with” menu is no longer cut off.',
         },
-        where: { es: 'Aparecen solas cuando la sala necesita tu palabra', en: 'They appear on their own when the room needs your word' },
+        where: { es: 'Aparecen solas cuando el proyecto necesita tu palabra', en: 'They appear on their own when the project needs your word' },
         action: null,
       },
       {

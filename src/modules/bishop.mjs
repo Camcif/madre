@@ -49,9 +49,9 @@ const modeOf = (ctx) => (BISHOP_MODES.includes(ctx.config?.modules?.bishop?.mode
 export const LINK_SIGNERS = ['bishop', 'you'];
 // What a person reads for each setting's value; the value is what is saved.
 const ORDER_CHOICES = { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
-const SIGNER_CHOICES = { bishop: 'BISHOP signs them, for 7 days at most', you: 'You sign them' };
+const SIGNER_CHOICES = { bishop: 'The Coordinator signs them, for 7 days at most', you: 'You sign them' };
 const ORDER_WORDS = { manual: 'manual orders', hybrid: 'hybrid orders', auto: 'automatic orders' };
-const SIGNER_WORDS = { bishop: 'BISHOP signs links to read', you: 'you sign every link' };
+const SIGNER_WORDS = { bishop: 'The Coordinator signs connections to read', you: 'you sign every connection' };
 const signerOf = (ctx) => (ctx.config?.modules?.bishop?.links === 'you' ? 'you' : 'bishop');
 // S-030: @madre as BISHOP only answers. It is still the human's choice of who BISHOP is.
 export const onlyAnswers = (agent) => agent === 'madre';
@@ -66,25 +66,25 @@ async function post(port, path, body, key, timeoutMs = 5000) {
     });
     const answer = await response.json().catch(() => ({}));
     return { status: response.status, ok: response.ok, answer };
-  } catch { return { status: 502, ok: false, answer: { error: t('That room did not answer.') } }; }
+  } catch { return { status: 502, ok: false, answer: { error: t('That project did not answer.') } }; }
 }
 // The doors every channel route shares: not the phone, not a page, only a process of this Mac
 // with the key. `null` when it passes.
 async function channelDoor(ctx, request, viaPhone) {
   if (viaPhone) return reply(403, { error: t('This is done on the Mac.') });
-  if (request.headers.origin !== undefined) return reply(403, { error: t('A page cannot give orders across rooms; only a room can.') });
+  if (request.headers.origin !== undefined) return reply(403, { error: t('A page cannot give orders across projects; only a project can.') });
   const key = await channelKey(ctx.stateRoot).catch(() => null);
   if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return reply(403, { error: t('That is not the key of this Mac.') });
   return null;
 }
 const pageDoor = (ctx, viaPhone) => {
   if (viaPhone) return reply(403, { error: t('This is done on the Mac.') });
-  if (!inSalas(ctx)) return reply(404, { error: t('BISHOP lives in Salas.') });
-  if (!enabled(ctx)) return reply(412, { error: t('BISHOP is off. Turn it on in MODULES.') });
+  if (!inSalas(ctx)) return reply(404, { error: t('The Coordinator lives in Home.') });
+  if (!enabled(ctx)) return reply(412, { error: t('The Coordinator is off. Turn it on in MODULES.') });
   return null;
 };
 // A room the channel answered as unknown runs a MADRE without that route.
-const refusal = (sent, older) => (sent.status === 404 && sent.answer?.error !== NO_SUCH_LINK ? { status: 409, error: older } : { status: sent.status, error: sent.answer?.error ?? t('That room did not answer.') });
+const refusal = (sent, older) => (sent.status === 404 && sent.answer?.error !== NO_SUCH_LINK ? { status: 409, error: older } : { status: sent.status, error: sent.answer?.error ?? t('That project did not answer.') });
 
 // Per process: the room ids running an order now, the order turns they run (to stop one), the
 // messages relayed into Salas (never the start of a plan), and whether Salas is answering a room.
@@ -102,7 +102,7 @@ async function sendOrder(ctx, planId, step, { auto = false } = {}) {
   const taken = await changePlans(ctx.stateRoot, (data) => {
     const plan = data.plans[String(planId ?? '')];
     const order = plan?.orders.find((one) => one.step === Number(step));
-    if (!order) return { error: reply(404, { error: t('That order is not in this room.') }) };
+    if (!order) return { error: reply(404, { error: t('That order is not in this project.') }) };
     if (order.status !== 'ready') return { error: reply(409, { error: t('That order is not waiting to be sent.') }) };
     order.status = 'sending';
     return { plan: JSON.parse(JSON.stringify(plan)), order: { ...order } };
@@ -115,15 +115,15 @@ async function sendOrder(ctx, planId, step, { auto = false } = {}) {
   };
   const salas = salasRoomId(ctx.stateRoot);
   const contract = activeContracts(ctx.config, { salas }).find((one) => one.id === order.contract && receivesOrders(one, salas) === order.room);
-  if (!contract) return back(404, t('No signed link lets BISHOP give orders to that room.'));
+  if (!contract) return back(404, t('No signed connection lets the Coordinator give orders to that project.'));
   const ceiling = Math.min(contract.orders.maxMode, MAX_ORDER_MODE);
-  if (order.mode > ceiling) return back(403, t('That link allows orders up to #{n}.', { n: ceiling }));
+  if (order.mode > ceiling) return back(403, t('That connection allows orders up to #{n}.', { n: ceiling }));
   const target = (await knownRooms(ctx.stateRoot)).find((room) => room.id === order.room);
-  if (!target?.open) return back(409, t('That room is asleep. Wake it from Salas to send it orders.'));
+  if (!target?.open) return back(409, t('That project is asleep. Wake it from Home to send it orders.'));
   const key = await channelKey(ctx.stateRoot).catch(() => null);
   if (!key) return back(500, t('The channel has no key.'));
   const sent = await post(target.open.port, '/api/x/bishop/order', { contract: contract.id, plan: plan.id, step: order.step, total: plan.orders.length, agent: order.agent, mode: order.mode, text: order.text, from: salas, auto: Boolean(auto) }, key);
-  if (!sent.ok) { const why = refusal(sent, t('That room runs an older MADRE. Update it to send it orders.')); return back(why.status, why.error); }
+  if (!sent.ok) { const why = refusal(sent, t('That project runs an older MADRE. Update it to send it orders.')); return back(why.status, why.error); }
   await changePlans(ctx.stateRoot, (data) => { const one = data.plans[plan.id]?.orders.find((item) => item.step === order.step); if (one) { one.status = 'sent'; one.sentAt = new Date().toISOString(); one.held = null; } });
   await ctx.services.recordIn(plan.chat, 'bishop.order.sent', { plan: plan.id, step: order.step, room: order.room, name: target.name, agent: order.agent, mode: order.mode, ...(auto ? { auto: true, text: order.text.slice(0, 200) } : {}) });
   return reply(202, { sent: true });
@@ -134,17 +134,17 @@ async function sendOrder(ctx, planId, step, { auto = false } = {}) {
 async function deliverProposal(ctx, planId, step, { auto = false } = {}) {
   const plan = await planById(ctx.stateRoot, planId);
   const order = plan?.orders.find((one) => one.step === Number(step));
-  if (!order) return reply(404, { error: t('That order is not in this room.') });
-  if (order.status !== 'proposal') return reply(409, { error: t('That proposal is not waiting to be taken to its room.') });
+  if (!order) return reply(404, { error: t('That order is not in this project.') });
+  if (order.status !== 'proposal') return reply(409, { error: t('That proposal is not waiting to be taken to its project.') });
   const salas = salasRoomId(ctx.stateRoot);
   const contract = activeContracts(ctx.config, { salas }).find((one) => one.id === order.contract && receivesOrders(one, salas) === order.room);
-  if (!contract) return reply(404, { error: t('No signed link lets BISHOP give orders to that room.') });
+  if (!contract) return reply(404, { error: t('No signed connection lets the Coordinator give orders to that project.') });
   const target = (await knownRooms(ctx.stateRoot)).find((room) => room.id === order.room);
-  if (!target?.open) return reply(409, { error: t('That room is asleep. Wake it from Salas to send it orders.') });
+  if (!target?.open) return reply(409, { error: t('That project is asleep. Wake it from Home to send it orders.') });
   const key = await channelKey(ctx.stateRoot).catch(() => null);
   if (!key) return reply(500, { error: t('The channel has no key.') });
   const sent = await post(target.open.port, '/api/x/bishop/proposal', { contract: contract.id, plan: plan.id, step: order.step, total: plan.orders.length, agent: order.agent, mode: order.mode, text: order.text, from: salas }, key);
-  if (!sent.ok) { const why = refusal(sent, t('That room runs an older MADRE. Update it to send it orders.')); return reply(why.status, { error: why.error }); }
+  if (!sent.ok) { const why = refusal(sent, t('That project runs an older MADRE. Update it to send it orders.')); return reply(why.status, { error: why.error }); }
   const closed = await changePlans(ctx.stateRoot, (data) => { const one = data.plans[plan.id]; const item = one?.orders.find((it) => it.step === order.step); if (item) item.status = 'delivered'; return one ? closing(one) : null; });
   await ctx.services.recordIn(plan.chat, 'bishop.order.delivered', { plan: plan.id, step: order.step, room: order.room, name: target.name, agent: order.agent, mode: order.mode, ...(auto ? { auto: true } : {}) });
   if (closed) await ctx.services.recordIn(plan.chat, 'bishop.plan.closed', closed);
@@ -195,12 +195,12 @@ async function halt(ctx, planId, why) {
 async function signLink(ctx, planId, index, { designation = null, by = 'you' } = {}) {
   const plan = await planById(ctx.stateRoot, String(planId ?? ''));
   const link = plan?.links?.find((one) => one.index === Number(index));
-  if (!link) return reply(404, { error: t('That link is not in this room.') });
-  if (link.status !== 'ready') return reply(409, { error: t('That link is not waiting to be signed.') });
-  if (by === 'bishop' && link.orders) return reply(403, { error: t('BISHOP signs only links to read; a link with orders is signed by you.') });
+  if (!link) return reply(404, { error: t('That connection is not in this project.') });
+  if (link.status !== 'ready') return reply(409, { error: t('That connection is not waiting to be signed.') });
+  if (by === 'bishop' && link.orders) return reply(403, { error: t('The Coordinator signs only connections to read; a connection with orders is signed by you.') });
   const salas = salasRoomId(ctx.stateRoot);
   const home = (await knownRooms(ctx.stateRoot)).find((room) => room.id === salas && room.open);
-  if (!home) return reply(409, { error: t('The room of Salas did not open. Open it with madre salas and ask again.') });
+  if (!home) return reply(409, { error: t('The Coordinator\'s project did not open. Open it with madre salas and ask again.') });
   const days = by === 'bishop' ? Math.min(link.days ?? BISHOP_SIGN_DAYS, BISHOP_SIGN_DAYS) : link.days;
   const expires = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
   const signed = await askRoom(home.open.port, '/api/salas/enlaces', { method: 'POST', timeoutMs: 6000, body: { a: link.from, b: link.to, direction: link.direction, kinds: link.kinds, expires, orders: link.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, designation, ...(by === 'bishop' ? { by: 'bishop' } : {}) } });
@@ -230,10 +230,10 @@ async function signLink(ctx, planId, index, { designation = null, by = 'you' } =
 /* ---------- the module ---------- */
 
 const base = defineModule({
-  id: 'bishop', configKey: 'bishop', name: 'BISHOP', vendor: 'MADRE', version: '1.0.0',
-  summary: 'The guardian of your rooms, in Salas. It answers about every linked room, proposes orders and links, and you decide what leaves and what is signed. Any room can raise it with /bishop.',
+  id: 'bishop', configKey: 'bishop', name: 'Coordinator', vendor: 'MADRE', version: '1.0.0',
+  summary: 'The guardian of your projects, in Home. It answers about every connected project, proposes orders and connections, and you decide what leaves and what is signed. Any project can raise it with /bishop.',
   creates: ['a setting in config.json; no project files'],
-  requires: ['the room of Salas', 'a ready agent; @madre is selected by default when ready'],
+  requires: ['the Coordinator\'s project', 'a ready agent; @madre is selected by default when ready'],
   settings: { enabled: true, agent: null, mode: 'manual', links: 'bishop' },
   async status(ctx) {
     const agent = chosen(ctx);
@@ -248,13 +248,13 @@ const base = defineModule({
   // Raised from any room: the question goes to BISHOP in the room of Salas (woken if it sleeps),
   // and the answer comes back to this room for the human only.
   slash: [{
-    name: 'bishop', usage: '/bishop <question>', title: 'BISHOP',
-    summary: 'Ask BISHOP, from this room, about any linked room. The answer is for you; the agents of this room do not read it without a link.',
+    name: 'bishop', usage: '/bishop <question>', title: 'Coordinator',
+    summary: 'Ask the Coordinator, from this project, about any connected project. The answer is for you; the agents of this project do not read it without a connection.',
     available: async (ctx) => !inSalas(ctx) && enabled(ctx),
     async execute(ctx, args) {
       const question = (Array.isArray(args) ? args.join(' ') : String(args ?? '')).trim();
-      if (!question) return { ok: false, title: 'BISHOP', text: t('Write the question after /bishop.') };
-      if (question.length > ORDER_CHARS) return { ok: false, title: 'BISHOP', text: t('A question is between 1 and {n} characters.', { n: ORDER_CHARS }) };
+      if (!question) return { ok: false, title: 'Coordinator', text: t('Write the question after /bishop.') };
+      if (question.length > ORDER_CHARS) return { ok: false, title: 'Coordinator', text: t('A question is between 1 and {n} characters.', { n: ORDER_CHARS }) };
       const salas = salasRoomId(ctx.stateRoot);
       let home = (await knownRooms(ctx.stateRoot)).find((room) => room.id === salas && room.open);
       if (!home) {
@@ -264,13 +264,13 @@ const base = defineModule({
         await roomComesUp(ctx.stateRoot, salas).catch(() => null);
         home = (await knownRooms(ctx.stateRoot)).find((room) => room.id === salas && room.open);
       }
-      if (!home) return { ok: false, title: 'BISHOP', text: t('The room of Salas did not open. Open it with madre salas and ask again.') };
+      if (!home) return { ok: false, title: 'Coordinator', text: t('The Coordinator\'s project did not open. Open it with madre salas and ask again.') };
       const key = await channelKey(ctx.stateRoot).catch(() => null);
       const here = projectRoomId(ctx.projectRoot);
       const name = (await knownRooms(ctx.stateRoot)).find((room) => room.id === here)?.name ?? here;
       const sent = key ? await post(home.open.port, '/api/x/bishop/consult', { from: here, name, question }, key) : { ok: false, answer: { error: t('The channel has no key.') } };
-      if (!sent.ok) return { ok: false, title: 'BISHOP', text: sent.answer?.error ?? t('That room did not answer.') };
-      return { ok: true, title: 'BISHOP', text: t('Asked BISHOP in the room of Salas. The answer comes here, for you only: the agents of this room do not read it without a link.') };
+      if (!sent.ok) return { ok: false, title: 'Coordinator', text: sent.answer?.error ?? t('That project did not answer.') };
+      return { ok: true, title: 'Coordinator', text: t('Asked the Coordinator in its project. The answer comes here, for you only: the agents of this project do not read it without a connection.') };
     },
   }],
   // Every event of every room. Outside Salas: the order turns, so one can be stopped. In Salas:
@@ -328,7 +328,7 @@ const base = defineModule({
       const done = await changePlans(ctx.stateRoot, (data) => {
         const plan = data.plans[String(payload?.plan ?? '')];
         const order = plan?.orders.find((one) => one.step === step);
-        if (!order) return { error: reply(404, { error: t('That order is not in this room.') }) };
+        if (!order) return { error: reply(404, { error: t('That order is not in this project.') }) };
         if (!['ready', 'proposal'].includes(order.status)) return { error: reply(409, { error: t('That order is not waiting to be sent.') }) };
         order.status = 'skipped';
         return { plan: plan.id, chat: plan.chat, closed: closing(plan) };
@@ -347,9 +347,9 @@ const base = defineModule({
       if (!order || order.status !== 'sent') return reply(409, { error: t('That order is not running.') });
       const target = (await knownRooms(ctx.stateRoot)).find((room) => room.id === order.room);
       const key = await channelKey(ctx.stateRoot).catch(() => null);
-      if (!target?.open || !key) return reply(409, { error: t('That room did not answer.') });
+      if (!target?.open || !key) return reply(409, { error: t('That project did not answer.') });
       const sent = await post(target.open.port, '/api/x/bishop/halt', { plan: plan.id, step: order.step, from: salasRoomId(ctx.stateRoot) }, key);
-      return sent.ok ? reply(202, { stopping: true }) : reply(sent.status, { error: sent.answer?.error ?? t('That room did not answer.') });
+      return sent.ok ? reply(202, { stopping: true }) : reply(sent.status, { error: sent.answer?.error ?? t('That project did not answer.') });
     } },
     // The human signs a link BISHOP proposed. The same door as the sheet of Salas, with the same
     // checks and the same notices; with orders, the designation of the room that receives them.
@@ -362,15 +362,15 @@ const base = defineModule({
     { method: 'POST', path: '/api/x/bishop/order', handler: async (ctx, { request, payload, viaPhone }) => {
       const refused = await channelDoor(ctx, request, viaPhone);
       if (refused) return refused;
-      if (!enabled(ctx)) return reply(412, { error: t('BISHOP is off. Turn it on in MODULES.') });
-      if (inSalas(ctx)) return reply(403, { error: t('The room of Salas gives orders; it does not receive them.') });
+      if (!enabled(ctx)) return reply(412, { error: t('The Coordinator is off. Turn it on in MODULES.') });
+      if (inSalas(ctx)) return reply(403, { error: t('The Coordinator\'s project gives orders; it does not receive them.') });
       const here = projectRoomId(ctx.projectRoot);
       const salas = salasRoomId(ctx.stateRoot);
       const contract = activeContracts(ctx.config, { salas }).find((one) => one.id === payload?.contract) ?? null;
       if (!contract || receivesOrders(contract, salas) !== here || payload?.from !== salas) return reply(404, { error: NO_SUCH_LINK });
       const mode = Number(payload?.mode);
       const ceiling = Math.min(contract.orders.maxMode, MAX_ORDER_MODE);
-      if (!Number.isInteger(mode) || mode < 0 || mode > ceiling) return reply(403, { error: t('That link allows orders up to #{n}.', { n: ceiling }) });
+      if (!Number.isInteger(mode) || mode < 0 || mode > ceiling) return reply(403, { error: t('That connection allows orders up to #{n}.', { n: ceiling }) });
       const text = String(payload?.text ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ').trim();
       if (!text || text.length > ORDER_CHARS) return reply(422, { error: t('An order is between 1 and {n} characters.', { n: ORDER_CHARS }) });
       const step = Number(payload?.step);
@@ -378,12 +378,12 @@ const base = defineModule({
       const plan = String(payload?.plan ?? '');
       if (!/^p-[0-9a-f]{6}$/.test(plan) || !Number.isInteger(step) || step < 1 || step > MAX_ORDERS || !Number.isInteger(total) || total < step || total > MAX_ORDERS) return reply(422, { error: t('That is not an order of a plan.') });
       const agent = readyAgents(ctx).find((one) => one.id === payload?.agent);
-      if (!agent) return reply(422, { error: t('@{agent} is not ready in that room.', { agent: clean(payload?.agent, 20) }) });
-      if (runningOrders.has(here)) return reply(409, { error: t('That room is already running an order. One at a time.') });
-      if (ctx.room?.busy?.()) return reply(409, { error: t('That room is working right now. An order never interrupts it; send it when it is free.') });
+      if (!agent) return reply(422, { error: t('@{agent} is not ready in that project.', { agent: clean(payload?.agent, 20) }) });
+      if (runningOrders.has(here)) return reply(409, { error: t('That project is already running an order. One at a time.') });
+      if (ctx.room?.busy?.()) return reply(409, { error: t('That project is working right now. An order never interrupts it; send it when it is free.') });
       const roomDir = join(ctx.stateRoot, 'rooms', here);
       const orders = await countRecent(roomDir, contract.id, 'order');
-      if (orders >= contract.orders.perHour) return reply(429, { error: t('This link carried {n} orders in the last hour, its limit. Try again later.', { n: orders }) });
+      if (orders >= contract.orders.perHour) return reply(429, { error: t('This connection carried {n} orders in the last hour, its limit. Try again later.', { n: orders }) });
       runningOrders.add(here);
       await noteCrossing(roomDir, { kind: 'order', contract: contract.id, other: salas });
       const room = ctx.room;
@@ -407,8 +407,8 @@ const base = defineModule({
     { method: 'POST', path: '/api/x/bishop/proposal', handler: async (ctx, { request, payload, viaPhone }) => {
       const refused = await channelDoor(ctx, request, viaPhone);
       if (refused) return refused;
-      if (!enabled(ctx)) return reply(412, { error: t('BISHOP is off. Turn it on in MODULES.') });
-      if (inSalas(ctx)) return reply(403, { error: t('The room of Salas gives orders; it does not receive them.') });
+      if (!enabled(ctx)) return reply(412, { error: t('The Coordinator is off. Turn it on in MODULES.') });
+      if (inSalas(ctx)) return reply(403, { error: t('The Coordinator\'s project gives orders; it does not receive them.') });
       const here = projectRoomId(ctx.projectRoot);
       const salas = salasRoomId(ctx.stateRoot);
       const contract = activeContracts(ctx.config, { salas }).find((one) => one.id === payload?.contract) ?? null;
@@ -418,7 +418,7 @@ const base = defineModule({
       const text = String(payload?.text ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ').trim();
       if (!text || text.length > ORDER_CHARS) return reply(422, { error: t('An order is between 1 and {n} characters.', { n: ORDER_CHARS }) });
       const agent = (ctx.agents ?? []).find((one) => one.id === payload?.agent && one.detected);
-      if (!agent) return reply(422, { error: t('@{agent} is not ready in that room.', { agent: clean(payload?.agent, 20) }) });
+      if (!agent) return reply(422, { error: t('@{agent} is not ready in that project.', { agent: clean(payload?.agent, 20) }) });
       await ctx.record('bishop.order.proposed', { plan: clean(payload?.plan, 12), step: Number(payload?.step) || 1, total: Number(payload?.total) || 1, agent: agent.id, mode, text });
       return reply(202, { proposed: true });
     } },
@@ -429,14 +429,14 @@ const base = defineModule({
       if (payload?.from !== salasRoomId(ctx.stateRoot)) return reply(404, { error: NO_SUCH_LINK });
       const running = orderTurns.get(`${projectRoomId(ctx.projectRoot)}|${payload?.plan}|${Number(payload?.step)}`);
       if (!running) return reply(409, { error: t('That order is not running.') });
-      const stopped = await running.room.stopTurn(running.messageId, t('stopped by the human from Salas')).catch(() => false);
+      const stopped = await running.room.stopTurn(running.messageId, t('stopped by the human from Home')).catch(() => false);
       return stopped ? reply(202, { stopped: true }) : reply(409, { error: t('That order is not running.') });
     } },
     // The answer to an order comes back to the room of Salas, as a card in the plan's conversation.
     { method: 'POST', path: '/api/x/bishop/result', handler: async (ctx, { request, payload, viaPhone }) => {
       const refused = await channelDoor(ctx, request, viaPhone);
       if (refused) return refused;
-      if (!inSalas(ctx)) return reply(404, { error: t('BISHOP lives in Salas.') });
+      if (!inSalas(ctx)) return reply(404, { error: t('The Coordinator lives in Home.') });
       const step = Number(payload?.step);
       const rooms = await knownRooms(ctx.stateRoot);
       const done = await changePlans(ctx.stateRoot, (data) => {
@@ -474,15 +474,15 @@ const base = defineModule({
     { method: 'POST', path: '/api/x/bishop/consult', handler: async (ctx, { request, payload, viaPhone }) => {
       const refused = await channelDoor(ctx, request, viaPhone);
       if (refused) return refused;
-      if (!inSalas(ctx)) return reply(404, { error: t('BISHOP lives in Salas.') });
-      if (!enabled(ctx)) return reply(412, { error: t('BISHOP is off. Turn it on in MODULES.') });
+      if (!inSalas(ctx)) return reply(404, { error: t('The Coordinator lives in Home.') });
+      if (!enabled(ctx)) return reply(412, { error: t('The Coordinator is off. Turn it on in MODULES.') });
       const agent = chosen(ctx);
-      if (!agent) return reply(412, { error: t('BISHOP has no ready agent. Choose one in its card in MODULES, in Salas.') });
+      if (!agent) return reply(412, { error: t('The Coordinator has no ready agent. Choose one in its card in MODULES, in Home.') });
       const question = String(payload?.question ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ').trim();
       if (!question || question.length > ORDER_CHARS) return reply(422, { error: t('A question is between 1 and {n} characters.', { n: ORDER_CHARS }) });
       const from = (await knownRooms(ctx.stateRoot)).find((room) => room.id === payload?.from && room.open);
-      if (!from || from.id === salasRoomId(ctx.stateRoot)) return reply(404, { error: t('MADRE does not know that room on this Mac.') });
-      if (consulting || ctx.room?.busy?.()) return reply(409, { error: t('BISHOP is answering something else. Ask again in a moment.') });
+      if (!from || from.id === salasRoomId(ctx.stateRoot)) return reply(404, { error: t('MADRE does not know that project on this Mac.') });
+      if (consulting || ctx.room?.busy?.()) return reply(409, { error: t('The Coordinator is answering something else. Ask again in a moment.') });
       consulting = true;
       const room = ctx.room;
       void (async () => {
@@ -520,24 +520,24 @@ const bishop = Object.freeze({
     const controls = agents.length ? [{
       key: 'agent', label: 'AGENT', type: 'select', options: agents.map((one) => one.id), value: agent,
       choices: agents.map((one) => ({ value: one.id, label: onlyAnswers(one.id) ? '@madre · only answers' : `@${one.id}` })),
-      note: 'The ready agent BISHOP speaks through. With @madre, BISHOP only answers: it proposes neither orders nor links.',
+      note: 'The ready agent the Coordinator speaks through. With @madre, the Coordinator only answers: it proposes neither orders nor connections.',
     }] : [];
     if (agent && !onlyAnswers(agent)) {
       controls.push({
         key: 'mode', label: 'ORDERS', type: 'select', options: BISHOP_MODES, value: modeOf(ctx),
         choices: BISHOP_MODES.map((value) => ({ value, label: ORDER_CHOICES[value] })),
-        note: 'Always within the link. #3 and #4 always wait for your key in their room; a failure or STOP ALL stops what leaves on its own.',
+        note: 'Always within the connection. #3 and #4 always wait for your key in their project; a failure or STOP ALL stops what leaves on its own.',
       });
       controls.push({
-        key: 'links', label: 'LINKS TO READ', type: 'select', options: LINK_SIGNERS, value: signerOf(ctx),
+        key: 'links', label: 'CONNECTIONS TO READ', type: 'select', options: LINK_SIGNERS, value: signerOf(ctx),
         choices: LINK_SIGNERS.map((value) => ({ value, label: SIGNER_CHOICES[value] })),
-        note: 'A link with orders is always signed by you. A link BISHOP signed is revoked with one press, in Salas.',
+        note: 'A connection with orders is always signed by you. A connection the Coordinator signed is revoked with one press, in Home.',
       });
     }
     return { ...card, controls };
   },
   async setControl(ctx, { key, value } = {}) {
-    if (!inSalas(ctx)) return { status: 404, body: { error: 'BISHOP lives in Salas.' } };
+    if (!inSalas(ctx)) return { status: 404, body: { error: 'The Coordinator lives in Home.' } };
     if (key === 'agent') {
       if (!readyAgents(ctx).some((agent) => agent.id === value)) return { status: 400, body: { error: 'Choose a ready agent.' } };
     } else if (key === 'mode') {
@@ -549,7 +549,7 @@ const bishop = Object.freeze({
     return { status: 200, body: { settings: { [key]: value } } };
   },
   async toggle(ctx, payload) {
-    if (!inSalas(ctx)) return { status: 404, body: { error: 'BISHOP lives in Salas.' } };
+    if (!inSalas(ctx)) return { status: 404, body: { error: 'The Coordinator lives in Home.' } };
     return base.toggle(ctx, payload);
   },
   async promptForTurn(ctx, turn) {

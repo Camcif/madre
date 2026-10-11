@@ -46,7 +46,7 @@ export async function ollamaView(probe, settings) {
 
 export default defineModule({
   id: 'ollama',
-  name: 'OLLAMA',
+  name: 'Local AI',
   vendor: 'MADRE · LOCAL INTELLIGENCE',
   tracks: { name: 'ollama', github: 'ollama/ollama' },
   summary: 'Recall by meaning and memory distillation on this machine, through Ollama: no provider tokens, nothing leaves.',
@@ -59,7 +59,7 @@ export default defineModule({
     const view = await ollamaView(probe, ctx.settings);
     const binary = view.binary;
     const settings = ctx.settings;
-    const roles = [settings.embeddings && probe.embedModel ? `${t('embeddings')} · ${probe.embedModel}` : null, settings.archivist && probe.chatModel ? `${t('archivist')} · ${probe.chatModel}` : null, settings.agent !== false && probe.chatModel ? t('@madre in the room') : null].filter(Boolean);
+    const roles = [settings.embeddings && probe.embedModel ? `${t('smart search')} · ${probe.embedModel}` : null, settings.archivist && probe.chatModel ? `${t('archivist')} · ${probe.chatModel}` : null, settings.agent !== false && probe.chatModel ? t('@madre in the project') : null].filter(Boolean);
     const detail = !probe.running ? (binary ? t('installed, not running · START it here') : t('not installed · INSTALL it here'))
       : !settings.enabled ? t('off · {n} models available', { n: probe.models.length })
         : roles.length ? `${t('on')} · ${roles.join(' · ')}` : t('on · no usable model yet · PULL one');

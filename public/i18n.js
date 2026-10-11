@@ -7,7 +7,7 @@
 // How it works, and why this way:
 //
 // The KEY IS THE ENGLISH SENTENCE. There are no invented ids to keep in step with the screens —
-// `t('Type here, human. Ask the room…')` is what is written where the words are used, and the
+// `t('Type here, human. Ask the project…')` is what is written where the words are used, and the
 // catalogue answers with the Spanish. A sentence nobody has translated yet comes back in
 // English, whole, rather than as a hole or an id: half a translated screen is a screen, and a
 // screen full of MISSING_KEY_47 is a bug report.

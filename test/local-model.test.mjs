@@ -13,7 +13,7 @@ test('local model: running is not ready, and the room says which of the two it h
   assert.match(app, /case 'local\.present': \{/);
   assert.match(app, /Nobody has measured it against this project yet: running here is not the same as being of use here\./);
   // And one button, which runs the test that already exists.
-  assert.match(app, /CHECK IT AGAINST THIS ROOM/);
+  assert.match(app, /CHECK IT AGAINST THIS PROJECT/);
   assert.match(app, /body: JSON\.stringify\(\{ which: 'match' \}\)/);
   assert.match(app, /it spends nothing, and the answer lands here/);
 
@@ -24,7 +24,7 @@ test('local model: running is not ready, and the room says which of the two it h
   // A test that cannot fail says nothing, so the failing sentence is written too.
   assert.match(app, /Not yet — keep working, the archive fills where the work happens\./);
   // And the sphere keeps the reading between visits.
-  assert.match(app, /t\('Measured against this room \{when\}: it landed where the crew landed on \{matched\} of \{n\} real questions\{verdict\}', \{ when: agoWords\(measured\.at\)/);
+  assert.match(app, /t\('Measured against this project \{when\}: it landed where the agents landed on \{matched\} of \{n\} real questions\{verdict\}', \{ when: agoWords\(measured\.at\)/);
   assert.match(css, /\.system\.local-model \{/);
 });
 
@@ -50,7 +50,7 @@ test('local model: MU/TH/UR can explain the difference between running and being
   const one = CONDITIONS.find((condition) => condition.id === 'local-ready');
   assert.ok(one, 'the catalogue cannot answer the question the room now raises');
   assert.match(one.diagnosis, /Running is not the same as being of use/);
-  assert.match(one.remedy, /CHECK IT AGAINST THIS ROOM/);
+  assert.match(one.remedy, /CHECK IT AGAINST THIS PROJECT/);
   // A person who asks it in their own words finds it.
   for (const asked of ['is my local model ready', 'ready to be worked in', 'not measured against this room']) {
     assert.ok(diagnose(asked).some((condition) => condition.id === 'local-ready'), `"${asked}" does not reach it`);

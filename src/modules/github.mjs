@@ -229,8 +229,8 @@ export default defineModule({
   name: 'GitHub',
   vendor: 'MADRE · GitHub',
   version: '1.0.0',
-  summary: 'Reads this project’s pull requests, issues and CI with your gh session or a token, and posts to GitHub only when you confirm it in the room or an agent works in #4 AIRLOCK.',
-  creates: ['nothing in the project', 'an entry in ~/.pulse/config.json', 'your token in MADRE’s vault, 0600, only if you paste one', 'an MCP server per turn, started and stopped by the room', 'a pull request, an issue or a comment on GitHub, only when you confirm it or an agent in #4 AIRLOCK posts it'],
+  summary: 'Reads this project’s pull requests, issues and CI with your gh session or a token, and posts to GitHub only when you confirm it in the project or an agent works in #4 FULL ACCESS.',
+  creates: ['nothing in the project', 'an entry in ~/.pulse/config.json', 'your token in MADRE’s vault, 0600, only if you paste one', 'an MCP server per turn, started and stopped by the project', 'a pull request, an issue or a comment on GitHub, only when you confirm it or an agent in #4 FULL ACCESS posts it'],
   requires: ['the project is a git repository', 'a remote on github.com', 'the gh CLI signed in (gh auth login), or a fine-grained token pasted here'],
   settings: { enabled: false },
   secrets: [{

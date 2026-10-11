@@ -142,7 +142,7 @@ export const TAKES_KEY = new Set(['gemini', 'opencode']);
 
 export function accountNoteFor(id) {
   // Said in the room's language when it is asked for, not when this file is imported.
-  if (id === 'madre') return { account: t("Free and local through Ollama: no account, no tokens. It answers from the room's memory."), paid: false, vendor: 'MADRE' };
+  if (id === 'madre') return { account: t("Free and local through Ollama: no account, no tokens. It answers from the project's memory."), paid: false, vendor: 'MADRE' };
   const setup = AGENT_SETUP[id];
   return setup ? { account: t(setup.account), paid: setup.paid, vendor: setup.vendor } : null;
 }

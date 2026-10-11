@@ -93,7 +93,7 @@ export function parsePlan(text) {
   for (const line of body) {
     const link = line.match(LINK_LINE);
     if (link) {
-      if (links.length >= MAX_LINKS) { ignored.push({ line: clean(line, 120), why: 'more than 2 links' }); continue; }
+      if (links.length >= MAX_LINKS) { ignored.push({ line: clean(line, 120), why: 'more than 2 connections' }); continue; }
       const terms = linkTerms(link[4]);
       links.push({ from: clean(link[1], 80), to: clean(link[3], 80), both: link[2] === '↔' || link[2] === '<->', ...terms });
       continue;
@@ -125,15 +125,15 @@ export function resolveOrder(order, step, { rooms, contracts, salas, agents }) {
   const crew = new Set((agents ?? []).filter((agent) => agent.detected).map((agent) => agent.id));
   const named = findRoom(rooms, order.room);
   const base = { step, room: named[0]?.id ?? null, name: named[0]?.name ?? order.room, agent: order.agent, mode: order.mode, text: order.text, contract: null, maxMode: null, asked: order.room };
-  if (!named.length) return { ...base, status: 'blocked', why: 'MADRE does not know that room on this Mac.' };
-  if (named.length > 1) return { ...base, room: null, status: 'blocked', why: 'Two rooms on this Mac have that name; use the room id.' };
-  if (named[0].id === salas) return { ...base, status: 'blocked', why: 'BISHOP lives in this room; it gives orders to the others.' };
+  if (!named.length) return { ...base, status: 'blocked', why: 'MADRE does not know that project on this Mac.' };
+  if (named.length > 1) return { ...base, room: null, status: 'blocked', why: 'Two projects on this Mac have that name; use the project id.' };
+  if (named[0].id === salas) return { ...base, status: 'blocked', why: 'The Coordinator lives in this project; it gives orders to the others.' };
   if (!crew.has(order.agent)) return { ...base, status: 'blocked', why: 'No such agent on this Mac.' };
   const contract = contracts.find((one) => receivesOrders(one, salas) === named[0].id) ?? null;
-  if (!contract) return { ...base, status: 'blocked', why: 'No signed link lets BISHOP give orders to that room.' };
+  if (!contract) return { ...base, status: 'blocked', why: 'No signed connection lets the Coordinator give orders to that project.' };
   const maxMode = Math.min(contract.orders.maxMode, MAX_ORDER_MODE);
-  if (order.mode >= 3) return { ...base, contract: contract.id, maxMode, status: 'proposal', why: '#3 and #4 never travel: arm it yourself in that room.' };
-  if (order.mode > maxMode) return { ...base, contract: contract.id, maxMode, status: 'blocked', why: 'That link allows orders up to #{n}.', whyArgs: { n: maxMode } };
+  if (order.mode >= 3) return { ...base, contract: contract.id, maxMode, status: 'proposal', why: '#3 and #4 never travel: unlock it yourself in that project.' };
+  if (order.mode > maxMode) return { ...base, contract: contract.id, maxMode, status: 'blocked', why: 'That connection allows orders up to #{n}.', whyArgs: { n: maxMode } };
   return { ...base, contract: contract.id, maxMode, status: 'ready', why: null };
 }
 export const resolveOrders = ({ orders, ...where }) => orders.map((order, index) => resolveOrder(order, index + 1, where));
@@ -146,20 +146,20 @@ export function resolveLinks({ links, rooms, contracts, salas }) {
     const from = findRoom(rooms, link.from);
     const to = findRoom(rooms, link.to);
     const base = { index, from: from[0]?.id ?? null, fromName: from[0]?.name ?? link.from, to: to[0]?.id ?? null, toName: to[0]?.name ?? link.to, direction: link.both ? 'both' : 'a→b', kinds: link.kinds, days: link.days, orders: null, receives: null };
-    if (from.length !== 1 || to.length !== 1) return { ...base, status: 'blocked', why: from.length > 1 || to.length > 1 ? 'Two rooms on this Mac have that name; use the room id.' : 'MADRE does not know that room on this Mac.' };
-    if (base.from === base.to) return { ...base, status: 'blocked', why: 'A room cannot be linked to itself.' };
-    if (base.from === salas || (link.both && base.to === salas)) return { ...base, status: 'blocked', why: 'The room of Salas never hands its notes over.' };
+    if (from.length !== 1 || to.length !== 1) return { ...base, status: 'blocked', why: from.length > 1 || to.length > 1 ? 'Two projects on this Mac have that name; use the project id.' : 'MADRE does not know that project on this Mac.' };
+    if (base.from === base.to) return { ...base, status: 'blocked', why: 'A project cannot be connected to itself.' };
+    if (base.from === salas || (link.both && base.to === salas)) return { ...base, status: 'blocked', why: 'The Coordinator\'s project never hands its notes over.' };
     if (!link.kinds.length || link.unknown.length) return { ...base, status: 'blocked', why: 'Name what crosses: decision, fact, preference or question.' };
     if (!link.kinds.every((kind) => LINK_KINDS.includes(kind))) return { ...base, status: 'blocked', why: 'Name what crosses: decision, fact, preference or question.' };
     let orders = null;
     if (link.orders !== null) {
-      if (base.from !== salas && base.to !== salas) return { ...base, status: 'blocked', why: 'Orders go only on a link with the room of Salas.' };
+      if (base.from !== salas && base.to !== salas) return { ...base, status: 'blocked', why: 'Orders go only on a connection with the Coordinator\'s project.' };
       orders = { allowed: true, maxMode: Math.min(link.orders, MAX_ORDER_MODE), perHour: 6 };
     }
     const receives = orders ? (base.from === salas ? base.to : base.from) : null;
     const same = contracts.find((one) => [one.rooms.a, one.rooms.b].sort().join() === [base.from, base.to].sort().join()
       && (link.both ? one.direction === 'both' : servingRooms(one).includes(base.from)));
-    if (same) return { ...base, orders, receives, status: 'exists', why: 'That link is already in force.', contract: same.id };
+    if (same) return { ...base, orders, receives, status: 'exists', why: 'That connection is already in force.', contract: same.id };
     return { ...base, orders, receives, status: 'ready', why: null };
   });
 }

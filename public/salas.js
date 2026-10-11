@@ -32,7 +32,7 @@ const el = (tag, className, text) => {
   return node;
 };
 
-const chatName = (title) => (title === 'First conversation' ? t('First conversation') : title === 'Untitled' ? t('Untitled') : title);
+const chatName = (title) => (title === 'First conversation' ? t('First conversation') : title === 'Untitled' ? t('Untitled') : title === 'Coordinator' ? t('Coordinator') : title);
 
 function ago(iso) {
   const at = Date.parse(iso ?? '');
@@ -54,13 +54,14 @@ async function openRoom(id, { carry = false, chat = null } = {}) {
   location.href = carry ? '/?continuar=mac' : chat ? `/?en=${encodeURIComponent(chat)}` : '/';
 }
 
-const MODE_NAMES = ['GHOST', 'EXCHANGE', 'CREATE', 'CONTROL', 'AIRLOCK'];
+// The modes as the room names them (app.js, MODES): asked when shown, so the language is the page's.
+const modeName = (n) => [t('INCOGNITO'), t('CHAT ONLY'), t('CREATE'), t('EDIT'), t('FULL ACCESS')][n] ?? '';
 // What an agent is waiting for, in one line.
 function askLine(ask) {
-  if (ask.kind === 'mode') return t('@{agent} asks for #{n} {label}', { agent: ask.agent, n: ask.mode, label: MODE_NAMES[ask.mode] ?? '' });
+  if (ask.kind === 'mode') return t('@{agent} asks for #{n} {label}', { agent: ask.agent, n: ask.mode, label: modeName(ask.mode) });
   if (ask.kind === 'run') return ask.text ? t('@{agent} wants to run {line}', { agent: ask.agent, line: ask.text }) : t('@{agent} wants to run a command', { agent: ask.agent });
-  if (ask.kind === 'bishop') return t('BISHOP proposes #{n} to @{agent}: arm it with your key', { n: ask.mode, agent: ask.agent });
-  if (ask.kind === 'plan') return ask.text ? t('BISHOP waits for your press: {reason}', { reason: ask.text }) : t('BISHOP waits for your press');
+  if (ask.kind === 'bishop') return t('The Coordinator proposes #{n} to @{agent}: unlock it with your key', { n: ask.mode, agent: ask.agent });
+  if (ask.kind === 'plan') return ask.text ? t('The Coordinator waits for your press: {reason}', { reason: ask.text }) : t('The Coordinator waits for your press');
   return ask.text ? t('@{agent} asks you: {question}', { agent: ask.agent, question: ask.text }) : t('@{agent} asks you to choose', { agent: ask.agent });
 }
 
@@ -74,7 +75,7 @@ function drawRoom(room) {
   if (room.waitingCount) row.classList.add('waiting');
   if (room.outdated || room.unreachable) {
     row.disabled = true;
-    row.append(el('span', 'salas-room-note', room.outdated ? t('Update MADRE in this room on your Mac to use it from here.') : t('This room is not answering.')));
+    row.append(el('span', 'salas-room-note', room.outdated ? t('Update MADRE in this project on your Mac to use it from here.') : t('This project is not answering.')));
   } else {
     const ask = room.waiting?.[0];
     if (ask) {
@@ -141,14 +142,14 @@ async function refresh() {
   const ordered = [...data.rooms].sort((a, b) => weight(b) - weight(a));
   ui.list.replaceChildren(...ordered.map(drawRoom));
   ui.empty.hidden = data.rooms.length > 0;
-  ui.empty.textContent = t('No room is open on your Mac. Open MADRE in a project there and it appears here.');
+  ui.empty.textContent = t('No project is open on your Mac. Open MADRE in a project there and it appears here.');
   ui.stop.hidden = !data.rooms.some((room) => room.working?.length);
-  ui.foot.textContent = t('Your rooms run on your Mac. This phone reaches them over your Wi-Fi.');
+  ui.foot.textContent = t('Your projects run on your Mac. This phone reaches them over your Wi-Fi.');
   drawCarry(data.handoff, data.rooms);
 }
 
 function translateStatic() {
-  document.querySelector('.salas-title').textContent = t('Rooms');
+  document.querySelector('.salas-title').textContent = t('Home');
   ui.stop.querySelector('span').textContent = arming ? t('Touch again to stop') : t('Stop all');
 }
 

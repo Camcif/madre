@@ -188,17 +188,17 @@ export async function createEmptyFile(root, relative) {
   const clean = String(relative ?? '').trim().replace(/^[/\\]+/, '');
   const parts = clean.split(/[/\\]+/).filter(Boolean);
   if (!clean || clean.includes('\0') || /[/\\]$/.test(clean) || /^[a-zA-Z]:/.test(clean) || parts.some((part) => part === '..' || part === '.') || parts[0] === '.git') {
-    return { status: 400, error: 'Not a file name this room can create.' };
+    return { status: 400, error: 'Not a file name this project can create.' };
   }
   const canonicalRoot = await realpath(root).catch(() => null);
   if (!canonicalRoot) return { status: 404, error: 'Not found.' };
   const target = resolve(canonicalRoot, ...parts);
-  if (!target.startsWith(canonicalRoot + sep)) return { status: 400, error: 'Not a file name this room can create.' };
+  if (!target.startsWith(canonicalRoot + sep)) return { status: 400, error: 'Not a file name this project can create.' };
   // The nearest folder that exists is checked against the fence, symlinks resolved.
   let folder = dirname(target);
   while (folder !== canonicalRoot && !(await stat(folder).catch(() => null))) folder = dirname(folder);
   const inside = await resolveInside(canonicalRoot, folder === canonicalRoot ? '.' : folder.slice(canonicalRoot.length + 1));
-  if (!inside) return { status: 400, error: 'Not a file name this room can create.' };
+  if (!inside) return { status: 400, error: 'Not a file name this project can create.' };
   await mkdir(dirname(target), { recursive: true });
   try { await writeFile(target, '', { encoding: 'utf8', flag: 'wx' }); }
   catch (error) { return error.code === 'EEXIST' ? { status: 409, error: 'A file with that name is already there.' } : { status: 400, error: error.message }; }

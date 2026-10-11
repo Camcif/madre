@@ -7,10 +7,10 @@ import { gitToplevel } from './helpers.mjs';
 
 export default defineModule({
   id: 'git-pulse',
-  name: 'Git Pulse',
+  name: 'Git',
   vendor: 'MADRE',
   version: '1.0.0',
-  summary: 'Brings the repository into the room: /git posts the branch, the uncommitted changes, the recent commits or the diff stats as a shared fact card, without spending an agent turn.',
+  summary: 'Brings the repository into the project: /git posts the branch, the uncommitted changes, the recent commits or the diff stats as a shared fact card, without spending an agent turn.',
   creates: ['nothing by itself \u00b7 the read commands only read', 'a local commit only when you type /git commit', 'a push only when you type /git push confirm, after it shows what would leave'],
   requires: ['the project is a git repository'],
   commands: ['/git status', '/git log [n]', '/git diff', '/git branches', '/git commit "message"', '/git push [confirm]'],

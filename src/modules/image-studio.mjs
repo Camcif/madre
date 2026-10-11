@@ -9,11 +9,11 @@ const MODELS = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image', 'gemini-3-pr
 export default defineModule({
   id: 'image-studio',
   configKey: 'imageStudio',
-  name: 'Image Studio',
+  name: 'Images',
   vendor: 'MADRE · Gemini API',
   version: '1.0.0',
   summary: 'Gives Gemini CLI, Claude Code and OpenCode an image tool, through a MADRE-owned MCP server on the Gemini image models and your own key and credits.',
-  creates: ['nothing in the project \u00b7 images land in the lease folder', 'an entry in ~/.pulse/config.json', 'an MCP server per turn, started and stopped by the room'],
+  creates: ['nothing in the project \u00b7 images land in the lease folder', 'an entry in ~/.pulse/config.json', 'an MCP server per turn, started and stopped by the project'],
   // Not something it writes: a condition for it to attach at all, which is what REQUIRES is for.
   requires: ['a Gemini API key with credits (the one the Gemini CLI stores, or GEMINI_API_KEY)', 'attached only inside a creation lease with the image scope on'],
   models: MODELS,

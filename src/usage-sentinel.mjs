@@ -48,7 +48,7 @@ export class UsageSentinel {
       ? t(' Continue with {who}.', { who: alternatives.map((item) => `@${item}`).join(t(' or ')) })
       : t(' Prepare a handoff before the current agent becomes unavailable.');
     const label = source === 'room-soft-budget'
-      ? t("local room token budget (MADRE's own soft limit, not the provider's quota; cache reads count a tenth)")
+      ? t("local project token budget (MADRE's own soft limit, not the provider's quota; cache reads count a tenth)")
       : source === 'test-simulation'
         ? t('simulated provider usage window')
         : t('provider usage window');

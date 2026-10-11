@@ -50,12 +50,12 @@ export default defineModule({
   vendor: 'MADRE',
   version: '1.0.0',
   summary: 'Suggests how hard Claude Code and Codex should think for the message you are writing, from what was measured on this project. It suggests; you choose.',
-  creates: ['nothing in the project', 'its measurements next to the room, in intents.jsonl'],
+  creates: ['nothing in the project', 'its measurements next to the project, in intents.jsonl'],
   settings: { enabled: true },
   card: 'intents',
   async status(ctx) {
     return {
-      status: { installed: Boolean(ctx.settings.enabled), detail: ctx.settings.enabled ? t('on · suggests an effort when there is a reason to') : t('off · no suggestions under the composer') },
+      status: { installed: Boolean(ctx.settings.enabled), detail: ctx.settings.enabled ? t('on · suggests an effort when there is a reason to') : t('off · no suggestions under the Write box') },
       install: { display: ctx.settings.enabled ? 'stop suggesting an effort' : 'suggest an effort when there is a reason to', platforms: [] },
     };
   },
@@ -64,7 +64,7 @@ export default defineModule({
       method: 'GET', path: '/api/intents',
       handler: async (ctx, { url }) => {
         const desk = deskFor(ctx);
-        if (!desk) return { status: 503, body: { error: t('Intenciones is not available in this room.') } };
+        if (!desk) return { status: 503, body: { error: t('Intenciones is not available in this project.') } };
         let models = {};
         try { models = JSON.parse(url.searchParams.get('models') ?? '{}') ?? {}; } catch { models = {}; }
         const chosen = Object.fromEntries(Object.entries(models).map(([agent, model]) => [agent, nameOrNull(model)]));
@@ -97,7 +97,7 @@ export default defineModule({
       method: 'POST', path: '/api/intents/calibrate',
       handler: async (ctx, { payload }) => {
         const desk = deskFor(ctx);
-        if (!desk) return { status: 503, body: { error: t('Intenciones is not available in this room.') } };
+        if (!desk) return { status: 503, body: { error: t('Intenciones is not available in this project.') } };
         if (!enabled(ctx)) return { status: 409, body: { error: t('Turn Intenciones on first.') } };
         const result = await desk.start({
           kind: payload?.kind === 'full' ? 'full' : 'quick',
@@ -113,7 +113,7 @@ export default defineModule({
     {
       method: 'POST', path: '/api/intents/answer',
       handler: async (ctx, { payload }) => {
-        const result = deskFor(ctx)?.answer(String(payload?.choice ?? '')) ?? { error: t('Intenciones is not available in this room.') };
+        const result = deskFor(ctx)?.answer(String(payload?.choice ?? '')) ?? { error: t('Intenciones is not available in this project.') };
         return { status: result.error ? 409 : 200, body: result };
       },
     },

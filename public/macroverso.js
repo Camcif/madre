@@ -961,8 +961,8 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     ctx.font = '650 15px Geist, -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.lineWidth = 4;
     ctx.fillStyle = 'rgba(242, 241, 238, .95)';
-    ctx.strokeText(words.bishop ?? 'BISHOP', p.x, below);
-    ctx.fillText(words.bishop ?? 'BISHOP', p.x, below);
+    ctx.strokeText(words.bishop ?? 'Coordinator', p.x, below);
+    ctx.fillText(words.bishop ?? 'Coordinator', p.x, below);
     ctx.font = '500 11px Geist, -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.lineWidth = 3;
     ctx.fillStyle = room?.glance?.waitingCount ? accent : 'rgba(242, 241, 238, .6)';
@@ -1227,7 +1227,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     const room = core.room;
     card.replaceChildren();
     const name = document.createElement('h3');
-    name.textContent = words.bishop ?? 'BISHOP';
+    name.textContent = words.bishop ?? 'Coordinator';
     const state = document.createElement('p');
     state.className = 'mv-state';
     state.textContent = room ? words.state(room) : (words.asleep ?? '');

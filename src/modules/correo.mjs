@@ -32,7 +32,7 @@ export default defineModule({
   vendor: 'MADRE · SMTP',
   version: '1.0.0',
   summary: 'Lets an agent send one plain-text email from your own account, through your provider, with an app password you keep here. Sending is only offered in #4 AIRLOCK, and a sent message cannot be undone.',
-  creates: ['nothing in the project', 'an entry in ~/.pulse/config.json', 'your app password in MADRE’s vault, 0600', 'an MCP server per turn, started and stopped by the room'],
+  creates: ['nothing in the project', 'an entry in ~/.pulse/config.json', 'your app password in MADRE’s vault, 0600', 'an MCP server per turn, started and stopped by the project'],
   requires: ['an app password from your mail provider (Gmail: Account → Security → 2-Step Verification → App passwords)', 'the turn must be in #4 AIRLOCK: below that the tool is not offered at all'],
   settings: { enabled: false, from: '', fromName: '', host: 'smtp.gmail.com', allow: '' },
   controls: [

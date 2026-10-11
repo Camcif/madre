@@ -26,7 +26,7 @@ test('external modules: a plain object in ~/.pulse/modules or .madre/modules bec
     assert.deepEqual(outcome.failures.map((f) => [f.file.split('/').pop(), f.error]), [['broken.mjs', 'Module id must be kebab-case: undefined'], ['dupe.mjs', 'the id "ripley" is already taken']]);
     assert.equal(moduleById('hello').external, true);
     assert.equal(moduleById('hello').configKey, 'hello');
-    assert.equal(moduleById('ripley').name, 'RIPLEY', 'a built-in is never replaced');
+    assert.equal(moduleById('ripley').name, 'Preview', 'a built-in is never replaced');
 
     const ctxOff = { projectRoot, stateRoot, config: { modules: {} }, env: {}, agents: [{ id: 'codex', ready: true }], room: null, readConfig: async () => ({}), updateConfig: async () => {}, record: async () => {}, services: { imageKey: async () => null, ollama: { state: () => ({ running: false, models: [], embedModel: null, chatModel: null }), wire: async () => ({}), pull: async () => ({ ok: false }) } } };
     const described = await describeModules(ctxOff);

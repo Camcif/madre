@@ -22,5 +22,5 @@ export function refuseForeign({ method = 'GET', headers = {} } = {}) {
   const origin = headers.origin;
   if (SAFE.has(method) || origin === undefined) return null;
   if (origin === `http://${headers.host}` || origin === `https://${headers.host}`) return null;
-  return 'A page from somewhere else cannot act in this room.';
+  return 'A page from somewhere else cannot act in this project.';
 }

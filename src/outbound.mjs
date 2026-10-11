@@ -50,14 +50,14 @@ export const DESTINATIONS = [
     id: 'embeddings', host: 'generativelanguage.googleapis.com', match: (url) => /batchEmbedContents/.test(url.pathname), to: 'Google · Gemini embeddings',
     what: 'The text of what is being embedded: the first 2000 characters of each memory, and the question a recall is made of.',
     when: 'a memory is written or recalled, while embeddings are set to Gemini',
-    where: 'MU/TH/UR → MEMORY → EMBEDDINGS · OLLAMA keeps it on this computer, OFF drops back to words',
+    where: 'Settings › Memory › Smart search · Ollama keeps it on this computer, off drops back to words',
     inside: true,
   },
   {
     id: 'image', host: 'generativelanguage.googleapis.com', match: (url) => /generateContent/.test(url.pathname), to: 'Google · Gemini image model',
     what: 'The prompt an agent wrote for an image.',
     when: 'an agent calls the image tool during a lease',
-    where: 'MODULES → IMAGE STUDIO',
+    where: 'Modules › Images',
     // It runs in a process of its own and writes its own line into this same log, so it is here.
     inside: true,
   },
@@ -65,7 +65,7 @@ export const DESTINATIONS = [
     id: 'npm', host: 'registry.npmjs.org', to: 'the npm registry',
     what: 'The name of a package, to read the version of its latest release. Nothing about you or your project.',
     when: 'at most once a day per package, while the release channel is on',
-    where: 'MU/TH/UR → RELEASE CHANNEL · or PULSE_UPDATE_CHECK=0',
+    where: 'Settings › Version and reports › Look for new versions · or PULSE_UPDATE_CHECK=0',
     inside: true,
   },
   {
@@ -73,14 +73,14 @@ export const DESTINATIONS = [
     id: 'github', host: 'api.github.com', match: (url) => /\/releases\/latest$/.test(url.pathname), to: 'GitHub',
     what: 'The name of a repository, to read the tag of its latest release. Nothing about you or your project.',
     when: 'at most once a day per repository, while the release channel is on',
-    where: 'MU/TH/UR → RELEASE CHANNEL · or PULSE_UPDATE_CHECK=0',
+    where: 'Settings › Version and reports › Look for new versions · or PULSE_UPDATE_CHECK=0',
     inside: true,
   },
   {
     id: 'reports', host: new URL(DEFAULT_REPORT_URL).hostname, to: "the author's error collector",
     what: 'An unknown condition: what broke, where in MADRE, and the version. Paths are cut back and your words are not in it.',
     when: 'you press SEND — or on its own, only while auto-report is on',
-    where: 'MU/TH/UR → AUTO-REPORT UNKNOWN CONDITIONS · or PULSE_REPORT_URL',
+    where: 'Settings › Version and reports › Report automatically · or PULSE_REPORT_URL',
     inside: true,
   },
   {

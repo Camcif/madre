@@ -50,7 +50,7 @@ function installCommand({ agents = [] }) {
 export default defineModule({
   id: 'ahp',
   kind: 'installer',
-  name: 'AHP+',
+  name: 'Continuity',
   vendor: 'Agent Handoff Protocol Plus',
   package: PACKAGE,
   tracks: { name: PACKAGE, npm: PACKAGE },

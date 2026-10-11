@@ -164,7 +164,7 @@ test('salas · the macroverse draws every room with NOSTROMO\'s own engine, one 
   // designation when orders may enter a room.
   assert.match(page, /fetch\('\/api\/salas\/enlaces', \{ method: 'POST'/);
   assert.match(page, /fetch\('\/api\/salas\/enlaces\/revoke', \{ method: 'POST'/);
-  assert.match(page, /Type the designation of \{room\} to allow orders into it/);
+  assert.match(page, /Type the name of \{room\} to allow orders into it/);
   // On a phone it is one line of the archive per room, read through the bridge.
   const bridge = await readFile(join(import.meta.dirname, '..', 'src', 'bridge', 'server.mjs'), 'utf8');
   assert.match(bridge, /\/api\/glance\?census=1/);

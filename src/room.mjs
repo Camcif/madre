@@ -564,7 +564,7 @@ export class Room {
   // a real question at a time and takes minutes, so it runs in the background and reports where
   // it is. Nothing here writes to the ledger or spends a provider turn.
   async runExam(which, { findings = [] } = {}) {
-    if (!this.#memory) return { error: 'The room has no memory.' };
+    if (!this.#memory) return { error: 'The project has no memory.' };
     if (this.#examRunning) return { error: `${this.#examRunning.toUpperCase()} is already running.` };
     const events = await this.#store.readAll();
     if (which === 'consistency') {

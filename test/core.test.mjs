@@ -93,7 +93,7 @@ test('core: the door is the star itself, and what is behind it is read and never
   assert.ok(!/core-sun/.test(page) && !/core-sun/.test(css), 'a second sun is painted over the first');
 
   // It is read, never written, and it says so where somebody would look for the edit button.
-  assert.match(app, /YOU CANNOT EDIT THIS\. WHAT MADRE PROMISES ABOUT THE CREW IS TRUE BECAUSE THESE WORDS ARE FIXED/);
+  assert.match(app, /YOU CANNOT EDIT THIS\. WHAT MADRE PROMISES ABOUT THE AGENTS IS TRUE BECAUSE THESE WORDS ARE FIXED/);
   assert.ok(!/contenteditable/.test(app));
   // Nothing is stored and nothing is sent, and the counters are not touched by looking.
   assert.match(app, /BUILT NOW AND SENT NOWHERE/);
@@ -234,7 +234,7 @@ test('core: four panes, one at a time, and the prompt through all of them', asyn
   // `==>` over each section, names in one column and numbers in the other.
   assert.match(app, /head\.append\(el\('b', null, '==>'\), el\('span', 'title', title\)\)/);
   assert.match(app, /function brewRow\(key, value, className = null\)/);
-  for (const title of ['THE DOCUMENT', 'WHAT IT CARRIES', 'THE LAUNCH', 'WHAT KEEPS IT TO THIS TURN', 'WHAT LEFT THIS MACHINE']) {
+  for (const title of ['THE DOCUMENT', 'WHAT IT CARRIES', 'THE LAUNCH', 'WHAT KEEPS IT TO THIS TURN', 'OUTBOUND']) {
     assert.ok(app.includes(`brewHead(t('${title}')`), `${title} is not a section of its own`);
   }
   // The blocks are a package list, not a wall: a sign, a name, a number, a bar, a reason.
@@ -274,7 +274,7 @@ test('core: the board is you and your local model, read only from what the room 
   assert.match(board, /el\('div', 'mem-dash core-board'\)/);
   // A figure nobody measured says so instead of showing a zero.
   assert.match(board, /t\('NOT MEASURED YET'\)/);
-  assert.match(board, /t\('NOTHING TO READ YET: THE ROOM HAS NO ARCHIVE\.'\)/);
+  assert.match(board, /t\('NOTHING TO READ YET: THE PROJECT HAS NO ARCHIVE\.'\)/);
   // The core opens on it, and the strip about the next turn waits for the panes about the next turn.
   assert.match(app, /core\.pane = 'board';/);
   assert.match(app, /const CORE_STRIP_PANES = new Set\(\['document', 'launch'\]\);/);

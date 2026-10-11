@@ -102,7 +102,7 @@ export function spread(items, size) {
 export async function coverageExam({ events = [], recall, embed = null, sample = COVERAGE_SAMPLE, bar = null } = {}) {
   const all = exchanges(events);
   const cases = spread(all, sample);
-  if (!cases.length) return { id: 'coverage', ran: false, says: t('No exchange in this room is long enough to test with yet.') };
+  if (!cases.length) return { id: 'coverage', ran: false, says: t('No exchange in this project is long enough to test with yet.') };
   const found = [];
   for (const one of cases) {
     const held = await recall(one.asked, one.sequence);
@@ -146,7 +146,7 @@ export async function coverageExam({ events = [], recall, embed = null, sample =
     id: 'coverage', ran: true, at: new Date().toISOString(), n: cases.length, hits, rate, method, bar: used,
     mean: mean(scores), control: controlled ? mean(controls) : null,
     passed: rate >= PASS.coverage,
-    says: t('{hits} of {n} questions this room actually asked had their answer already in the archive, matched by {method}{control}.', { hits, n: cases.length, method: t(method), control: controlled ? t(' and against a control') : '' }),
+    says: t('{hits} of {n} questions this project actually asked had their answer already in the archive, matched by {method}{control}.', { hits, n: cases.length, method: t(method), control: controlled ? t(' and against a control') : '' }),
   };
 }
 
@@ -186,10 +186,10 @@ export function consistencyExam({ findings = [], notes = [], now = Date.now() } 
 // `ask(question)` is the local model with this archive behind it. `embed` is needed: comparing
 // two answers by their words rewards copying the question back.
 export async function matchExam({ events = [], ask, embed, sample = MATCH_SAMPLE, bar = MATCH_BAR, onProgress = () => {}, stop = () => false } = {}) {
-  if (!embed) return { id: 'match', ran: false, says: t('This test needs embeddings: two answers cannot be compared by their words alone.') };
+  if (!embed) return { id: 'match', ran: false, says: t('This test needs smart search: two answers cannot be compared by their words alone.') };
   const all = exchanges(events).filter((one) => !one.local);   // a model is not tested against itself
   const cases = spread(all, sample);
-  if (!cases.length) return { id: 'match', ran: false, says: t('No question in this room was answered by an agent other than the local one yet.') };
+  if (!cases.length) return { id: 'match', ran: false, says: t('No question in this project was answered by an agent other than the local one yet.') };
   const mine = [];
   for (const [index, one] of cases.entries()) {
     if (stop()) return { id: 'match', ran: false, stopped: true, says: t('Stopped after {index} of {n}.', { index, n: cases.length }) };
@@ -222,7 +222,7 @@ export async function matchExam({ events = [], ask, embed, sample = MATCH_SAMPLE
 export function saysFor(result) {
   if (!result?.ran) return result?.says ?? null;
   if (result.id === 'coverage' && Number.isFinite(result.hits)) {
-    return t('{hits} of {n} questions this room actually asked had their answer already in the archive, matched by {method}{control}.',
+    return t('{hits} of {n} questions this project actually asked had their answer already in the archive, matched by {method}{control}.',
       { hits: result.hits, n: result.n, method: t(result.method ?? 'words'), control: result.control === null || result.control === undefined ? '' : t(' and against a control') });
   }
   if (result.id === 'match' && Number.isFinite(result.matched)) {

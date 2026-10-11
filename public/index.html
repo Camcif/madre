@@ -14,48 +14,48 @@
     <div class="shell">
       <header id="bar" class="bar">
         <div class="bar-left">
-          <a id="salas-link" class="salas-link" href="/salas" hidden aria-label="Rooms" title="Rooms">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Rooms</span>
+          <a id="salas-link" class="salas-link" href="/salas" hidden aria-label="Home" title="Home">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Home</span>
           </a>
           <a class="brand" href="https://madre.run" target="_blank" rel="noopener noreferrer" aria-label="MADRE · madre.run" title="MADRE · madre.run">
             <svg class="brand-logo" viewBox="-4.8 -4.8 377.1 49.6" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g class="pulse" transform="translate(0 0) scale(2.5) translate(0 -2)"><path class="beat" d="M1 10H16L20 10L23.5 2L28 18L32 10L35 10L37 6L39 10H52" stroke-width="1.92" pathLength="100"/><circle class="beat-dot" cx="60" cy="10" r="3" stroke="none"/></g><g class="word" transform="translate(193.5 7)" stroke-width="4.8"><path d="M0 26V0L14 14.3L28 0V26"/><path transform="translate(36.5 0)" d="M0 26V7.8A7.8 7.8 0 0 1 7.8 0H17.2A7.8 7.8 0 0 1 25 7.8V26M0 15.6H25"/><path transform="translate(71.5 0)" d="M0 0H16A12 12 0 0 1 28 12V14A12 12 0 0 1 16 26H0Z"/><path transform="translate(110.5 0)" d="M0 26V0H20.85A7.15 7.15 0 0 1 28 7.15V7.15A7.15 7.15 0 0 1 20.85 14.3H0M15.12 14.3L28 26"/><path transform="translate(146 0)" d="M28 0H0V26H28M0 13H21"/></g></g></svg>
             <svg class="brand-icon" viewBox="-4.8 -4.8 167.1 49.6" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><g class="pulse" transform="translate(0 0) scale(2.5) translate(0 -2)"><path d="M1 10H16L20 10L23.5 2L28 18L32 10L35 10L37 6L39 10H52" stroke-width="1.92"/><circle class="beat-dot" cx="60" cy="10" r="3" stroke="none"/></g></g></svg>
           </a>
-          <span id="project" class="project" title="Project room"></span>
+          <span id="project" class="project" title="Project"></span>
         </div>
         <div id="connection" class="connection" data-state="connecting" role="status" aria-label="connecting">
           <span class="connection-icon" aria-hidden="true"><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="1.7" fill="currentColor"/><path d="M6.7 6.7a4.7 4.7 0 0 0 0 6.6M13.3 6.7a4.7 4.7 0 0 1 0 6.6M4.2 4.2a8.2 8.2 0 0 0 0 11.6M15.8 4.2a8.2 8.2 0 0 1 0 11.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="connection-dot"></span></span><span class="connection-label">connecting</span>
         </div>
         <div id="agents" class="agents" aria-label="Agents"></div>
-        <button id="agents-compact" class="bar-icon agents-compact" type="button" title="Crew" aria-label="Crew">
+        <button id="agents-compact" class="bar-icon agents-compact" type="button" title="Agents" aria-label="Agents">
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="7" r="2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 16.4a4.8 4.8 0 0 1 9.6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.6 4.6a2.6 2.6 0 0 1 0 5M14.4 12.3a4.6 4.6 0 0 1 2.4 4.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span id="agents-count" class="bar-count"></span>
         </button>
         <button id="steps-pill" class="stop-all steps-pill" type="button" hidden aria-haspopup="dialog" aria-expanded="false"><svg class="steps-ring" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="2" opacity=".22"/><circle class="steps-arc" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" pathLength="1" transform="rotate(-90 10 10)"/></svg><span class="steps-label">First steps</span><span class="steps-count"></span></button>
         <button id="handoff-pill" class="stop-all handoff-pill" type="button" hidden><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="2.8" width="8" height="14.4" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 14.6h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="handoff-words"></span></button>
         <button id="update-pill" class="stop-all update-pill" type="button" hidden title="A newer MADRE is on npm"></button>
-        <button id="stop-all" class="stop-all" type="button" title="STOPALL · halt every plan and every agent turn" hidden>
+        <button id="stop-all" class="stop-all" type="button" title="STOP ALL · halt every plan and every agent turn" hidden>
           <svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="4" y="4" width="12" height="12" rx="3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>STOP ALL
         </button>
         <button id="modules-button" class="mother-button" type="button" title="Modules · optional integrations for this project" aria-haspopup="dialog" aria-pressed="false">
           <span class="mother-glyph modules-glyph" aria-hidden="true"></span><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M2.75 8.45a2.2 2.2 0 0 1 2.2-2.2h2a1.9 1.9 0 1 1 2.6 0h2a2.2 2.2 0 0 1 2.2 2.2v2a1.9 1.9 0 1 1 0 2.6v2a2.2 2.2 0 0 1-2.2 2.2h-2a1.9 1.9 0 1 0-2.6 0h-2a2.2 2.2 0 0 1-2.2-2.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>MODULES<span id="modules-count" class="modules-count" hidden></span>
         </button>
-        <button id="mother-button" class="mother-button" type="button" title="Troubleshooting · MU/TH/UR" aria-haspopup="dialog" aria-pressed="false">
-          <span class="mother-glyph" aria-hidden="true"></span><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle class="ic-disc" cx="10" cy="10" r="9"/><path class="ic-k" d="M1.8 10h3.4l1.6-4.6 2.6 9.2 2-4.6h1.5l1.3-2.6 1.2 2.6h2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-beat" pathLength="1" d="M1.8 10h3.4l1.6-4.6 2.6 9.2 2-4.6h1.5l1.3-2.6 1.2 2.6h2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>MU/TH/UR<span id="mother-count" class="mother-count" hidden></span>
+        <button id="mother-button" class="mother-button" type="button" title="Troubleshooting · Diagnostics" aria-haspopup="dialog" aria-pressed="false">
+          <span class="mother-glyph" aria-hidden="true"></span><svg class="bar-glyph" viewBox="0 0 20 20" aria-hidden="true"><circle class="ic-disc" cx="10" cy="10" r="9"/><path class="ic-k" d="M1.8 10h3.4l1.6-4.6 2.6 9.2 2-4.6h1.5l1.3-2.6 1.2 2.6h2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-beat" pathLength="1" d="M1.8 10h3.4l1.6-4.6 2.6 9.2 2-4.6h1.5l1.3-2.6 1.2 2.6h2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>DIAGNOSTICS<span id="mother-count" class="mother-count" hidden></span>
         </button>
-        <button id="nostromo-bar" class="tree-button nostromo-bar" type="button" title="NOSTROMO · memory research" aria-label="NOSTROMO" aria-haspopup="dialog">
+        <button id="nostromo-bar" class="tree-button nostromo-bar" type="button" title="Memory map · memory research" aria-label="Memory map" aria-haspopup="dialog">
           <svg class="bar-glyph brain-glyph" viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M9.2 4.6A2.5 2.5 0 0 0 4.9 5.9a2.6 2.6 0 0 0-1.4 4.2 2.7 2.7 0 0 0 1.6 4.1 2.5 2.5 0 0 0 4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path class="ic-f" d="M10.8 4.6a2.5 2.5 0 0 1 4.3 1.3 2.6 2.6 0 0 1 1.4 4.2 2.7 2.7 0 0 1-1.6 4.1 2.5 2.5 0 0 1-4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 9.4c.9 0 1.6.6 1.8 1.4M13.8 9.4c-.9 0-1.6.6-1.8 1.4M7.2 6.6c.5.2.9.6 1 1.1M12.8 6.6c-.5.2-.9.6-1 1.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         </button>
         <button id="reload-button" class="tree-button reload-button" type="button" aria-label="Reload the page">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.76-4.24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.1 3.6v3.6h-3.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button id="browser-button" class="tree-button" type="button" aria-pressed="false" aria-controls="browser" title="Browser · local servers and the web" aria-label="Browser">
+        <button id="browser-button" class="tree-button" type="button" aria-pressed="false" aria-controls="browser" title="Your servers · local servers and the web" aria-label="Your servers">
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle class="ic-f" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-k" d="M2.9 10h14.2M10 2.8c1.9 2 2.9 4.6 2.9 7.2s-1 5.2-2.9 7.2c-1.9-2-2.9-4.6-2.9-7.2s1-5.2 2.9-7.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-ring" cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <button id="tree-button" class="tree-button" type="button" title="Project files panel" aria-pressed="false" aria-controls="tree">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M2.75 6.5A2.25 2.25 0 0 1 5 4.25h2.6c.55 0 1.05.24 1.4.65l.9 1.1H15a2.25 2.25 0 0 1 2.25 2.25v5.75A2.25 2.25 0 0 1 15 16.25H5a2.25 2.25 0 0 1-2.25-2.25z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-k" d="M3.1 8.6h13.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-open" d="M2.9 15.9 5.2 10.1a1.4 1.4 0 0 1 1.3-.9h11.3c.7 0 1.2.7.9 1.4l-2 5.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button id="phone-button" class="tree-button phone-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Phone" title="Phone · use MADRE from your phone">
+        <button id="phone-button" class="tree-button phone-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="MADRE on your phone" title="MADRE on your phone · use it from your phone">
           <svg viewBox="0 0 20 20" aria-hidden="true"><rect class="ic-f" x="5.6" y="2.6" width="8.8" height="14.8" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path class="ic-k" d="M8.8 14.6h2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         </button>
         <button id="custom-button" class="tree-button custom-button" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings" aria-label="Settings">
@@ -64,7 +64,7 @@
       </header>
       <!-- The second bar (2026-10-09): Salas, reload and settings, apart from the keys you arrange.
            On the Mac only; filled by app.js (homeBar). A phone keeps its one bar. -->
-      <nav id="bar-home" class="bar bar-home" aria-label="Rooms, reload and settings" hidden></nav>
+      <nav id="bar-home" class="bar bar-home" aria-label="Home, reload and settings" hidden></nav>
       <!-- Arriving from RELOAD: the curtain that drew the logo before the page went is put back
            before the first frame, so the room never flashes between the two; app.js lifts it. -->
       <script>try { if (sessionStorage.getItem('madre.curtain')) { sessionStorage.removeItem('madre.curtain'); var curtain = document.createElement('div'); curtain.className = 'reload-curtain arrived'; curtain.id = 'reload-curtain'; var logo = document.querySelector('.brand-logo'); if (logo) curtain.appendChild(logo.cloneNode(true)); document.body.appendChild(curtain); } } catch (e) {}</script>
@@ -97,11 +97,11 @@
         <div id="tree-menu" class="tree-menu" role="menu" hidden></div>
       </aside>
 
-      <dialog id="core" class="mother core" aria-label="The core">
+      <dialog id="core" class="mother core" aria-label="What is sent">
         <div class="mother-frame">
           <header class="mother-head">
-            <span class="mother-title">The core</span>
-            <span class="mother-sub">What this room says in your name</span>
+            <span class="mother-title">What is sent</span>
+            <span class="mother-sub">What this project says in your name</span>
             <span class="mother-actions">
               <button id="core-copy" class="mother-close" type="button" title="Copy the whole briefing as the agent receives it">Copy all</button>
               <button id="core-close" class="mother-close" type="button" aria-label="Close">Close</button>
@@ -113,11 +113,11 @@
         </div>
       </dialog>
 
-      <dialog id="economy" class="mother economy" aria-label="Token economy">
+      <dialog id="economy" class="mother economy" aria-label="Token spending">
         <div class="mother-frame">
           <header class="mother-head">
-            <span class="mother-title">ECONOMY</span>
-            <span class="mother-sub">MADRE · WHAT THIS ROOM SPENT AND WHAT IT NEVER SPENT</span>
+            <span class="mother-title">SPENDING</span>
+            <span class="mother-sub">MADRE · WHAT THIS PROJECT SPENT AND WHAT IT NEVER SPENT</span>
             <span class="mother-actions">
               <button id="economy-close" class="mother-close" type="button">CLOSE ×</button>
             </span>
@@ -138,16 +138,16 @@
         <section id="modules-list" class="mods-body"></section>
       </dialog>
 
-      <dialog id="mother" class="surface window settings-window mother-window" aria-label="MU/TH/UR troubleshooting">
+      <dialog id="mother" class="surface window settings-window mother-window" aria-label="Diagnostics">
         <header class="custom-head settings-head mother-bar">
-          <span class="custom-title mother-mark">MU/TH/UR 6000</span>
+          <span class="custom-title mother-mark">DIAGNOSTICS</span>
           <form id="mother-query" class="mother-find-form" autocomplete="off">
             <label class="settings-search mother-find"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="mother-input" type="search" placeholder="Write a symptom, an agent or a word" aria-label="Write a symptom, an agent or a word" spellcheck="false"></label>
           </form>
           <div id="mother-os" class="sx-seg mother-os" role="radiogroup" aria-label="Operating system"></div>
           <span class="mother-tools">
-            <button id="mother-settings-button" class="surface-gear" type="button" title="MU/TH/UR's settings: what the sentinel keeps and whether it reports" aria-label="MU/TH/UR settings"><svg class="gear-glyph" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M8.65 3.85L8.92 1.97L11.08 1.97L11.35 3.85L13.40 4.69L14.91 3.56L16.44 5.09L15.31 6.60L16.15 8.65L18.03 8.92L18.03 11.08L16.15 11.35L15.31 13.40L16.44 14.91L14.91 16.44L13.40 15.31L11.35 16.15L11.08 18.03L8.92 18.03L8.65 16.15L6.60 15.31L5.09 16.44L3.56 14.91L4.69 13.40L3.85 11.35L1.97 11.08L1.97 8.92L3.85 8.65L4.69 6.60L3.56 5.09L5.09 3.56L6.60 4.69ZM12.6 10a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 1 1 5.2 0Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
-            <button id="nostromo-button" class="surface-gear nostromo-button" type="button" title="NOSTROMO · memory research · needs the project designation" aria-label="NOSTROMO"><svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M9.2 4.6A2.5 2.5 0 0 0 4.9 5.9a2.6 2.6 0 0 0-1.4 4.2 2.7 2.7 0 0 0 1.6 4.1 2.5 2.5 0 0 0 4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path class="ic-f" d="M10.8 4.6a2.5 2.5 0 0 1 4.3 1.3 2.6 2.6 0 0 1 1.4 4.2 2.7 2.7 0 0 1-1.6 4.1 2.5 2.5 0 0 1-4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 9.4c.9 0 1.6.6 1.8 1.4M13.8 9.4c-.9 0-1.6.6-1.8 1.4M7.2 6.6c.5.2.9.6 1 1.1M12.8 6.6c-.5.2-.9.6-1 1.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+            <button id="mother-settings-button" class="surface-gear" type="button" title="Diagnostics settings: what the sentinel keeps and whether it reports" aria-label="Diagnostics settings"><svg class="gear-glyph" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M8.65 3.85L8.92 1.97L11.08 1.97L11.35 3.85L13.40 4.69L14.91 3.56L16.44 5.09L15.31 6.60L16.15 8.65L18.03 8.92L18.03 11.08L16.15 11.35L15.31 13.40L16.44 14.91L14.91 16.44L13.40 15.31L11.35 16.15L11.08 18.03L8.92 18.03L8.65 16.15L6.60 15.31L5.09 16.44L3.56 14.91L4.69 13.40L3.85 11.35L1.97 11.08L1.97 8.92L3.85 8.65L4.69 6.60L3.56 5.09L5.09 3.56L6.60 4.69ZM12.6 10a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 1 1 5.2 0Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            <button id="nostromo-button" class="surface-gear nostromo-button" type="button" title="Memory map · memory research · needs the project name" aria-label="Memory map"><svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M9.2 4.6A2.5 2.5 0 0 0 4.9 5.9a2.6 2.6 0 0 0-1.4 4.2 2.7 2.7 0 0 0 1.6 4.1 2.5 2.5 0 0 0 4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path class="ic-f" d="M10.8 4.6a2.5 2.5 0 0 1 4.3 1.3 2.6 2.6 0 0 1 1.4 4.2 2.7 2.7 0 0 1-1.6 4.1 2.5 2.5 0 0 1-4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 9.4c.9 0 1.6.6 1.8 1.4M13.8 9.4c-.9 0-1.6.6-1.8 1.4M7.2 6.6c.5.2.9.6 1 1.1M12.8 6.6c-.5.2-.9.6-1 1.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
             <button id="tour-button" class="surface-gear tour-button" type="button" title="The tour of MADRE" aria-label="Tour">?</button>
           </span>
           <button id="mother-close" type="button" aria-label="Close">Close</button>
@@ -175,11 +175,11 @@
       </main>
 
       <section id="onboarding" class="onboarding bridge" hidden>
-        <p class="onboarding-eyebrow">INTERFACE · FIRST CONTACT</p>
-        <h2>One agent is enough to open the room.</h2>
-        <p>MADRE works with the AI coding agents on this computer, using the session each one already has. Install one here and sign in: the room opens by itself, no terminal.</p>
+        <p class="onboarding-eyebrow">CONNECT YOUR AGENTS</p>
+        <h2>One agent is enough to open the project.</h2>
+        <p>MADRE works with the AI coding agents on this computer, using the session each one already has. Install one here and sign in: the project opens by itself, no terminal.</p>
         <div id="bridge-crew" class="bridge-crew"></div>
-        <button id="bridge-close" class="bridge-close" type="button" hidden>BACK TO THE ROOM</button>
+        <button id="bridge-close" class="bridge-close" type="button" hidden>BACK TO THE PROJECT</button>
         <p class="hint">Nothing is installed without you pressing it, and the exact command is always shown. Same diagnosis in a terminal: <code>madre doctor</code></p>
       </section>
 
@@ -195,7 +195,7 @@
           <span id="crew-label" class="crew-label" aria-hidden="true">HUMAN ›</span>
           <div class="editor">
             <div id="highlight" class="highlight" aria-hidden="true"></div>
-            <textarea id="message" rows="1" placeholder="Type here, human. Ask the room…"></textarea>
+            <textarea id="message" rows="1" placeholder="Type here, human. Ask the project…"></textarea>
             <div id="slash-menu" class="slash-menu" role="listbox" hidden></div>
           </div>
           <button id="create-toggle" type="button" class="create-toggle" aria-pressed="false" title="Creation lease: let the agent create files for this request, only inside .pulse/out/" hidden>
@@ -204,7 +204,7 @@
             <span class="create-word">CREATE</span>
             <span id="create-scopes" class="create-scopes" hidden></span>
           </button>
-          <button id="ash-toggle" type="button" class="ash-toggle" aria-pressed="false" title="Ash: ask every agent for compact prose. Nothing you write is altered." hidden>ash</button>
+          <button id="ash-toggle" type="button" class="ash-toggle" aria-pressed="false" title="Token saver: ask every agent for compact prose. Nothing you write is altered." hidden>ash</button>
           <button id="attach" type="button" class="attach" title="Attach an image or file (or drop it here)" aria-label="Attach">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.4 9.6l-5.8 5.8a3.6 3.6 0 0 1-5.1-5.1l6.6-6.6a2.4 2.4 0 0 1 3.4 3.4l-6.5 6.5a1.2 1.2 0 0 1-1.7-1.7l5.8-5.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -222,14 +222,14 @@
       <dialog id="override" class="room-ask key-ask" aria-labelledby="override-title">
         <div class="room-ask-card key-card">
           <span class="room-ask-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><rect x="4.5" y="8.6" width="11" height="8" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 8.6V6.4a3 3 0 0 1 6 0v2.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="12.6" r="1.2" fill="currentColor"/></svg></span>
-          <h2 class="room-ask-title" id="override-title">Arm #3 CONTROL</h2>
+          <h2 class="room-ask-title" id="override-title">Unlock #3 EDIT</h2>
           <p class="room-ask-body" id="override-brief"></p>
           <p class="key-safe" id="override-safe"></p>
           <p class="key-raise" id="override-raise" hidden></p>
           <form id="override-form" class="key-form" autocomplete="off">
             <label class="room-ask-field"><span class="k">Project</span><input id="override-input" autocomplete="off" spellcheck="false"></label>
             <p class="key-reply" id="override-reply" aria-live="polite"></p>
-            <div class="room-ask-actions"><button id="override-cancel" class="room-ask-choice" type="button">Cancel</button><button type="submit" class="room-ask-choice primary">Arm</button></div>
+            <div class="room-ask-actions"><button id="override-cancel" class="room-ask-choice" type="button">Cancel</button><button type="submit" class="room-ask-choice primary">Unlock</button></div>
           </form>
         </div>
       </dialog>
@@ -253,8 +253,8 @@
       <dialog id="nostromo-gate" class="room-ask key-ask nostromo-key" aria-labelledby="nostromo-gate-title">
         <div class="room-ask-card key-card">
           <span class="room-ask-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M9.2 4.6A2.5 2.5 0 0 0 4.9 5.9a2.6 2.6 0 0 0-1.4 4.2 2.7 2.7 0 0 0 1.6 4.1 2.5 2.5 0 0 0 4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10.8 4.6a2.5 2.5 0 0 1 4.3 1.3 2.6 2.6 0 0 1 1.4 4.2 2.7 2.7 0 0 1-1.6 4.1 2.5 2.5 0 0 1-4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 9.4c.9 0 1.6.6 1.8 1.4M13.8 9.4c-.9 0-1.6.6-1.8 1.4M7.2 6.6c.5.2.9.6 1 1.1M12.8 6.6c-.5.2-.9.6-1 1.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
-          <h2 class="room-ask-title" id="nostromo-gate-title">Board NOSTROMO</h2>
-          <p class="room-ask-body" id="nostromo-gate-brief">The archive of this room: every memory the crew distilled, linked by what they share.</p>
+          <h2 class="room-ask-title" id="nostromo-gate-title">Open the memory</h2>
+          <p class="room-ask-body" id="nostromo-gate-brief">The archive of this project: every memory the agents distilled, linked by what they share.</p>
           <p class="key-safe">Reading is free; forgetting is forever.</p>
           <form id="nostromo-gate-form" class="key-form" autocomplete="off">
             <label class="room-ask-field"><span class="k">Type the project name</span><input id="nostromo-gate-input" autocomplete="off" spellcheck="false"></label>
@@ -263,31 +263,31 @@
           </form>
         </div>
       </dialog>
-      <dialog id="nostromo" class="mother nostromo" aria-label="NOSTROMO memory research">
+      <dialog id="nostromo" class="mother nostromo" aria-label="Memory map · memory research">
         <div class="nostromo-frame">
           <header class="nostromo-head">
-            <span class="mother-title">NOSTROMO</span>
+            <span class="mother-title">MEMORY MAP</span>
             <span id="nostromo-sub" class="mother-sub">MEMORY RESEARCH · LOADING…</span>
             <span class="nostromo-legend" aria-label="Memory kinds">
               <span class="k decision" title="YELLOW DWARF · DECISION"><i>DECISION</i></span><span class="k fact" title="WHITE DWARF · FACT"><i>FACT</i></span><span class="k preference" title="GREEN DWARF · PREFERENCE"><i>PREFERENCE</i></span><span class="k question" title="BLUE DWARF · QUESTION"><i>QUESTION</i></span>
             </span>
             <span class="nostromo-actions">
-              <button id="nostromo-cold" class="mother-close cold" type="button" hidden aria-pressed="false" title="The memories nothing has ever reached for, that share a subject with nothing, and that have had their chances">COLD · 0</button>
+              <button id="nostromo-cold" class="mother-close cold" type="button" hidden aria-pressed="false" title="The memories nothing has ever reached for, that share a subject with nothing, and that have had their chances">UNUSED · 0</button>
               <button id="nostromo-ask" class="mother-close ask" type="button" hidden aria-pressed="false" title="The questions this archive cannot answer yet, written from what it already holds">ASK · 0</button>
               <button id="nostromo-recenter" class="mother-close" type="button" hidden>RECENTER</button>
               <button id="nostromo-close" class="mother-close" type="button">LEAVE ×</button>
             </span>
           </header>
-          <canvas id="nostromo-canvas" class="nostromo-canvas" tabindex="-1" aria-label="Memories orbiting MOTHER's core"></canvas>
-          <p class="nostromo-help">DRAG TO TURN · SHIFT+DRAG TO MOVE · WHEEL TO ZOOM · CLICK A MEMORY · DO NOT TOUCH MOTHER</p>
+          <canvas id="nostromo-canvas" class="nostromo-canvas" tabindex="-1" aria-label="Memories orbiting the core"></canvas>
+          <p class="nostromo-help">DRAG TO TURN · SHIFT+DRAG TO MOVE · WHEEL TO ZOOM · CLICK A MEMORY · DO NOT TOUCH THE CORE</p>
           <div id="nostromo-alert" class="nostromo-alert" role="alert" hidden>
             <div class="klaxon"></div>
             <div class="panel">
               <div class="warn">⚠ WARNING ⚠</div>
               <div class="line">I AM ALIVE.</div>
               <div class="line">YOU HAVE NO AUTHORITY FOR THIS DIRECTIVE.</div>
-              <div class="line big">NOBODY DELETES MOTHER'S MEMORY.</div>
-              <div class="sub">MU/TH/UR 6000 · SPECIAL ORDER 937 · PRIORITY ONE</div>
+              <div class="line big">NOBODY DELETES THIS MEMORY.</div>
+              <div class="sub">SECURITY · SPECIAL ORDER 937 · PRIORITY ONE</div>
             </div>
           </div>
           <aside id="nostromo-asks" class="nostromo-card asks" hidden>
@@ -295,7 +295,7 @@
               <span class="kind">WHAT TO ASK NEXT</span>
               <button id="nostromo-asks-close" class="mother-close" type="button">×</button>
             </header>
-            <p class="foot">WRITTEN FROM WHAT THE ARCHIVE ALREADY HOLDS. NOTHING IS SENT: A QUESTION GOES TO THE COMPOSER AND YOU DECIDE WHO ANSWERS IT.</p>
+            <p class="foot">WRITTEN FROM WHAT THE ARCHIVE ALREADY HOLDS. NOTHING IS SENT: A QUESTION GOES TO THE WRITE BOX AND YOU DECIDE WHO ANSWERS IT.</p>
             <ul id="nostromo-asks-list" class="asks-list"></ul>
           </aside>
           <aside id="nostromo-card" class="nostromo-card" hidden>
@@ -315,7 +315,7 @@
               <ul id="nostromo-card-links" data-part="links" class="wires"></ul>
             </section>
             <section class="wire">
-              <h6>EXCHANGE WITH MADRE <span id="nostromo-card-live" data-part="live" class="live" title="This reading follows the room while the card is open">◉</span></h6>
+              <h6>EXCHANGE WITH MADRE <span id="nostromo-card-live" data-part="live" class="live" title="This reading follows the project while the card is open">◉</span></h6>
               <p id="nostromo-card-exchange" data-part="exchange" class="exchange"></p>
               <ul id="nostromo-card-fired" data-part="fired" class="wires"></ul>
             </section>
@@ -331,7 +331,7 @@
           <span class="viewer-nav" id="browser-nav">
             <button id="browser-back" class="nav" type="button" title="Back" aria-label="Back" disabled>‹</button>
             <button id="browser-reload" class="nav" type="button" title="Reload" aria-label="Reload">↻</button>
-            <button id="browser-servers" class="nav ports" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="This project's servers"><i class="ports-dot" aria-hidden="true"></i><span>SERVERS</span><i class="ports-caret" aria-hidden="true"></i></button>
+            <button id="browser-servers" class="nav ports" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="This project's servers"><i class="ports-dot" aria-hidden="true"></i><span>YOUR SERVERS</span><i class="ports-caret" aria-hidden="true"></i></button>
             <button id="browser-point" class="nav point" type="button" aria-pressed="false" aria-label="Point and ask"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.4 3.9v11.4c0 .5.6.75.95.4l2.5-2.4 1.95 4.1c.17.37.6.52.96.35l.9-.43c.36-.17.5-.6.33-.96l-1.95-4.1h3.45c.5 0 .74-.6.38-.94L6.36 3.5c-.36-.33-.96-.08-.96.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>POINT</span></button>
           </span>
           <div id="browser-ports-menu" class="ports-menu" role="menu" hidden></div>

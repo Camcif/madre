@@ -36,13 +36,13 @@ export function maturity({ readiness = null, notes = [], links = [], stats = nul
       id: 'volume', label: t('HOW MUCH THERE IS'),
       value: round(share(pairs, VOLUME_TARGET)),
       detail: t('{pairs} of about {target} exchanges worth training on', { pairs, target: VOLUME_TARGET }),
-      next: t('Use the room. Nothing else fills this.'),
+      next: t('Use the project. Nothing else fills this.'),
     },
     {
       id: 'coverage', label: t('HOW MUCH OF IT GETS USED'),
       value: round(share(recalled, standing.length)),
       detail: t('{recalled} of {total} memories have been reached for at least once', { recalled, total: standing.length }),
-      next: t('Memories nobody has needed may be noise, or may simply not have come up yet. Ask the room about older decisions and see which ones answer.'),
+      next: t('Memories nobody has needed may be noise, or may simply not have come up yet. Ask the project about older decisions and see which ones answer.'),
     },
     {
       id: 'weave', label: t('HOW WOVEN IT IS'),
@@ -64,7 +64,7 @@ export function maturity({ readiness = null, notes = [], links = [], stats = nul
       // progress where there is none.
       value: pairs > 0 ? round(1 - Math.min(1, Math.max(0, (noteShare - 0.5) / 0.5))) : 0,
       detail: t('{share}% of the corpus is recall questions, {turns} exchanges are real work', { share: Math.round(noteShare * 100), turns }),
-      next: t('Recall pairs are made from notes and cost nothing, so they pile up. Work in the room to balance them.'),
+      next: t('Recall pairs are made from notes and cost nothing, so they pile up. Work in the project to balance them.'),
     },
     {
       id: 'upkeep', label: t('HOW CURRENT IT IS'),

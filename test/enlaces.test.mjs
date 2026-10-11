@@ -65,7 +65,7 @@ test('enlaces · a contract is whole or it is nothing: two rooms, a direction, s
     [{ rooms, direction: 'both', kinds: ['fact'], orders: { maxMode: -1 } }, /maxMode/],
     [{ rooms, direction: 'both', kinds: ['fact'], orders: { perHour: 0 } }, /perHour/],
     [{ rooms, direction: 'both', kinds: ['fact'], expires: 'someday' }, /not a date/],
-    [{ rooms, direction: 'both', kinds: ['fact'], signed: { by: 'codex' } }, /Only you or BISHOP/],
+    [{ rooms, direction: 'both', kinds: ['fact'], signed: { by: 'codex' } }, /Only you or the Coordinator/],
     // D-S13: BISHOP signs only a link to read that expires within a week.
     [{ rooms, direction: 'both', kinds: ['fact'], signed: { by: 'bishop' } }, /within 7 days/],
     [{ rooms, direction: 'both', kinds: ['fact'], id: 'nope' }, /not a link id/],
@@ -126,7 +126,7 @@ test('enlaces · the room of Salas never serves, orders need it at one end, and 
   assert.deepEqual(servingRooms(reads), [a]);
   assert.equal(receivesOrders(reads, salas), null, 'orders not allowed, yet a room would take them');
   // Orders only on a link with that room at one end, and then the other end is the one that takes them.
-  assert.throws(() => normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), /need the room of Salas/);
+  assert.throws(() => normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), /need the Coordinator's project/);
   const ordered = normalizeContract({ rooms: { a: salas, b }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true, maxMode: 2 } }, { now, salas });
   assert.equal(receivesOrders(ordered, salas), b);
   assert.equal(receivesOrders(normalizeContract({ rooms: { a, b: salas }, direction: 'a→b', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), salas), a);

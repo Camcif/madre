@@ -40,12 +40,12 @@ const linksFor = (config, stateRoot, here, now = new Date()) => readsFrom(active
 export default defineModule({
   id: 'enlaces',
   configKey: 'enlaces',
-  name: 'ENLACES',
+  name: 'Connections',
   vendor: 'MADRE',
   version: '1.0.0',
-  summary: 'What other rooms know, when a signed link lets this room read it. Read-only; nothing leaves this Mac.',
-  creates: ['nothing in the project', 'a switch in ~/.pulse/config.json', 'an MCP server per turn, started and stopped by the room'],
-  requires: ['a link signed in Salas that lets this room read from another'],
+  summary: 'What other projects know, when a signed connection lets this project read it. Read-only; nothing leaves this Mac.',
+  creates: ['nothing in the project', 'a switch in ~/.pulse/config.json', 'an MCP server per turn, started and stopped by the project'],
+  requires: ['a connection signed in Home that lets this project read from another'],
   settings: { enabled: true },
 
   async status(ctx) {
@@ -57,10 +57,10 @@ export default defineModule({
         let received = 0;
         for (const { contract } of links) received += await countRecent(join(ctx.stateRoot, 'rooms', here), contract, 'received', { sinceMs: DAY_MS }).catch(() => 0);
         detail = !links.length
-          ? t('on · no signed link lets this room read yet')
+          ? t('on · no signed connection lets this project read yet')
           : links.length === 1
-            ? t('on · one link lets this room read · {n} readings in 24 h', { n: received })
-            : t('on · {links} links let this room read · {n} readings in 24 h', { links: links.length, n: received });
+            ? t('on · one connection lets this project read · {n} readings in 24 h', { n: received })
+            : t('on · {links} connections let this project read · {n} readings in 24 h', { links: links.length, n: received });
       } catch { /* a card never fails for a count */ }
     }
     return {

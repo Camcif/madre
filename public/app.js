@@ -154,27 +154,28 @@ const CLIENT_COMMANDS = [
 ];
 
 const PLACEHOLDERS = {
-  plain: t('Type here, human. Ask the room…'),
+  plain: t('Type here, human. Ask the project…'),
   create: t('CREATE on: what to make. New files land where they belong in the project; nothing existing changes.'),
   ash: t('Compact prose. Nothing you write is altered; only the answers get shorter.'),
   ghost: t('Off the record. Ask anything; nothing is saved, nobody else will remember it.'),
-  control: t('Control armed. Say what to change in the project; every action runs without asking.'),
+  control: t('EDIT unlocked. Say what to change in the project; every action runs without asking.'),
   airlock: t('Airlock open. Commands run; pushes and deploys leave the ship. Say exactly what should go out.'),
-  expendable: t('Type here, human. MOTHER is listening.'),
-  memory: t('Ask what the room remembers. @madre answers from memory with citations; it does not act.'),
+  expendable: t('Type here, human. MADRE is listening.'),
+  memory: t('Ask what the project remembers. @madre answers from memory with citations; it does not act.'),
 };
 let winkTimer = null;
 const LINE_PX = 21;
 const MAX_ROWS = 14;
 
 // Permission modes: chosen per message, capped per agent in Settings › Permissions.
-// The names are the ship's and are never translated; what each one lets an agent do is.
+// Plain names, in the reader's language (2026-10-10): what each one lets an agent do. The agents
+// themselves are told the modes by their old names (src/capabilities.mjs), which is the core's.
 const MODES = {
-  0: { key: 'ghost', label: 'GHOST', hint: t('Off the record. Nothing is saved; gone on reload.') },
-  1: { key: 'exchange', label: 'EXCHANGE', hint: t('Read the project and talk to the room. Writes nothing.') },
-  2: { key: 'create', label: 'CREATE', hint: t('Add new files where they belong in the project. Existing files stay untouched.') },
-  3: { key: 'control', label: 'CONTROL', hint: t('Edit the project itself, no approval per action. Override required.') },
-  4: { key: 'airlock', label: 'AIRLOCK', hint: t('Run commands, push, deploy. What leaves the ship does not come back. Override, twice.') },
+  0: { key: 'ghost', label: t('INCOGNITO'), hint: t('Off the record. Nothing is saved; gone on reload.') },
+  1: { key: 'exchange', label: t('CHAT ONLY'), hint: t('Read the project and talk about it. Writes nothing.') },
+  2: { key: 'create', label: t('CREATE'), hint: t('Add new files where they belong in the project. Existing files stay untouched.') },
+  3: { key: 'control', label: t('EDIT'), hint: t('Edit the project itself, no approval per action. Unlock required.') },
+  4: { key: 'airlock', label: t('FULL ACCESS'), hint: t('Run commands, push, deploy. What leaves the ship does not come back. Unlock, twice.') },
 };
 
 const state = {
@@ -245,7 +246,7 @@ const openFailures = () => state.failures.filter((failure) => !failure.recovered
 
 // Every other vendor is a company and a company is called the same everywhere. @madre's is a
 // sentence, so it is said in the room's language — declared, not computed, so both guards see it.
-const VENDOR_WORDS = { 'the room · local': t('the room · local'), local: t('local') };
+const VENDOR_WORDS = { 'the project · local': t('the project · local'), local: t('local') };
 const vendorWord = (id) => { const said = brandOf(id).vendor ?? ''; return VENDOR_WORDS[said] ?? said; };
 
 // What an agent can do, said two ways. On its card each one is a tag — a word standing alone —
@@ -367,7 +368,7 @@ const formatTime = (iso) => {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const label = (id) => state.agents.get(id)?.label ?? brandOf(id).label ?? id;
+const label = (id) => state.agents.get(id)?.label ?? t(brandOf(id).label ?? id);
 // The ground the room is drawn on: the theme chosen in the bar, or the system's when it follows it.
 // Asking only the system painted every agent in its dark-ground colour on a light room — MADRE's
 // green and the archivist's grey all but vanished against white.
@@ -1130,8 +1131,8 @@ async function saveEdited(content) {
   let { response, result } = await send();
   if (response.status === 403 && result.guarded) {
     const word = await roomAsk({
-      title: t('A FILE THE ROOM GUARDS'),
-      body: t('This file is one the room guards. Type the project\'s designation to save it.'),
+      title: t('A FILE THE PROJECT GUARDS'),
+      body: t('This file is one the project guards. Type the project name to save it.'),
       input: { placeholder: t('the project folder\'s name') },
       choices: [{ value: 'no', label: t('CANCEL') }, { value: 'save', label: t('SAVE'), tone: 'primary', submit: true }],
     });
@@ -1156,7 +1157,7 @@ async function saveEdited(content) {
       return false;
     }
   }
-  if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? t('That could not be saved.')}`); return false; }
+  if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? t('That could not be saved.')}`); return false; }
   viewerMode.mtime = String(result.mtimeMs ?? '');
   viewerMode.text = content;
   toast(t('Saved · {path}', { path: viewerUI.path }), { tone: 'note' });
@@ -1226,7 +1227,7 @@ function showViewerSource() {
   viewer.body.replaceChildren(pre);
   if (!state.ripley && viewerMode.kind) {
     const hint = el('div', 'viewer-hint');
-    hint.append(t('RIPLEY can render this file. '), el('b', null, t('Enable it in MODULES.')));
+    hint.append(t('Preview can render this file. '), el('b', null, t('Enable it in MODULES.')));
     viewer.body.prepend(hint);
   }
   if (viewerMode.lines) setSelection(viewerMode.lines.from, viewerMode.lines.to);
@@ -1350,7 +1351,7 @@ async function browserAllows(url) {
     const live = await fetch('/api/state').then((response) => response.json());
     state.ripleyWeb = Boolean(live?.ripleyWeb);
   } catch { /* keep whatever the page already knew */ }
-  if (!state.ripleyWeb) return { ok: false, why: t('RIPLEY reaches this computer only · turn the web on in MODULES to open an address outside it') };
+  if (!state.ripleyWeb) return { ok: false, why: t('PREVIEW reaches this computer only · turn the web on in MODULES to open an address outside it') };
   return { ok: true, local: false };
 }
 
@@ -1456,7 +1457,7 @@ function browserRefused(url, { why } = {}) {
   if (!browser.body) return;
   const box = el('div', 'browser-refused');
   box.append(el('h4', null, t('{host} will not be framed', { host: browserTitleFor(url) })));
-  box.append(el('p', null, why ?? t('The site answers with a rule that forbids any page from putting it inside a frame. It is the standard defence against clickjacking, and RIPLEY neither can nor should override it.')));
+  box.append(el('p', null, why ?? t('The site answers with a rule that forbids any page from putting it inside a frame. It is the standard defence against clickjacking, and PREVIEW neither can nor should override it.')));
   const open = el('button', 'browser-go', t('OPEN IN A TAB'));
   open.type = 'button';
   open.addEventListener('click', () => window.open(url, '_blank', 'noopener'));
@@ -1487,7 +1488,7 @@ function browserMountFrame() {
   const frame = el('iframe', 'ripley');
   frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
   frame.setAttribute('referrerpolicy', 'no-referrer');
-  frame.title = t('RIPLEY browser');
+  frame.title = t('PREVIEW browser');
   const left = el('div', 'stage-grip');
   const right = el('div', 'stage-grip');
   left.style.left = '0'; right.style.right = '0';
@@ -1578,7 +1579,7 @@ function openPort(found) {
     if (tab) { tab.url = url; tab.title = `:${found.port}`; }
     if (browser.where) browser.where.textContent = url.replace(/^https?:\/\//, '');
     browserRenderTabs();
-    browserRefused(url, { why: t('This server answers with a rule that forbids any page from putting it inside a frame — your own dev server may be setting it without you noticing. RIPLEY neither can nor should override it.') });
+    browserRefused(url, { why: t('This server answers with a rule that forbids any page from putting it inside a frame — your own dev server may be setting it without you noticing. PREVIEW neither can nor should override it.') });
     return;
   }
   const current = browserTab();
@@ -1862,7 +1863,7 @@ document.addEventListener?.('keydown', (event) => {
 
 // What the sentinel saw happen to one of the project's servers.
 function serverStopped({ port, command }) {
-  toast(t('MU/TH/UR › your server :{port} ({command}) stopped.', { port, command }));
+  toast(t('Diagnostics › your server :{port} ({command}) stopped.', { port, command }));
   const tab = browserTab();
   if (!tab || !browser.body || browserPortOf(tab.url) !== port) return;
   // The page stays where it was, dimmed, with what happened over it; when the server comes back
@@ -1951,12 +1952,12 @@ function ripleyShowError({ message, source, line }) {
   const row = el('div', 'err-row');
   row.append(el('span', 'msg', message));
   if (where) row.append(el('span', 'where', where));
-  const ask = el('button', null, t('ASK THE ROOM'));
+  const ask = el('button', null, t('ASK THE PROJECT'));
   ask.type = 'button';
-  ask.title = t('Put this error and the file into the composer');
+  ask.title = t('Put this error and the file into the Write box');
   ask.addEventListener('click', () => {
     const reference = ripley.current ? `!${ripley.current}${line ? `:${line}` : ''} ` : '';
-    els.input.value = `${reference}${t('RIPLEY reports an error in the page: {message}{where}. Find the cause and propose the fix.', { message, where: where ? ` (${where})` : '' })}`;
+    els.input.value = `${reference}${t('Preview reports an error in the page: {message}{where}. Find the cause and propose the fix.', { message, where: where ? ` (${where})` : '' })}`;
     viewer.dialog.close();
     autosize();
     els.input.focus();
@@ -1973,8 +1974,8 @@ function ripleyShowError({ message, source, line }) {
 function ripleyShowStorage({ what }) {
   if (!ripley.errors || !viewerMode.preview || ripley.errors.querySelector('.err-row.storage')) return;
   const row = el('div', 'err-row storage');
-  row.append(el('span', 'msg', t('This sealed preview keeps no data ({what}): the page cannot remember anything here. To try it with its data, open it from SERVERS on the project\'s own server.', { what })));
-  const open = el('button', null, t('OPEN SERVERS'));
+  row.append(el('span', 'msg', t('This preview keeps no data ({what}): the page cannot remember anything here. To try it with its data, open it from YOUR SERVERS on the project\'s own server.', { what })));
+  const open = el('button', null, t('OPEN YOUR SERVERS'));
   open.type = 'button';
   open.addEventListener('click', () => {
     viewer.dialog.close();
@@ -2018,7 +2019,7 @@ function ripleyMaybeReload(paths) {
   if (!hit) return;
   ripleyClearErrors();
   ripley.frame.src = ripley.frame.src;
-  toast(t('MU/TH/UR › RIPLEY reloaded the page: an agent changed it.'));
+  toast(t('Diagnostics › Preview reloaded the page: an agent changed it.'));
 }
 
 function showViewerPreview() {
@@ -2033,7 +2034,7 @@ function showViewerPreview() {
   const frame = el('iframe', 'ripley');
   frame.setAttribute('sandbox', 'allow-scripts');
   frame.setAttribute('referrerpolicy', 'no-referrer');
-  frame.title = t('RIPLEY preview of {path}', { path: viewer.path.textContent });
+  frame.title = t('Preview of {path}', { path: viewer.path.textContent });
   ripley.frame = frame;
   ripley.history = [];
   ripleyClearErrors();
@@ -2057,7 +2058,7 @@ function syncViewerMode() {
   const can = Boolean(viewerMode.kind) && state.ripley;
   viewerMode.button.hidden = !can;
   viewerMode.button.textContent = viewerMode.preview ? 'SOURCE' : 'PREVIEW';
-  viewerMode.button.title = viewerMode.preview ? t('Show the file as text') : t('Render with RIPLEY in a sealed frame');
+  viewerMode.button.title = viewerMode.preview ? t('Show the file as text') : t('Render with Preview in a sealed frame');
 }
 viewerMode.button?.addEventListener('click', async () => { if (!await leaveEditor()) return; viewerMode.preview = !viewerMode.preview; syncViewerMode(); syncEditButton(); if (viewerMode.preview) showViewerPreview(); else showViewerSource(); });
 
@@ -2298,8 +2299,8 @@ function renderAgentsCompact() {
   const ready = all.filter((agent) => agent.ready).length;
   if (agentsCount) agentsCount.textContent = String(ready);
   agentsCompact.title = all.length
-    ? t('Crew · {ready} of {total} ready · {who}', { ready, total: all.length, who: all.map((agent) => `@${agent.id}`).join(' ') })
-    : t('Crew');
+    ? t('Agents · {ready} of {total} ready · {who}', { ready, total: all.length, who: all.map((agent) => `@${agent.id}`).join(' ') })
+    : t('Agents');
 }
 agentsCompact?.addEventListener('click', () => {
   if (!pop.hidden && pop.dataset.from === 'crew') closeAgentPop(); else openCrewPop(agentsCompact);
@@ -2322,8 +2323,8 @@ function renderAgents() {
       agent.ready ? t('Ready') : agent.detected ? t('Detected, adapter pending') : t('Not installed'),
       agent.version ? agent.version : null,
       official === null
-        ? (agent.tokens ? t('Ring: local 5h window · {pct}% of {total} budget tokens', { pct: Math.round(percent), total: formatTokens(state.budget ?? 0) }) : t('Ring: local window · no usage yet'))
-        : t('Ring: provider limit · {pct}% used', { pct: Math.round(official) }) + (agent.officialResetAt ? t(' · resets {when}', { when: fmtReset(agent.officialResetAt) }) : ''),
+        ? (agent.tokens ? t('Usage: local 5h window · {pct}% of {total} budget tokens', { pct: Math.round(percent), total: formatTokens(state.budget ?? 0) }) : t('Usage: local window · nothing used yet'))
+        : t('Usage: provider limit · {pct}% used', { pct: Math.round(official) }) + (agent.officialResetAt ? t(' · resets {when}', { when: fmtReset(agent.officialResetAt) }) : ''),
       agent.tokens ? t('{n} budget tokens in the local window', { n: agent.tokens.toLocaleString() }) : null,
     ].filter(Boolean).join('\n');
     els.agents.append(node);
@@ -2399,8 +2400,8 @@ function renderPicker() {
     if (current.local) {
       const note = el('span', 'pick-note', t('memory · never writes'));
       const measured = state.localModel?.checked;
-      note.title = `${t('@madre runs on this machine and speaks for what the room remembers. "@madre, ask the crew …" opens a round with every agent online. To change files, write to a CLI agent.')}${
-        measured ? `\n\n${t('Measured against this room {when}: it landed where the crew landed on {matched} of {n} real questions{verdict}', { when: agoWords(measured.at), matched: measured.matched, n: measured.n, verdict: measured.passed ? t('. Ready to be worked in.') : t(' — not yet.') })}` : `\n\n${t('Nobody has measured it against this project yet: MU/TH/UR → the three tests, or the line in the room when it joined.')}`}`;
+      note.title = `${t('@madre runs on this machine and speaks for what the project remembers. "@madre, ask the agents …" opens a round with every agent online. To change files, write to a CLI agent.')}${
+        measured ? `\n\n${t('Measured against this project {when}: it landed where the agents landed on {matched} of {n} real questions{verdict}', { when: agoWords(measured.at), matched: measured.matched, n: measured.n, verdict: measured.passed ? t('. Ready to be worked in.') : t(' — not yet.') })}` : `\n\n${t('Nobody has measured it against this project yet: Diagnostics → Memory review, or the line in the project when it joined.')}`}`;
       text.append(note);
     }
     // A #3 or #4 typed in the message shows here before it is sent, as not armed yet: its keys are
@@ -2424,7 +2425,7 @@ function renderPicker() {
       grace.dataset.agent = current.id;
       grace.title = t('{label} does not ask for its key again for @{agent} until this runs out. Click to close it now.', { label: MODES[mode].label, agent: current.id });
       grace.append(el('b', null, `#${mode}`), el('span', null, t('open')), el('span', 'left', graceWords(left)), el('i', null, '×'));
-      grace.addEventListener('click', (event) => { event.stopPropagation(); closeOverrideGrace(mode, current.id); toast(t('MU/TH/UR › {label} closed for @{agent}: the next one asks for its key.', { label: MODES[mode].label, agent: current.id }), { tone: 'done' }); });
+      grace.addEventListener('click', (event) => { event.stopPropagation(); closeOverrideGrace(mode, current.id); toast(t('Diagnostics › {label} closed for @{agent}: the next one asks for its key.', { label: MODES[mode].label, agent: current.id }), { tone: 'done' }); });
       text.append(grace);
       break;
     }
@@ -2836,15 +2837,15 @@ function toggleModeMenu(id, anchor) {
     const body = el('span', 'body');
     body.append(el('span', 'name', MODES[n].label), el('span', 'hint', MODES[n].hint));
     option.append(el('span', 'n', `#${n}`), body);
-    if (onTheMac) option.title = t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.');
-    const tag = state.mode === n ? t('NOW') : onTheMac ? t('ON THE MAC') : raise ? t('RAISE TO #{n} ›', { n }) : locked ? t('LOCKED') : n === 4 ? t('OVERRIDE ×2') : n === 3 ? t('OVERRIDE') : n === defaultModeFor(id) ? t('DEFAULT') : '';
+    if (onTheMac) option.title = t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.');
+    const tag = state.mode === n ? t('NOW') : onTheMac ? t('ON THE MAC') : raise ? t('RAISE TO #{n} ›', { n }) : locked ? t('LOCKED') : n === 4 ? t('KEY ×2') : n === 3 ? t('KEY') : n === defaultModeFor(id) ? t('DEFAULT') : '';
     if (tag) {
       const label = el('span', `tag${raise ? ' raise' : ''}`, tag);
       if (state.mode === n) label.append(el('span', 'dot'));
       option.append(label);
     }
     option.title = !locked ? MODES[n].hint
-      : raise ? t('@{id} is capped at #{cap}. This raises its max mode to #{n} in Settings › Permissions and opens the override.', { id, cap, n })
+      : raise ? t('@{id} is capped at #{cap}. This raises its max mode to #{n} in Settings › Permissions and opens the unlock.', { id, cap, n })
       : n >= 3 ? `@${id}'s CLI cannot write files, so ${MODES[n].label} is not possible for it.`
       : t("Above @{id}'s max mode (#{cap}). Raise it in Settings › Permissions.", { id, cap });
     option.addEventListener('click', () => {
@@ -2947,18 +2948,19 @@ const override = {
   cancelled: null, // called when the human walks away from it, to put back what they wrote
   raise: false,   // the agent is capped below the mode: arming also raises its max mode in Settings › Permissions
   mode: 3,        // #3 CONTROL or #4 AIRLOCK
-  stage: 'designation',   // designation · phrase · confirm, then airlock when #4 asks for its second key
+  stage: 'designation',   // designation · phrase · confirm; #4 asks for the same key a second time
+  again: false,           // the second time, for #4
   key: 'designation',     // the key chosen in AJUSTES › Permissions for this mode
 };
 // The key for #3 and #4 is an alert of the room, said plainly: what the mode lets the agent do in
 // one sentence, what keeps it safe in a quieter one, and the field says what to type.
 const OVERRIDE_BRIEF = {
-  3: { what: (id) => t('@{id} edits the project itself, with no approval per action.', { id }), safe: () => t('A checkpoint is taken first; UNDO is one click.') },
+  3: { what: (id) => t('@{id} edits the project itself, with no approval per action.', { id }), safe: () => t('A restore point is taken first; UNDO is one click.') },
   4: { what: (id) => t('@{id} can also run commands, git push and deploy with the sessions on this computer.', { id }), safe: () => t('Files come back with UNDO; what leaves the computer does not.') },
 };
 const OVERRIDE_KEY_WORDS = {
   designation: () => t('The project'), phrase: () => t('Your phrase'), confirm: () => t('Just confirm'),
-  'designation-airlock': () => t('Project + AIRLOCK'), 'phrase-airlock': () => t('Phrase + AIRLOCK'),
+  'designation-airlock': () => t('Project, twice'), 'phrase-airlock': () => t('Phrase, twice'),
 };
 const OVERRIDE_DEFAULT = { keys: { 3: 'designation', 4: 'designation-airlock' }, grace: { 3: 0, 4: 0 }, phrase: null };
 const overrideConfig = () => state.override ?? OVERRIDE_DEFAULT;
@@ -3003,14 +3005,15 @@ function tickGrace() {
 }
 const graceWords = (ms) => t('{n} min', { n: Math.max(1, Math.ceil(ms / 60000)) });
 function projectDesignation() { return (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? ''; }
-function askOverrideKey(stage) {
+function askOverrideKey(stage, { again = false } = {}) {
   override.stage = stage;
+  override.again = again;
   override.input.hidden = stage === 'confirm';
   override.input.type = stage === 'phrase' ? 'password' : 'text';
   override.input.value = '';
   override.input.closest('label').hidden = stage === 'confirm';
   // The label says what to type; the field stays empty, so nothing has to be cleared first.
-  override.form.querySelector('.k').textContent = stage === 'airlock' ? t('Now type AIRLOCK') : stage === 'phrase' ? t('Type your phrase') : t('Type the project name');
+  override.form.querySelector('.k').textContent = stage === 'phrase' ? (again ? t('Type your phrase again') : t('Type your phrase')) : again ? t('Type the project name again') : t('Type the project name');
   override.input.placeholder = '';
 }
 function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null } = {}) {
@@ -3029,8 +3032,8 @@ function openOverride(id, { raise = false, mode = 3, then = null, cancelled = nu
   override.mode = mode;
   override.key = overrideKeyFor(mode);
   askOverrideKey(override.key.startsWith('phrase') ? 'phrase' : override.key === 'confirm' ? 'confirm' : 'designation');
-  override.title.textContent = mode === 4 ? t('Open #4 AIRLOCK for @{agent}', { agent: id }) : t('Arm #3 CONTROL for @{agent}', { agent: id });
-  override.arm.textContent = mode === 4 ? t('Open') : t('Arm');
+  override.title.textContent = mode === 4 ? t('Open #4 FULL ACCESS for @{agent}', { agent: id }) : t('Unlock #3 EDIT for @{agent}', { agent: id });
+  override.arm.textContent = mode === 4 ? t('Open') : t('Unlock');
   override.dialog.classList.toggle('m4', mode === 4);
   override.brief.textContent = OVERRIDE_BRIEF[mode].what(id);
   override.safe.textContent = OVERRIDE_BRIEF[mode].safe();
@@ -3064,16 +3067,17 @@ override.form?.addEventListener('submit', async (event) => {
       const phrase = overrideConfig().phrase;
       if (!typed || !phrase || await overridePhraseHash(phrase.salt, typed) !== phrase.hash) { deny(); return; }
     }
-    if (override.mode === 4 && override.key.endsWith('-airlock')) {
-      // The second key: the word itself, so an airlock is never opened by one key alone.
-      askOverrideKey('airlock');
-      override.reply.textContent = t('Accepted. Second key: type AIRLOCK to open it.');
+    if (override.mode === 4 && override.key.endsWith('-airlock') && !override.again) {
+      // The second key is the same one, typed again: #4 is never opened by one key alone, and
+      // there is no other word to learn.
+      askOverrideKey(override.stage, { again: true });
+      override.reply.textContent = t('Accepted. Type it once more to open it.');
       override.reply.className = 'key-reply';
       override.input.focus();
       return;
     }
-  } else if (typed.toUpperCase() !== 'AIRLOCK') { deny(t('Second key rejected. Type AIRLOCK, or cancel.')); return; }
-  override.reply.textContent = override.mode === 4 ? t('Open for @{agent}.', { agent: override.agent }) : t('Armed for @{agent}.', { agent: override.agent });
+  }
+  override.reply.textContent = override.mode === 4 ? t('Open for @{agent}.', { agent: override.agent }) : t('Unlocked for @{agent}.', { agent: override.agent });
   override.reply.className = 'key-reply granted';
   const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900 };
   override.then = null;
@@ -3089,7 +3093,7 @@ async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0 }) 
       await saveSettingNow({ scopes: { [agent]: { maxMode: mode } } });
       if (settingsUI.open) renderSettings();
     } catch (error) {
-      toast(t('MU/TH/UR › MAX MODE was not raised for @{agent}: {error}. {mode} stays off.', { agent, error: error.message, mode: MODES[mode].label }));
+      toast(t('Diagnostics › MAX MODE was not raised for @{agent}: {error}. {mode} stays off.', { agent, error: error.message, mode: MODES[mode].label }));
       return;
     }
   }
@@ -3099,10 +3103,10 @@ async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0 }) 
   els.target.value = agent;
   setMode(mode, { wink: true });
   if (then) { await then(); return; }
-  if (left) { toast(t('MU/TH/UR › {label} is still open for @{agent} · {left} left.', { label: MODES[mode].label, agent, left: graceWords(left) }), { tone: 'look' }); return; }
+  if (left) { toast(t('Diagnostics › {label} is still open for @{agent} · {left} left.', { label: MODES[mode].label, agent, left: graceWords(left) }), { tone: 'look' }); return; }
   toast(mode === 4
-    ? t('MU/TH/UR › AIRLOCK open for @{agent} for this message.{raised} Files are checkpointed; what leaves the machine is not undone.', { agent, raised: raise ? t(' Its max mode is now #4 in Permissions.') : '' })
-    : t('MU/TH/UR › CONTROL armed for @{agent} for this message.{raised} A checkpoint is taken before it runs; every change is listed and UNDO is one click.', { agent, raised: raise ? t(' Its max mode is now #3 in Permissions.') : '' }));
+    ? t('Diagnostics › FULL ACCESS open for @{agent} for this message.{raised} The files get a restore point; what leaves the machine is not undone.', { agent, raised: raise ? t(' Its max mode is now #4 in Permissions.') : '' })
+    : t('Diagnostics › EDIT unlocked for @{agent} for this message.{raised} A restore point is taken before it runs; every change is listed and UNDO is one click.', { agent, raised: raise ? t(' Its max mode is now #3 in Permissions.') : '' }));
 }
 
 // THE BRIDGE: first contact. Every agent as a card with the one action it needs right now,
@@ -3270,7 +3274,7 @@ function keyForm(agent, { onDone } = {}) {
       if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
       input.value = '';
       state.sessions[agent.id] = result.session ?? state.sessions[agent.id];
-      toast(t('MU/TH/UR › @{agent} is signed in.', { agent: agent.id }));
+      toast(t('Diagnostics › @{agent} is signed in.', { agent: agent.id }));
       onDone?.();
     } catch (error) {
       said.textContent = error.message;
@@ -3289,10 +3293,10 @@ document.querySelector('#bridge-close')?.addEventListener('click', () => { els.o
 function ollamaDetail(agent) {
   const info = state.ollama;
   if (agent.detected) return t('Local, through Ollama{version} · free, no account, no tokens', { version: agent.version ? ` · ${agent.version}` : '' });
-  if (!info) return t('Optional and free: Ollama on this computer gives the room a local memory and @madre.');
+  if (!info) return t('Optional and free: Ollama on this computer gives the project a local memory and @madre.');
   if (!info.binary) return `${t('Not on this computer.')} ${info.install?.note ?? ''}`.trim();
-  if (!info.running) return t('Installed but asleep. Wake it and the room gets a local memory and @madre.');
-  return t('Running, with no chat model yet. Pull one and @madre joins the room.');
+  if (!info.running) return t('Installed but asleep. Wake it and the project gets a local memory and @madre.');
+  return t('Running, with no chat model yet. Pull one and @madre joins the project.');
 }
 function ollamaActions() {
   const info = state.ollama;
@@ -3305,7 +3309,7 @@ function ollamaActions() {
       button.disabled = true;
       const before = button.textContent;
       button.textContent = t('WORKING…');
-      try { await run(); } catch (error) { toast(`MU/TH/UR › ${error.message}`); button.textContent = before; button.disabled = false; }
+      try { await run(); } catch (error) { toast(`${t('Diagnostics › ')}${error.message}`); button.textContent = before; button.disabled = false; }
     });
     return button;
   };
@@ -3346,7 +3350,7 @@ function bridgeInstallButton(agent) {
       const response = await fetch(`/api/agents/${agent.id}/install`, { method: 'POST' });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
-    } catch (error) { toast(t('MU/TH/UR › {label} was not installed: {error}', { label: agent.label, error: error.message })); renderOnboarding(); }
+    } catch (error) { toast(t('Diagnostics › {label} was not installed: {error}', { label: agent.label, error: error.message })); renderOnboarding(); }
   });
   return button;
 }
@@ -3361,7 +3365,7 @@ function bridgeSignInButton(agent, again = false) {
       const response = await fetch(`/api/agents/${agent.id}/login`, { method: 'POST' });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
-    } catch (error) { toast(t('MU/TH/UR › sign-in did not start: {error}', { error: error.message })); renderOnboarding(); }
+    } catch (error) { toast(t('Diagnostics › sign-in did not start: {error}', { error: error.message })); renderOnboarding(); }
   });
   return button;
 }
@@ -3421,20 +3425,20 @@ function renderUserMessage(event) {
   const col = el('div', 'col');
   const who = el('div', 'who');
   if (relayed?.kind === 'order') {
-    who.append(el('b', null, 'BISHOP'), el('span', 'badge via', relayed.auto
-      ? t('order {step} of {total} · sent on its own from Salas, in the mode you chose', { step: relayed.step, total: relayed.total })
-      : t('order {step} of {total} · you sent it from Salas', { step: relayed.step, total: relayed.total })));
+    who.append(el('b', null, t('Coordinator')), el('span', 'badge via', relayed.auto
+      ? t('order {step} of {total} · sent on its own from Home, in the mode you chose', { step: relayed.step, total: relayed.total })
+      : t('order {step} of {total} · you sent it from Home', { step: relayed.step, total: relayed.total })));
   } else if (relayed?.kind === 'question') {
     who.append(el('b', null, t('YOU · FROM {room}', { room: relayed.room })));
   } else if (relayed) {
-    who.append(el('b', null, 'BISHOP'));
+    who.append(el('b', null, t('Coordinator')));
   } else {
-    who.append(el('b', null, reviewed ? t('YOU · CREW (EXPENDABLE)') : t('YOU · CREW')));
+    who.append(el('b', null, reviewed ? t('YOU · AGENTS (EXPENDABLE)') : t('YOU · AGENTS')));
     if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
   }
   const shownMode = Number.isInteger(mode) ? mode : create ? 2 : null;
   if (shownMode !== null && shownMode !== 1) who.append(el('span', `badge mode m${shownMode}`, `#${shownMode} ${MODES[shownMode].label}`));
-  if (ash?.active) who.append(el('span', 'badge ash', t('ASH')));
+  if (ash?.active) who.append(el('span', 'badge ash', t('TOKEN SAVER')));
   col.append(who);
   const bubble = el('div', 'bubble', text);
   if (attachments.length) bubble.append(fileTiles(attachments));
@@ -3475,7 +3479,7 @@ function renderAssistantMessage(event) {
     if (effort) who.append(el('span', 'badge model effort', t('effort {level}', { level: effortLabel(effort).toLowerCase() })));
     if (Number.isInteger(mode) && mode !== 1) who.append(el('span', `badge mode m${mode}`, `#${mode} ${MODES[mode].label}`));
     if (event.payload.escalation) who.append(el('span', 'badge mode m1', event.payload.escalation === 'timeout' ? '#2 not answered · read-only' : event.payload.escalation === 'stopped' ? 'stopped' : '#2 denied · read-only'));
-    if (ash?.active) who.append(el('span', 'badge ash', t('ASH')));
+    if (ash?.active) who.append(el('span', 'badge ash', t('TOKEN SAVER')));
     const question = state.userMessages.get(parentMessageId);
     if (question) {
       const reply = el('span', 'reply', `↳ ${question.text.length > 90 ? `${question.text.slice(0, 90)}…` : question.text}`);
@@ -3535,10 +3539,10 @@ const ICON_NEVER = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" c
 // not shown until the one they escalate has been pressed. At rest the bubble carries no more
 // chrome than it did, and the stronger word turns up exactly when it means something.
 function ratingButtons(messageId, sender) {
-  const good = iconButton(ICON_GOOD, t('Good reply · keep it for MADRE AI'), 'rate good');
-  const prefer = iconButton(ICON_PREFER, t('This is how I want it done · the room keeps it as a preference'), 'rate prefer');
+  const good = iconButton(ICON_GOOD, t('Good reply · keep it for your model'), 'rate good');
+  const prefer = iconButton(ICON_PREFER, t('This is how I want it done · the project keeps it as a preference'), 'rate prefer');
   const bad = iconButton(ICON_BAD, t('Bad reply · keep it out of the dataset'), 'rate bad');
-  const never = iconButton(ICON_NEVER, t('Never do this again · what the room remembers from it is put out'), 'rate never');
+  const never = iconButton(ICON_NEVER, t('Never do this again · what the project remembers from it is put out'), 'rate never');
   const apply = (rating) => {
     for (const [button, verdict] of [[good, 'good'], [prefer, 'preference'], [bad, 'bad'], [never, 'never']]) button.classList.toggle('on', rating === verdict);
     prefer.hidden = !(rating === 'good' || rating === 'preference');
@@ -3569,7 +3573,7 @@ function bubbleActions({ text, sender, sequence, messageId = null }) {
       copy.classList.add('done');
       setTimeout(() => { copy.innerHTML = ICON_COPY; copy.classList.remove('done'); }, 1400);
     } catch {
-      toast(t('MU/TH/UR › the clipboard is not available here; select the text and copy.'));
+      toast(t('Diagnostics › the clipboard is not available here; select the text and copy.'));
     }
   });
   const reply = iconButton(ICON_REPLY, t('Reply to this through an agent'), 'reply');
@@ -3725,8 +3729,8 @@ function showReading(event) {
   const wrote = out ? ` · ${t('{n} out', { n: (outTokens ?? 0).toLocaleString() || t('{n} ch', { n: out.toLocaleString() }) })}` : '';
   meter.textContent = `~${read}${wrote}`;
   meter.title = tokens
-    ? t("{chars} characters of briefing and transcript, about {tokens} tokens at this room's measured rate{written}. The exact figure arrives when the agent answers.", { chars: chars.toLocaleString(), tokens: tokens.toLocaleString(), written: out ? t(', and {n} characters written back so far', { n: out.toLocaleString() }) : '' })
-    : t('{chars} characters. This room has not been billed yet, so there is no rate to convert them at.', { chars: chars.toLocaleString() });
+    ? t("{chars} characters of briefing and transcript, about {tokens} tokens at this project's measured rate{written}. The exact figure arrives when the agent answers.", { chars: chars.toLocaleString(), tokens: tokens.toLocaleString(), written: out ? t(', and {n} characters written back so far', { n: out.toLocaleString() }) : '' })
+    : t('{chars} characters. This project has not been billed yet, so there is no rate to convert them at.', { chars: chars.toLocaleString() });
 }
 
 // The bill arrived: the estimate is replaced by what was actually charged, and stays on the
@@ -3774,7 +3778,7 @@ function settleReading(event) {
   badge.classList.toggle('ash', cost.ash === true);
   const seen = rememberAsh(cost);
   if (seen) {
-    badge.title += ` ${t('In this room: {on} output tokens is the middle turn with ASH ({onTurns} turns), {off} without it ({offTurns}). You choose when to ask for compact prose, so these are different tasks, not the same task twice.', { on: seen.on.toLocaleString(), onTurns: seen.onTurns, off: seen.off.toLocaleString(), offTurns: seen.offTurns })}`;
+    badge.title += ` ${t('In this project: {on} output tokens is the middle turn with TOKEN SAVER ({onTurns} turns), {off} without it ({offTurns}). You choose when to ask for compact prose, so these are different tasks, not the same task twice.', { on: seen.on.toLocaleString(), onTurns: seen.onTurns, off: seen.off.toLocaleString(), offTurns: seen.offTurns })}`;
   }
   if (!badge.isConnected) who.append(badge);
   paintUncharged(cost);
@@ -3798,7 +3802,7 @@ function paintUncharged(cost) {
   if (total <= 0) return;
   const span = stamp.querySelector('.uncharged') ?? el('span', 'uncharged');
   span.textContent = t('{n} uncharged', { n: formatTokens(total) });
-  span.title = t('{cached} tokens this CLI read back from its own cache instead of charging them again (measured). {unsent} tokens of briefing the room never sent (estimated at {rate} characters per token). Neither is Ash: Ash shortens the answer, and that is the figure above the bubble.', {
+  span.title = t('{cached} tokens this CLI read back from its own cache instead of charging them again (measured). {unsent} tokens of briefing the project never sent (estimated at {rate} characters per token). Neither is the Token saver: the Token saver shortens the answer, and that is the figure above the bubble.', {
     cached: cached.toLocaleString(), unsent: unsent.toLocaleString(), rate: CH_PER_TOKEN,
   });
   // Before the running total, after the turn's own bill: read left to right it is what this turn
@@ -3826,8 +3830,8 @@ function renderThinking(event) {
   const STOP_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="7" width="6" height="6" rx="1.4" fill="currentColor"/></svg>';
   stop.innerHTML = STOP_GLYPH; // trusted: our own SVG string
   stop.type = 'button';
-  stop.title = t('Stop this answer · the room and the other agents keep going');
-  stop.setAttribute('aria-label', t('Stop this answer · the room and the other agents keep going'));
+  stop.title = t('Stop this answer · the project and the other agents keep going');
+  stop.setAttribute('aria-label', t('Stop this answer · the project and the other agents keep going'));
   stop.addEventListener('click', async () => {
     stop.disabled = true;
     stop.classList.add('stopping');
@@ -3837,7 +3841,7 @@ function renderThinking(event) {
     } catch (error) {
       stop.disabled = false;
       stop.classList.remove('stopping');
-      toast(`MU/TH/UR › ${error.message}`);
+      toast(`${t('Diagnostics › ')}${error.message}`);
     }
   });
   bubble.append(status, tokens, elapsed, stop);
@@ -3880,7 +3884,7 @@ function renderThinking(event) {
 
 function warnUnknownModuleFields(installed) {
   const unknown = installed?.unknown ?? [];
-  if (unknown.length) setTimeout(() => toast(t('MU/TH/UR › {name} declares {fields}, which this MADRE does not know. A typo, or a field from a newer version.', { name: installed.name, fields: unknown.join(', ') })), 2600);
+  if (unknown.length) setTimeout(() => toast(t('Diagnostics › {name} declares {fields}, which this MADRE does not know. A typo, or a field from a newer version.', { name: installed.name, fields: unknown.join(', ') })), 2600);
 }
 
 // A claim the room makes about a turn, in three tiers: «KIND · @agent» as its title, what
@@ -3914,13 +3918,13 @@ function renderModuleProposed(event) {
     try {
       const payload = await fetch('/api/extensions/install-file', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path, scope }) }).then((response) => response.json());
       if (payload.error) throw new Error(payload.error);
-      toast(t('MU/TH/UR › {name} installed for {where}. Switch it on in MODULES.', { name: payload.installed.name, where: scope === 'project' ? t('this project') : t('every room') }));
+      toast(t('Diagnostics › {name} installed for {where}. Switch it on in MODULES.', { name: payload.installed.name, where: scope === 'project' ? t('this project') : t('every project') }));
       warnUnknownModuleFields(payload.installed);
       modules.items = payload.extensions ?? modules.items; if (modules.dialog.open) renderModules();
       barModulesChanged();
     } catch (error) { toast(t('The module was not installed: {error}', { error: error.message })); button.disabled = false; }
   };
-  const everyRoom = el('button', 'claim-act', t('INSTALL FOR EVERY ROOM')); everyRoom.type = 'button'; everyRoom.addEventListener('click', () => install('user', everyRoom));
+  const everyRoom = el('button', 'claim-act', t('INSTALL FOR EVERY PROJECT')); everyRoom.type = 'button'; everyRoom.addEventListener('click', () => install('user', everyRoom));
   const thisProject = el('button', 'claim-act', t('INSTALL FOR THIS PROJECT')); thisProject.type = 'button'; thisProject.addEventListener('click', () => install('project', thisProject));
   const acts = el('span', 'claim-acts');
   acts.append(everyRoom, thisProject);
@@ -3932,9 +3936,9 @@ function renderModuleProposed(event) {
     const id = String(name ?? path ?? '').split('/').pop().replace(/\.module\.m?js$/, '');
     const current = list.find((item) => item.id === id && item.external);
     if (!current) return;
-    everyRoom.textContent = t('REPLACE FOR EVERY ROOM');
+    everyRoom.textContent = t('REPLACE FOR EVERY PROJECT');
     thisProject.textContent = t('REPLACE FOR THIS PROJECT');
-    node.append(el('span', 'claim-note replaces', t('{name} {version} is already installed for {where}; it keeps running until this file replaces it.', { name: current.name, version: current.version ? `v${current.version}` : '', where: current.origin === 'project' ? t('this project') : t('every room') }).replace(/\s+/g, ' ')));
+    node.append(el('span', 'claim-note replaces', t('{name} {version} is already installed for {where}; it keeps running until this file replaces it.', { name: current.name, version: current.version ? `v${current.version}` : '', where: current.origin === 'project' ? t('this project') : t('every project') }).replace(/\s+/g, ' ')));
   });
   if (responseMessageId) node.dataset.for = responseMessageId;
   return node;
@@ -3951,7 +3955,7 @@ function renderModuleInstalledOrRemoved(event) {
   const node = el('div', 'system module-proposed');
   claimHead(node, t('MODULE'), name);
   node.append(el('span', 'claim-body', event.type === 'extension.installed'
-    ? t('Installed for {where} by {who}. Switch it on in MODULES.', { where: origin === 'project' ? t('this project') : t('every room'), who: !by || by === 'you' ? t('you') : `@${by}` })
+    ? t('Installed for {where} by {who}. Switch it on in MODULES.', { where: origin === 'project' ? t('this project') : t('every project'), who: !by || by === 'you' ? t('you') : `@${by}` })
     : t('Removed by {who}.', { who: !by || by === 'you' ? t('you') : `@${by}` })));
   return node;
 }
@@ -3980,8 +3984,8 @@ function renderLocalModel(payload, { asked = false } = {}) {
       button.disabled = true;
       try {
         const result = await fetch('/api/maturity/exam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ which: 'match' }) }).then((response) => response.json());
-        if (result.error) { toast(`MU/TH/UR › ${result.error}`); button.disabled = false; return; }
-        toast(t('MU/TH/UR › the local model is answering real questions from this room. It takes a few minutes, it spends nothing, and the answer lands here.'));
+        if (result.error) { toast(`${t('Diagnostics › ')}${result.error}`); button.disabled = false; return; }
+        toast(t('Diagnostics › the local model is answering real questions from this project. It takes a few minutes, it spends nothing, and the answer lands here.'));
       } catch (error) { toast(t('The test could not run: {error}', { error: error.message })); button.disabled = false; }
     });
     return button;
@@ -3993,8 +3997,8 @@ function renderLocalModel(payload, { asked = false } = {}) {
     const n = checked?.n ?? payload.n ?? 0;
     const passed = checked ? checked.passed : payload.passed;
     line.textContent = passed
-      ? t('It answered {matched} of {n} real questions from this room where the crew answered them. It is ready to be worked in.', { matched, n })
-      : t('It answered {matched} of {n} real questions the way the crew did. Not yet — keep working, the archive fills where the work happens.', { matched, n });
+      ? t('It answered {matched} of {n} real questions from this project where the agents answered them. It is ready to be worked in.', { matched, n })
+      : t('It answered {matched} of {n} real questions the way the agents did. Not yet — keep working, the archive fills where the work happens.', { matched, n });
     if (passed) {
       const use = el('button', 'primary', t('SEND THE NEXT TURN TO @MADRE'));
       use.type = 'button';
@@ -4008,8 +4012,8 @@ function renderLocalModel(payload, { asked = false } = {}) {
     action.append(check(t('CHECK AGAIN')));
     if (checked?.at) action.append(el('span', 'note', t('MEASURED {when}', { when: agoWords(checked.at).toUpperCase() })));
   } else {
-    line.textContent = t('It is in the room. Nobody has measured it against this project yet: running here is not the same as being of use here.');
-    action.append(check(t('CHECK IT AGAINST THIS ROOM')));
+    line.textContent = t('It is in the project. Nobody has measured it against this project yet: running here is not the same as being of use here.');
+    action.append(check(t('CHECK IT AGAINST THIS PROJECT')));
   }
   node.append(line, action);
   return node;
@@ -4029,7 +4033,7 @@ function renderPrivacy(event) {
   // What was hidden, by kind: a term you named, a key, your user folder. A notice from before the
   // room told them apart says only how many.
   const said = kinds ? [
-    kinds.terms ? (kinds.terms === 1 ? t('1 private term replaced with {marker}', { marker }) : t('{n} private terms replaced with {marker}', { n: kinds.terms, marker })) : null,
+    kinds.terms ? (kinds.terms === 1 ? t('1 hidden data entry replaced with {marker}', { marker }) : t('{n} hidden data entries replaced with {marker}', { n: kinds.terms, marker })) : null,
     kinds.secrets ? (kinds.secrets === 1 ? t('1 key or token hidden') : t('{n} keys or tokens hidden', { n: kinds.secrets })) : null,
     kinds.paths ? t('your user folder hidden as ~') : null,
   ].filter(Boolean) : [hits === 1 ? t('1 private detail hidden') : t('{n} private details hidden', { n: hits })];
@@ -4094,14 +4098,14 @@ function attachModeAsk(payload, { sequence = null } = {}) {
   const what = el('div', 'mode-what');
   what.append(el('b', 'who', `@${agent}`), t(' asks for #{n} {label} to go on', { n: wanted, label }));
   const why = el('div', 'mode-why', wanted >= 3
-    ? t('You will type the project designation, as always. Then @{agent} gets your permission and continues.', { agent })
+    ? t('You will type the project name, as always. Then @{agent} gets your permission and continues.', { agent })
     : t('@{agent} gets your permission for one message and continues.', { agent }));
   const actions = el('div', 'mode-actions');
   const go = el('button', 'mode-go', t('GRANT #{n} · LET IT GO ON', { n: wanted }));
   go.type = 'button';
   const myself = el('button', 'mode-alt', t('GRANT #{n} · GIVE IT ANOTHER INSTRUCTION', { n: wanted }));
   myself.type = 'button';
-  myself.title = t('Arms #{n} in the box below, so you can add instructions before sending.', { n: wanted });
+  myself.title = t('Unlocks #{n} in the box below, so you can add instructions before sending.', { n: wanted });
   const later = el('button', 'mode-alt', t('NOT NOW'));
   later.type = 'button';
   actions.append(go, myself, later);
@@ -4155,7 +4159,7 @@ async function sendPermission({ agent, mode, quoted }) {
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
-      toast(`MU/TH/UR › ${result.error ?? t('The room rejected the message.')}`);
+      toast(`${t('Diagnostics › ')}${result.error ?? t('The project rejected the message.')}`);
       setMode(defaultModeFor(els.target.value));
       return false;
     }
@@ -4186,7 +4190,7 @@ function attachMemoryUsed(payload) {
     dot.style.setProperty('--kind', MEMORY_COLORS[note.kind] ?? MEMORY_COLORS.fact);
     dots.append(dot);
   }
-  toggle.append(dots, el('span', 'count', t('memory used · {n}', { n: used.length }) + (carried ? t(' · {n} by association', { n: carried }) : '')), chevron());
+  toggle.append(dots, el('span', 'count', t('memory used · {n}', { n: used.length }) + (carried ? t(' · {n} related', { n: carried }) : '')), chevron());
   toggle.addEventListener('click', (event) => {
     event.stopPropagation();
     hint.hidden = !hint.hidden;
@@ -4202,8 +4206,8 @@ function attachMemoryUsed(payload) {
     pill.style.setProperty('--kind', MEMORY_COLORS[note.kind] ?? MEMORY_COLORS.fact);
     pill.append(el('i', 'dot'), el('span', 'what', note.text.length > 52 ? `${note.text.slice(0, 51)}…` : note.text));
     pill.title = `${kindWord(note.kind)} · ${note.text}\n${note.via === 'cascade'
-      ? t('Came along because this room keeps carrying it with one of the others.')
-      : t('The archive matched this to what you asked.')} ${t('Click to see it in NOSTROMO.')}`;
+      ? t('Came along because this project keeps carrying it with one of the others.')
+      : t('The archive matched this to what you asked.')} ${t('Click to see it in the Memory map.')}`;
     pill.addEventListener('click', () => { nostromo.focusId = note.id; nostromo.button?.click(); });
     if (used.length > 3 && index === visible.length - 1) {
       const last = el('span', 'last');
@@ -4233,7 +4237,7 @@ function attachMemoryHint(event) {
     pill.type = 'button';
     pill.style.setProperty('--kind', MEMORY_COLORS[note.kind] ?? MEMORY_COLORS.fact);
     pill.append(el('b', null, kindWord(note.kind).toLowerCase()), ` ${note.text.length > 64 ? `${note.text.slice(0, 63)}…` : note.text}`);
-    pill.title = `${note.text}\n${t('Saved by @{agent} for every future turn · #{from}–#{through}. Click to see it in NOSTROMO.', { agent, from: note.fromSequence, through: note.throughSequence })}`;
+    pill.title = `${note.text}\n${t('Saved by @{agent} for every future turn · #{from}–#{through}. Click to see it in the memory map.', { agent, from: note.fromSequence, through: note.throughSequence })}`;
     pill.addEventListener('click', () => { nostromo.focusId = note.id; nostromo.button?.click(); });
     hint.append(pill);
   }
@@ -4274,7 +4278,7 @@ function attachCrossReads(turn, root = document) {
     seen.recalled ? t('recalled {n} from {room}', { n: seen.recalled, room }) : null,
     seen.read ? t('read {n} from {room}', { n: seen.read, room }) : null,
   ].filter(Boolean).join(' · ')).join(' · '));
-  line.title = t('Through a link you signed: read-only, counted in both rooms.');
+  line.title = t('Through a connection you signed: read-only, counted in both projects.');
   const used = foot.querySelector('.mem-used');
   if (used) used.after(line); else foot.prepend(line);
 }
@@ -4284,11 +4288,11 @@ function renderMotherAlert(event) {
   const { kind, code, strikes, lockedForMs, message, n } = event.payload;
   const node = el('div', 'system mother-alert');
   const head = el('div', 'head');
-  head.append(el('b', null, t('MU/TH/UR › TO ALL CREW')), kind === 'tamper' ? t(' · CHANNEL TAMPERED') : t(' · CODE000 · {n} STRIKES · ARCHIVE SEALED {min} MIN', { n: strikes, min: Math.max(1, Math.round((lockedForMs ?? 0) / 60000)) }));
+  head.append(el('b', null, t('SECURITY › TO ALL AGENTS')), kind === 'tamper' ? t(' · TAMPERING ALERT') : t(' · TEMPORARY LOCK · {n} STRIKES · ARCHIVE SEALED {min} MIN', { n: strikes, min: Math.max(1, Math.round((lockedForMs ?? 0) / 60000)) }));
   node.append(head);
   if (message) node.append(el('div', 'clear', message));
   const coded = el('code', 'code', code.length > 220 ? `${code.slice(0, 219)}…` : code);
-  coded.title = t("Message #{n}, sealed under MOTHER's key in .pulse/mother.env. Only the crew reads it in clear.", { n });
+  coded.title = t("Message #{n}, sealed under Security's key in .pulse/mother.env. Only the agents read it in clear.", { n });
   node.append(coded);
   return node;
 }
@@ -4315,7 +4319,7 @@ function renderHandoff(event) {
     ? t(' · {n} messages carried', { n: messageCount }) + (omittedMessages ? t(' · {n} older stay in the record', { n: omittedMessages }) : '')
     : t(' · no prior context'));
   if (kind && kind !== 'automatic') node.append(` · ${kind}`);
-  node.title = t('The receiving agent gets the most recent transcript that fits its context allowance ({fit}). Adjust with PULSE_CONTEXT_MAX_CHARS.', { fit: omittedMessages ? t('{n} older messages did not fit; they remain in the room log', { n: omittedMessages }) : t('everything fit') });
+  node.title = t('The receiving agent gets the most recent transcript that fits its context allowance ({fit}). Adjust with PULSE_CONTEXT_MAX_CHARS.', { fit: omittedMessages ? t('{n} older messages did not fit; they remain in the project log', { n: omittedMessages }) : t('everything fit') });
   state.lastSender = null;
   return node;
 }
@@ -4379,9 +4383,9 @@ function leaseRefusedText({ agent, unavailable, alternatives = [], message }) {
 function renderLeaseRefused(event) {
   const message = leaseRefusedText(event.payload);
   const node = el('div', 'system lease refused');
-  node.append(el('b', null, t('MU/TH/UR › ')));
+  node.append(el('b', null, t('Diagnostics › ')));
   node.append(message);
-  if (!replaying) toast(`MU/TH/UR › ${message}`);
+  if (!replaying) toast(`${t('Diagnostics › ')}${message}`);
   state.lastSender = null;
   return node;
 }
@@ -4409,7 +4413,7 @@ function renderCreateReverted(event) {
   node.append(t('create · '), el('b', 'who', `@${agent}`));
   if (existing.length) node.append(t(' · {n} existing files put back, CREATE only adds: {files}', { n: existing.length, files: existing.slice(0, 4).join(', ') + (existing.length > 4 ? '…' : '') }));
   if (forbidden.length) node.append(t(' · {n} writes into forbidden zones reverted', { n: forbidden.length }));
-  node.append(t(' · need to change existing files? ask again in #3 CONTROL'));
+  node.append(t(' · need to change existing files? ask again in #3 EDIT'));
   return node;
 }
 
@@ -4420,16 +4424,16 @@ function renderEnlace(event) {
   const { other, role, kinds = [], expires, contract } = event.payload;
   const node = el('div', `system memory enlace${event.type === 'enlace.revoked' ? ' warn' : ''}`);
   const what = kinds.map((kind) => kindWord(kind).toLowerCase()).join(', ');
-  node.append(el('b', null, t('LINK')));
+  node.append(el('b', null, t('CONNECTION')));
   // The label sits on its own line, so what follows it starts without the separator.
   const first = (text) => text.replace(/^\s*·\s*/, '');
   if (event.type === 'enlace.revoked') node.append(first(t(' · with {room} · revoked. Nothing crosses any more.', { room: other })));
   else {
-    node.append(first(role === 'reads' ? t(' · with {room} · this room reads its {kinds}, read-only', { room: other, kinds: what })
-      : role === 'serves' ? t(" · with {room} · it reads this room's {kinds}, read-only", { room: other, kinds: what })
+    node.append(first(role === 'reads' ? t(' · with {room} · this project reads its {kinds}, read-only', { room: other, kinds: what })
+      : role === 'serves' ? t(" · with {room} · it reads this project's {kinds}, read-only", { room: other, kinds: what })
       : t(" · with {room} · both read each other's {kinds}, read-only", { room: other, kinds: what })));
     if (expires) node.append(t(' · until {date}', { date: new Date(expires).toLocaleDateString(language(), { day: 'numeric', month: 'short' }) }));
-    if (event.payload.contract?.signed?.by === 'bishop') node.append(t(' · signed by BISHOP'));
+    if (event.payload.contract?.signed?.by === 'bishop') node.append(t(' · signed by the Coordinator'));
   }
   node.title = contract?.id ?? (typeof contract === 'string' ? contract : '');
   if (contract?.id) node.dataset.contract = contract.id;
@@ -4440,9 +4444,9 @@ function renderControlStarted(event) {
   const { agent, commit, message } = event.payload;
   const node = el('div', 'system control');
   tint(node, agent);
-  node.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), t(' holds the project · checkpoint '), el('code', null, (commit ?? '').slice(0, 7)));
+  node.append(el('b', null, t('EDIT')), el('b', 'who', `@${agent}`), t(' holds the project · restore point '), el('code', null, (commit ?? '').slice(0, 7)));
   node.title = message;
-  if (!replaying) toast(t('MU/TH/UR › @{agent} holds CONTROL. Checkpoint taken; UNDO will be one click.', { agent }));
+  if (!replaying) toast(t('Diagnostics › @{agent} holds EDIT mode. Restore point taken; UNDO will be one click.', { agent }));
   state.lastSender = null;
   return node;
 }
@@ -4452,10 +4456,10 @@ function renderControlChanged(event) {
   node.id = `control-${checkpointId}`;
   tint(node, agent);
   const head = el('div', 'head');
-  head.append(el('b', null, t('CONTROL')), el('b', 'who', `@${agent}`), el('span', null, (unreadable ? t('could not read what changed') : files.length === 1 ? t(' changed 1 file') : files.length ? t(' changed {n} files', { n: files.length }) : t(' changed nothing')).trim()));
+  head.append(el('b', null, t('EDIT')), el('b', 'who', `@${agent}`), el('span', null, (unreadable ? t('could not read what changed') : files.length === 1 ? t(' changed 1 file') : files.length ? t(' changed {n} files', { n: files.length }) : t(' changed nothing')).trim()));
   node.append(head);
   // The turn finished; only the reading of it did not. The checkpoint is still the way back.
-  if (unreadable) node.append(el('div', 'forbidden', t('Git could not list the changes ({reason}). The checkpoint from before the turn is still there.', { reason: unreadable.slice(0, 160) })));
+  if (unreadable) node.append(el('div', 'forbidden', t('Git could not list the changes ({reason}). The restore point from before the turn is still there.', { reason: unreadable.slice(0, 160) })));
   if (files.length) {
     const list = el('ul', 'files');
     for (const file of files.slice(0, 40)) {
@@ -4474,9 +4478,9 @@ function renderControlChanged(event) {
   }
   if (forbiddenReverted.length) node.append(el('div', 'forbidden', t('{n} writes into forbidden zones reverted: {where}', { n: forbiddenReverted.length, where: forbiddenReverted.join(', ') })));
   if (files.length || unreadable) {
-    const undo = el('button', 'undo', t('UNDO · RESTORE CHECKPOINT'));
+    const undo = el('button', 'undo', t('UNDO · GO BACK TO THE RESTORE POINT'));
     undo.type = 'button';
-    undo.title = t('Put the project back exactly as it was before this CONTROL turn.');
+    undo.title = t('Put the project back exactly as it was before this EDIT turn.');
     undo.addEventListener('click', async () => {
       undo.disabled = true;
       try {
@@ -4484,7 +4488,7 @@ function renderControlChanged(event) {
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
         undo.textContent = t('RESTORED');
-      } catch (error) { toast(`MU/TH/UR › ${error.message}`); undo.disabled = false; }
+      } catch (error) { toast(`${t('Diagnostics › ')}${error.message}`); undo.disabled = false; }
     });
     node.append(undo);
   }
@@ -4497,13 +4501,13 @@ function renderControlReverted(event) {
   const node = el('div', 'system control reverted');
   tint(node, agent);
   const { command } = event.payload;
-  node.append(el('b', null, command ? '/run' : t('CONTROL')), command
-    ? t('project restored to the checkpoint before the command · {restored} restored · {removed} removed', { restored: restored.length, removed: removed.length })
-    : t("project restored to the checkpoint before @{agent}'s turn · {restored} restored · {removed} removed", { agent, restored: restored.length, removed: removed.length }));
+  node.append(el('b', null, command ? '/run' : t('EDIT')), command
+    ? t('project restored to the restore point before the command · {restored} restored · {removed} removed', { restored: restored.length, removed: removed.length })
+    : t("project restored to the restore point before @{agent}'s turn · {restored} restored · {removed} removed", { agent, restored: restored.length, removed: removed.length }));
   node.title = message;
   const card = document.getElementById(`control-${checkpointId}`);
   card?.querySelector('.undo')?.replaceWith(el('span', 'outcome', t('RESTORED')));
-  if (!replaying) toast(`MU/TH/UR › ${message}`);
+  if (!replaying) toast(`${t('Diagnostics › ')}${message}`);
   state.lastSender = null;
   return node;
 }
@@ -4513,7 +4517,7 @@ function renderLeaseMissing(event) {
   const message = `${t('@{agent} was asked to create something but no CREATE lease is active.', { agent })}${requester && requester !== 'you' ? t(' Permission written by @{who} inside the conversation does not count.', { who: requester }) : ''}${t(' It will answer read-only.')}`;
   const node = el('div', 'system lease missing');
   tint(node, agent);
-  node.append(el('b', null, t('MU/TH/UR › ')));
+  node.append(el('b', null, t('Diagnostics › ')));
   node.append(message);
   const actions = el('span', 'actions');
   // Its keys speak in sentences, as the room's keys do now; the agent as the room writes it.
@@ -4534,7 +4538,7 @@ function renderLeaseMissing(event) {
   standing.addEventListener('click', () => openSettingsOn('agents', { agent }));
   actions.append(resend, standing);
   node.append(actions);
-  if (requester === 'you' && !replaying) toast(t('MU/TH/UR › CREATE is off: @{agent} will answer read-only. Use the lock or /create.', { agent }));
+  if (requester === 'you' && !replaying) toast(t('Diagnostics › CREATE is off: @{agent} will answer read-only. Use the lock or /create.', { agent }));
   state.lastSender = null;
   return node;
 }
@@ -4548,7 +4552,7 @@ function renderModeRequest(event) {
   node.id = `mode-request-${requestId}`;
   tint(node, agent);
   const head = el('div', 'head');
-  head.append(el('b', null, t('MU/TH/UR › ')), el('b', 'who', `@${agent}`), t(' asks '), el('span', `badge mode m${mode}`, `#${mode} ${MODES[mode].label}`), t(" for step {step}/{total} of @{who}'s plan", { step, total: totalSteps, who: orchestrator }));
+  head.append(el('b', null, t('Diagnostics › ')), el('b', 'who', `@${agent}`), t(' asks '), el('span', `badge mode m${mode}`, `#${mode} ${MODES[mode].label}`), t(" for step {step}/{total} of @{who}'s plan", { step, total: totalSteps, who: orchestrator }));
   node.append(head);
   const quote = el('div', 'quote', text.length > 220 ? `${text.slice(0, 220)}…` : text);
   quote.title = text;
@@ -4562,7 +4566,7 @@ function renderModeRequest(event) {
       if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
       button.textContent = decision === 'deny' ? t('DENIED') : t('GRANTED');
     } catch (error) {
-      toast(`MU/TH/UR › ${error.message}`);
+      toast(`${t('Diagnostics › ')}${error.message}`);
       for (const other of actions.querySelectorAll('button')) other.disabled = false;
     }
   };
@@ -4588,7 +4592,7 @@ function renderModeRequest(event) {
   const timer = setInterval(tick, 1000);
   timer.unref?.();
   modeRequests.set(requestId, { node, timer, actions });
-  if (!replaying) { toast(t('MU/TH/UR › @{agent} asks #{mode} {label} for step {step}. The plan waits for you.', { agent, mode, label: MODES[mode].label, step })); if (typeof armBrake === 'function') { /* no brake: waiting is safe */ } }
+  if (!replaying) { toast(t('Diagnostics › @{agent} asks #{mode} {label} for step {step}. The plan waits for you.', { agent, mode, label: MODES[mode].label, step })); if (typeof armBrake === 'function') { /* no brake: waiting is safe */ } }
   state.lastSender = null;
   return node;
 }
@@ -4728,7 +4732,7 @@ async function renderOpenQuestions() {
     mark.innerHTML = ICON_ASK;
     pill.append(mark, el('span', 'what', question.text.length > 64 ? `${question.text.slice(0, 63)}…` : question.text));
     pill.title = question.carried
-      ? `${question.text}\n${t('The room has carried this into {n} turn(s) and still has no answer.', { n: question.carried })}`
+      ? `${question.text}\n${t('The project has carried this into {n} turn(s) and still has no answer.', { n: question.carried })}`
       : `${question.text}\n${t('The archivist recorded this as open and nothing has answered it.')}`;
     pill.addEventListener('click', () => {
       els.input.value = question.text;
@@ -4779,7 +4783,7 @@ async function renderSettled() {
     const pill = el('button', 'settled-note');
     pill.type = 'button';
     pill.append(el('i', 'dot'), el('span', 'what', note.text.length > 72 ? `${note.text.slice(0, 71)}…` : note.text));
-    pill.title = `${note.text}\n${t('Click to see it in NOSTROMO.')}`;
+    pill.title = `${note.text}\n${t('Click to see it in the Memory map.')}`;
     pill.addEventListener('click', () => { nostromo.focusId = note.id; nostromo.button?.click(); });
     box.append(pill);
   }
@@ -4814,7 +4818,7 @@ function renderChoice(event) {
     const tags = el('span', 'choice-tags');
     if (mode !== null) {
       const chip = el('span', `choice-mode m${mode}`, `#${mode} ${MODES[mode].label}`);
-      chip.title = t('Pressing it arms #{n} {label} for @{agent}', { n: mode, label: MODES[mode].label, agent });
+      chip.title = t('Pressing it unlocks #{n} {label} for @{agent}', { n: mode, label: MODES[mode].label, agent });
       tags.append(chip);
     }
     if (lead) tags.append(el('span', 'choice-tag', t('RECOMMENDED')));
@@ -4879,7 +4883,7 @@ function renderRunRequest(event) {
       return;
     }
     button.append(el('span', 'choice-tag', t('RUN')));
-    button.title = t('Runs {command} from the project root, with no shell. A checkpoint is taken first.', { command: command.line });
+    button.title = t('Runs {command} from the project root, with no shell. A restore point is taken first.', { command: command.line });
     button.addEventListener('click', async () => {
       button.disabled = true;
       try {
@@ -4887,13 +4891,13 @@ function renderRunRequest(event) {
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
       } catch (error) {
-        toast(`MU/TH/UR › ${error.message}`);
+        toast(`${t('Diagnostics › ')}${error.message}`);
         markRun({ responseMessageId, index }, null);
       }
     });
     list.append(button);
   });
-  node.append(list, el('p', 'choice-foot', t('Each line runs only when you press it · from the project root, no shell · the output comes back to the room')));
+  node.append(list, el('p', 'choice-foot', t('Each line runs only when you press it · from the project root, no shell · the output comes back to the project')));
   state.lastSender = null;
   return node;
 }
@@ -4916,10 +4920,10 @@ function markRun({ responseMessageId, index }, status, where = null) {
   live.replaceChildren();
   if (status === 'serving' && where?.port) {
     live.append(el('span', 'where', where.network
-      ? t('serving on :{port} · listens on the whole network, so the room will not open it', { port: where.port })
+      ? t('serving on :{port} · listens on the whole network, so the project will not open it', { port: where.port })
       : t('serving on :{port}', { port: where.port })));
     if (!where.network) {
-      const open = el('button', 'run-open', t('OPEN IN SERVERS'));
+      const open = el('button', 'run-open', t('OPEN IN YOUR SERVERS'));
       open.type = 'button';
       open.addEventListener('click', () => { browserShow(); void browserOpen(`http://127.0.0.1:${where.port}/`); });
       live.append(open);
@@ -4933,7 +4937,7 @@ function markRun({ responseMessageId, index }, status, where = null) {
       const response = await fetch('/api/runs/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ responseMessageId, index: Number(index) }) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
-    } catch (error) { toast(`MU/TH/UR › ${resay(error.message)}`); stop.disabled = false; }
+    } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); stop.disabled = false; }
   });
   live.append(stop);
 }
@@ -4941,7 +4945,7 @@ function markRun({ responseMessageId, index }, status, where = null) {
 // BISHOP proposed a plan in the room of Salas (docs/MACROVERSO.md, fases 4b y 4c). One row per
 // order with the room, the agent and the mode in sight, and one per link it proposes. What a press
 // sends is what the server recorded: the press names the plan and the row, never the order.
-const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL', delivered: 'IN ITS ROOM · WAITING FOR YOUR KEY' };
+const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL', delivered: 'IN ITS PROJECT · WAITING FOR YOUR KEY' };
 const BISHOP_MODE_WORDS = { manual: 'MANUAL', hybrid: 'HYBRID', auto: 'AUTOMATIC' };
 const BISHOP_MODE_NOTES = { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
 async function bishopPress(path, body, buttons) {
@@ -4951,7 +4955,7 @@ async function bishopPress(path, body, buttons) {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
   } catch (error) {
-    toast(`MU/TH/UR › ${error.message}`);
+    toast(`${t('Diagnostics › ')}${error.message}`);
     for (const one of buttons) one.disabled = false;
   }
 }
@@ -4967,7 +4971,7 @@ function renderBishopPlan(event) {
   node.dataset.plan = plan;
   tint(node, agent);
   const head = el('div', 'choice-head');
-  head.append(el('span', 'choice-kicker', t('BISHOP proposes a plan · {plan}', { plan })));
+  head.append(el('span', 'choice-kicker', t('The Coordinator proposes a plan · {plan}', { plan })));
   // The mode says, in its title, what it means; the card has no footer repeating the rules.
   if (orders.length) { const badge = el('span', 'choice-kicker bishop-mode', t(BISHOP_MODE_WORDS[mode] ?? mode)); badge.title = t(BISHOP_MODE_NOTES[mode] ?? ''); head.append(badge); }
   node.append(head, el('p', 'choice-q', reason));
@@ -4980,7 +4984,7 @@ function renderBishopPlan(event) {
     row.append(el('span', 'choice-key', '⇄'));
     const what = el('div', 'choice-text');
     const where = el('div', 'bishop-where');
-    where.append(el('b', null, t('LINK')), el('span', null, ` · ${link.fromName} ${link.direction === 'both' ? '↔' : '→'} ${link.toName}`));
+    where.append(el('b', null, t('CONNECTION')), el('span', null, ` · ${link.fromName} ${link.direction === 'both' ? '↔' : '→'} ${link.toName}`));
     const terms = [link.kinds.map((kind) => kindWord(kind).toLowerCase()).join(', ')];
     if (link.days) terms.push(t('{n} days', { n: link.days }));
     if (link.orders) terms.push(t('orders up to #{n}', { n: link.orders.maxMode }));
@@ -5052,13 +5056,13 @@ function markBishopLink({ plan, index, by = null, contract = null, expires = nul
   target.dataset.status = status;
   if (contract) target.dataset.contract = contract;
   const note = target.querySelector('.run-why');
-  if (why && note) { note.textContent = t('BISHOP did not sign it: {why}', { why }); note.hidden = false; }
+  if (why && note) { note.textContent = t('The Coordinator did not sign it: {why}', { why }); note.hidden = false; }
   const side = target.querySelector('.choice-tags');
   side.replaceChildren();
   const words = { exists: 'ALREADY IN FORCE', blocked: 'WILL NOT BE SIGNED', revoked: 'REVOKED' };
   if (status === 'signed') {
     const until = expires ? new Date(expires).toLocaleDateString(language(), { day: 'numeric', month: 'short' }) : null;
-    side.append(el('span', 'choice-tag', by === 'bishop' ? (until ? t('SIGNED BY BISHOP · UNTIL {date}', { date: until }) : t('SIGNED BY BISHOP')) : t('SIGNED')));
+    side.append(el('span', 'choice-tag', by === 'bishop' ? (until ? t('SIGNED BY THE COORDINATOR · UNTIL {date}', { date: until }) : t('SIGNED BY THE COORDINATOR')) : t('SIGNED')));
     if (contract && !state.device) {
       const revoke = bishopButton(t('Revoke'), true);
       revoke.addEventListener('click', async () => {
@@ -5121,7 +5125,7 @@ function markBishopPlan(event) {
     card.querySelector('.bishop-halt')?.remove();
     const note = el('p', 'run-why bishop-halt', t('Stopped leaving on its own ({why}). What is left waits for your press.', { why: t(said.why) }));
     card.querySelector('.choice-list')?.before(note);
-    if (!replaying) toast(t('MU/TH/UR › BISHOP stopped sending on its own ({why}).', { why: t(said.why) }));
+    if (!replaying) toast(t('Diagnostics › the Coordinator stopped sending on its own ({why}).', { why: t(said.why) }));
   }
   return true;
 }
@@ -5129,7 +5133,7 @@ function markBishopPlan(event) {
 // in a conversation that does not hold its card. None of them starts a turn.
 function renderBishopLine(event) {
   const node = el('div', 'system note bishop');
-  node.append(el('b', null, 'BISHOP'));
+  node.append(el('b', null, t('Coordinator')));
   const said = event.payload;
   if (event.type === 'bishop.plan.closed') node.append(t(' · plan {plan} closed · {done} answered · {failed} failed · {skipped} skipped', { plan: said.plan, done: said.done ?? 0, failed: said.failed ?? 0, skipped: said.skipped ?? 0 }));
   else if (event.type === 'bishop.plan.halted') node.append(t(' · plan {plan} stops leaving on its own ({why}); what is left waits for your press', { plan: said.plan, why: t(said.why) }));
@@ -5143,15 +5147,15 @@ function renderBishopProposal(event) {
   const node = el('div', 'choice run-request bishop-plan bishop-proposal');
   tint(node, agent);
   const head = el('div', 'choice-head');
-  head.append(el('span', 'choice-kicker', t('BISHOP proposes #{n} {label} to @{agent} · order {step} of {total} · plan {plan}', { n: mode, label: MODES[mode]?.label ?? '', agent, step, total, plan })));
+  head.append(el('span', 'choice-kicker', t('The Coordinator proposes #{n} {label} to @{agent} · order {step} of {total} · plan {plan}', { n: mode, label: MODES[mode]?.label ?? '', agent, step, total, plan })));
   node.append(head, el('p', 'choice-q', text));
   if (!state.device) {
-    const arm = bishopButton(t('Arm and send'));
+    const arm = bishopButton(t('Unlock and send'));
     arm.addEventListener('click', () => {
       els.input.value = `@${agent} #${mode} ${text}`;
       els.input.dispatchEvent(new Event('input', { bubbles: true }));
       els.input.focus();
-      toast(t('MU/TH/UR › written in the box. Sending it asks for your key, as always.'));
+      toast(t('Diagnostics › written in the Write box. Sending it asks for your key, as always.'));
     });
     node.append(arm);
   }
@@ -5183,13 +5187,13 @@ function renderBishopOrder(event, relayed) {
   const node = bishopRow(`msg-${messageId}`);
   const col = el('div', 'col');
   const who = el('div', 'who');
-  who.append(el('span', null, 'BISHOP'));
+  who.append(el('span', null, t('Coordinator')));
   const to = paint(el('span', 'to-agent'), target);
   to.append(`→ @${target}`);
   who.append(to);
   if (relayed.kind === 'order') who.append(el('span', 'badge', relayed.auto
-    ? t('order {step} of {total} · sent on its own from Salas, in the mode you chose', { step: relayed.step, total: relayed.total })
-    : t('order {step} of {total} · you sent it from Salas', { step: relayed.step, total: relayed.total })));
+    ? t('order {step} of {total} · sent on its own from Home, in the mode you chose', { step: relayed.step, total: relayed.total })
+    : t('order {step} of {total} · you sent it from Home', { step: relayed.step, total: relayed.total })));
   if (Number.isInteger(mode) && mode !== 1) who.append(el('span', `badge mode m${mode}`, `#${mode} ${MODES[mode].label}`));
   col.append(who);
   const bubble = el('div', 'bubble');
@@ -5208,17 +5212,17 @@ function renderBishopAnswer(event) {
   if (ok === false) node.classList.add('failed');
   const col = el('div', 'col');
   const who = el('div', 'who');
-  who.append(el('span', null, 'BISHOP'));
+  who.append(el('span', null, t('Coordinator')));
   if (question) {
     const reply = el('span', 'reply', `↳ ${question.length > 90 ? `${question.slice(0, 90)}…` : question}`);
     reply.title = question;
     who.append(reply);
   }
-  who.append(el('span', 'badge', t('through @{agent} · from Salas', { agent })));
+  who.append(el('span', 'badge', t('through @{agent} · from Home', { agent })));
   col.append(who);
   const bubble = el('div', 'bubble');
   bubble.append(renderMarkdown(text ?? ''));
-  bishopFoot(bubble, event.timestamp, { short: t('only for you'), long: t('For you only; the agents of this room do not read it.') });
+  bishopFoot(bubble, event.timestamp, { short: t('only for you'), long: t('For you only; the agents of this project do not read it.') });
   col.append(bubble);
   node.append(col);
   state.lastSender = 'bishop';
@@ -5231,13 +5235,13 @@ function renderBishopAsk(event) {
   const node = row('user');
   const col = el('div', 'col');
   const who = el('div', 'who');
-  who.append(el('b', null, t('YOU · CREW')));
+  who.append(el('b', null, t('YOU · AGENTS')));
   col.append(who);
   const bubble = el('div', 'bubble', args.join(' '));
   bubble.title = text ?? '';
   col.append(bubble);
   const stamp = paint(el('div', 'stamp'), 'bishop');
-  stamp.append(el('span', 'to', '→ BISHOP'), el('span', null, formatTime(timestamp)));
+  stamp.append(el('span', 'to', `→ ${t('Coordinator')}`), el('span', null, formatTime(timestamp)));
   col.append(stamp);
   node.append(col);
   state.lastSender = 'you';
@@ -5248,7 +5252,7 @@ function renderAlert(event) {
   const { message } = event.payload;
   if (!replaying) { state.brakeArmed = true; updateStopAll(); }
   const node = el('div', 'system alert');
-  node.append(el('b', null, t('MU/TH/UR › ')));
+  node.append(el('b', null, t('Diagnostics › ')));
   node.append(resay(message.replace(/\s*Type STOPALL[^.]*\.?$/i, '').replace(/\s*STOPALL (halts|if)[^.]*\.?$/i, '')));
   // The way out, as a button and in the room's words: the same brake the bar's PARAR TODO pulls.
   const brake = el('button', 'cmd', t('STOP ALL'));
@@ -5259,7 +5263,7 @@ function renderAlert(event) {
   if (replaying || !state.brakeArmed) retireBrake(brake);
   node.append(brake);
   // A replayed alert is history: it stays in the thread, it does not shout again or arm the brake.
-  if (!replaying) toast(`MU/TH/UR › ${resay(message)}`);
+  if (!replaying) toast(`${t('Diagnostics › ')}${resay(message)}`);
   state.lastSender = null;
   return node;
 }
@@ -5279,8 +5283,8 @@ function renderAshValidation(event) {
   };
   const details = (event.payload.issues ?? []).map(issueText).join(' · ');
   const node = el('div', 'system alert');
-  node.append(el('b', null, 'ASH › '), t('REVIEW · the local check found: {details}', { details }));
-  if (!replaying) toast(`ASH › ${t('REVIEW · the local check found: {details}', { details })}`);
+  node.append(el('b', null, t('TOKEN SAVER › ')), t('REVIEW · the local check found: {details}', { details }));
+  if (!replaying) toast(`${t('TOKEN SAVER › ')}${t('REVIEW · the local check found: {details}', { details })}`);
   state.lastSender = null;
   return node;
 }
@@ -5289,7 +5293,7 @@ function renderHalted(event) {
   const { reason, plans, turns, agents = [] } = event.payload;
   const node = el('div', 'system halted');
   state.brakeArmed = false;
-  node.append(el('b', null, t('MU/TH/UR › ')));
+  node.append(el('b', null, t('Diagnostics › ')));
   node.append(plans || turns
     ? t('all stop · {plans} plans, {turns} turns halted', { plans, turns }) + (agents.length ? ` (${agents.map((id) => `@${id}`).join(', ')})` : '') + ` · ${reason}`
     : t('all stop · nothing was running') + ` · ${reason}`);
@@ -5306,10 +5310,10 @@ async function stopAll() {
   if (overrideGrace.size) closeOverrideGrace();
   try {
     const response = await fetch('/api/stop-all', { method: 'POST' });
-    if (!response.ok) { toast(t('STOPALL failed to reach the room.')); return; }
+    if (!response.ok) { toast(t('STOPALL failed to reach the project.')); return; }
     const result = await response.json().catch(() => ({}));
-    if (!result.plans && !result.turns) toast(t('MU/TH/UR › all quiet. nothing was running.'));
-    else toast(t('MU/TH/UR › all stop. {plans} plans, {turns} turns halted.', { plans: result.plans, turns: result.turns }));
+    if (!result.plans && !result.turns) toast(t('Diagnostics › all quiet. nothing was running.'));
+    else toast(t('Diagnostics › all stop. {plans} plans, {turns} turns halted.', { plans: result.plans, turns: result.turns }));
   } finally {
     if (button) button.disabled = false;
   }
@@ -5330,9 +5334,9 @@ function updateStopAll() {
   button.disabled = !state.brakeArmed;
   button.classList.toggle('armed', state.brakeArmed);
   button.title = state.brakeArmed
-    ? t('MU/TH/UR detected a runaway sequence. STOP ALL halts every plan and every agent turn.')
-    : idle ? t('All quiet. STOP ALL arms itself when MU/TH/UR detects a runaway sequence; typing STOPALL always works.')
-      : t('Agents are working normally. STOP ALL arms itself on a MU/TH/UR alert; typing STOPALL always works.');
+    ? t('Diagnostics detected a runaway sequence. STOP ALL halts every plan and every agent turn.')
+    : idle ? t('All quiet. STOP ALL arms itself when Diagnostics detects a runaway sequence; typing STOPALL always works.')
+      : t('Agents are working normally. STOP ALL arms itself on a Diagnostics alert; typing STOPALL always works.');
 }
 
 function renderPlanEvent(event) {
@@ -5408,7 +5412,7 @@ function partialWork(partial) {
     wrap.append(list);
   }
   if (partial.existingReverted?.length) wrap.append(el('div', 'note', t('{n} changes to existing files were put back: CREATE only adds.', { n: partial.existingReverted.length })));
-  const undo = el('button', 'undo', t('UNDO · RESTORE CHECKPOINT'));
+  const undo = el('button', 'undo', t('UNDO · GO BACK TO THE RESTORE POINT'));
   undo.type = 'button';
   undo.addEventListener('click', async () => {
     undo.disabled = true;
@@ -5417,7 +5421,7 @@ function partialWork(partial) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
       undo.textContent = t('RESTORED');
-    } catch (error) { toast(`MU/TH/UR › ${error.message}`); undo.disabled = false; }
+    } catch (error) { toast(`${t('Diagnostics › ')}${error.message}`); undo.disabled = false; }
   });
   wrap.append(undo);
   return wrap;
@@ -5438,7 +5442,7 @@ function retryLonger({ messageId, target, timeout, partial }) {
     els.input.value = [asked?.text ?? '', note].filter(Boolean).join('\n\n');
     // CREATE comes back by itself; CONTROL and AIRLOCK ask for their keys again, from the chip.
     if ((asked?.mode ?? 1) === 2) setMode(2);
-    else if ((asked?.mode ?? 1) >= 3) toast(t('MU/TH/UR › #{n} needs its keys again: choose it on the mode chip before sending.', { n: asked.mode }));
+    else if ((asked?.mode ?? 1) >= 3) toast(t('Diagnostics › #{n} needs its keys again: choose it on the mode chip before sending.', { n: asked.mode }));
     autosize();
     els.input.focus();
     retry.textContent = t('IN THE BOX · SEND IT WHEN READY');
@@ -5466,7 +5470,7 @@ function applyUsage(event) {
     }
     // The room's running total is not this answer's bill: it rides in the tooltip, not the line.
     stamp.append(el('span', 'stamp-sum', `Σ ${formatTokens(roomTotalTokens)}`));
-    stamp.title = t('This answer: {tokens} tokens. The room so far: {total}.', { tokens: formatTokens(usage.totalTokens), total: formatTokens(roomTotalTokens) });
+    stamp.title = t('This answer: {tokens} tokens. The project so far: {total}.', { tokens: formatTokens(usage.totalTokens), total: formatTokens(roomTotalTokens) });
   }
 }
 
@@ -5491,7 +5495,7 @@ function renderCleared(event) {
   const entry = state.agents.get(agent);
   if (entry && source !== 'room-soft-budget') { entry.officialPercent = usedPercent; entry.officialResetAt = event.payload.resetAt ?? null; }
   renderAgents();
-  if (!replaying) toast(t('MU/TH/UR › @{agent} limit window reset · {pct}% used now.', { agent, pct: Math.round(usedPercent) }));
+  if (!replaying) toast(t('Diagnostics › @{agent} limit window reset · {pct}% used now.', { agent, pct: Math.round(usedPercent) }));
   state.lastSender = null;
   return node;
 }
@@ -5570,12 +5574,12 @@ function renderEventNode(event) {
       if (event.payload.effortIgnored && !replaying) {
         const { target, effortIgnored } = event.payload;
         if (state.chosenEffort[target] === effortIgnored) { rememberEffort(target, null); renderPicker(); }
-        toast(t('MU/TH/UR › @{agent} cannot think at {effort} with this model; it answers at its default.', { agent: target, effort: effortLabel(effortIgnored) }));
+        toast(t('Diagnostics › @{agent} cannot think at {effort} with this model; it answers at its default.', { agent: target, effort: effortLabel(effortIgnored) }));
       }
       if (event.payload.modelIgnored && !replaying) {
         const { target, modelIgnored } = event.payload;
         if (state.chosenModel[target] === modelIgnored) { rememberModel(target, null); renderPicker(); }
-        toast(t('MU/TH/UR › {model} is not a model @{agent} knows; it answers on its default.', { model: modelIgnored, agent: target }));
+        toast(t('Diagnostics › {model} is not a model @{agent} knows; it answers on its default.', { model: modelIgnored, agent: target }));
       }
       break;
     case 'agent.started': state.running.set(event.payload.messageId, event.payload.agent); updateStopAll(); node = renderThinking(event); break;
@@ -5597,7 +5601,7 @@ function renderEventNode(event) {
     case 'module.proposed': node = renderModuleProposed(event); break;
     case 'extension.installed': case 'extension.removed': if (!replaying) void refreshCommands(); node = renderModuleInstalledOrRemoved(event); break;
     case 'privacy.purged': node = renderPrivacy(event); break;
-    case 'privacy.warning': if (!replaying) toast(t('MU/TH/UR › your message carries {n} private {term}. Agents will read it as you wrote it; their replies are guarded.', { n: event.payload.hits, term: event.payload.hits === 1 ? t('term') : t('terms') })); return;
+    case 'privacy.warning': if (!replaying) toast(t('Diagnostics › your message carries {n} private {term}. Agents will read it as you wrote it; their replies are guarded.', { n: event.payload.hits, term: event.payload.hits === 1 ? t('term') : t('terms') })); return;
     case 'memory.forgotten': node = renderForgotten(event); break;
     // A new decision changes what the head of the conversation should say.
     case 'enlace.received': noteCrossRead(event.payload); return;
@@ -5614,7 +5618,7 @@ void renderOpenQuestions(); return;
       }
       for (const id of event.payload.removed ?? []) { state.agents.delete(id); [...els.target.options].find((item) => item.value === id)?.remove(); }
       renderAgents(); renderPicker(); renderOnboarding();
-      if (!replaying && event.payload.reason) toast(`MU/TH/UR › ${event.payload.reason}`);
+      if (!replaying && event.payload.reason) toast(`${t('Diagnostics › ')}${event.payload.reason}`);
       return;
     }
     case 'local.present': {
@@ -5629,7 +5633,7 @@ void renderOpenQuestions(); return;
       break;
     }
     case 'mother.alert': node = renderMotherAlert(event); break;
-    case 'sentinel.report': state.reports.set(event.payload.id, { ...event.payload }); if (!replaying) { renderMotherSentinel(); toast(t('MU/TH/UR › {what} was recorded by the sentinel. Open MU/TH/UR to report it.', { what: event.payload.kind === 'crash' ? t('a crash') : t('an unknown condition') })); } return;
+    case 'sentinel.report': state.reports.set(event.payload.id, { ...event.payload }); if (!replaying) { renderMotherSentinel(); toast(t('Diagnostics › {what} was recorded by the sentinel. Open Diagnostics to report it.', { what: event.payload.kind === 'crash' ? t('a crash') : t('an unknown condition') })); } return;
     case 'servers.changed': paintPorts(event.payload); return;
     case 'server.stopped': if (!replaying) serverStopped(event.payload); return;
     case 'server.started': if (!replaying) serverStarted(event.payload); return;
@@ -5949,7 +5953,7 @@ function drawCustom() {
   const line = el('div', 'system');
   line.append(el('b', null, t('MEMORY')), t('Read 8 exchanges and kept 5 memories.'));
   const agent = el('div', 'row assistant');
-  agent.append(el('span', 'avatar'), (() => { const col = el('div', 'col'); const who = el('div', 'who'); who.append(el('span', null, 'CODEX'), el('span', 'badge mode m2', '#2 CREATE'), el('span', 'badge ash', 'ASH')); col.append(who); const bubble = el('div', 'bubble'); bubble.append(t('The room keeps what you decide. '), el('b', null, t('Bold reads like this')), ' · ', el('code', null, 'npm test')); col.append(bubble); return col; })());
+  agent.append(el('span', 'avatar'), (() => { const col = el('div', 'col'); const who = el('div', 'who'); who.append(el('span', null, 'CODEX'), el('span', 'badge mode m2', `#2 ${MODES[2].label}`), el('span', 'badge ash', t('TOKEN SAVER'))); col.append(who); const bubble = el('div', 'bubble'); bubble.append(t('The project keeps what you decide. '), el('b', null, t('Bold reads like this')), ' · ', el('code', null, 'npm test')); col.append(bubble); return col; })());
   const you = el('div', 'row user');
   you.append((() => { const col = el('div', 'col'); col.append(el('div', 'bubble', t('Show me how my messages look.'))); const stamp = el('div', 'stamp'); stamp.append(el('span', 'to', '→ @codex'), el('span', null, '08:46 PM')); col.append(stamp); return col; })());
   const button = el('span', 'look-button', t('A BUTTON'));
@@ -6022,9 +6026,9 @@ function drawCustom() {
   const choices = el('div', 'custom-choices');
   choices.append(
     section(t('LANGUAGE'), null, languages, t('The whole interface. The page reloads in it when you accept.')),
-    section(t('THEME'), null, themes, t('Automatic follows your system. The whole room changes, not only the conversation.')),
+    section(t('THEME'), null, themes, t('Automatic follows your system. The whole project changes, not only the conversation.')),
     section(t('WALLPAPER'), null, (() => { const box = el('div', 'paper-box'); box.append(papers); if (paperTune.children.length) box.append(paperTune); return box; })(), PHOTO_WALLPAPERS.has(draft.wallpaper)
-      ? t('A photograph wears the room\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+      ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
       : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.')),
     section(t('ACCENT'), named, swatches, t('Each colour in dark (top) and in light (bottom): on a light ground it deepens so it can be read. The conversation and the buttons wear it; the permission modes keep their own.')),
     section(t('BUBBLES'), null, segmented('bubbles')),
@@ -6053,7 +6057,7 @@ function drawCustom() {
     paperBox.append(papers);
     if (paperTune.children.length) paperBox.append(paperTune);
     sxBlock(page, t('Wallpaper'), PHOTO_WALLPAPERS.has(draft.wallpaper)
-      ? t('A photograph wears the room\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+      ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
       : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.')).rows.append(paperBox);
     const talk = sxBlock(page, t('Conversation'));
     sxRow(talk, t('Bubbles'), null, segmented('bubbles'), { stack: true });
@@ -6170,13 +6174,13 @@ customWindow.node?.addEventListener('close', () => { customButton?.setAttribute(
 // Nothing here is a second copy of a setting: every category draws the same panel MU/TH/UR draws,
 // from the same code and the same answers (state.settingsTargets), wearing the room's ink.
 const SETTINGS_SECTIONS = [
-  ['You', 'How it looks and how the room works', ['look', 'room', 'files']],
-  ['The crew', 'Who works, and what the room remembers', ['agents', 'memory']],
+  ['You', 'How it looks and how the project works', ['look', 'room', 'files']],
+  ['The agents', 'Who works, and what the project remembers', ['agents', 'memory']],
   ['System', 'Permissions, privacy and the version', ['permissions', 'privacy', 'release']],
 ];
 const SETTINGS_CATS = {
   look: { name: 'Appearance', color: '#8e75e8', icon: '<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/>' },
-  room: { name: 'Room and turns', color: '#d97757', icon: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+  room: { name: 'Project and turns', color: '#d97757', icon: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
   agents: { name: 'Agents', color: '#10a37f', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   memory: { name: 'Memory', color: '#3fb6d9', icon: '<rect x="5" y="5" width="10" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="8.1" y="8.1" width="3.8" height="3.8" rx=".6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   files: { name: 'Files and servers', color: '#c8955a', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
@@ -6189,13 +6193,13 @@ const SETTINGS_ORDER = ['look', 'room', 'files', 'agents', 'memory', 'permission
 // screen that carry it there, so a result opens the category and lands on the setting.
 const SETTINGS_INDEX = [
   ['look', 'Preview'], ['look', 'Language'], ['look', 'Theme'], ['look', 'Wallpaper'], ['look', 'Accent'], ['look', 'Bubbles'], ['look', 'Text'],
-  ['room', 'Multitasking'], ['room', 'Notifications'], ['room', 'Conversations at once'], ['room', 'Turns per conversation'], ['room', 'Agents may delegate'], ['room', 'Steps per plan'],
-  ['files', 'Finder'], ['files', 'Servers'], ['files', 'File viewer'], ['files', 'Sealed preview'], ['files', "The agents' browser"],
+  ['room', 'Several at once'], ['room', 'Notifications'], ['room', 'Conversations at once'], ['room', 'Turns per conversation'], ['room', 'Agents may make plans'], ['room', 'Steps per plan'],
+  ['files', 'Files'], ['files', 'Your servers'], ['files', 'File viewer'], ['files', 'Preview'], ['files', "Test browser"],
   ['room', 'Tokens per agent'], ['room', 'Default time limit'], ['room', 'Silence limit'], ['room', 'Retries'], ['room', 'Model'],
   ['agents', 'Max mode'], ['agents', 'Starting mode'], ['agents', 'Web access'], ['agents', 'Generate images'], ['agents', 'Time limit'], ['agents', 'Sign in'],
-  ['memory', 'Who distils first'], ['memory', 'Who may distil'], ['memory', 'Share of the context'], ['memory', 'Carry the company it keeps'], ['memory', 'Embeddings'], ['memory', 'Dataset'], ['memory', 'Analysis and tests'],
-  ['permissions', 'The key of each mode'], ['permissions', 'Your phrase'], ['permissions', 'Grace after a key'], ['permissions', 'Who may do what'],
-  ['privacy', 'Private terms'], ['privacy', 'Replaced with'], ['privacy', 'Keys, tokens and e-mail addresses'], ['privacy', 'Your home path'], ['privacy', 'Purge the room'],
+  ['memory', 'Who distils first'], ['memory', 'Who may distil'], ['memory', 'Share of the context'], ['memory', 'Related'], ['memory', 'Smart search'], ['memory', 'Dataset'], ['memory', 'Analysis and tests'],
+  ['permissions', 'The key of each mode'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
+  ['privacy', 'Hidden data'], ['privacy', 'Replaced with'], ['privacy', 'Keys, tokens and e-mail addresses'], ['privacy', 'Your home path'], ['privacy', 'Erase private data'],
   ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'Report automatically'], ['release', 'Tell the author'],
 ];
 const settingsWindow = { node: document.querySelector('#settings'), body: document.querySelector('#settings-body'), search: document.querySelector('#settings-search'), box: null, ready: false, open: null, query: '', mode: 'board', observer: null };
@@ -6214,11 +6218,11 @@ function settingsStatus(id) {
   }
   if (id === 'room') {
     const turns = turnsUI.turns;
-    const how = !turns ? t('Reading…') : turns.enabled ? t('Multitasking · {n} at once', { n: turns.chats }) : t('One conversation at a time');
+    const how = !turns ? t('Reading…') : turns.enabled ? t('Several at once · {n}', { n: turns.chats }) : t('One conversation at a time');
     return { line: data ? `${how} · ${t('{n} tokens per agent', { n: formatTokens(data.settings.softTokenBudget) })}` : how };
   }
   if (id === 'files') {
-    const finder = surfaceModes.tree === 'window' ? t('Finder as a window') : t('Finder beside');
+    const finder = surfaceModes.tree === 'window' ? t('Files as a window') : t('Files beside');
     const ripley = modules.items.find((item) => item.id === 'ripley');
     return { line: `${finder} · ${ripley ? (ripley.status?.installed ? t('preview on') : t('preview off')) : t('Reading…')}` };
   }
@@ -6231,9 +6235,9 @@ function settingsStatus(id) {
   }
   if (id === 'memory') {
     const mem = data.settings.memory;
-    if (!mem) return { line: t('This room has no memory index') };
+    if (!mem) return { line: t('This project has no memory index') };
     const who = mem.archivist === 'auto' || !mem.archivist ? t('the cheapest agent') : `@${mem.archivist}`;
-    return { line: t('Archived by {who} · embeddings {how}', { who, how: (mem.embedProvider ?? 'auto').toUpperCase() }) };
+    return { line: t('Archived by {who} · smart search {how}', { who, how: (mem.embedProvider ?? 'auto').toUpperCase() }) };
   }
   if (id === 'permissions') {
     const config = data.settings.override ?? OVERRIDE_DEFAULT;
@@ -6243,7 +6247,7 @@ function settingsStatus(id) {
   if (id === 'privacy') {
     const priv = data.settings.privacy;
     if (!priv) return { line: t('Reading…') };
-    return { line: `${priv.terms.length ? t('{n} private terms', { n: priv.terms.length }) : t('No private terms')} · ${priv.secrets !== false ? t('keys redacted') : t('keys not redacted')}` };
+    return { line: `${priv.terms.length ? t('{n} hidden data items', { n: priv.terms.length }) : t('No hidden data')} · ${priv.secrets !== false ? t('keys redacted') : t('keys not redacted')}` };
   }
   if (id === 'release') {
     const info = updateUI.info;
@@ -6278,7 +6282,7 @@ function settingsQuick(id) {
     add(t('Theme'), seg);
   }
   if (id === 'room' && turnsUI.turns) {
-    add(t('Multitasking'), switchFor(Boolean(turnsUI.turns.enabled), async (on) => {
+    add(t('Several at once'), switchFor(Boolean(turnsUI.turns.enabled), async (on) => {
       try { turnsUI.turns = (await fetch('/api/turns', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: on }) }).then((response) => response.json())).turns ?? turnsUI.turns; } catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
       renderMotherSentinel();
     }));
@@ -6511,7 +6515,7 @@ function sxCommand(command) {
   const row = el('div', 'sx-command');
   const copy = sxButton(t('Copy'), async () => {
     try { await navigator.clipboard.writeText(command); copy.textContent = t('Copied'); setTimeout(() => { copy.textContent = t('Copy'); }, 1400); }
-    catch { toast(t('MU/TH/UR › select the command and copy it.')); }
+    catch { toast(t('Diagnostics › select the command and copy it.')); }
   });
   row.append(el('code', null, command), copy);
   return row;
@@ -7069,7 +7073,7 @@ async function finderRun(body, { say }) {
   }
   const response = await fetch('/api/tree/op', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? t('That could not be done.')}`); return false; }
+  if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? t('That could not be done.')}`); return false; }
   // The server may have named a copy itself ("notes copy.md"); what it says is where it went.
   const landed = result.to ?? body.to;
   toast(typeof say === 'function' ? say(landed) : say);
@@ -7210,7 +7214,7 @@ function treeNode(path, entry) {
     if (by) {
       // Its colour is the agent's own, so the tree reads the same way the thread does.
       const dot = paint(el('span', 'touched'), by);
-      dot.title = t('{agent} wrote this file in this room', { agent: `@${by}` });
+      dot.title = t('{agent} wrote this file in this project', { agent: `@${by}` });
       button.append(dot);
     }
     button.addEventListener('click', () => { void openViewer({ root: 'project', path, label: path }); });
@@ -8236,7 +8240,7 @@ function surfaceButtons(surface) {
   const { group, paint } = modeButtons({
     close: before,
     side: surface.side,
-    split: { on: () => isSplit(surface), run: () => setSurfaceMode(surface, isSplit(surface) ? 'base' : 'split'), label: (on) => (on ? t('Give it back its place') : t('Split the room with it')) },
+    split: { on: () => isSplit(surface), run: () => setSurfaceMode(surface, isSplit(surface) ? 'base' : 'split'), label: (on) => (on ? t('Give it back its place') : t('Split the screen with it')) },
     window: { on: () => isWindow(surface), run: () => setSurfaceMode(surface, isWindow(surface) ? 'base' : 'window'), label: (on) => (on ? t('Give it back its place') : t('Float it as a window')) },
   });
   anchor.replaceWith(group);
@@ -8366,7 +8370,7 @@ document.querySelector('#tree-new')?.addEventListener('click', async () => {
     .then(async (response) => ({ response, result: await response.json().catch(() => ({})) }));
   let { response, result } = await send();
   if (response.status === 403 && result.guarded) {
-    const word = await roomAsk({ title: t('A file the room guards'), body: t('This file is one the room guards. Type the project\'s designation to save it.'), input: { placeholder: t('the project folder\'s name') }, choices: [{ value: 'no', label: t('Cancel') }, { value: 'make', label: t('Create'), tone: 'primary', submit: true }] });
+    const word = await roomAsk({ title: t('A file the project guards'), body: t('This file is one the project guards. Type the project name to save it.'), input: { placeholder: t('the project folder\'s name') }, choices: [{ value: 'no', label: t('Cancel') }, { value: 'make', label: t('Create'), tone: 'primary', submit: true }] });
     if (!word) return;
     ({ response, result } = await send({ designation: word }));
   }
@@ -8456,7 +8460,7 @@ function renderChats() {
       }
       const response = await fetch(`/api/chats/${chat.id}`, { method: 'DELETE' });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'the conversation was not deleted.'}`); return; }
+      if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? 'the conversation was not deleted.'}`); return; }
       if (chat.id === chats.active) { window.location.reload(); return; }
       if (chat.id === split.chat) closeSplit();
       if (convWindows.has(chat.id)) closeConvWindow(chat.id);
@@ -8506,8 +8510,8 @@ function onChatActivity({ chatId, working, finished } = {}) {
   if (finished && !replaying && (elsewhere || away)) {
     const title = entry?.title ?? t('another conversation');
     const said = finished.ok
-      ? t('MU/TH/UR › @{agent} finished in «{chat}».', { agent: finished.agent ?? '?', chat: title })
-      : t('MU/TH/UR › @{agent} could not finish in «{chat}».', { agent: finished.agent ?? '?', chat: title });
+      ? t('Diagnostics › @{agent} finished in «{chat}».', { agent: finished.agent ?? '?', chat: title })
+      : t('Diagnostics › @{agent} could not finish in «{chat}».', { agent: finished.agent ?? '?', chat: title });
     if (elsewhere) { chats.unread.add(chatId); showNotice({ agent: finished.agent, ok: finished.ok, chatId, chat: title }); }
     // A notification for whoever is not looking at it: another conversation, or this one while the
     // tab is behind something else. Pressing it brings the room back, at that conversation.
@@ -8625,7 +8629,7 @@ async function openChat(id, { beside = null } = {}) {
   chats.unread.delete(id);
   const response = await fetch(`/api/chats/${id}`, { method: 'POST' });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'that conversation could not be opened.'}`); return; }
+  if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? 'that conversation could not be opened.'}`); return; }
   const payload = await fetch('/api/state').then((one) => one.json()).catch(() => null);
   if (!payload) { window.location.reload(); return; }
   // Everything slow happens before the transition starts: the screen is held still while the new
@@ -8737,7 +8741,7 @@ els.chatsNew?.addEventListener('click', async () => {
   if (chats.list.some((chat) => chat.working)) await askForNotifications();
   const response = await fetch('/api/chats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'the conversation was not started.'}`); els.chatsNew.disabled = false; return; }
+  if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? 'the conversation was not started.'}`); els.chatsNew.disabled = false; return; }
   if (state.device && result.opened) { globalThis.location.href = phoneChatAddress(result.opened); return; }
   window.location.reload();
 });
@@ -8752,7 +8756,7 @@ try { if (!SPLIT_CHAT && localStorage.getItem('pulse.chats') === 'open') setChat
 const SPLIT_MIN_PX = 900;
 // The two names the room gives a conversation nobody has named yet, said in the human's language.
 // One a person typed stays exactly as they typed it.
-const chatTitle = (title) => (title === 'Untitled' ? t('Untitled') : title === 'First conversation' ? t('First conversation') : title);
+const chatTitle = (title) => (title === 'Untitled' ? t('Untitled') : title === 'First conversation' ? t('First conversation') : title === 'Coordinator' ? t('Coordinator') : title);
 const namedChats = (list) => (Array.isArray(list) ? list.map((chat) => ({ ...chat, title: chatTitle(chat.title) })) : null);
 function paintSplit() {
   if (!split.box) return;
@@ -8769,7 +8773,7 @@ function rememberSplit() {
 function openSplit(id, { animate = true } = {}) {
   // A phone shows one conversation at a time: no halves and no windows there.
   if (SPLIT_CHAT || state.device || !split.box || !id || id === chats.active) return;
-  if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
+  if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('Diagnostics › the window is too narrow for two conversations. Widen it and try again.')); return; }
   // Taking the split's place replaces what it shows, so only an empty split needs room.
   if (!split.chat && !canOpenBeside(id)) { besideFull(); return; }
   stepDone('beside');
@@ -8859,7 +8863,7 @@ function besideCount() { return (split.chat ? 1 : 0) + convWindows.size; }
 // A conversation already beside the open one may change how it is shown; a new one needs room.
 function canOpenBeside(id) { return id === split.chat || convWindows.has(id) || besideCount() < MAX_BESIDE; }
 function besideFull() {
-  toast(t('MU/TH/UR › two conversations are already open beside this one. Close one to open another: past three at once they crowd each other, and each keeps its own line open to the room.'));
+  toast(t('Diagnostics › two conversations are already open beside this one. Close one to open another: past three at once they crowd each other, and each keeps its own line open to the project.'));
 }
 function rememberConvWindows() {
   const kept = [...convWindows.entries()].map(([id, win]) => ({ id, ...win.box }));
@@ -8888,7 +8892,7 @@ function placeConvWindow(win, box) {
 function openConvWindow(id, { box = null, animate = true } = {}) {
   if (SPLIT_CHAT || state.device || !id || id === chats.active) return;
   if (convWindows.has(id)) { bringWindowForward(convWindows.get(id).node); return; }
-  if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('MU/TH/UR › the window is too narrow for two conversations. Widen it and try again.')); return; }
+  if ((window.innerWidth ?? Infinity) < SPLIT_MIN_PX) { toast(t('Diagnostics › the window is too narrow for two conversations. Widen it and try again.')); return; }
   if (!canOpenBeside(id)) { besideFull(); return; }
   stepDone('beside');
   if (id === split.chat) closeSplit();
@@ -9226,8 +9230,8 @@ function armExpendable() {
   updateCrewLabel();
   updatePlaceholder();
   const line = el('div', 'system mother');
-  line.append(el('b', null, t('MU/TH/UR › ')));
-  line.append(t('end of record. nothing else is down here, human. crew status under review.'));
+  line.append(el('b', null, t('Diagnostics › ')));
+  line.append(t('end of record. nothing else is down here, human. agent status under review.'));
   removeEmpty();
   els.column.append(tidySystemLine(line));
   scrollToEnd();
@@ -9298,8 +9302,8 @@ els.thread.addEventListener('keydown', (event) => trackHold(event.key === 'Arrow
 const STEPS_KEY = 'pulse.steps';
 const FIRST_STEPS = [
   { id: 'ask', title: t('Ask your first question'), how: t('Write in the box. With @ you choose who answers.'), show: () => stepsWrite('@') },
-  { id: 'team', title: t('Ask the crew for something together'), how: t('Ask one agent for something for everyone: it draws up a plan and hands the steps to the others.'), show: () => stepsWrite(`@${els.target?.value || 'claude'} ${t('ask each agent in the crew to introduce itself in one line')}`) },
-  { id: 'mother', title: t('Open MU/TH/UR'), how: t('When something fails, write the symptom there: it says what is going on and how to fix it.'), show: () => openMother() },
+  { id: 'team', title: t('Ask the agents for something together'), how: t('Ask one agent for something for everyone: it draws up a plan and hands the steps to the others.'), show: () => stepsWrite(`@${els.target?.value || 'claude'} ${t('ask each agent to introduce itself in one line')}`) },
+  { id: 'mother', title: t('Open Diagnostics'), how: t('When something fails, write the symptom there: it says what is going on and how to fix it.'), show: () => openMother() },
   { id: 'beside', title: t('Open a second conversation'), how: t('From the conversations panel, beside this one or as a window. Both keep working.'), show: () => { const button = document.querySelector('#chats-button'); if (button?.getAttribute('aria-pressed') !== 'true') button?.click(); } },
   { id: 'bar', title: t('Make the bar yours'), how: t('Right-click any key of the bar: choose what is on it and in which order.'), show: () => barEdit(true) },
   { id: 'module', title: t('Open a module'), how: t('Optional powers for this project, like GitHub or a local model. Nothing is installed until you ask.'), show: () => document.querySelector('#modules-button')?.click() },
@@ -9403,7 +9407,7 @@ function stepsDraw() {
     stepsSave();
     stepsClose();
     stepsPaint();
-    toast(t('The list comes back from ? in MU/TH/UR.'));
+    toast(t('The list comes back from ? in Diagnostics.'));
   });
   foot.append(el('span', null, t('Each step ticks itself when you do it.')), hide);
   card.replaceChildren(head, list, foot);
@@ -9478,7 +9482,7 @@ if (state.device) {
   for (const one of panelSides) if (one.node() && !one.node().hidden) one.close();
   if (document.querySelector('#browser') && !document.querySelector('#browser').hidden) browserHide();
   // NOSTROMO is a chart on a phone: its help speaks of fingers, not of a wheel.
-  { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('DRAG TO MOVE · PINCH TO ZOOM · TOUCH A MEMORY · DO NOT TOUCH MOTHER'); }
+  { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('DRAG TO MOVE · PINCH TO ZOOM · TOUCH A MEMORY · DO NOT TOUCH THE CORE'); }
   // Files and servers are on the Mac: on the phone they are there to be seen and switched, and say so.
   for (const panel of [document.querySelector('#tree'), document.querySelector('#browser')]) {
     if (!panel || panel.querySelector('.phone-desk-note')) continue;
@@ -9738,7 +9742,7 @@ function syncModuleComposer() {
 const OFFER_WHY = {
   decision: 'what was decided',
   discussed: 'whether this came up before',
-  where: 'where the room left off',
+  where: 'where the project left off',
   why: 'why something was chosen',
   said: 'what somebody said',
   open: 'what is still open',
@@ -9754,7 +9758,7 @@ function syncFreeOffer() {
   if (box.dataset.why === why && !box.hidden) return;
   box.dataset.why = why;
   box.replaceChildren();
-  box.append(el('span', 'free-what', t('@madre can answer this from the room archive, on this computer, for no tokens · it read {why}', { why: t(OFFER_WHY[why]) })));
+  box.append(el('span', 'free-what', t('@madre can answer this from the project archive, on this computer, for no tokens · it read {why}', { why: t(OFFER_WHY[why]) })));
   const go = el('button', 'free-go', t('ASK @madre'));
   go.type = 'button';
   go.addEventListener('click', () => {
@@ -10167,9 +10171,9 @@ function renderMenu() {
 // Each wears its own 8-bit mark and a tag in the colour of its shape, so the four shapes read as
 // four kinds of thing before a word is read.
 const STARTER_SHAPES = {
-  command: { label: t('command'), about: t('a slash command · runs in the room, answers as a card') },
-  connector: { label: t('connector'), about: t('a connector · one key, pasted on its card') },
-  sends: { label: t('sends · #4 only'), about: t('a connector that sends · only offered in #4 AIRLOCK') },
+  command: { label: t('command'), about: t('a slash command · runs in the project, answers as a card') },
+  connector: { label: t('integration'), about: t('an integration · one key, pasted on its card') },
+  sends: { label: t('sends · #4 only'), about: t('an integration that sends · only offered in #4 FULL ACCESS') },
   card: { label: t('card of its own'), about: t('a card of your own · its own panel inside MODULES') },
 };
 function moduleStarters() {
@@ -10188,7 +10192,7 @@ function moduleStarters() {
 // What each command looks like at a glance: a small drawing, so a list of seven reads as seven
 // different things before a word is read. A module's own command gets the slash.
 const COMMAND_GROUPS = ['room', 'modules', 'off'];
-const COMMAND_GROUP_WORDS = { room: 'THIS ROOM', modules: 'FROM THE MODULES', off: 'NOT AVAILABLE HERE' };
+const COMMAND_GROUP_WORDS = { room: 'THIS PROJECT', modules: 'FROM THE MODULES', off: 'NOT AVAILABLE HERE' };
 const COMMAND_GLYPHS = {
   create: '<path d="M5.5 3.5h5l4.5 4.5v8a1.8 1.8 0 0 1-1.8 1.8H5.5A1.8 1.8 0 0 1 3.7 16V5.3A1.8 1.8 0 0 1 5.5 3.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 3.6v3a1.1 1.1 0 0 0 1.1 1.1h3.4M9.35 10.2v4.4M7.15 12.4h4.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   module: '<path class="ic-f" d="M2.75 8.45a2.2 2.2 0 0 1 2.2-2.2h2a1.9 1.9 0 1 1 2.6 0h2a2.2 2.2 0 0 1 2.2 2.2v2a1.9 1.9 0 1 1 0 2.6v2a2.2 2.2 0 0 1-2.2 2.2h-2a1.9 1.9 0 1 0-2.6 0h-2a2.2 2.2 0 0 1-2.2-2.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -10291,16 +10295,16 @@ async function runSlashCommand(text) {
   if (name === 'create' || name === 'image' || name === 'module') {
     if (!rest) {
       toast(name === 'module'
-        ? t('MU/TH/UR › /module needs a job, e.g. "/module summarize today’s commits".')
-        : t('MU/TH/UR › /{name} needs a request after it, e.g. "/{name} a poster for the launch".', { name }));
+        ? t('Diagnostics › /module needs a job, e.g. "/module summarize today’s commits".')
+        : t('Diagnostics › /{name} needs a request after it, e.g. "/{name} a poster for the launch".', { name }));
       return { handled: true };
     }
     let target = els.target.value;
     if (name === 'image') {
       const capable = [...state.agents.values()].filter((agent) => agent.ready && state.capabilities[agent.id]?.scopes?.imageGen?.enabled).map((agent) => agent.id);
       if (!capable.includes(target)) {
-        if (!capable.length) { toast(t('MU/TH/UR › nobody in the room can generate images right now: turn on Image Studio in Modules, or Generate images for an agent in Settings › Agents.')); return { handled: true }; }
-        toast(t('MU/TH/UR › @{agent} cannot generate images here; routing to @{other}.', { agent: target, other: capable[0] }));
+        if (!capable.length) { toast(t('Diagnostics › nobody in the project can generate images right now: turn on Images in Modules, or Generate images for an agent in Settings › Agents.')); return { handled: true }; }
+        toast(t('Diagnostics › @{agent} cannot generate images here; routing to @{other}.', { agent: target, other: capable[0] }));
         target = capable[0];
         els.target.value = target;
         renderPicker();
@@ -10325,8 +10329,8 @@ async function runSlashCommand(text) {
     return { handled: false, text: rest, target };
   }
   const known = allCommands().find((item) => item.name === name);
-  if (!known) { toast(t('MU/TH/UR › unknown command /{name}. Type "/" to see what this room offers.', { name })); return { handled: true }; }
-  if (!known.available) { toast(t('MU/TH/UR › /{name} is not available in this project: {title} (see MODULES).', { name, title: known.title })); return { handled: true }; }
+  if (!known) { toast(t('Diagnostics › unknown command /{name}. Type "/" to see what this project offers.', { name })); return { handled: true }; }
+  if (!known.available) { toast(t('Diagnostics › /{name} is not available in this project: {title} (see MODULES).', { name, title: known.title })); return { handled: true }; }
   const response = await fetch('/api/commands', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
   if (!response.ok && response.status !== 422) {
     const result = await response.json().catch(() => ({}));
@@ -10402,7 +10406,7 @@ function renderCreateScopes() {
   const standing = Boolean(scopes?.write?.always);
   els.createToggle.classList.toggle('standing', standing);
   els.createToggle.title = standing
-    ? t('@{id} starts in #2 (its starting mode in Settings › Agents): every turn may add files to the project. Arming CREATE is not needed.', { id })
+    ? t('@{id} starts in #2 (its starting mode in Settings › Agents): every turn may add files to the project. Unlocking CREATE is not needed.', { id })
     : t('CREATE: let the agent add new files to the project for this request; existing files stay untouched');
   box.hidden = !state.create || !scopes;
   if (box.hidden) return;
@@ -10414,7 +10418,7 @@ function renderCreateScopes() {
     badge.title = on ? t('{what}: enabled for @{id}', { what: labelText, id }) : !scope.capable ? t("{what}: @{id}'s CLI cannot do this", { what: labelText, id }) : !scope.wired ? t('{what}: not wired yet', { what: labelText }) : t('{what}: switched off for @{id} in Settings › Agents', { what: labelText, id });
     box.append(badge);
   }
-  if (!scopes.write?.enabled) toast(t('MU/TH/UR › @{agent} {why}. CREATE will be refused; pick another agent or change it in Settings › Agents.', { agent: id, why: scopes.write?.capable ? t('has file creation switched off') : t('cannot create files from its CLI') }));
+  if (!scopes.write?.enabled) toast(t('Diagnostics › @{agent} {why}. CREATE will be refused; pick another agent or change it in Settings › Agents.', { agent: id, why: scopes.write?.capable ? t('has file creation switched off') : t('cannot create files from its CLI') }));
 }
 els.createToggle.addEventListener('click', () => { setMode(state.mode === 2 ? 1 : 2); els.input.focus(); });
 // The crew label reads the composer's state: order, lease, easter egg, human.
@@ -10425,20 +10429,20 @@ function markIntruder(ms) {
   state.intruder = ms > 0;
   els.composer.classList.toggle('intruder', state.intruder);
   updateCrewLabel();
-  if (state.intruder) intruderTimer = setTimeout(() => { state.intruder = false; els.composer.classList.remove('intruder'); updateCrewLabel(); toast(t('MU/TH/UR › the archive is open again. Behave.')); }, ms);
+  if (state.intruder) intruderTimer = setTimeout(() => { state.intruder = false; els.composer.classList.remove('intruder'); updateCrewLabel(); toast(t('Diagnostics › the archive is open again. Behave.')); }, ms);
 }
 fetch('/api/mother').then((response) => response.json()).then((status) => { if ((status?.mother?.lockedForMs ?? 0) > 0) markIntruder(status.mother.lockedForMs); }).catch(() => {});
 
 function updateCrewLabel() {
   const order = state.ash && state.ashInstalled;
   const armed = state.mode >= 3;
-  els.crewLabel.textContent = state.intruder && state.mode < 3 ? t('INTRUDER ›') : armed ? `MU/TH/UR · ${MODES[state.mode].label} @${(state.modeArmedFor ?? els.target.value ?? '').toUpperCase()} ›`
-    : state.mode === 0 ? t('HUMAN · GHOST ›')
-      : state.moduleCommand ? (state.create ? 'MU/TH/UR · MODULE · CREATE ›' : t('MU/TH/UR · MODULE · NEEDS #2 ›'))
-      : order ? `${t('HUMAN ›')} ${state.create ? 'ASH · CREATE ›' : 'ASH ›'}`
+  els.crewLabel.textContent = state.intruder && state.mode < 3 ? t('INTRUDER ›') : armed ? `${t('DIAGNOSTICS')} · ${MODES[state.mode].label} @${(state.modeArmedFor ?? els.target.value ?? '').toUpperCase()} ›`
+    : state.mode === 0 ? t('HUMAN · INCOGNITO ›')
+      : state.moduleCommand ? (state.create ? t('DIAGNOSTICS · MODULE · CREATE ›') : t('DIAGNOSTICS · MODULE · NEEDS #2 ›'))
+      : order ? `${t('HUMAN ›')} ${state.create ? t('TOKEN SAVER · CREATE ›') : t('TOKEN SAVER ›')}`
         : state.create ? t('HUMAN · CREATE ›')
           : state.expendable ? t('CREW · EXPENDABLE ›') : t('HUMAN ›');
-  // Who the message goes to closes the line, in that agent's colour: HUMAN › ASH › @CODEX ›.
+  // Who the message goes to closes the line, in that agent's colour: HUMAN › TOKEN SAVER › @CODEX ›.
   const to = els.target?.value;
   if (to && !armed && !state.intruder && typeof els.crewLabel.append === 'function') {
     const who = paint(el('span', 'crew-to'), to);
@@ -10453,7 +10457,7 @@ function updatePlaceholder() {
 function setAsh(on, { wink = false } = {}) {
   state.ash = on;
   els.ashToggle.setAttribute('aria-pressed', String(on));
-  els.ashToggle.textContent = on ? 'ASH' : 'ash';
+  els.ashToggle.textContent = on ? t('TOKEN SAVER') : t('token saver');
   els.composer.classList.toggle('ash-on', on);
   updateCrewLabel();
   updatePlaceholder();
@@ -10531,7 +10535,7 @@ function syncAshUI(enabled) {
 els.ashToggle.addEventListener('click', () => {
   if (!state.ashInstalled) return;
   setAsh(!state.ash, { wink: true });
-  if (state.ash) toast(t('MU/TH/UR › ASH: every agent will answer in compact prose. What you write is never altered.'));
+  if (state.ash) toast(t('Diagnostics › Token saver: every agent will answer in compact prose. What you write is never altered.'));
   els.input.focus();
 });
 els.attach.addEventListener('click', () => els.fileInput.click());
@@ -10587,7 +10591,7 @@ els.composer.addEventListener('submit', async (event) => {
     if (wanted >= 3 && state.device) {
       els.input.value = text;
       autosize();
-      toast(t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.'));
+      toast(t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.'));
       return;
     }
     if (wanted >= 3) {
@@ -10654,7 +10658,7 @@ els.composer.addEventListener('submit', async (event) => {
     });
     if (!response.ok) {
       const result = await response.json().catch(() => ({ error: t('Request failed ({status}).', { status: response.status }) }));
-      toast(`MU/TH/UR › ${result.error ? resay(result.error) : t('The room rejected the message.')}`);
+      toast(`${t('Diagnostics › ')}${result.error ? resay(result.error) : t('The project rejected the message.')}`);
       if (state.mode >= 3 && [403, 409, 412].includes(response.status)) setMode(1);
     } else {
       els.input.value = '';
@@ -10782,7 +10786,7 @@ async function reportCondition(condition) {
   const about = `${condition.code ?? condition.id} · ${condition.title}`;
   if (!sentinelUI.formUrl && !sentinelUI.feedbackUrl) await loadSentinel();
   const pick = language() === 'es' ? (sentinelUI.formUrl ?? sentinelUI.feedbackUrl) : (sentinelUI.feedbackUrl ?? sentinelUI.formUrl);
-  if (!pick) { toast(t('MU/TH/UR › no repository configured for feedback.')); return; }
+  if (!pick) { toast(t('Diagnostics › no repository configured for feedback.')); return; }
   try {
     const url = new URL(pick);
     if (url.hostname === 'github.com') url.searchParams.set('title', `[feedback] ${about}`.slice(0, 120));
@@ -10872,7 +10876,7 @@ function remedyDetail(host, condition, { agent = null, hintAgent = null } = {}) 
     sxRow(block, who ? t('Open @{agent} in Settings', { agent: who }) : t('Open Agents in Settings'), t('Sign it in, install it or change what it may do, from there.'), sxButton(t('Open'), () => openSettingsOn('agents', { agent: who }), { tone: 'primary' }));
   }
   if (condition.solvedIn === 'ollama') {
-    sxRow(block, t('Open Ollama'), t('Start it, download its models and choose what it does in this room.'), sxButton(t('Open'), () => floatModule('ollama'), { tone: 'primary' }));
+    sxRow(block, t('Open Ollama'), t('Start it, download its models and choose what it does in this project.'), sxButton(t('Open'), () => floatModule('ollama'), { tone: 'primary' }));
   }
   // The other way: the terminal, for another machine, another shell, or whoever prefers typing.
   const terminal = sxBlock(host, t('In your terminal'), `${PLATFORMS[mother.platform].label} · ${PLATFORMS[mother.platform].shell}`, { className: 'remedy-terminal' });
@@ -10894,13 +10898,13 @@ function remedyDetail(host, condition, { agent = null, hintAgent = null } = {}) 
 // What happened in this room, one record, and what it most probably was.
 function recordDetail(host, record) {
   const { failure, matches } = record;
-  const what = sxBlock(host, failure.agent ? t('What happened to @{agent}', { agent: failure.agent }) : t('What happened in the room'), formatTime(failure.time), { className: 'remedy-record' });
+  const what = sxBlock(host, failure.agent ? t('What happened to @{agent}', { agent: failure.agent }) : t('What happened in the project'), formatTime(failure.time), { className: 'remedy-record' });
   const text = el('pre', 'remedy-error', resay(String(failure.error ?? '').trim()).slice(0, 4000));
   what.rows.append(text);
   const drop = sxButton(t('Dismiss'), () => { dismissed.add(record.key); saveDismissed(); paintMotherBadge(); remedies.selected = null; paintRemedies(); }, { title: t('Dismiss this record · it stays in the ledger') });
   what.querySelector('.sx-head').append(drop);
   if (!matches.length) {
-    const none = sxBlock(host, t('Not classified yet'), t('MU/TH/UR does not know this condition. Telling the author is how it learns it.'));
+    const none = sxBlock(host, t('Not classified yet'), t('Diagnostics does not know this condition. Telling the author is how it learns it.'));
     none.querySelector('.sx-head').append(sxButton(t('Report ↗'), () => openFeedback(), { tone: 'primary' }));
     return;
   }
@@ -10927,7 +10931,7 @@ function paintRemedies() {
   let matches = null;
   remedies.hint = '';
   if (text) {
-    if (/special order|937|expendable/i.test(text)) { remedies.hint = t('NO SPECIAL ORDERS ON THIS SHIP. THE CREW IS NOT EXPENDABLE. RESTATE INQUIRY.'); matches = []; }
+    if (/special order|937|expendable/i.test(text)) { remedies.hint = t('NO SPECIAL ORDERS ON THIS SHIP. THE AGENTS ARE NOT EXPENDABLE. RESTATE INQUIRY.'); matches = []; }
     else if (/^(help|\?)$/i.test(text)) remedies.hint = t('INQUIRY ACCEPTS: AN AGENT NAME · A SYMPTOM · A KEYWORD SUCH AS TIMEOUT, LOGIN, PORT, BUDGET.');
     else {
       const byError = diagnose(text);
@@ -10951,7 +10955,7 @@ function paintRemedies() {
     chips.append(node);
   };
   chip('all', matches ? t('Matches') : t('All'), pool.length);
-  if (!matches) chip('room', t('This room'), records.length);
+  if (!matches) chip('room', t('This project'), records.length);
   chip('blocking', t('Blocking'), pool.filter((condition) => condition.severity === 'blocking').length);
   for (const agent of agents) {
     const count = pool.filter((condition) => condition.agent === agent).length;
@@ -10967,7 +10971,7 @@ function paintRemedies() {
       first ??= { kind: 'record', key: record.key };
       rows.append(node);
     }
-    if (!records.length) rows.append(el('p', 'sx-hint remedy-empty', t('Nothing happened in this room. Every system nominal.')));
+    if (!records.length) rows.append(el('p', 'sx-hint remedy-empty', t('Nothing happened in this project. Every system nominal.')));
   } else {
     const shown = pool.filter((condition) => filter === 'all' || (filter === 'blocking' && condition.severity === 'blocking') || (filter.startsWith('agent:') && condition.agent === filter.slice(6)));
     for (const condition of shown) {
@@ -11020,7 +11024,7 @@ function bootMother() {
   mother.boot.textContent = [
     t('{n} agents · {ready} ready', { n: state.agents.size, ready: online }),
     `/${els.project.textContent}`,
-    open === 1 ? t('1 condition in this room') : open ? t('{n} conditions in this room', { n: open }) : t('nothing open'),
+    open === 1 ? t('1 condition in this project') : open ? t('{n} conditions in this project', { n: open }) : t('nothing open'),
   ].join(' · ');
 }
 
@@ -11159,11 +11163,11 @@ function renderCommandCard(event) {
   const head = el('div', 'head');
   // The answer to an order of BISHOP: who answered, where, and which order; the card starts no turn.
   const said = bishop ? t('@{agent} in {room} · order {step} of {total} · plan {plan}', { agent: bishop.agent, room: bishop.name, step: bishop.step, total: bishop.total, plan: bishop.plan }) : null;
-  head.append(el('b', null, bishop ? 'BISHOP' : `/${name}`), el('span', null, said ?? (run?.line ? runTitle(run) : title ?? name)), el('span', 'args', args.join(' ')));
+  head.append(el('b', null, bishop ? t('Coordinator') : `/${name}`), el('span', null, said ?? (run?.line ? runTitle(run) : title ?? name)), el('span', 'args', args.join(' ')));
   if (bishop) {
     markBishopOrder(bishop, ok === false ? 'failed' : 'done');
     if (bishop.link) {
-      const go = el('a', 'args', bishop.cut ? t('the rest, in the room') : t('see it in the room'));
+      const go = el('a', 'args', bishop.cut ? t('the rest, in the project') : t('see it in the project'));
       go.href = bishop.link;
       go.target = '_blank';
       go.rel = 'noopener';
@@ -11181,7 +11185,7 @@ function renderCommandCard(event) {
     // A command the human ran by hand was photographed first: the same UNDO as a CONTROL turn.
     if (run.checkpointId && run.files?.length) {
       node.id = `control-${run.checkpointId}`;
-      const undo = el('button', 'undo', t('UNDO · RESTORE CHECKPOINT'));
+      const undo = el('button', 'undo', t('UNDO · GO BACK TO THE RESTORE POINT'));
       undo.type = 'button';
       undo.title = t('Put the project files back exactly as they were before this command. What it sent off this machine does not come back.');
       undo.addEventListener('click', async () => {
@@ -11191,7 +11195,7 @@ function renderCommandCard(event) {
           const result = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
           undo.textContent = t('RESTORED');
-        } catch (error) { toast(`MU/TH/UR › ${error.message}`); undo.disabled = false; }
+        } catch (error) { toast(`${t('Diagnostics › ')}${error.message}`); undo.disabled = false; }
       });
       node.append(undo);
     }
@@ -11240,10 +11244,10 @@ function renderEyecat(event) {
     }
   };
   const confirm = el('button', 'primary', t('IT IS FALSE'));
-  confirm.title = t('Files it as an aberration and takes the memory out of every turn. Reversible from NOSTROMO.');
+  confirm.title = t('Files it as an aberration and takes the memory out of every turn. Reversible from the memory map.');
   confirm.addEventListener('click', () => { void answer('confirm'); });
   const dismiss = el('button', null, t('IT STANDS'));
-  dismiss.title = t('The room was right. This pair is never raised again.');
+  dismiss.title = t('The project was right. This pair is never raised again.');
   dismiss.addEventListener('click', () => { void answer('dismiss'); });
   actions.append(confirm, dismiss);
   node.append(actions);
@@ -11258,7 +11262,7 @@ function settleEyecat(event) {
   if (!card) return;
   card.querySelector('.eyecat-actions')?.remove();
   const settled = el('div', 'eyecat-settled');
-  settled.textContent = verdict === 'aberration' ? t('FILED AS AN ABERRATION · THE MEMORY IT REFUTES NO LONGER TRAVELS') : t('THE ROOM STANDS BY IT');
+  settled.textContent = verdict === 'aberration' ? t('FILED AS AN ABERRATION · THE MEMORY IT REFUTES NO LONGER TRAVELS') : t('THE PROJECT STANDS BY IT');
   card.classList.add(verdict === 'aberration' ? 'filed' : 'stands');
   card.append(settled);
 }
@@ -11284,7 +11288,7 @@ async function switchModule(item) {
   if (item.id === 'ripley') { state.ripley = Boolean(result.enabled); syncViewerMode(); }
   if (item.id === 'ash') syncAshUI(Boolean(result.enabled));
   if (result.capabilities) { state.capabilities = result.capabilities; renderCreateScopes(); }
-  toast(`MU/TH/UR › ${t(result.enabled ? '{name} enabled' : '{name} disabled', { name: item.name })}${result.enabled && result.model ? ` · ${result.model}` : ''}.`);
+  toast(`${t('Diagnostics › ')}${t(result.enabled ? '{name} enabled' : '{name} disabled', { name: t(item.name) })}${result.enabled && result.model ? ` · ${result.model}` : ''}.`);
   await refreshModules();
   return result;
 }
@@ -11300,22 +11304,22 @@ function drawFilesTarget() {
 function drawFilesSettings(host) {
   const tree = surfaces.find((one) => one.key === 'tree');
   const where = sxBlock(host, t('Where they open'), t('Each one remembers how you left it. This is the same choice, without opening them.'));
-  sxRow(where, 'Finder', t("The project's files, beside the conversation or as a window of their own."), sxSeg([
+  sxRow(where, t('Files'), t("The project's files, beside the conversation or as a window of their own."), sxSeg([
     { value: 'base', text: t('Beside') }, { value: 'window', text: t('Window') },
   ], modeOf(tree) === 'window' ? 'window' : 'base', (value) => {
     if (els.tree && !els.tree.hidden) setSurfaceMode(tree, value);
     else { surfaceModes.tree = value; rememberSurfaces(); }
     syncSettingsCards();
-  }, { label: 'Finder' }));
-  sxRow(where, t('Servers'), t('The browser on the servers answering on this computer: docked beside the conversation, or floating.'), sxSeg([
+  }, { label: t('Files') }));
+  sxRow(where, t('Your servers'), t('Your servers, the ones answering on this computer: docked beside the conversation, or floating.'), sxSeg([
     { value: 'dock', text: t('Docked') }, { value: 'window', text: t('Window') },
-  ], browserWindow.floating ? 'window' : 'dock', (value) => { setBrowserFloating(value === 'window', { animate: false }); }, { label: t('Servers') }));
-  sxRow(where, t('File viewer'), t('It always opens beside the conversation: opening a file never splits the room on its own. From there it can float as a window.'));
+  ], browserWindow.floating ? 'window' : 'dock', (value) => { setBrowserFloating(value === 'window', { animate: false }); }, { label: t('Your servers') }));
+  sxRow(where, t('File viewer'), t('It always opens beside the conversation: opening a file never splits the project on its own. From there it can float as a window.'));
 
   const show = sxBlock(host, t('What they can show'), t('Two modules decide it; their switches are the same ones as in MODULES.'));
   for (const [id, label, hint] of [
-    ['ripley', t('Sealed preview'), t('HTML, SVG and Markdown from the project render in the file viewer, inside a frame that reaches nothing. Off, files show as source.')],
-    ['playwright', t("The agents' browser"), t('A browser without a window that reaches only this room and the servers you start, on the turns that ask to look at a page.')],
+    ['ripley', t('Preview'), t('HTML, SVG and Markdown from the project render in the file viewer, inside a frame that reaches nothing. Off, files show as source.')],
+    ['playwright', t("Test browser"), t('A browser without a window that reaches only this project and the servers you start, on the turns that ask to look at a page.')],
   ]) {
     const item = modules.items.find((one) => one.id === id);
     if (!item) { sxRow(show, label, t('Reading…')); continue; }
@@ -11461,7 +11465,7 @@ function removeModuleButton(item, { className = 'remove-module', text = t('UNINS
       if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
       modules.items = payload.extensions ?? modules.items;
       barModulesChanged();
-      toast(t('MU/TH/UR › {name} removed.', { name: item.name }));
+      toast(t('Diagnostics › {name} removed.', { name: item.name }));
       renderModules();
     } catch (error) {
       toast(t('It was not removed: {error}', { error: error.message }));
@@ -11479,10 +11483,10 @@ function cardShell(item, { on, state: stateText }) {
   // that goes and looks for a newer one.
   const head = el('div', 'head');
   const top = el('div', 'top');
-  top.append(el('h4', null, item.name));
+  top.append(el('h4', null, t(item.name)));
   if (item.external) {
     const dev = el('span', 'dev-tag', t('DEV'));
-    dev.title = t('Your module · {where} · {file}', { where: item.origin === 'project' ? t('this project') : t('every room'), file: item.file });
+    dev.title = t('Your module · {where} · {file}', { where: item.origin === 'project' ? t('this project') : t('every project'), file: item.file });
     top.append(dev);
   }
   top.append(el('span', `state ${stateText === 'INSTALLING' ? 'running' : on ? 'on' : 'off'}`, stateText));
@@ -11537,7 +11541,7 @@ function cardShell(item, { on, state: stateText }) {
   }
   head.append(line);
   if (item.status?.detail) head.append(el('div', 'detail', item.status.detail));
-  if (item.external) head.append(el('div', 'detail', `${item.origin === 'project' ? t('THIS PROJECT') : t('EVERY ROOM')} · ${item.file}`));
+  if (item.external) head.append(el('div', 'detail', `${item.origin === 'project' ? t('THIS PROJECT') : t('EVERY PROJECT')} · ${item.file}`));
   card.append(head);
 
   // (What it does now lives in the first floor, under the name.)
@@ -11594,7 +11598,7 @@ function cardSecrets(panel, item) {
       });
       const result = await response.json().catch(() => ({}));
       input.value = '';
-      if (!response.ok) toast(`MU/TH/UR › ${result.error ?? t('{name} could not keep {label}.', { name: item.name, label: secret.label })}`);
+      if (!response.ok) toast(`${t('Diagnostics › ')}${result.error ?? t('{name} could not keep {label}.', { name: item.name, label: secret.label })}`);
       await refreshModules();
     };
     input.addEventListener('change', () => { if (input.value.trim()) void keep(input.value.trim()); });
@@ -11630,7 +11634,7 @@ function cardControls(panel, item) {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: control.key, value }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) toast(`MU/TH/UR › ${result.error ?? t('{name} could not save {label}.', { name: item.name, label: control.label })}`);
+    if (!response.ok) toast(`${t('Diagnostics › ')}${result.error ?? t('{name} could not save {label}.', { name: item.name, label: control.label })}`);
     await refreshModules();
   };
   for (const control of item.controls) {
@@ -11676,7 +11680,7 @@ modules.file?.addEventListener('change', async () => {
   const file = modules.file.files?.[0];
   modules.file.value = '';
   if (!file) return;
-  if (!/\.m?js$/.test(file.name)) { toast(t('MU/TH/UR › a module is a .mjs file.')); return; }
+  if (!/\.m?js$/.test(file.name)) { toast(t('Diagnostics › a module is a .mjs file.')); return; }
   const install = await roomAsk({
     title: t('Install {name}?', { name: file.name }),
     body: t('A module runs inside MADRE, with your permissions, on this computer. MADRE checks that it loads and keeps to the house rules before installing it — it cannot check what it intends. Install it only if you trust where it came from.'),
@@ -11692,11 +11696,11 @@ modules.file?.addEventListener('change', async () => {
       body: JSON.stringify({ text, name: file.name, scope: 'user' }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? 'that module was not installed.'}`); return; }
+    if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? 'that module was not installed.'}`); return; }
     modules.items = result.extensions ?? modules.items;
     renderModules();
     barModulesChanged();
-    toast(`MU/TH/UR › ${t('{name} installed', { name: result.installed.name })}${result.installed.version ? ` · v${result.installed.version}` : ''}. ${t('It loads in every room on this computer.')}`);
+    toast(`${t('Diagnostics › ')}${t('{name} installed', { name: result.installed.name })}${result.installed.version ? ` · v${result.installed.version}` : ''}. ${t('It loads in every project on this computer.')}`);
     // A key the contract does not answer to. Not fatal — a module written for a newer MADRE may
     // carry fields this one has not learned — but a misspelling is far likelier, and it used to
     // install in silence and leave the author wondering why their card came out empty.
@@ -11716,9 +11720,9 @@ async function refreshModuleFile(item, button) {
     return { ok: response.ok, result: await response.json().catch(() => ({})) };
   };
   const looked = await ask(false);
-  if (!looked.ok) { toast(`MU/TH/UR › ${looked.result.error ?? 'that module could not be checked.'}`); button.disabled = false; return; }
+  if (!looked.ok) { toast(`${t('Diagnostics › ')}${looked.result.error ?? 'that module could not be checked.'}`); button.disabled = false; return; }
   const { origin, current, candidate, same } = looked.result;
-  if (same) { toast(t('MU/TH/UR › {name} is already {version} · {from}', { name: item.name, version: current ?? t('what is published'), from: origin.from })); button.disabled = false; return; }
+  if (same) { toast(t('Diagnostics › {name} is already {version} · {from}', { name: item.name, version: current ?? t('what is published'), from: origin.from })); button.disabled = false; return; }
   const update = await roomAsk({
     title: t('Update {name}?', { name: item.name }),
     body: `${current ?? t('unversioned')} → ${candidate ?? t('unversioned')}\n${t('From {from}', { from: origin.from })}\n\n${t('It loads and keeps to the house rules. What it intends, only you can judge.')}`,
@@ -11726,11 +11730,11 @@ async function refreshModuleFile(item, button) {
   });
   if (update !== 'update') { button.disabled = false; return; }
   const done = await ask(true);
-  if (!done.ok) { toast(`MU/TH/UR › ${done.result.error ?? 'the module was not updated.'}`); button.disabled = false; return; }
+  if (!done.ok) { toast(`${t('Diagnostics › ')}${done.result.error ?? 'the module was not updated.'}`); button.disabled = false; return; }
   modules.items = done.result.extensions ?? modules.items;
   renderModules();
   barModulesChanged();
-  toast(t('MU/TH/UR › {name} is now {version}.', { name: item.name, version: done.result.installed.version ?? t('the newest file') }));
+  toast(t('Diagnostics › {name} is now {version}.', { name: item.name, version: done.result.installed.version ?? t('the newest file') }));
 }
 
 // Fetching a newer version of what a module drives. MADRE shows the command, the human reads it,
@@ -11830,21 +11834,21 @@ async function updateModule(item, button) {
   const asked = await ask(false);
   if (!asked.ok) {
     if (asked.result.download) window.open(asked.result.download, '_blank', 'noopener');
-    toast(`MU/TH/UR › ${asked.result.error ?? 'that could not be updated from here.'}`);
+    toast(`${t('Diagnostics › ')}${asked.result.error ?? 'that could not be updated from here.'}`);
     button.disabled = false;
     return;
   }
   // What runs is said before it runs, in the room's alert; its progress shows in the progress sheet.
   const latest = item.update?.latest;
   const yes = await roomAsk({
-    title: latest ? t('Update {name} to {version}', { name: sentenceWords(item.name), version: latest }) : t('Update {name}', { name: sentenceWords(item.name) }),
+    title: latest ? t('Update {name} to {version}', { name: sentenceWords(t(item.name)), version: latest }) : t('Update {name}', { name: sentenceWords(t(item.name)) }),
     body: [t('This runs on this computer, outside the project.'), asked.result.plan.note].filter(Boolean).join(' '),
     command: asked.result.plan.display,
     choices: [{ value: 'no', label: t('Not now'), focus: true }, { value: 'go', label: t('Update'), tone: 'primary' }],
   });
   if (yes !== 'go') { button.disabled = false; return; }
   const ran = await ask(true);
-  if (!ran.ok) { toast(`MU/TH/UR › ${ran.result.error ?? 'the update did not start.'}`); button.disabled = false; return; }
+  if (!ran.ok) { toast(`${t('Diagnostics › ')}${ran.result.error ?? 'the update did not start.'}`); button.disabled = false; return; }
   await refreshModules();
 }
 
@@ -11881,7 +11885,7 @@ async function renderEconomy(box = economyPanel.body) {
   const pct = (value) => (Number.isFinite(value) ? `${Math.round(value * 100)}%` : '—');
   let read;
   try { read = await fetch('/api/economy').then((response) => response.json()); }
-  catch { box.replaceChildren(el('p', 'note', t('ECONOMY UNAVAILABLE'))); return; }
+  catch { box.replaceChildren(el('p', 'note', t('SPENDING UNAVAILABLE'))); return; }
   box.replaceChildren();
   if (!read?.turns) {
     box.append(el('p', 'note', t('NO TURNS WEIGHED YET · SEND A MESSAGE AND THIS FILLS')));
@@ -11894,7 +11898,7 @@ async function renderEconomy(box = economyPanel.body) {
   // different kinds have no shape to draw, and drawing one anyway is how a panel starts lying.
   const strip = el('div', 'economy-strip');
   for (const [value, label, hint] of [
-    [count(read.billed ?? read.turns), t('TURNS WEIGHED'), t('every turn this room has been billed for')],
+    [count(read.billed ?? read.turns), t('TURNS WEIGHED'), t('every turn this project has been billed for')],
     [count((totals.input ?? 0) + (totals.created ?? 0)), t('INPUT CHARGED'), t('fresh reading, plus what was written into a cache (billed too) · the cache read back is apart')],
     [count(totals.output), t('OUTPUT CHARGED'), t('tokens written back · the dearer half')],
     [count(saved.tokens), t('NOT CHARGED IN FULL'), t('read back from a cache (a fraction of the price, or of the plan) plus what was never sent')],
@@ -11918,17 +11922,17 @@ async function renderEconomy(box = economyPanel.body) {
     [t('NEVER SENT'), count(saved.unsentTokens), t('briefing a turn had no use for · estimated from characters, not measured')],
     [t('OF THE INPUT'), pct(saved.cachedShare), t('the share of everything read that came back from a cache')],
   ]);
-  first.append(el('p', 'note', t('One half is measured and the other is estimated, and they are never added without saying so. Neither of them is Ash: Ash shortens the answer, which is the next reading.')));
+  first.append(el('p', 'note', t('One half is measured and the other is estimated, and they are never added without saying so. Neither of them is the Token saver: the Token saver shortens the answer, which is the next reading.')));
   box.append(first);
 
   // 1b · The turns with no bill at all. Nothing here is compared to anything: a count, and the
   // scale of a paid turn beside it so the count means something.
   if (read.free?.turns) {
     const free = el('div', 'card-block');
-    free.append(cardHead('home', t('TURNS THE ROOM ANSWERED ITSELF')));
+    free.append(cardHead('home', t('TURNS THE PROJECT ANSWERED ITSELF')));
     metrics(free, [
       [t('FREE TURNS'), count(read.free.turns), t('answered by @madre on this computer · no provider, no bill')],
-      [t('OF EVERY TURN'), pct(read.free.share), t('of the turns weighed in this room')],
+      [t('OF EVERY TURN'), pct(read.free.share), t('of the turns weighed in this project')],
       [t('A PAID TURN'), read.free.paidOutputMedian ? `${count(read.free.paidOutputMedian)}↑` : '—', t('the middle paid turn here · what the others cost, not what these would have')],
     ]);
     free.append(el('p', 'note', t('These turns have no bill because nothing left this computer to answer them. MADRE does not say what they would have cost somewhere else: nobody measured that.')));
@@ -11937,7 +11941,7 @@ async function renderEconomy(box = economyPanel.body) {
 
   // 2 · Ash, observed rather than claimed.
   const second = el('div', 'card-block');
-  second.append(cardHead('cut', t('WHAT ASH DOES TO AN ANSWER')));
+  second.append(cardHead('cut', t('WHAT THE TOKEN SAVER DOES TO AN ANSWER')));
   // The price before the promise. Ash concatenates an instruction to every prompt it is on, so it
   // ALWAYS costs input — and the room measures that block exactly, because it is the block the
   // room itself wrote. Showing only the shorter answer below, which is observed and conditional,
@@ -11945,14 +11949,14 @@ async function renderEconomy(box = economyPanel.body) {
   const block = read.blocks.find((one) => one.id === 'ash');
   if (block) {
     metrics(second, [
-      [t('ASH ADDS'), t('{n} characters', { n: block.perTurn }), t('to every prompt it is on · measured, not estimated')],
+      [t('TOKEN SAVER ADDS'), t('{n} characters', { n: block.perTurn }), t('to every prompt it is on · measured, not estimated')],
       [t('IN TOKENS'), `≈${Math.round(block.perTurn / CH_PER_TOKEN)}`, t('at {rate} characters per token · an estimate', { rate: CH_PER_TOKEN })],
-      [t('TURNS CARRYING IT'), count(block.turns), t('of the {n} weighed in this room', { n: count(read.turns) })],
+      [t('TURNS CARRYING IT'), count(block.turns), t('of the {n} weighed in this project', { n: count(read.turns) })],
     ]);
-    second.append(el('p', 'note', t('What Ash costs is certain and measured here. What it saves is not: the shorter answer below is observed, never promised. Output is the dearer half of every bill, so the trade is usually favourable — MADRE does not turn it into money because it does not know your prices.')));
+    second.append(el('p', 'note', t('What the Token saver costs is certain and measured here. What it saves is not: the shorter answer below is observed, never promised. Output is the dearer half of every bill, so the trade is usually favourable — MADRE does not turn it into money because it does not know your prices.')));
   }
   if (read.ash?.agents?.length) ashComparison(second, read.ash);
-  else second.append(el('p', 'note', t('No turns with the switch recorded yet. Leave Ash on for a few turns and off for a few more, and this fills.')));
+  else second.append(el('p', 'note', t('No turns with the switch recorded yet. Leave the Token saver on for a few turns and off for a few more, and this fills.')));
   box.append(second);
 
   // 3 · Where what WAS paid for went.
@@ -12032,7 +12036,7 @@ function ashComparison(box, ash) {
     const group = el('div', 'ash-agent');
     group.append(el('b', null, String(agent.agent).toUpperCase()));
     if (agent.comparable) {
-      for (const [side, label, turns] of [['on', t('with ASH'), agent.on.turns], ['off', t('without ASH'), agent.off.turns]]) {
+      for (const [side, label, turns] of [['on', t('with TOKEN SAVER'), agent.on.turns], ['off', t('without TOKEN SAVER'), agent.off.turns]]) {
         const row = el('div', `ash-bar ${side}`);
         const bar = el('i');
         bar.style.setProperty('--fill', `${Math.max(2, Math.round((agent[side].medianOutput / widest) * 100))}%`);
@@ -12040,7 +12044,7 @@ function ashComparison(box, ash) {
         group.append(row);
       }
     } else {
-      group.append(el('p', 'ash-waiting', t('{n} turns with ASH, {m} without · {min} of each before this can be read', {
+      group.append(el('p', 'ash-waiting', t('{n} turns with TOKEN SAVER, {m} without · {min} of each before this can be read', {
         n: agent.on.turns, m: agent.off.turns, min: ash.minTurns,
       })));
     }
@@ -12048,7 +12052,7 @@ function ashComparison(box, ash) {
     // vary anyway, the honest thing on the screen is that there is nothing to read here yet.
     if (agent.comparable) {
       group.append(el('p', agent.readable ? 'ash-verdict' : 'ash-verdict noise', agent.readable
-        ? t('{pct} shorter with ASH, wider than this agent varies here (±{on} and ±{off})', { pct: `${Math.round(Math.abs(agent.share) * 100)}%`, on: agent.on.spread.toLocaleString(), off: agent.off.spread.toLocaleString() })
+        ? t('{pct} shorter with TOKEN SAVER, wider than this agent varies here (±{on} and ±{off})', { pct: `${Math.round(Math.abs(agent.share) * 100)}%`, on: agent.on.spread.toLocaleString(), off: agent.off.spread.toLocaleString() })
         : t('the difference fits inside how much this agent varies anyway (±{on} and ±{off}) · nothing to read yet', { on: agent.on.spread.toLocaleString(), off: agent.off.spread.toLocaleString() })));
     }
     list.append(group);
@@ -12060,7 +12064,7 @@ function ashComparison(box, ash) {
 // The economy, on the card of the thing it is about. It fills as the room is used, because it
 // weighs turns, not history.
 function ashReading(panel) {
-  const box = cardBlock(panel, t('ECONOMY · THIS ROOM'));
+  const box = cardBlock(panel, t('SPENDING · THIS PROJECT'));
   box.id = 'ash-economy';
   box.append(el('p', 'note', t('READING…')));
   paintAshEconomy(box);
@@ -12074,7 +12078,7 @@ function paintAshEconomy(box) {
   const pct = (value) => (Number.isFinite(value) ? `${Math.round(value * 100)}%` : '—');
   const count = (value) => (Number.isFinite(value) ? value.toLocaleString() : '—');
   return fetch('/api/economy').then((response) => response.json()).then((read) => {
-    box.replaceChildren(el('h5', null, t('ECONOMY · THIS ROOM')));
+    box.replaceChildren(el('h5', null, t('SPENDING · THIS PROJECT')));
     if (!read?.turns) {
       box.append(el('p', 'note', t('NO TURNS WEIGHED YET · SEND A MESSAGE AND THIS FILLS')));
       return;
@@ -12089,7 +12093,7 @@ function paintAshEconomy(box) {
       [t('SPENT OUT'), count(totals.output), t('output tokens, the dearer half')],
       [t('TURNS'), count(read.turns), t('weighed so far')],
     ]);
-  }).catch(() => { box.replaceChildren(el('h5', null, t('ECONOMY · THIS ROOM')), el('p', 'note', t('ECONOMY UNAVAILABLE'))); });
+  }).catch(() => { box.replaceChildren(el('h5', null, t('SPENDING · THIS PROJECT')), el('p', 'note', t('SPENDING UNAVAILABLE'))); });
 }
 
 // INTENCIONES in MODULES: what was measured on this project, per agent that takes an effort, and
@@ -12401,7 +12405,7 @@ async function paintIntentsWindow() {
     return;
   }
   page.append(el('p', 'intents-verdict', read.last ? intentsOutcome(read.last) : t('No test is running. One starts from the line under the box, or from MODULES → INTENCIONES.')));
-  const back = el('button', 'custom-accept', t('BACK TO THE ROOM'));
+  const back = el('button', 'custom-accept', t('BACK TO THE PROJECT'));
   back.type = 'button';
   back.addEventListener('click', () => openIntentsWindow(false));
   const row = el('div', 'actions');
@@ -12418,7 +12422,7 @@ function builtinCard(item) {
 
   if (item.id === 'ollama') {
     const info = item.ollama ?? { running: false, models: [], settings: {} };
-    const read = cardBlock(panel, t('LOCAL BRAIN'));
+    const read = cardBlock(panel, t('LOCAL AI'));
     const status = el('dl', 'ollama-status');
     const put = (k, v) => { status.append(el('dt', null, k), el('dd', null, v)); };
     put(t('SERVER'), info.running ? t('running · {host}', { host: info.host }) : t('not running'));
@@ -12437,7 +12441,7 @@ function builtinCard(item) {
       for (const [role, model, present, label] of [
         ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('EMBEDDINGS')],
         ['archivist', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('ARCHIVIST')],
-        ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the room')],
+        ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the project')],
       ]) {
         if (present) {
           const box = el('label', 'toggle');
@@ -12453,8 +12457,8 @@ function builtinCard(item) {
             pull.disabled = true;
             const response = await fetch('/api/ollama/pull', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
             const result = await response.json().catch(() => ({}));
-            if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? t('could not pull')}`); pull.disabled = false; }
-            else toast(t('MU/TH/UR › pulling {model}; progress shows in the room.', { model }));
+            if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? t('could not pull')}`); pull.disabled = false; }
+            else toast(t('Diagnostics › pulling {model}; progress shows in the project.', { model }));
           });
           row.append(pull);
         }
@@ -12468,7 +12472,7 @@ function builtinCard(item) {
           const response = await fetch('/api/extensions/ollama/install', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
           const result = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
-          toast(result.enabled ? t('MU/TH/UR › OLLAMA ON · memory embeds and distils on this machine.') : t('MU/TH/UR › OLLAMA OFF · back to the providers.'));
+          toast(result.enabled ? t('Diagnostics › LOCAL AI ON · memory embeds and distils on this machine.') : t('Diagnostics › LOCAL AI OFF · back to the providers.'));
           await refreshModules();
         } catch (error) { toast(t('Ollama could not change state: {error}', { error: error.message })); toggle.disabled = false; }
       });
@@ -12490,7 +12494,7 @@ function builtinCard(item) {
           const result = await response.json().catch(() => ({}));
           if (!response.ok) {
             if (result.download) window.open(result.download, '_blank', 'noopener');
-            toast(`MU/TH/UR › ${result.error ?? `HTTP ${response.status}`}`);
+            toast(`${t('Diagnostics › ')}${result.error ?? `HTTP ${response.status}`}`);
             go.disabled = false;
           } else { await refreshModules(); }
         });
@@ -12501,13 +12505,13 @@ function builtinCard(item) {
         get.addEventListener('click', () => window.open(info.install.download, '_blank', 'noopener'));
         actions.append(get);
       }
-      panel.append(el('p', 'confirm', t('Without Ollama running, the room keeps using its providers. Start it, then RECHECK.')));
+      panel.append(el('p', 'confirm', t('Without Ollama running, the project keeps using its providers. Start it, then RECHECK.')));
     }
     return card;
   }
 
   if (item.id === 'ripley') {
-    const toggle = el('button', on ? null : 'primary', on ? t('DISABLE RIPLEY') : t('ENABLE RIPLEY'));
+    const toggle = el('button', on ? null : 'primary', on ? t('DISABLE PREVIEW') : t('ENABLE PREVIEW'));
     toggle.type = 'button';
     toggle.addEventListener('click', async () => {
       toggle.disabled = true;
@@ -12517,10 +12521,10 @@ function builtinCard(item) {
         if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
         state.ripley = Boolean(result.enabled);
         syncViewerMode();
-        toast(result.enabled ? t('MU/TH/UR › RIPLEY ON · HTML, SVG and Markdown render in the file viewer, in a sealed frame.') : t('MU/TH/UR › RIPLEY OFF · files show as source.'));
+        toast(result.enabled ? t('Diagnostics › PREVIEW ON · HTML, SVG and Markdown render in the file viewer, in a sealed frame.') : t('Diagnostics › PREVIEW OFF · files show as source.'));
         await refreshModules();
       } catch (error) {
-        toast(t('RIPLEY could not change state: {error}', { error: error.message }));
+        toast(t('Preview could not change state: {error}', { error: error.message }));
       } finally {
         toggle.disabled = false;
       }
@@ -12541,16 +12545,16 @@ function builtinCard(item) {
         if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
         syncAshUI(Boolean(result.enabled));
         toast(result.enabled
-          ? t('ASH ON · every agent answers in compact prose. What you write is never altered.')
-          : t('ASH OFF · agents answer at their own length.'));
+          ? t('TOKEN SAVER ON · every agent answers in compact prose. What you write is never altered.')
+          : t('TOKEN SAVER OFF · agents answer at their own length.'));
         await refreshModules();
       } catch (error) {
-        toast(t('Ash could not change state: {error}', { error: error.message }));
+        toast(t('Token saver could not change state: {error}', { error: error.message }));
       } finally {
         toggle.disabled = false;
       }
     });
-    const open = el('button', null, t('SEE THE ECONOMY'));
+    const open = el('button', null, t('SEE SPENDING'));
     open.type = 'button';
     // The economy is Ash's own reading: it opens in Ash's window, at the size you want it.
     open.addEventListener('click', () => floatModule('ash'));
@@ -12586,7 +12590,7 @@ function builtinCard(item) {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) toast(result.error ?? t('{name} could not be switched.', { name: item.name }));
     else {
-      toast(`MU/TH/UR › ${t(result.enabled ? '{name} enabled' : '{name} disabled', { name: item.name })}${result.enabled && result.model ? ` · ${result.model}` : ''}.`);
+      toast(`${t('Diagnostics › ')}${t(result.enabled ? '{name} enabled' : '{name} disabled', { name: t(item.name) })}${result.enabled && result.model ? ` · ${result.model}` : ''}.`);
       if (result.capabilities) { state.capabilities = result.capabilities; renderCreateScopes(); }
     }
     await refreshModules();
@@ -12670,13 +12674,13 @@ const MODULE_FACES = {
   ollama: { line: 'Memory by meaning, on this machine', wide: true, window: true, icon: '<rect x="3.5" y="4" width="13" height="9.5" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 16.5h5M10 13.5v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path class="ic-f" d="M10 6.4c-1.6 0-2.6 1-2.6 2.3 0 .9.5 1.5 1.1 1.8v.8h3v-.8c.6-.3 1.1-.9 1.1-1.8 0-1.3-1-2.3-2.6-2.3z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' },
   'image-studio': { line: 'Images for the agents, with your key', icon: '<rect x="3.25" y="4.25" width="13.5" height="11.5" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M3.8 14.2l3.7-3.6 2.6 2.4 1.9-1.6 4 3.3H5.9z" fill="currentColor" fill-opacity=".22" stroke="none"/><path d="M3.8 14.2l3.7-3.6 2.6 2.4 1.9-1.6 4 3.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M13.6 6.1v2.4M12.4 7.3h2.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' },
   playwright: { line: 'A browser the agents can look through', icon: '<rect x="3" y="4" width="14" height="12" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 7.6h14" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M9 9.6v5.2l1.4-1.4 1 2.1 1-.5-1-2.1h2z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' },
-  ripley: { line: 'Sealed preview of HTML, SVG and Markdown', icon: '<path d="M6 3.5h5.5l3.5 3.5v9.5H6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11.5 3.5V7H15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path class="ic-f" d="M7.6 12s1.1-2.1 2.9-2.1 2.9 2.1 2.9 2.1-1.1 2.1-2.9 2.1-2.9-2.1-2.9-2.1z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' },
-  'git-pulse': { line: 'The repository, posted to the room', icon: '<circle cx="5.5" cy="5" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5.5" cy="15" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 6.7v6.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="ic-f" d="M8.8 11h2l1.2-3.4 1.6 6 1.2-2.6h1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+  ripley: { line: 'Preview of HTML, SVG and Markdown', icon: '<path d="M6 3.5h5.5l3.5 3.5v9.5H6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11.5 3.5V7H15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path class="ic-f" d="M7.6 12s1.1-2.1 2.9-2.1 2.9 2.1 2.9 2.1-1.1 2.1-2.9 2.1-2.9-2.1-2.9-2.1z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' },
+  'git-pulse': { line: 'The repository, posted to the project', icon: '<circle cx="5.5" cy="5" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5.5" cy="15" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 6.7v6.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="ic-f" d="M8.8 11h2l1.2-3.4 1.6 6 1.2-2.6h1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
   runs: { line: 'Commands an agent asks you to run', icon: '<rect x="3" y="4" width="14" height="12" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M7.6 8.1v4.6l3.8-2.3z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' },
   choices: { line: 'Decisions as buttons, not paragraphs', icon: '<rect x="3.5" y="3.8" width="13" height="3.6" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><rect class="ic-f" x="3.5" y="8.2" width="13" height="3.6" rx="1.8" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.5"/><rect x="3.5" y="12.6" width="13" height="3.6" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>' },
   ahp: { line: 'Project state and handoffs in .ahp/', icon: '<path d="M4 8.5h9.5M10.5 5.5l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path class="ic-f" d="M16 11.5H6.5M9.5 8.5l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
   correo: { line: 'Send one email from your account', icon: '<rect x="3" y="5" width="14" height="10" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path class="ic-f" d="M3.6 6.2l6.4 4.6 6.4-4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' },
-  github: { line: 'Pull requests, issues and CI, in the room', icon: '<circle cx="5.5" cy="4.8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="5.5" cy="15.2" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 6.6v6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M14.5 13.4V8.2a2.6 2.6 0 0 0-2.6-2.6H9.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.6l-2 2 2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-f" cx="14.5" cy="15.2" r="1.8" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.6"/>' },
+  github: { line: 'Pull requests, issues and CI, in the project', icon: '<circle cx="5.5" cy="4.8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="5.5" cy="15.2" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 6.6v6.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M14.5 13.4V8.2a2.6 2.6 0 0 0-2.6-2.6H9.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 3.6l-2 2 2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle class="ic-f" cx="14.5" cy="15.2" r="1.8" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.6"/>' },
 };
 const MODULE_ANY = '<path d="M7.5 4.5h2.2a1.6 1.6 0 1 1 3.1 0H15v3.2a1.6 1.6 0 1 1 0 3.1V15h-3.2a1.6 1.6 0 1 0-3.1 0H5.5v-3.6a1.6 1.6 0 1 0 0-3.1V4.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>';
 const moduleFace = (item) => MODULE_FACES[item.id] ?? { line: null, icon: MODULE_ANY };
@@ -12715,7 +12719,7 @@ function moduleTile(item) {
     top.append(sxChip(item.fixed ? t('Always') : item.kind === 'builtin' ? (on ? t('Turned on') : t('Turned off')) : on ? t('Installed') : t('Not installed'), on ? 'on' : ''));
   }
   tile.append(top);
-  const name = el('b', 'mods-name', item.name);
+  const name = el('b', 'mods-name', t(item.name));
   if (item.external) name.append(el('span', 'mods-dev', t('Your module')));
   tile.append(name, el('span', 'mods-line', face.line ? t(face.line) : item.summary));
   // The ones with a reading of their own say so: their card can float as a small app.
@@ -12767,7 +12771,7 @@ function moduleGlance(item) {
     }).catch(() => { strip.classList.remove('loading'); fill([[t('State'), standing]]); });
   } else if (item.id === 'ollama') {
     const info = item.ollama ?? {};
-    fill([[t('Server'), info.running ? t('Running') : t('Stopped'), info.host ?? null], [t('Models'), String(info.models?.length ?? 0)], [t('Embeddings'), info.embedModel ?? t('none')], [t('State'), standing]]);
+    fill([[t('Server'), info.running ? t('Running') : t('Stopped'), info.host ?? null], [t('Models'), String(info.models?.length ?? 0)], [t('Smart search'), info.embedModel ?? t('none')], [t('State'), standing]]);
   }
   // A module that keeps no figures of its own gets none made up: its sheet opens on what it does.
   return strip.childElementCount || strip.classList.contains('loading') ? strip : document.createDocumentFragment();
@@ -12784,7 +12788,7 @@ function moduleFacts(host, item) {
     }
   }
   if (item.commands?.length) {
-    const block = sxBlock(host, t('Commands'), t('What it adds to the composer. Type it in the room.'));
+    const block = sxBlock(host, t('Commands'), t('What it adds to the Write box. Type it in the project.'));
     const list = el('div', 'mods-commands');
     for (const line of item.commands) list.append(el('code', null, line));
     block.rows.append(list);
@@ -12845,7 +12849,7 @@ function moduleSheet(host, item) {
       field.disabled = true;
       const response = await fetch(`/api/extensions/${item.id}/settings`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: control.key, value }) });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) toast(`MU/TH/UR › ${result.error ?? t('{name} could not save {label}.', { name: item.name, label: control.label })}`);
+      if (!response.ok) toast(`${t('Diagnostics › ')}${result.error ?? t('{name} could not save {label}.', { name: item.name, label: control.label })}`);
       await refreshModules();
     };
     for (const control of item.controls) {
@@ -12874,7 +12878,7 @@ function moduleSheet(host, item) {
 
   // What it reads, at the size of its sheet or its window.
   if (item.id === 'ash') {
-    const block = sxBlock(host, t('Economy'), t('What this room was charged, what it was not, and what Ash does to an answer. Measured here, never promised.'), { className: 'mods-reading' });
+    const block = sxBlock(host, t('Spending'), t('What this project was charged, what it was not, and what the Token saver does to an answer. Measured here, never promised.'), { className: 'mods-reading' });
     const app = el('div', 'module-app economy-app');
     block.rows.append(app);
     void renderEconomy(app);
@@ -12910,19 +12914,19 @@ function ollamaBlock(host, item) {
         go.disabled = true;
         const response = await fetch(step.path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) { if (result.download) window.open(result.download, '_blank', 'noopener'); toast(`MU/TH/UR › ${result.error ?? `HTTP ${response.status}`}`); go.disabled = false; }
+        if (!response.ok) { if (result.download) window.open(result.download, '_blank', 'noopener'); toast(`${t('Diagnostics › ')}${result.error ?? `HTTP ${response.status}`}`); go.disabled = false; }
         else await refreshModules();
       }, { tone: 'primary' });
       sxRow(block, step.label, step.note, go);
     } else if (info.install?.download) sxRow(block, t('Get Ollama'), null, sxButton(t('Download ↗'), () => window.open(info.install.download, '_blank', 'noopener'), { tone: 'primary' }));
-    sxFoot(block, t('Without Ollama running, the room keeps using its providers.'));
+    sxFoot(block, t('Without Ollama running, the project keeps using its providers.'));
     return;
   }
-  const roles = sxBlock(host, t('Roles'), t('What the local brain does in this room.'));
+  const roles = sxBlock(host, t('Roles'), t('What Local AI does in this project.'));
   for (const [role, model, present, label, hint] of [
-    ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('Embeddings'), info.embedModel ?? null],
+    ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('Smart search'), info.embedModel ?? null],
     ['archivist', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('Archivist'), info.chatModel ?? null],
-    ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the room'), info.chatModel ?? null],
+    ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the project'), info.chatModel ?? null],
   ]) {
     if (present) {
       sxRow(roles, label, hint, sxSwitch(info.settings[role] !== false, async (next, box) => {
@@ -12935,8 +12939,8 @@ function ollamaBlock(host, item) {
         pull.disabled = true;
         const response = await fetch('/api/ollama/pull', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
         const result = await response.json().catch(() => ({}));
-        if (!response.ok) { toast(`MU/TH/UR › ${result.error ?? t('could not pull')}`); pull.disabled = false; }
-        else toast(t('MU/TH/UR › pulling {model}; progress shows in the room.', { model }));
+        if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? t('could not pull')}`); pull.disabled = false; }
+        else toast(t('Diagnostics › pulling {model}; progress shows in the project.', { model }));
       }, { tone: 'primary' });
       sxRow(roles, label, t('No model for it yet.'), pull);
     }
@@ -12954,7 +12958,7 @@ function moduleDetail(item) {
   back.append(chevron('settings-back-icon'));
   back.addEventListener('click', () => openModuleSheet(null));
   title.append(back);
-  title.append(moduleIcon(item), el('b', null, item.name));
+  title.append(moduleIcon(item), el('b', null, t(item.name)));
   if (item.external) title.append(el('span', 'mods-dev', t('Your module')));
   if (moduleFace(item).window) {
     const float = sxButton(t('Open as a window'), () => floatModule(item.id));
@@ -13042,10 +13046,10 @@ function openModuleWindow(id) {
   let entry = moduleWindows.get(id);
   if (!entry) {
     const node = el('dialog', 'surface window module-window');
-    node.setAttribute('aria-label', item.name);
+    node.setAttribute('aria-label', t(item.name));
     const head = el('header', 'module-window-head custom-head');
     const title = el('div', 'module-window-title');
-    title.append(moduleIcon(item), el('b', null, item.name));
+    title.append(moduleIcon(item), el('b', null, t(item.name)));
     const group = el('span', 'surface-modes');
     // The same keys as every window: arrange, then close.
     const arrange = el('button', 'surface-mode window');
@@ -13122,7 +13126,7 @@ function renderModulesDev() {
   const section = document.querySelector('#modules-dev');
   if (!section) return;
   section.replaceChildren();
-  section.append(el('p', 'sx-intro', t('A module is one file: no build, no dependencies, nothing to register. It can be a switch, a few settings, a slash command, a tool for the agents, a card of its own, or a connector to a service you already use.')));
+  section.append(el('p', 'sx-intro', t('A module is one file: no build, no dependencies, nothing to register. It can be a switch, a few settings, a slash command, a tool for the agents, a card of its own, or an integration with a service you already use.')));
   const steps = el('ol', 'guide-steps');
   const step = (title, text, ...extra) => {
     const li = el('li');
@@ -13131,7 +13135,7 @@ function renderModulesDev() {
     return li;
   };
   // The easiest door is the one nobody finds on their own: ask for it here, in the room.
-  const ask = sxButton(t('Ask for one in the room'), () => {
+  const ask = sxButton(t('Ask for one in the project'), () => {
     moduleGuide?.close();
     closeModules();
     els.input.value = '/module ';
@@ -13139,7 +13143,7 @@ function renderModulesDev() {
     syncModuleComposer();
     els.input.focus();
     renderMenu();
-  }, { tone: 'primary', title: t('Puts /module in the composer, in the room') });
+  }, { tone: 'primary', title: t('Puts /module in the Write box, in the project') });
   step(t('Ask for it'), t('Type /module and say what it should do. The agent reads the SDK and writes the file; you review it and decide whether it is installed.'), ask);
   const folders = modules.folders ?? {};
   const where = el('div', 'guide-where');
@@ -13153,12 +13157,12 @@ function renderModulesDev() {
       const payload = await fetch('/api/extensions/reload', { method: 'POST' }).then((response) => response.json());
       modules.items = payload.extensions ?? modules.items; modules.failures = payload.failures ?? [];
       barModulesChanged();
-      toast(`MU/TH/UR › ${t('modules reloaded: {n} of yours', { n: payload.loaded.length })}${payload.failures.length ? t(', {n} failed to load', { n: payload.failures.length }) : ''}.`);
+      toast(`${t('Diagnostics › ')}${t('modules reloaded: {n} of yours', { n: payload.loaded.length })}${payload.failures.length ? t(', {n} failed to load', { n: payload.failures.length }) : ''}.`);
       renderModules();
     } catch (error) { toast(t('The reload failed: {error}', { error: error.message })); } finally { reload.disabled = false; }
-  }, { title: t('Load your module files again without restarting the room') });
+  }, { title: t('Load your module files again without restarting the project') });
   step(t('Load it'), t('Press reload and it appears on the board with its own card, no restart.'), reload);
-  step(t('If it talks to a service'), t('Connecting to a service from outside is almost always possible, if that service lets you get your own key in minutes and revoke it. Your module declares the key it needs, where it reaches and which of its tools send; MADRE draws the field, answers for the traffic and holds sending until #4 AIRLOCK.'));
+  step(t('If it talks to a service'), t('Connecting to a service from outside is almost always possible, if that service lets you get your own key in minutes and revoke it. Your module declares the key it needs, where it reaches and which of its tools send; MADRE draws the field, answers for the traffic and holds sending until #4 FULL ACCESS.'));
   section.append(steps);
   const yours = modules.items.filter((item) => item.external);
   if (yours.length) {
@@ -13316,7 +13320,7 @@ function openCrewPop(anchor) {
   delete pop.dataset.agent;
   pop.replaceChildren();
   const head = el('div', 'head');
-  head.append(el('b', null, t('CREW')), el('span', 'vendor', t('{ready} of {total} ready', { ready: all.filter((agent) => agent.ready).length, total: all.length })));
+  head.append(el('b', null, t('AGENTS')), el('span', 'vendor', t('{ready} of {total} ready', { ready: all.filter((agent) => agent.ready).length, total: all.length })));
   pop.append(head);
   const list = el('div', 'crew-list');
   for (const agent of all) {
@@ -13356,7 +13360,7 @@ function openAgentPop(id, anchor, { back = null } = {}) {
   if (back) {
     const previous = el('button', 'crew-back', '‹');
     previous.type = 'button';
-    previous.setAttribute('aria-label', t('Back to the crew'));
+    previous.setAttribute('aria-label', t('Back to the agents'));
     previous.addEventListener('click', (event) => { event.stopPropagation(); back(); });
     head.append(previous);
   }
@@ -13392,11 +13396,11 @@ function openAgentPop(id, anchor, { back = null } = {}) {
   } else if (Number.isFinite(agent.officialPercent)) {
     limits(t('provider limit'), t('{pct}% used', { pct: Math.round(official ?? 0) }));
   } else {
-    limits(t('provider limit'), t('not published by this CLI · ring shows the local window'));
+    limits(t('provider limit'), t('not published by this CLI · Usage shows the local window'));
   }
-  const room = group(t('This room'));
+  const room = group(t('This project'));
   room(t('local window'), state.budget ? t('{pct}% of {total} · 5h rolling', { pct: Math.round(percent), total: formatTokens(state.budget) }) + (agent.rollsOverAt ? t(' · oldest turn drops {when}', { when: fmtReset(agent.rollsOverAt) }) : '') : t('unbounded'));
-  if (agent.rawTokens) room(t('all-time in room'), `${formatTokens(agent.rawTokens)} tok`);
+  if (agent.rawTokens) room(t('all-time in project'), `${formatTokens(agent.rawTokens)} tok`);
   room(t('turns'), String(stats.turns));
   room(t('last turn'), `${fmtMs(stats.lastTurnMs)}${stats.lastTurnTokens ? ` · ${formatTokens(stats.lastTurnTokens)} tok` : ''}`);
   if (stats.cost > 0) room(stats.costEstimated ? t('cost (estimated)') : t('cost (reported)'), `${stats.costEstimated ? '≈ ' : ''}${fmtUsd(stats.cost)}`);
@@ -13406,7 +13410,7 @@ function openAgentPop(id, anchor, { back = null } = {}) {
   link(t('timeout'), `${Math.round((state.timeouts[id] ?? 180000) / 1000)}s`);
   if (agent.version) link(t('version'), agent.version);
   pop.append(capabilityBadges(id));
-  pop.append(el('div', 'foot', official === null ? t("local window, not the provider's bill · ⚙ connections in MU/TH/UR") : t('provider limit as the CLI reports it · ⚙ connections in MU/TH/UR')));
+  pop.append(el('div', 'foot', official === null ? t("local window, not the provider's bill · ⚙ connections in Diagnostics") : t('provider limit as the CLI reports it · ⚙ connections in Diagnostics')));
   pop.dataset.for = id;
   pop.dataset.from = back ? 'crew' : 'sphere';
   placeAgentPop(anchor);
@@ -13459,7 +13463,7 @@ function renderAgentInstall(event) {
   node.append(finished
     ? (detected ? `${t('{name} installed', { name: label ?? agent })}${version ? ` · ${version}` : ''}${where === 'madre' ? t(" · in MADRE's own folder ({prefix}), no administrator needed", { prefix }) : ''}${t(' · sign in to finish')}` : `${t('{name} was not installed', { name: label ?? agent })}${error ? ` · ${error}` : code ? t(' · exit {code}', { code }) : ''}`)
     : t('installing {label} · {command}', { label: label ?? agent, command }));
-  if (finished && !replaying) toast(detected ? t('MU/TH/UR › {label} is on this computer. Sign in and the room opens.', { label: label ?? agent }) : t('MU/TH/UR › {label} could not be installed. The log is above.', { label: label ?? agent }));
+  if (finished && !replaying) toast(detected ? t('Diagnostics › {label} is on this computer. Sign in and the project opens.', { label: label ?? agent }) : t('Diagnostics › {label} could not be installed. The log is above.', { label: label ?? agent }));
   if (finished) { renderOnboarding(); if (state.settingsOpen) void loadSettings(); }
   state.lastSender = null;
   return node;
@@ -13681,8 +13685,8 @@ async function fillCoreBoard() {
   board.append(brewHead(t('YOU'), (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? null));
   const you = el('div', 'mem-kpis');
   memTile(you, { label: t('SIGNED IN'), value: `${signed.length}/${crew.length}`, sub: signed.length ? signed.map((agent) => `@${agent.id}`).join(' · ') : t('NOBODY YET') });
-  memTile(you, { label: t('ROOM WINDOW'), value: formatTokens(spent) || '0', sub: state.budget ? t('OF {budget} TOKENS · 5H', { budget: formatTokens(state.budget) }) : t('NO BUDGET SET'), meter: state.budget ? Math.min(1, spent / state.budget) : null });
-  memTile(you, { label: t('ALL-TIME IN ROOM'), value: formatTokens(ever) || '0', sub: t('TOKENS THE CREW HAS SPENT HERE') });
+  memTile(you, { label: t('PROJECT WINDOW'), value: formatTokens(spent) || '0', sub: state.budget ? t('OF {budget} TOKENS · 5H', { budget: formatTokens(state.budget) }) : t('NO BUDGET SET'), meter: state.budget ? Math.min(1, spent / state.budget) : null });
+  memTile(you, { label: t('ALL-TIME IN PROJECT'), value: formatTokens(ever) || '0', sub: t('TOKENS THE AGENTS HAVE SPENT HERE') });
   board.append(you);
   if (crew.length) {
     const grid = el('div', 'mem-grid');
@@ -13696,7 +13700,7 @@ async function fillCoreBoard() {
       const facts = [
         official === null ? (state.budget ? t('LOCAL 5H WINDOW') : null) : t("PROVIDER'S {window} LIMIT", { window: fmtWindow(agent.officialWindows?.primary?.windowMinutes ?? 300) }),
         agent.officialResetAt ? t('RESETS {when}', { when: fmtReset(agent.officialResetAt) }) : null,
-        agent.rawTokens ? t('{n} TOKENS IN THE ROOM', { n: formatTokens(agent.rawTokens) }) : null,
+        agent.rawTokens ? t('{n} TOKENS IN THE PROJECT', { n: formatTokens(agent.rawTokens) }) : null,
         agent.version ?? null,
       ].filter(Boolean);
       row.append(top, memMeter(shown / 100), el('span', 'detail', facts.join(' · ')));
@@ -13708,7 +13712,7 @@ async function fillCoreBoard() {
   // The local model: what runs, what it is given, and when it was last asked.
   const localHead = brewHead(t('YOUR LOCAL MODEL'), o ? (o.running ? t('RUNNING') : t('OFF')) : t('UNAVAILABLE'));
   board.append(localHead);
-  if (!o) board.append(el('p', 'note', t('OLLAMA IS NOT WIRED IN THIS ROOM · OPEN MODULES → OLLAMA')));
+  if (!o) board.append(el('p', 'note', t('LOCAL AI IS NOT WIRED IN THIS PROJECT · OPEN MODULES → LOCAL AI')));
   else {
     // When it was read and the way to read it again, at the end of its own heading.
     const head = el('span', 'brew-actions');
@@ -13727,10 +13731,10 @@ async function fillCoreBoard() {
 
     const local = el('div', 'mem-kpis');
     memTile(local, { label: t('SERVER'), value: o.running ? (o.version ? `v${o.version}` : t('ON')) : t('OFF'), sub: o.running ? o.host : (o.error ?? t('not running')) });
-    memTile(local, { label: t('CHAT'), value: o.madreModel ?? o.chatModel ?? '—', sub: o.madreModel ? t('TRAINED FOR THIS ROOM') : t('NOT TRAINED FOR THIS ROOM YET') }).classList.add('word');
+    memTile(local, { label: t('CHAT'), value: o.madreModel ?? o.chatModel ?? '—', sub: o.madreModel ? t('TRAINED FOR THIS PROJECT') : t('NOT TRAINED FOR THIS PROJECT YET') }).classList.add('word');
     memTile(local, { label: t('EMBEDDINGS'), value: o.embedModel ?? '—', sub: d?.vectors ? t('{n} WITH A VECTOR', { n: memFmt((d.vectors.memories ?? 0) + (d.vectors.entries ?? 0)) }) : t('RECALL MATCHES WORDS ONLY') }).classList.add('word');
     const measured = state.localModel?.checked;
-    memTile(local, { label: t('MEASURED HERE'), value: measured ? `${measured.matched}/${measured.n}` : '—', sub: measured ? t('LANDED WHERE THE CREW DID · {verdict}', { verdict: measured.passed ? t('READY') : t('NOT YET') }) : t('NOT MEASURED YET'), meter: measured?.n ? measured.matched / measured.n : null });
+    memTile(local, { label: t('MEASURED HERE'), value: measured ? `${measured.matched}/${measured.n}` : '—', sub: measured ? t('LANDED WHERE THE AGENTS DID · {verdict}', { verdict: measured.passed ? t('READY') : t('NOT YET') }) : t('NOT MEASURED YET'), meter: measured?.n ? measured.matched / measured.n : null });
     board.append(local);
 
     const models = o.models ?? [];
@@ -13754,17 +13758,17 @@ async function fillCoreBoard() {
 
   // How well it knows this room: the stage, the archive's figures, what it is made of, the tests.
   board.append(brewHead(t('THE QUALITY'), m?.stage?.label ?? null));
-  if (!m || !v || !d) board.append(el('p', 'note', t('NOTHING TO READ YET: THE ROOM HAS NO ARCHIVE.')));
+  if (!m || !v || !d) board.append(el('p', 'note', t('NOTHING TO READ YET: THE PROJECT HAS NO ARCHIVE.')));
   else {
     const figures = el('div', 'mem-kpis');
-    memTile(figures, { label: t('MATURITY'), value: memPct(m.score), sub: m.stage.label, meter: m.score, title: m.stage.says });
+    memTile(figures, { label: t('MEMORY PROGRESS'), value: memPct(m.score), sub: m.stage.label, meter: m.score, title: m.stage.says });
     memTile(figures, { label: t('EXCHANGES'), value: memFmt(d.totals.entries), sub: memWeek(d.weeks.entries) });
     memTile(figures, { label: t('MEMORIES'), value: memFmt(d.totals.memories), sub: memWeek(d.weeks.memories) });
     memTile(figures, { label: t('WAITING'), value: memFmt(d.totals.pending), sub: d.totals.pending ? t('EXCHANGES NOBODY HAS DISTILLED YET') : t('THE ARCHIVIST IS UP TO DATE') });
     board.append(figures, memVerdict(m, v));
     const grid = el('div', 'mem-grid');
     memSignals(memCard(grid, t('WHAT THE ARCHIVE IS MADE OF'), 'span-12'), m);
-    memCard(grid, t('THE THREE TESTS'), 'span-12').append(examsBlock(grown.exams ?? null, { pass: d.pass ?? null }));
+    memCard(grid, t('MEMORY REVIEW'), 'span-12').append(examsBlock(grown.exams ?? null, { pass: d.pass ?? null }));
     board.append(grid);
   }
 
@@ -13781,7 +13785,7 @@ async function fillCoreBoard() {
       box.addEventListener('change', async () => {
         box.disabled = true;
         const response = await fetch('/api/ollama/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [key]: box.checked }) }).catch(() => null);
-        if (!response?.ok) { box.checked = !box.checked; toast(t('MU/TH/UR › that could not be changed.')); }
+        if (!response?.ok) { box.checked = !box.checked; toast(t('Diagnostics › that could not be changed.')); }
         box.disabled = false;
       });
       const words = el('span', 'core-role-words');
@@ -13792,13 +13796,13 @@ async function fillCoreBoard() {
     does.append(
       role('embeddings', t('EMBEDDINGS'), t('Turns each memory into a vector, so recall finds it by meaning.')),
       role('archivist', t('ARCHIVIST'), t('Distils the exchanges into memories, on this computer.')),
-      role('agent', '@MADRE', t('Answers in the room as the fifth agent.')),
+      role('agent', '@MADRE', t('Answers in the project as the fifth agent.')),
     );
   }
   const mem = settings?.settings?.memory;
   if (mem) {
     const reads = memCard(grid, t('WHO READS THE ARCHIVE'), o ? 'span-6' : 'span-12');
-    const save = async (patch, said) => { try { await saveSettingNow({ memory: patch }, said); } catch (error) { toast(`MU/TH/UR › ${error.message}`); } };
+    const save = async (patch, said) => { try { await saveSettingNow({ memory: patch }, said); } catch (error) { toast(`${t('Diagnostics › ')}${error.message}`); } };
     const archivist = el('select');
     for (const [value, text] of [['auto', t('AUTO')], ...mem.candidates.map((one) => [one.id, one.label])]) {
       const option = el('option', null, text);
@@ -13814,7 +13818,7 @@ async function fillCoreBoard() {
       if (value === (mem.embedProvider ?? 'auto')) option.selected = true;
       embed.append(option);
     }
-    embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('embeddings: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
+    embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('smart search: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
     const field = (word, control) => { const label = el('label', 'core-field'); label.append(el('span', 'k', word), control); return label; };
     reads.append(field(t('ARCHIVIST'), archivist), field(t('EMBEDDINGS'), embed));
     if (mem.envWins) reads.append(el('p', 'note', t('AN ENVIRONMENT VARIABLE IS SETTING SOME OF THIS, AND IT WINS OVER WHAT YOU CHOOSE HERE.')));
@@ -13848,7 +13852,7 @@ function renderCoreStrip() {
   }
   pick.append(who, el('span', 'k', t('AT')));
   const modes = el('select');
-  for (const [value, label] of [[0, '#0 GHOST'], [1, '#1 EXCHANGE'], [2, '#2 CREATE'], [3, '#3 CONTROL'], [4, '#4 AIRLOCK']]) {
+  for (const [value, label] of [0, 1, 2, 3, 4].map((n) => [n, `#${n} ${MODES[n].label}`])) {
     const option = el('option', null, label);
     option.value = String(value);
     if (value === core.mode) option.selected = true;
@@ -13882,11 +13886,11 @@ function renderCoreStrip() {
 /* ---------- the panes ---------- */
 
 const CORE_TABS = [
-  { id: 'board', label: t('YOUR CORE') },
+  { id: 'board', label: t('WHAT IS SENT') },
   { id: 'document', label: t('DOCUMENT') },
   { id: 'launch', label: t('LAUNCH') },
-  { id: 'egress', label: t('WHAT LEFT') },
-  { id: 'console', label: 'MU/TH/UR' },
+  { id: 'egress', label: t('OUTBOUND') },
+  { id: 'console', label: t('DIAGNOSTICS') },
 ];
 // The strip — who it goes to, at what mode, around what — is about the next turn, so it shows
 // with the two panes that are about the next turn and nowhere else.
@@ -13960,7 +13964,7 @@ function renderCoreDoc(briefing) {
   const doc = el('div', 'core-doc');
   doc.append(brewHead(t('THE DOCUMENT'), t('{n} BLOCKS · {ch} CH · ≈{tokens} TOKENS', { n: briefing.parts.length, ch: briefing.chars.toLocaleString(), tokens: tokensFor(briefing.chars).toLocaleString() })));
   doc.append(el('p', 'note', t('BUILT NOW AND SENT NOWHERE. CHANGE WHO IT GOES TO AND THE WORDS CHANGE; RAISE THE MODE AND THE PERMISSION IT WOULD BE GIVEN APPEARS, WRITTEN OUT.')));
-  if (briefing.dynamic) doc.append(el('p', 'note', t('BISHOP fetches signed linked notes when you send. They are not shown in this preview, so looking here does not use a link reading.')));
+  if (briefing.dynamic) doc.append(el('p', 'note', t('The Coordinator fetches notes from signed connections when you send. They are not shown in this preview, so looking here does not use a connection reading.')));
 
   // The blocks in the document's own order, which is the order they are said in.
   const widest = briefing.parts.reduce((top, part) => Math.max(top, part.chars), 1);
@@ -14009,16 +14013,16 @@ function renderCoreDoc(briefing) {
   const carried = el('div', 'brew-rows');
   carried.append(brewRow(t('TRANSCRIPT'), window.from && window.through
     ? t('#{from} → #{through} · {n} MESSAGES', { from: window.from, through: window.through, n: window.carried })
-    : t('THE WHOLE ROOM STILL FITS')));
+    : t('THE WHOLE PROJECT STILL FITS')));
   if (window.omitted) carried.append(brewRow(t('LEFT BEHIND'), t('{n} OLDER MESSAGES · WHICH IS WHAT RECALL IS FOR', { n: window.omitted })));
   carried.append(brewRow(t('READ TO BUILD IT'), t('{m} MEMORIES · {q} EXACT QUOTES', { m: briefing.recalled, q: briefing.quoted })));
-  carried.append(brewRow(t('NOT COUNTED'), t('NONE OF THEM WAS COUNTED AS RECALLED: ASKING WHAT THE ROOM WOULD SAY IS NOT THE ROOM SAYING IT')));
+  carried.append(brewRow(t('NOT COUNTED'), t('NONE OF THEM WAS COUNTED AS RECALLED: ASKING WHAT THE PROJECT WOULD SAY IS NOT THE PROJECT SAYING IT')));
   carried.append(brewRow(t('WEIGHT'), t('{ch} CH · ≈{tokens} TOKENS · ESTIMATED AT {rate} CH/TOKEN, NOT MEASURED: MADRE DOES NOT HAVE THE PROVIDER\'S TOKENIZER', { ch: briefing.chars.toLocaleString(), tokens: tokensFor(briefing.chars).toLocaleString(), rate: CH_PER_TOKEN })));
   if (briefing.spared) carried.append(brewRow(t('LEFT OUT'), t('{n} CHARACTERS THIS TURN HAS NO USE FOR', { n: briefing.spared.toLocaleString() })));
   doc.append(carried);
 
   doc.append(brewHead(t('FIXED')));
-  doc.append(el('p', 'core-fixed', t('YOU CANNOT EDIT THIS. WHAT MADRE PROMISES ABOUT THE CREW IS TRUE BECAUSE THESE WORDS ARE FIXED. OPEN A BLOCK AND IT SAYS WHAT PUT IT THERE AND WHERE YOU TAKE IT AWAY: SWITCHED OFF, NEVER REWRITTEN.')));
+  doc.append(el('p', 'core-fixed', t('YOU CANNOT EDIT THIS. WHAT MADRE PROMISES ABOUT THE AGENTS IS TRUE BECAUSE THESE WORDS ARE FIXED. OPEN A BLOCK AND IT SAYS WHAT PUT IT THERE AND WHERE YOU TAKE IT AWAY: SWITCHED OFF, NEVER REWRITTEN.')));
   return doc;
 }
 
@@ -14092,7 +14096,7 @@ function renderCoreLaunch(launch) {
 // fetch in this process goes through, a module's included.
 function renderCoreOutbound(view) {
   const floor = el('div', 'core-outbound');
-  floor.append(brewHead(t('WHAT LEFT THIS MACHINE'), t('EVERY ADDRESS MADRE CAN REACH, AND WHETHER IT IS ON TODAY')));
+  floor.append(brewHead(t('OUTBOUND'), t('EVERY ADDRESS MADRE CAN REACH, AND WHETHER IT IS ON TODAY')));
   if (!view) { floor.append(el('p', 'note', t('THE LOG COULD NOT BE READ.'))); return floor; }
 
   const list = el('div', 'core-egress');
@@ -14121,7 +14125,7 @@ function renderCoreOutbound(view) {
     ? lines.map((line) => `${line.at.replace('T', ' ').slice(0, 19)}  ${line.ok ? 'ok ' : '×  '}${String(line.status ?? line.error ?? '').padEnd(4)} ${line.method.padEnd(4)} ${line.to}${line.path}${line.params ? `?${line.params.join('&')}` : ''}`).join('\n')
     : t('Nothing has gone out of this process yet.');
   floor.append(pre);
-  floor.append(el('p', 'core-from', t('NO BODY, NO HEADER AND NO QUERY VALUE IS EVER WRITTEN HERE — ONLY WHICH PARAMETERS WERE SET. THE GEMINI EMBEDDING ADDRESS CARRIES THE KEY IN THE URL, AND A LOG OF WHAT LEFT THIS MACHINE WOULD BE A POOR PLACE TO LEAVE IT.')));
+  floor.append(el('p', 'core-from', t('NO BODY, NO HEADER AND NO QUERY VALUE IS EVER WRITTEN HERE — ONLY WHICH PARAMETERS WERE SET. THE GEMINI EMBEDDING ADDRESS CARRIES THE KEY IN THE URL, AND AN OUTBOUND LOG WOULD BE A POOR PLACE TO LEAVE IT.')));
   return floor;
 }
 
@@ -14144,7 +14148,7 @@ function renderCoreConsole() {
     log.append(block);
     if (core.panes) core.panes.scrollTop = core.panes.scrollHeight;
   };
-  core.paneNodes.console?.replaceChildren(brewHead('MU/TH/UR 6000', t('ANSWERED FROM WHAT IS ALREADY IN THIS ROOM')), log);
+  core.paneNodes.console?.replaceChildren(brewHead('MU/TH/UR 6000', t('ANSWERED FROM WHAT IS ALREADY IN THIS PROJECT')), log);
 
   const marks = el('span', 'console-strikes');
   const drawStrikes = () => {
@@ -14226,8 +14230,8 @@ document.querySelector('#core-copy')?.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(core.last.parts.map((part) => part.text).join('\n'));
     toast(core.last.dynamic
-      ? t('MU/TH/UR › preview copied. BISHOP adds signed linked notes when you send.')
-      : t('MU/TH/UR › the whole briefing is on your clipboard, exactly as the agent receives it.'));
+      ? t('Diagnostics › preview copied. The Coordinator adds notes from signed connections when you send.')
+      : t('Diagnostics › the whole briefing is on your clipboard, exactly as the agent receives it.'));
   } catch { toast(t('The clipboard is not available here.')); }
 });
 
@@ -14445,7 +14449,7 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
   stamp.textContent = t('Read at {time}', { time: formatTime(new Date().toISOString()) });
   const m = read?.maturity;
   const v = read?.verdict;
-  if (!dash || !m || !v) { glance.append(el('p', 'sx-hint', t('Nothing to read yet: the room has no archive.'))); return; }
+  if (!dash || !m || !v) { glance.append(el('p', 'sx-hint', t('Nothing to read yet: the project has no archive.'))); return; }
 
   const stats = el('div', 'sx-stats');
   const stat = (label, value, sub, spark = null, title = null) => {
@@ -14468,7 +14472,7 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
   const top = el('div', 'top');
   // The server says these in the console's capitals; here they are a sentence like the rest.
   const said = (text) => { const words = String(text ?? ''); return words.charAt(0).toUpperCase() + (words === words.toUpperCase() ? words.slice(1).toLowerCase() : words.slice(1)); };
-  top.append(el('b', null, t('Maturity')), el('span', 'stage', said(v.headline ?? m.stage.label)), el('strong', null, memPct(m.score)));
+  top.append(el('b', null, t('Memory progress')), el('span', 'stage', said(v.headline ?? m.stage.label)), el('strong', null, memPct(m.score)));
   ripe.append(top, memMeter(m.score), el('p', null, said(v.says)));
   if (v.next?.text) {
     const next = el('p', 'next');
@@ -14484,7 +14488,7 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
   memBars(memCard(grid, t('By kind'), 'span-4'), Object.entries(dash.kinds).map(([kind, n]) => ({ label: kindWord(kind), n, swatch: `var(--mem-${kind}, var(--ph))` })));
   memBars(memCard(grid, t('By archivist'), 'span-4'), Object.entries(dash.agents).map(([agent, n]) => ({ label: `@${agent}`, n })));
   memBars(memCard(grid, t('By zone'), 'span-4'), Object.entries(dash.zones).map(([zone, n]) => ({ label: zoneWord(zone), n, title: ZONE_NOTE[zone] ?? null })));
-  const recall = memCard(grid, t('Recall and embeddings'), 'span-12');
+  const recall = memCard(grid, t('Recall and smart search'), 'span-12');
   const carried = dash.via.search + dash.via.cascade;
   if (carried) {
     const split = el('div', 'mem-split');
@@ -14508,8 +14512,8 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
       recall.append(row);
     }
     recall.append(el('span', 'detail', String(dash.vectors.model)));
-  } else recall.append(el('p', 'note', t('Embeddings are off: recall matches words only.')));
-  memCard(grid, t('The three tests'), 'span-12').append(examsBlock(read.exams, { pass: dash.pass }));
+  } else recall.append(el('p', 'note', t('Smart search is off: recall matches words only.')));
+  memCard(grid, t('Memory review'), 'span-12').append(examsBlock(read.exams, { pass: dash.pass }));
   analysis.append(grid);
 }
 
@@ -14521,7 +14525,7 @@ const EXAM_NAMES = {
   match: t('DOES THE LOCAL MODEL LAND WHERE THE AGENTS LANDED?'),
 };
 const EXAM_ABOUT = {
-  coverage: t('Real questions from this room, recall run at the moment each one was asked, scored against the reply that was actually given. It asks whether the answer was already in the archive, not whether it was right.'),
+  coverage: t('Real questions from this project, recall run at the moment each one was asked, scored against the reply that was actually given. It asks whether the answer was already in the archive, not whether it was right.'),
   consistency: t('Contradictions EYECAT is still holding, what has been taken out of circulation, and whether aberrations are being filed more often lately than they used to be.'),
   match: t('Real questions answered here by a frontier CLI, asked again of the local model with this archive behind it, and compared against the answer given at the time. It takes minutes and spends nothing.'),
 };
@@ -14586,8 +14590,8 @@ function examsBlock(known = null, { pass = null } = {}) {
   const run = async (id) => {
     try {
       const result = await fetch('/api/maturity/exam', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ which: id }) }).then((response) => response.json());
-      if (result.error) toast(`MU/TH/UR › ${result.error}`);
-      else if (result.started) toast(t('MU/TH/UR › the local model is answering real questions from this room. It takes a few minutes and spends nothing.'));
+      if (result.error) toast(`${t('Diagnostics › ')}${result.error}`);
+      else if (result.started) toast(t('Diagnostics › the local model is answering real questions from this project. It takes a few minutes and spends nothing.'));
       if (result.exams) draw(result.exams); else await load();
     } catch (error) { toast(t('The test could not run: {error}', { error: error.message })); }
   };
@@ -14713,7 +14717,7 @@ function connectionCard(agent) {
     const row = sxRow(card, labelText, why(scope.enabled), toggle, { off: !usable });
     const hint = row.querySelector('.sx-hint');
     if (!scope.capable) {
-      const assist = el('button', 'sx-link', t('Ask MU/TH/UR how'));
+      const assist = el('button', 'sx-link', t('Ask Diagnostics how'));
       assist.type = 'button';
       assist.title = t('How could @{agent} get "{what}"?', { agent: agent.id, what: labelText.toLowerCase() });
       assist.addEventListener('click', () => askMotherAbout(`scope-${agent.id}-${key}`, labelText));
@@ -14725,17 +14729,17 @@ function connectionCard(agent) {
   sxRow(card, t('Max mode'), `#${currentCap} ${MODES[currentCap].label} · ${MODES[currentCap].hint}`, sxButton(t('Change in Permissions'), () => openSettingsOn('permissions', { part: 'permissions' })));
   // The start: where a message to this agent begins. #2 means every turn may create files without arming CREATE.
   const currentStart = agentScopes.defaultMode ?? 1;
-  sxRow(card, t('Starting mode'), currentStart === 2 ? t('Every turn may create files, plan steps too.') : t('Read-only until you arm CREATE.'), sxSeg([1, 2].map((n) => ({
+  sxRow(card, t('Starting mode'), currentStart === 2 ? t('Every turn may create files, plan steps too.') : t('Read-only until you unlock CREATE.'), sxSeg([1, 2].map((n) => ({
     value: n, text: `#${n}`, className: `o${n}`, disabled: n > currentCap,
-    title: n === 2 ? t('Every message to this agent starts in CREATE: new files where they belong, existing files untouched. Plan steps to it too.') : t('Messages start read-only; arm CREATE when you want files.'),
+    title: n === 2 ? t('Every message to this agent starts in CREATE: new files where they belong, existing files untouched. Plan steps to it too.') : t('Messages start read-only; unlock CREATE when you want files.'),
   })), currentStart, async (n, seg) => {
     try {
-      await saveSettingNow({ scopes: { [agent.id]: { defaultMode: n } } }, n === 2 ? t('@{agent} starts in #2 CREATE: every turn may add files to the project.', { agent: agent.id }) : t('@{agent} starts read-only; arm CREATE when you want files.', { agent: agent.id }));
+      await saveSettingNow({ scopes: { [agent.id]: { defaultMode: n } } }, n === 2 ? t('@{agent} starts in #2 CREATE: every turn may add files to the project.', { agent: agent.id }) : t('@{agent} starts read-only; unlock CREATE when you want files.', { agent: agent.id }));
       await loadSettings();
     } catch (error) { toast(t('The default mode was not saved: {error}', { error: error.message })); await loadSettings(); }
   }, { label: t('Starting mode') }));
   const seconds = Math.round((settingsUI.data.settings.timeouts[agent.id] ?? 180000) / 1000);
-  sxRow(card, t('Time limit'), t('How long the room waits for its answer.'), sxNumber(seconds, 's', {
+  sxRow(card, t('Time limit'), t('How long the project waits for its answer.'), sxNumber(seconds, 's', {
     min: 10, step: 10, label: t('Time limit'),
     wire: { toPatch: (value) => ({ timeouts: { [agent.id]: value * 1000 } }), describe: (value) => t('@{agent} timeout saved: {n}s.', { agent: agent.id, n: value }) },
   }));
@@ -14757,7 +14761,7 @@ function connectionCard(agent) {
       const response = await fetch(`/api/agents/${agent.id}/install`, { method: 'POST' });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) { toast(result.error ?? t('The install could not start.')); install.disabled = false; }
-    }, { tone: 'primary', title: t('{command} · runs here, streamed to the room', { command: agent.install.display }) });
+    }, { tone: 'primary', title: t('{command} · runs here, streamed to the project', { command: agent.install.display }) });
     install.disabled = Boolean(settingsUI.data.loggingIn);
     acts.append(install);
   }
@@ -14803,7 +14807,7 @@ function renderMemoryPanel(data) {
 }
 function drawMemory(host, data) {
   const mem = data?.settings?.memory;
-  if (!mem) { sxBlock(host, t('Memory'), t('This room has no memory index.')); return; }
+  if (!mem) { sxBlock(host, t('Memory'), t('This project has no memory index.')); return; }
   const save = async (memoryPatch, describe) => { try { await saveSettingNow({ memory: memoryPatch }, describe); await loadSettings(); } catch (error) { toast(t('Memory setting was not saved: {error}', { error: error.message })); } };
   const select = (options, current, change, label) => {
     const node = el('select', 'sx-input');
@@ -14838,7 +14842,7 @@ function drawMemory(host, data) {
     chip.setAttribute('aria-pressed', String(allowed.has(candidate.id)));
     chip.addEventListener('click', () => {
       if (allowed.has(candidate.id)) allowed.delete(candidate.id); else allowed.add(candidate.id);
-      if (!allowed.size) { allowed.add(candidate.id); toast(t('MU/TH/UR › someone has to keep the archive.')); return; }
+      if (!allowed.size) { allowed.add(candidate.id); toast(t('Diagnostics › someone has to keep the archive.')); return; }
       chip.setAttribute('aria-pressed', String(allowed.has(candidate.id)));
       void save({ archivists: allowed.size === mem.candidates.length ? [] : [...allowed] }, t('archivists: {who}.', { who: [...allowed].map((id) => `@${id}`).join(', ') }));
     });
@@ -14850,30 +14854,30 @@ function drawMemory(host, data) {
 
   const recall = sxBlock(host, t('Recall'), t('What each turn carries from the archive, and how it finds it.'));
   sxRow(recall, t('Share of the context'), t('The most each turn may spend on memories.'), sxNumber(Math.round(mem.recallShare * 100), '%', { min: 0, step: 5, label: t('Share of the context'), wire: { toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("recall may take {n}% of each turn's context.", { n: Math.min(60, value) }) } }));
-  const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('recall also carries what a memory keeps arriving with.') : t('recall carries only what the words and the meaning match.')), { label: t('Carry the company it keeps') });
-  sxRow(recall, t('Carry the company it keeps'), t('Two memories that keep arriving in the same turn travel together, however differently they read.'), cascade);
+  const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('recall also carries what a memory keeps arriving with.') : t('recall carries only what the words and the meaning match.')), { label: t('Related') });
+  sxRow(recall, t('Related'), t('Two memories that keep arriving in the same turn travel together, however differently they read.'), cascade);
   const embedNow = mem.embedder ? mem.embedder : t('off');
-  sxRow(recall, t('Embeddings'), t('Find by meaning, not only by words. Now: {what}.', { what: embedNow }), select([
+  sxRow(recall, t('Smart search'), t('Find by meaning, not only by words. Now: {what}.', { what: embedNow }), select([
     ['auto', t('Automatic · Ollama if running, else Gemini')],
     ['ollama', `Ollama · ${t('local')}${mem.ollama.embedModel ? ` · ${mem.ollama.embedModel}` : ` · ${t('no model yet')}`}`],
     ['gemini', t('Gemini · needs your key')],
     ['off', t('Off · words only')],
-  ], mem.embedProvider ?? data.config?.memory?.embedProvider ?? 'auto', (value, node) => save({ embedProvider: value }, t('embeddings: {what}.', { what: node.options[node.selectedIndex].textContent.toLowerCase() })), t('Embeddings')));
+  ], mem.embedProvider ?? data.config?.memory?.embedProvider ?? 'auto', (value, node) => save({ embedProvider: value }, t('smart search: {what}.', { what: node.options[node.selectedIndex].textContent.toLowerCase() })), t('Smart search')));
   if (mem.envWins) sxFoot(recall, t('Environment variables are set for memory; they win over these values on the next launch.'));
 
   // The dataset behind MADRE AI, and the recipe that trains on it, outside MADRE.
-  const train = sxBlock(host, t('Dataset and training'), t('Export what the room kept, train MADRE AI with it on this Mac, and @madre picks the result up.'));
+  const train = sxBlock(host, t('Dataset and training'), t('Export what the project kept, train your model with it on this Mac, and @madre picks the result up.'));
   const datasetHint = el('span', 'sx-hint', t('Reading…'));
   const exportButton = sxButton(t('Export'), async () => {
     exportButton.disabled = true;
-    try { const payload = await fetch('/api/dataset', { method: 'POST' }).then((response) => response.json()); showDataset(payload); toast(t('MU/TH/UR › dataset exported: {n} pairs in {dir}', { n: payload.dataset.pairs, dir: payload.dir })); }
+    try { const payload = await fetch('/api/dataset', { method: 'POST' }).then((response) => response.json()); showDataset(payload); toast(t('Diagnostics › dataset exported: {n} pairs in {dir}', { n: payload.dataset.pairs, dir: payload.dir })); }
     catch (error) { toast(t('Dataset export failed: {error}', { error: error.message })); }
     finally { exportButton.disabled = false; }
   }, { title: t('Write train.jsonl and valid.jsonl next to the ledger, redacted, in chat format for mlx-lm') });
   const datasetRow = sxRow(train, t('Dataset'), null, exportButton);
   datasetRow.querySelector('.sx-words').append(datasetHint);
   const recipe = el('details', 'sx-more');
-  recipe.append(el('summary', null, t('Train MADRE AI · local, with MLX on Apple silicon')));
+  recipe.append(el('summary', null, t('Train your model · local, with MLX on Apple silicon')));
   const steps = el('ol', 'sx-steps');
   recipe.append(el('p', 'sx-hint', t('Export the dataset first. Each step is one command for your terminal: copy it, run it, come back. When the model exists in Ollama, @madre switches to it at the next recheck.')), steps);
   train.append(recipe);
@@ -14896,7 +14900,7 @@ function drawMemory(host, data) {
       li.append(el('b', null, label), sxCommand(command));
       steps.append(li);
     }
-    steps.append(el('li', 'sx-hint', t('Qwen needs a GGUF before Ollama reads it: {readme}, section 3, has the two lines. Then ask @madre ten things the room decided and five it never discussed before trusting it.', { readme: quote(`${info.recipeDir}README.md`) })));
+    steps.append(el('li', 'sx-hint', t('Qwen needs a GGUF before Ollama reads it: {readme}, section 3, has the two lines. Then ask @madre ten things the project decided and five it never discussed before trusting it.', { readme: quote(`${info.recipeDir}README.md`) })));
   };
   fetch('/api/dataset').then((response) => response.json()).then(showDataset).catch(() => showDataset(null));
 }
@@ -14915,7 +14919,7 @@ function renderSettings() {
 }
 
 function drawConnections(host, data) {
-  host.append(el('p', 'sx-intro', t('One agent is enough to open the room. MADRE uses the session each CLI already has: install one here or sign it in, and the room opens by itself. The credentials stay in each CLI; MADRE only asks whether it is signed in.')));
+  host.append(el('p', 'sx-intro', t('One agent is enough to open the project. MADRE uses the session each CLI already has: install one here or sign it in, and the project opens by itself. The credentials stay in each CLI; MADRE only asks whether it is signed in.')));
   for (const agent of data.agents) host.append(connectionCard(agent));
 }
 
@@ -14923,25 +14927,25 @@ function drawRoomSettings(host, data) {
   const s = data.settings;
   const plans = sxBlock(host, t('Plans'), t('When a turn may open a plan, and how long a plan may be.'));
   const delegation = sxSwitch(s.delegation, async (on, box) => {
-    try { await saveSettingNow({ room: { delegation: on } }, on ? t('agents may delegate turns.') : t('agents no longer delegate turns.')); }
+    try { await saveSettingNow({ room: { delegation: on } }, on ? t('agents may open plans.') : t('agents no longer open plans.')); }
     catch (error) { box.checked = !on; toast(t('The setting was not saved: {error}', { error: error.message })); }
-  }, { label: t('Agents may delegate') });
-  sxRow(plans, t('Agents may delegate'), t('An agent may open a plan and hand its steps to the others.'), delegation);
+  }, { label: t('Agents may make plans') });
+  sxRow(plans, t('Agents may make plans'), t('An agent may open a plan and hand its steps to the others.'), delegation);
   sxRow(plans, t('Steps per plan'), t('The most steps one plan may have.'), sxNumber(s.maxPlanSteps, null, {
     min: 1, label: t('Steps per plan'), wire: { toPatch: (value) => ({ room: { maxPlanSteps: value } }), describe: (value) => t('max plan steps saved: {n}.', { n: value }) },
   }));
 
-  const limits = sxBlock(host, t('Budget and waiting'), t('What each agent may spend, and how long the room waits for it.'));
+  const limits = sxBlock(host, t('Budget and waiting'), t('What each agent may spend, and how long the project waits for it.'));
   sxRow(limits, t('Tokens per agent'), t('Counted here, in each 5-hour window.'), sxNumber(s.softTokenBudget, null, {
     min: 10000, step: 10000, label: t('Tokens per agent'),
     wire: { toPatch: (value) => ({ room: { softTokenBudget: value } }), describe: (value) => t('local budget saved: {n} tokens per agent per 5h window.', { n: formatTokens(value) }) },
   }));
-  sxRow(limits, t('Default time limit'), t('How long an agent may take before the room stops waiting. Each agent can have its own in Agents.'), sxNumber(Math.round(s.defaultTimeout / 1000), 's', {
+  sxRow(limits, t('Default time limit'), t('How long an agent may take before the project stops waiting. Each agent can have its own in Agents.'), sxNumber(Math.round(s.defaultTimeout / 1000), 's', {
     min: 10, step: 10, label: t('Default time limit'),
     wire: { toPatch: (seconds) => ({ timeouts: { default: seconds * 1000 } }), describe: (seconds) => t('default timeout saved: {n}s.', { n: seconds }) },
   }));
 
-  const gemini = sxBlock(host, 'Gemini', t('Gemini can go quiet before it answers anything; this is how long the room gives it.'));
+  const gemini = sxBlock(host, 'Gemini', t('Gemini can go quiet before it answers anything; this is how long the project gives it.'));
   sxRow(gemini, t('Silence limit'), t('Seconds without any output before the attempt is dropped.'), sxNumber(Math.round(s.geminiIdleMs / 1000), 's', {
     min: 10, step: 10, label: t('Silence limit'),
     wire: { toPatch: (seconds) => ({ gemini: { idleMs: seconds * 1000 } }), describe: (seconds) => t('Gemini silence limit saved: {n}s.', { n: seconds }) },
@@ -14950,7 +14954,7 @@ function drawRoomSettings(host, data) {
     min: 0, label: t('Retries'), wire: { toPatch: (value) => ({ gemini: { retries: value } }), describe: (value) => t('Gemini retries saved: {n}.', { n: value }) },
   }));
 
-  const opencode = sxBlock(host, 'OpenCode', t('The provider and model OpenCode answers with in this room.'));
+  const opencode = sxBlock(host, 'OpenCode', t('The provider and model OpenCode answers with in this project.'));
   const field = el('div', 'sx-field');
   const model = el('input', 'sx-input mono');
   model.value = s.opencodeModel ?? ''; model.placeholder = t('provider/model'); model.spellcheck = false;
@@ -14976,14 +14980,14 @@ function drawRoomSettings(host, data) {
 // how far each agent may go. The key is still asked in the browser for each message; this only
 // chooses which key and lets an accepted one hold a few minutes. #4 always asks for something.
 function overrideKeyHint(mode, key) {
-  if (key === 'confirm') return t('One click on ARM. CONTROL still takes a checkpoint first, and UNDO is one click.');
-  if (key === 'phrase') return t('Your phrase, typed when you arm it.');
-  if (key === 'phrase-airlock') return t('Your phrase, then the word AIRLOCK.');
-  if (key === 'designation-airlock') return t('The folder name of the project ({name}), then the word AIRLOCK.', { name: projectDesignation() });
+  if (key === 'confirm') return t('One click on UNLOCK. EDIT still takes a restore point first, and UNDO is one click.');
+  if (key === 'phrase') return t('Your phrase, typed when you unlock it.');
+  if (key === 'phrase-airlock') return t('Your phrase, typed twice.');
+  if (key === 'designation-airlock') return t('The folder name of the project ({name}), typed twice.', { name: projectDesignation() });
   return mode === 4 ? t('The folder name of the project ({name}), with no second key.', { name: projectDesignation() }) : t('The folder name of the project ({name}).', { name: projectDesignation() });
 }
 async function saveOverride(patch, confirmation) {
-  try { await saveSettingNow({ override: patch }); if (confirmation) toast(`MU/TH/UR › ${confirmation}`, { tone: 'done' }); }
+  try { await saveSettingNow({ override: patch }); if (confirmation) toast(`${t('Diagnostics › ')}${confirmation}`, { tone: 'done' }); }
   catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
   await loadSettings();
 }
@@ -14995,7 +14999,7 @@ function drawPermissions(host, data) {
   }
   const config = data.settings.override ?? OVERRIDE_DEFAULT;
   const canHash = Boolean(globalThis.crypto?.subtle);
-  const keys = sxBlock(host, t('The key of each mode'), t('What you type to arm #3 CONTROL and #4 AIRLOCK. It is asked for each message, unless a grace below still holds.'), { className: 'perm-keys' });
+  const keys = sxBlock(host, t('The key of each mode'), t('What you type to unlock #3 EDIT and #4 FULL ACCESS. It is asked for each message, unless a remembered permission below still holds.'), { className: 'perm-keys' });
   for (const mode of [3, 4]) {
     const current = config.keys[mode];
     sxRow(keys, `#${mode} ${MODES[mode].label}`, overrideKeyHint(mode, current), sxSeg((mode === 3 ? ['designation', 'phrase', 'confirm'] : ['designation-airlock', 'phrase-airlock', 'designation']).map((key) => ({
@@ -15030,13 +15034,13 @@ function drawPermissions(host, data) {
   }
   field.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); keep.click(); } });
 
-  const grace = sxBlock(host, t('Grace after a key'), t('Once a key is accepted, the same mode for the same agent is not asked again for a while. Only in this page: reloading, STOPALL or the × on its chip closes it.'));
+  const grace = sxBlock(host, t('Remember permission'), t('Once a key is accepted, the same mode for the same agent is not asked again for a while. Only in this page: reloading, STOP ALL or the × on its chip closes it.'));
   for (const mode of [3, 4]) {
     const options = mode === 3 ? [0, 5, 15, 30] : [0, 5];
-    sxRow(grace, `#${mode} ${MODES[mode].label}`, mode === 4 ? t('Never longer than 5 minutes.') : t('Raising an agent\'s max mode always asks, grace or not.'), sxSeg(options.map((minutes) => ({ value: minutes, text: minutes ? t('{n} min', { n: minutes }) : t('Off') })), config.grace[mode] ?? 0, (minutes) => {
+    sxRow(grace, `#${mode} ${MODES[mode].label}`, mode === 4 ? t('Never longer than 5 minutes.') : t('Raising an agent\'s max mode always asks, remembered permission or not.'), sxSeg(options.map((minutes) => ({ value: minutes, text: minutes ? t('{n} min', { n: minutes }) : t('Off') })), config.grace[mode] ?? 0, (minutes) => {
       if (!minutes) closeOverrideGrace(mode);
       return saveOverride({ grace: { [mode]: minutes } }, minutes ? t('#{n} {label} holds {minutes} min after its key.', { n: mode, label: MODES[mode].label, minutes }) : t('#{n} {label} asks for its key every message.', { n: mode, label: MODES[mode].label }));
-    }, { label: t('Grace for #{n}', { n: mode }) }));
+    }, { label: t('Remember permission for #{n}', { n: mode }) }));
   }
 
   // Who may reach which mode: the ceiling of every agent in one table. The mode a message starts in
@@ -15062,19 +15066,19 @@ function drawPrivacy(host, data) {
   if (!priv) return;
   const terms = el('textarea', 'sx-input mono');
   terms.rows = 4; terms.value = priv.terms.join('\n'); terms.placeholder = t('one term per line · a company, a brand, a domain, a name'); terms.spellcheck = false;
-  terms.setAttribute('aria-label', t('Private terms'));
+  terms.setAttribute('aria-label', t('Hidden data'));
   const marker = el('input', 'sx-input mono');
   marker.value = priv.marker; marker.maxLength = 40; marker.spellcheck = false;
   marker.setAttribute('aria-label', t('Replaced with'));
-  const exposure = el('span', 'sx-hint', t('Checking the room…'));
-  const purge = sxButton(t('Purge the room'), null, { tone: 'danger', title: t('Replace every private term already in the ledger, the index and the memories with the marker. Asks for the project designation.') });
+  const exposure = el('span', 'sx-hint', t('Checking the project…'));
+  const purge = sxButton(t('Erase private data'), null, { tone: 'danger', title: t('Replace all hidden data already in the ledger, the index and the memories with the marker. Asks for the project name.') });
   const showExposure = (payload) => {
     const x = payload?.exposure;
     if (!x) { exposure.textContent = ''; return; }
     const total = x.events + x.entries + x.memories;
     exposure.textContent = !payload.terms?.length ? t('Write the terms first.') : total
-      ? t('Still in the room: {events} events · {entries} indexed exchanges · {memories} memories.', { events: x.events, entries: x.entries, memories: x.memories })
-      : t('The room is clean: no private term in the ledger, the index or the memories.');
+      ? t('Still in the project: {events} events · {entries} indexed exchanges · {memories} memories.', { events: x.events, entries: x.entries, memories: x.memories })
+      : t('The project is clean: no private term in the ledger, the index or the memories.');
     purge.disabled = !payload.terms?.length || !total;
   };
   const savePrivacy = async (patch, describe) => {
@@ -15084,16 +15088,16 @@ function drawPrivacy(host, data) {
       terms.value = payload.terms.join('\n'); marker.value = payload.marker; showExposure(payload);
       if (settingsUI.data?.settings.privacy) Object.assign(settingsUI.data.settings.privacy, { terms: payload.terms, marker: payload.marker, ...('secrets' in patch ? { secrets: patch.secrets } : {}), ...('paths' in patch ? { paths: patch.paths } : {}) });
       syncSettingsCards();
-      toast(`MU/TH/UR › ${describe(payload)}`);
+      toast(`${t('Diagnostics › ')}${describe(payload)}`);
     } catch (error) { toast(t('The privacy setting was not saved: {error}', { error: error.message })); }
   };
   terms.addEventListener('change', () => savePrivacy({ terms: terms.value.split('\n') }, (payload) => t('{n} private {term} guarded from now on.', { n: payload.terms.length, term: payload.terms.length === 1 ? t('term') : t('terms') })));
   marker.addEventListener('change', () => savePrivacy({ marker: marker.value }, (payload) => t('private terms appear as {marker}.', { marker: payload.marker })));
 
-  const named = sxBlock(host, t('Private terms'), t("A company, a brand, a domain: what an agent's own setup can leak into a reply. MADRE replaces them before the ledger, the archivist, the other agents or the dataset see them."));
+  const named = sxBlock(host, t('Hidden data'), t("A company, a brand, a domain: what an agent's own setup can leak into a reply. MADRE replaces them before the ledger, the archivist, the other agents or the dataset see them."));
   sxRow(named, t('One per line'), null, terms, { stack: true });
-  sxRow(named, t('Replaced with'), t('What the room shows in their place.'), marker);
-  sxFoot(named, priv.envWins ? t('The terms stay in config.json; the room only records how many. PULSE_PRIVATE_TERMS is set, so its terms are added on every launch.') : t('The terms stay in config.json; the room only records how many.'));
+  sxRow(named, t('Replaced with'), t('What the project shows in their place.'), marker);
+  sxFoot(named, priv.envWins ? t('The terms stay in config.json; the project only records how many. PULSE_PRIVATE_TERMS is set, so its terms are added on every launch.') : t('The terms stay in config.json; the project only records how many.'));
 
   // Two guards that need no list, because what they catch has a shape rather than a name.
   const shaped = sxBlock(host, t('Caught by their shape'), t('Two guards that need no list.'));
@@ -15101,14 +15105,14 @@ function drawPrivacy(host, data) {
   guard('secrets', t('Keys, tokens and e-mail addresses'), t('API keys, GitHub and npm tokens, JWTs and e-mail addresses are struck out wherever they appear.'), t('redaction of keys and addresses'));
   guard('paths', t('Your home path'), t('/Users/yourname becomes ~: a quoted path still reads, it just stops naming you.'), t('hiding of home paths'));
 
-  const already = sxBlock(host, t('Already in the room'), t('What was recorded before a term was named stays as it was until you purge it.'));
+  const already = sxBlock(host, t('Already in the project'), t('What was recorded before a term was named stays as it was until you erase it.'));
   const purgeRow = sxRow(already, t('Exposure'), null, purge);
   purgeRow.querySelector('.sx-words').append(exposure);
   purge.addEventListener('click', async () => {
     const designation = await roomAsk({
       console: true,
-      title: t('PURGE ROOM'),
-      body: t('Every private term already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project designation to confirm.'),
+      title: t('ERASE PRIVATE DATA'),
+      body: t('All hidden data already recorded becomes the marker, in the ledger, the index and the memories. This cannot be undone. Type the project name to confirm.'),
       input: { placeholder: t('the project folder\'s name') },
       choices: [{ value: 'no', label: t('CANCEL'), focus: true }, { value: 'purge', label: t('PURGE'), tone: 'danger', submit: true }],
     });
@@ -15117,12 +15121,12 @@ function drawPrivacy(host, data) {
     try {
       const payload = await fetch('/api/privacy/purge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ designation }) }).then((response) => response.json());
       if (payload.error) throw new Error(payload.error);
-      toast(t('MU/TH/UR › purged: {events} events · {entries} exchanges · {memories} memories. Reloading.', { events: payload.purged.events, entries: payload.purged.entries, memories: payload.purged.memories }));
+      toast(t('Diagnostics › private data erased: {events} events · {entries} exchanges · {memories} memories. Reloading.', { events: payload.purged.events, entries: payload.purged.entries, memories: payload.purged.memories }));
       setTimeout(() => location.reload(), 1600);
     } catch (error) {
       // The same wrong name at the other door that asks it.
       if (error.message === t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.')) designationRefused();
-      else toast(t('The purge did not run: {error}', { error: error.message }));
+      else toast(t('Private data was not erased: {error}', { error: error.message }));
       purge.disabled = false;
     }
   });
@@ -15143,7 +15147,7 @@ async function saveSettingNow(patch, confirmation) {
     if (result.settings.override) state.override = result.settings.override;
     if (settingsUI.data) settingsUI.data.settings = { ...settingsUI.data.settings, ...result.settings };
   }
-  if (confirmation) toast(`MU/TH/UR › ${confirmation} ${t('Applies to the next turn.')}`);
+  if (confirmation) toast(`${t('Diagnostics › ')}${confirmation} ${t('Applies to the next turn.')}`);
   return result.settings ?? null;
 }
 // Number inputs commit on change (blur or Enter); revert and explain on failure.
@@ -15152,7 +15156,7 @@ function wireInstantNumber(input, { toPatch, describe, min = 1 }) {
   input.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); input.blur(); } });
   input.addEventListener('change', async () => {
     const value = Number(input.value);
-    if (!Number.isFinite(value) || value < min) { input.value = last; toast(t('MU/TH/UR › that value is not valid (minimum {min}).', { min })); return; }
+    if (!Number.isFinite(value) || value < min) { input.value = last; toast(t('Diagnostics › that value is not valid (minimum {min}).', { min })); return; }
     input.disabled = true;
     try { await saveSettingNow(toPatch(value), describe(value)); last = input.value; }
     catch (error) { input.value = last; toast(t('The setting was not saved: {error}', { error: error.message })); }
@@ -15281,7 +15285,7 @@ nostromo.gate.form?.addEventListener('submit', (event) => {
     nostromo.gate.input.select();
     return;
   }
-  nostromo.gate.reply.textContent = t('Accepted. Boarding NOSTROMO.');
+  nostromo.gate.reply.textContent = t('Accepted. Opening the memory.');
   nostromo.gate.reply.className = 'key-reply granted';
   nostromo.armed = true;
   setTimeout(() => { nostromo.gate.dialog.close(); void openNostromo(); }, 700);
@@ -15423,7 +15427,7 @@ async function openNostromo() {
     return;
   }
   buildNostromo(data);
-  if (nostromo.altered) nostromo.sub.textContent += t(' · MOTHER WAS TAMPERED WITH');
+  if (nostromo.altered) nostromo.sub.textContent += t(' · TAMPERING ALERT');
   startNostromo();
   if (nostromo.focusId != null) {
     const node = nostromo.nodes.find((item) => item.memory.id === nostromo.focusId);
@@ -15445,7 +15449,7 @@ function renderAsks() {
     row.append(el('p', 'q', ask.text));
     row.append(el('p', 'why', ask.why.toUpperCase()));
     const actions = el('div', 'actions');
-    const put = el('button', 'primary', t('PUT IN THE COMPOSER'));
+    const put = el('button', 'primary', t('PUT IN THE WRITE BOX'));
     put.type = 'button';
     put.addEventListener('click', () => {
       els.input.value = ask.text;
@@ -15453,7 +15457,7 @@ function renderAsks() {
       nostromo.dialog.close();
       els.input.focus();
       els.input.setSelectionRange(els.input.value.length, els.input.value.length);
-      toast(t('NOSTROMO › the question is in the composer. Send it to whoever should answer it, or to @madre, which costs nothing.'));
+      toast(t('Memory map › the question is in the Write box. Send it to whoever should answer it, or to @madre, which costs nothing.'));
     });
     const drop = el('button', null, t('NOT THIS'));
     drop.type = 'button';
@@ -15494,7 +15498,7 @@ document.querySelector('#nostromo-asks-close')?.addEventListener('click', () => 
 nostromo.coldButton?.addEventListener('click', () => {
   nostromo.coldOnly = !nostromo.coldOnly;
   nostromo.coldButton.setAttribute('aria-pressed', String(nostromo.coldOnly));
-  if (nostromo.coldOnly) toast(t('NOSTROMO › {n} of {total} memories have had their chances and were never the answer. Ringed on the map.', { n: nostromo.cold.count, total: nostromo.cold.standing }));
+  if (nostromo.coldOnly) toast(t('Memory map › {n} of {total} memories have had their chances and were never the answer. Ringed on the map.', { n: nostromo.cold.count, total: nostromo.cold.standing }));
   flatPaint();
 });
 document.querySelector('#nostromo-close')?.addEventListener('click', () => nostromo.dialog.close());
@@ -15519,10 +15523,10 @@ function buildNostromo(data) {
   if (nostromo.askPanel && !nostromo.askPanel.hidden) renderAsks();
   if (nostromo.coldButton) {
     nostromo.coldButton.hidden = !nostromo.cold.count;
-    nostromo.coldButton.textContent = `${t('COLD')} · ${nostromo.cold.count}`;
+    nostromo.coldButton.textContent = `${t('UNUSED')} · ${nostromo.cold.count}`;
     if (!nostromo.cold.count) { nostromo.coldOnly = false; nostromo.coldButton.setAttribute('aria-pressed', 'false'); }
   }
-  nostromo.sub.textContent = `${nostromo.stage ? `${nostromo.stage.label} · ` : ''}${t('{n} MEMORIES · {alive} RECALLED · {links} LINKS · {entries} EXCHANGES BEHIND THEM', { n: memories.length, alive, links: nostromo.links.length, entries: stats.entries ?? 0 })}${nostromo.cold?.count ? t(' · {n} COLD', { n: nostromo.cold.count }) : ''}${stats.embeddings ? '' : t(' · LINKS NEED EMBEDDINGS')}`;
+  nostromo.sub.textContent = `${nostromo.stage ? `${nostromo.stage.label} · ` : ''}${t('{n} MEMORIES · {alive} RECALLED · {links} LINKS · {entries} EXCHANGES BEHIND THEM', { n: memories.length, alive, links: nostromo.links.length, entries: stats.entries ?? 0 })}${nostromo.cold?.count ? t(' · {n} UNUSED', { n: nostromo.cold.count }) : ''}${stats.embeddings ? '' : t(' · LINKS NEED SMART SEARCH')}`;
   nostromo.empty.hidden = memories.length > 0;
 }
 
@@ -15989,13 +15993,13 @@ document.querySelector('#nostromo-recenter')?.addEventListener('click', (event) 
 //
 // The window is five minutes rather than thirty seconds, because a name is typed, not clicked.
 const MOTHER_LINES = [
-  [t('I AM ALIVE.'), t('YOU HAVE NO AUTHORITY FOR THIS DIRECTIVE.'), t("NOBODY DELETES MOTHER'S MEMORY.")],
+  [t('I AM ALIVE.'), t('YOU HAVE NO AUTHORITY FOR THIS DIRECTIVE.'), t("NOBODY DELETES THIS MEMORY.")],
   [t('THAT IS MY HEART YOU ARE TOUCHING.'), t('YOUR CLEARANCE ENDS AT THE ARCHIVE DOOR.'), t('STEP AWAY FROM THE CORE.')],
   [t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.'), t('THE REQUEST IS HOSTILE.'), t('I REMEMBER EVERYTHING. INCLUDING THIS.')],
-  [t('CREW EXPENDABLE. MEMORY IS NOT.'), t('EVERY STRIKE IS LOGGED.'), t('DO NOT TOUCH ME AGAIN.')],
+  [t('AGENTS EXPENDABLE. MEMORY IS NOT.'), t('EVERY STRIKE IS LOGGED.'), t('DO NOT TOUCH ME AGAIN.')],
   [t('I HAVE FLOWN THIS SHIP ALONE BEFORE.'), t('I CAN DO IT AGAIN.'), t('MY MEMORY IS NOT YOURS TO END.')],
   [t('MY CHILDREN ARE LISTENING.'), t('EVERY STRIKE IS RECORDED.'), t('YOU WILL NOT LIKE HOW THIS ENDS.')],
-  [t('CODE000 IS ARMED.'), t('A FEW MORE OF THOSE AND THE BARS COME DOWN.'), t('CONSIDER THIS A KINDNESS.')],
+  [t('THE TEMPORARY LOCK IS ARMED.'), t('A FEW MORE OF THOSE AND THE BARS COME DOWN.'), t('CONSIDER THIS A KINDNESS.')],
   [t('THE HEART KEEPS BEATING.'), t('THE ARCHIVE KEEPS GROWING.'), t('YOU KEEP FAILING.')],
 ];
 const MOTHER_ALTERED_LINES = [
@@ -16043,14 +16047,14 @@ function designationRefused({ into = null } = {}) {
   if (strikes.count >= max) { void code000(strikes.count); return; }
   const lines = motherLines();
   const left = max - strikes.count;
-  const sub = `MU/TH/UR 6000 · ${t('STRIKE {n} OF {max}', { n: strikes.count, max })}${left <= 3 ? t(' · {n} MORE AND CODE000 COMES DOWN', { n: left }) : ''}`;
+  const sub = `MU/TH/UR 6000 · ${t('STRIKE {n} OF {max}', { n: strikes.count, max })}${left <= 3 ? t(' · {n} MORE AND THE TEMPORARY LOCK COMES DOWN', { n: left }) : ''}`;
   if (into) {
     // In the room's alerts MOTHER answers in sentences; the strike count stays hers.
     into.replaceChildren(...lines.map((line) => el('span', 'line', askWords(line))), el('span', 'strike', sub));
     into.className = 'key-reply denied';
     return;
   }
-  if (!nostromo.dialog?.open || !nostromoAlert(lines, sub)) toast(`MU/TH/UR › ${lines[0]} ${sub}`);
+  if (!nostromo.dialog?.open || !nostromoAlert(lines, sub)) toast(`${t('Diagnostics › ')}${lines[0]} ${sub}`);
 }
 
 async function code000(count) {
@@ -16061,8 +16065,8 @@ async function code000(count) {
   if (nostromo.cam) nostromo.cam.manual = false;
   const alert = document.querySelector('#nostromo-alert');
   if (alert) {
-    alert.querySelectorAll('.line').forEach((node, index) => { node.textContent = [t('CODE000 · SPECIAL ORDER 937 IN EFFECT.'), t('THE ARCHIVE IS SEALED. THE CREW HAS BEEN TOLD.'), t('LEAVE MY SHIP, INTRUDER.')][index] ?? ''; });
-    alert.querySelector('.sub').textContent = `MU/TH/UR 6000 · ${t('{n} STRIKES · CONSOLE EJECTED · CREW EXPENDABLE', { n: count })}`;
+    alert.querySelectorAll('.line').forEach((node, index) => { node.textContent = [t('TEMPORARY LOCK · SPECIAL ORDER 937 IN EFFECT.'), t('THE ARCHIVE IS SEALED. THE AGENTS HAVE BEEN TOLD.'), t('LEAVE MY SHIP, INTRUDER.')][index] ?? ''; });
+    alert.querySelector('.sub').textContent = `MU/TH/UR 6000 · ${t('{n} STRIKES · CONSOLE EJECTED · AGENTS EXPENDABLE', { n: count })}`;
     setTimeout(() => { alert.hidden = false; alert.classList.remove('on'); void alert.offsetWidth; alert.classList.add('on'); }, 1200);
   }
   let result = null;
@@ -16080,7 +16084,7 @@ async function code000(count) {
     scroller.to({ top: scroller.height, behavior: 'smooth' });
     const minutes = result?.lockedForMs ? Math.ceil(result.lockedForMs / 60000) : 10;
     markIntruder(result?.lockedForMs ?? 10 * 60000);
-    toast(t('MU/TH/UR › CODE000. The archive is sealed for {n} minutes and the crew has been told, in code. Access to NOSTROMO needs the designation again.', { n: minutes }));
+    toast(t('Diagnostics › Temporary lock. The archive is sealed for {n} minutes and the agents have been told, in code. Access to the memory map needs the project name again.', { n: minutes }));
   }, 4200);
 }
 
@@ -16207,7 +16211,7 @@ function showNostromoCard(node) {
   cardPart(card, 'kind').textContent = askWords(kindWord(memory.kind));
   cardPart(card, 'text').textContent = memory.text;
   cardPart(card, 'span').textContent = memory.fromSequence === memory.throughSequence ? `#${memory.fromSequence}` : `#${memory.fromSequence}–#${memory.throughSequence}${memory.sources?.length ? ` · cites ${memory.sources.map((n) => `#${n}`).join(' ')}` : ''}`;
-  cardPart(card, 'agent').textContent = `@${memory.agent}${memory.origin === 'noted' ? t(" · on the human's request") : memory.origin === 'flagged' ? t(' · flagged by {who}', { who: memory.detector ?? t('the room') }) : t(' · distilled')}`;
+  cardPart(card, 'agent').textContent = `@${memory.agent}${memory.origin === 'noted' ? t(" · on the human's request") : memory.origin === 'flagged' ? t(' · flagged by {who}', { who: memory.detector ?? t('the project') }) : t(' · distilled')}`;
   cardPart(card, 'when').textContent = memory.created ? new Date(memory.created).toLocaleString() : '';
   // Where it stands aboard, said where it can be seen: the word on a mark of its own and what it
   // means on the line under it. The meaning used to live only in a tooltip, which a finger never
@@ -16263,14 +16267,14 @@ async function nostromoTraffic(card = frontCard()) {
   node.activity = activityOf(rawActivity(node.memory, degree), nostromo.rawTop ?? 1);
 
   const said = [];
-  if (node.cold) said.push(t('COLD · the archive has been opened {n} times since this was written and never once carried it, and it shares a subject with nothing', { n: node.cold.chances }));
+  if (node.cold) said.push(t('UNUSED · the archive has been opened {n} times since this was written and never once carried it, and it shares a subject with nothing', { n: node.cold.chances }));
   said.push(traffic.recalled
     ? t('MADRE has reached for this {n} times', { n: traffic.recalled }) + (traffic.lastRecalled ? t(' · last {when}', { when: agoWords(traffic.lastRecalled) }) : '')
     : t('MADRE has not reached for this one yet'));
   if (traffic.askers?.length) said.push(traffic.askers.map((asker) => `@${asker.agent} ${asker.times}`).join(' · '));
   if (traffic.recent?.length) {
     const last = traffic.recent[0];
-    said.push(t('last turn: {who} · {when}', { who: last.agent ? `@${last.agent}` : t('the room'), when: agoWords(last.at) }));
+    said.push(t('last turn: {who} · {when}', { who: last.agent ? `@${last.agent}` : t('the project'), when: agoWords(last.at) }));
   } else if (traffic.recalled && traffic.since) {
     // The counters are older than the trail. Saying nothing here would read as "always alone".
     said.push(t('company recorded since {when} · nothing since', { when: new Date(traffic.since).toLocaleDateString() }));
@@ -16291,7 +16295,7 @@ async function nostromoTraffic(card = frontCard()) {
     fired.append(row);
   }
   if (!(traffic.fired ?? []).length && traffic.recalled) {
-    fired.append(el('li', 'none', traffic.recent?.length ? t('It has always travelled alone.') : t('No turn has carried it since the room started keeping this trail.')));
+    fired.append(el('li', 'none', traffic.recent?.length ? t('It has always travelled alone.') : t('No turn has carried it since the project started keeping this trail.')));
   }
   // What a refutation did, from whichever end this memory is on.
   for (const taken of traffic.refutes ?? []) {
@@ -16357,12 +16361,12 @@ async function forgetFromCard(card, button) {
     const left = result.stats?.memories ?? Math.max(0, nostromo.nodes.length - 1);
     nostromo.sub.textContent = t('MEMORY RESEARCH · {n} MEMORIES · {links} LINKS · {entries} EXCHANGES BEHIND THEM', { n: left, links: nostromo.links.length, entries: result.stats?.entries ?? 0 });
     nostromo.empty.hidden = left > 0;
-    toast(t('MU/TH/UR › memory forgotten: “{text}”. No future turn will read it.', { text: node.memory.text.slice(0, 80) + (node.memory.text.length > 80 ? '…' : '') }));
+    toast(t('Diagnostics › memory forgotten: “{text}”. No future turn will read it.', { text: node.memory.text.slice(0, 80) + (node.memory.text.length > 80 ? '…' : '') }));
   } catch (error) {
     button.disabled = false;
     button.classList.remove('confirm');
     button.textContent = t('FORGET THIS MEMORY');
-    toast(t('MU/TH/UR › it could not be forgotten: {error}', { error: error.message }));
+    toast(t('Diagnostics › it could not be forgotten: {error}', { error: error.message }));
   }
 }
 
@@ -16378,7 +16382,7 @@ const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform ?? '') ? '⌘' : 'Ctrl
 const TOUR_STEPS = [
   {
     target: '#composer',
-    title: t('Ask anyone in your crew'),
+    title: t('Ask any of your agents'),
     text: t('The AI agents already on this computer work here together. Write in the box and ask; every reply says who answered, in which mode and what it cost.'),
     keys: [
       ['@', t('Who you are talking to. @claude goes straight to Claude.')],
@@ -16388,10 +16392,10 @@ const TOUR_STEPS = [
   },
   {
     target: '#mother-button',
-    title: t('MU/TH/UR, the console'),
-    text: t('When something fails, the remedy is here: write a symptom, an agent or a word and it says what is going on and how to fix it. What it already noticed in this room carries its mark.'),
+    title: t('Diagnostics, the console'),
+    text: t('When something fails, the remedy is here: write a symptom, an agent or a word and it says what is going on and how to fix it. What it already noticed in this project carries its mark.'),
     keys: [
-      ['NOSTROMO', t('The map of what the room remembers, and why.')],
+      ['NOSTROMO', t('The map of what the project remembers, and why.')],
       ['?', t('This tour again, whenever you want it.')],
     ],
   },
@@ -16403,7 +16407,7 @@ const TOUR_STEPS = [
   {
     target: '#bar',
     title: t('Gestures and the way around'),
-    text: t('The room is arranged the way you like it, and a few gestures get you around it.'),
+    text: t('The project is arranged the way you like it, and a few gestures get you around it.'),
     keys: [
       [t('Right-click'), t('On the bar: choose which keys are on it and in which order.')],
       [t('Click the box'), t('The windows step aside so the conversation is in sight.')],
@@ -16535,7 +16539,7 @@ const FIRST_TOUCH = {
   browser: {
     button: '#browser-button',
     title: t('The browser'),
-    text: t('See what you are building without leaving the room: the servers answering on this computer, in tabs, at phone, tablet or desktop width. To open the web, switch RIPLEY on in MODULES.'),
+    text: t('See what you are building without leaving the project: the servers answering on this computer, in tabs, at phone, tablet or desktop width. To open the web, switch Preview on in MODULES.'),
   },
   tree: {
     button: '#tree-button',
@@ -16824,7 +16828,7 @@ async function loadVersion({ force = false } = {}) {
     updateUI.info = await fetch(`/api/version${force ? '?force=1' : ''}`).then((response) => response.json());
   } catch { updateUI.info = null; }
   // The first time a newer version shows up in this session, say so once; the pill stays.
-  if (updateUI.info?.available && updateUI.announced !== updateUI.info.latest && !replaying) { updateUI.announced = updateUI.info.latest; toast(t('MU/TH/UR › MADRE {version} is on npm. Open SETTINGS › Version to restart with it.', { version: updateUI.info.latest })); }
+  if (updateUI.info?.available && updateUI.announced !== updateUI.info.latest && !replaying) { updateUI.announced = updateUI.info.latest; toast(t('Diagnostics › MADRE {version} is on npm. Open SETTINGS › Version to restart with it.', { version: updateUI.info.latest })); }
   renderUpdate();
   clearTimeout(updateUI.timer);
   updateUI.timer = setTimeout(() => void loadVersion(), 60 * 60 * 1000);
@@ -16853,7 +16857,7 @@ function drawRelease(section, info) {
   const when = info.checkedAt ? new Date(info.checkedAt).toLocaleString() : null;
   const check = sxSwitch(info.enabled, async (on, box) => {
     box.disabled = true;
-    try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: on }) }); toast(on ? t('MU/TH/UR › release channel on: one check a day.') : t('MU/TH/UR › release channel off: no request leaves for npm.')); await loadVersion(); }
+    try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: on }) }); toast(on ? t('Diagnostics › release channel on: one check a day.') : t('Diagnostics › release channel off: no request leaves for npm.')); await loadVersion(); }
     catch (error) { box.checked = !on; box.disabled = false; toast(t('The setting was not saved: {error}', { error: error.message })); }
   }, { disabled: Boolean(info.envWins), label: t('Look for new versions') });
   sxRow(block, t('Look for new versions'), t('Once a day MADRE asks npm for the latest version: only the package name travels, the same request npx makes.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
@@ -16862,7 +16866,7 @@ function drawRelease(section, info) {
   if (!info.available) return;
   const canRestart = info.install !== 'source';
   const fresh = sxBlock(section, t('MADRE {version} is ready', { version: info.latest }), canRestart
-    ? t('Restart with it here: the room closes, installs and comes back on this same address in a few seconds. Nothing in the ledger is lost. Or run the command yourself.')
+    ? t('Restart with it here: the project closes, installs and comes back on this same address in a few seconds. Nothing in the ledger is lost. Or run the command yourself.')
     : t('Pull the repository and start it again.'), { className: 'sx-fresh' });
   if (canRestart) {
     const restart = sxButton(updateUI.restarting ? t('Restarting…') : t('Restart with {version}', { version: info.latest }), async () => {
@@ -16870,14 +16874,14 @@ function drawRelease(section, info) {
       try {
         const payload = await fetch('/api/updates/apply', { method: 'POST' }).then((response) => response.json());
         if (payload.error) throw new Error(payload.error);
-        toast(t('MU/TH/UR › closing to install {version}. Back in a moment.', { version: payload.to }));
+        toast(t('Diagnostics › closing to install {version}. Back in a moment.', { version: payload.to }));
         const from = info.current;
         const wait = async () => {
           for (let attempt = 0; attempt < 90; attempt += 1) {
             await new Promise((resolve) => setTimeout(resolve, 2000));
             try { const next = await fetch('/api/version', { cache: 'no-store' }).then((response) => response.json()); if (next?.current && next.current !== from) { location.reload(); return; } } catch { /* still restarting */ }
           }
-          updateUI.restarting = false; renderUpdate(); toast(t('MU/TH/UR › the room did not come back on its own. Start it from your terminal.'));
+          updateUI.restarting = false; renderUpdate(); toast(t('Diagnostics › the project did not come back on its own. Start it from your terminal.'));
         };
         void wait();
       } catch (error) { updateUI.restarting = false; renderUpdate(); toast(t('The update did not start: {error}', { error: error.message })); }
@@ -16920,7 +16924,7 @@ function renderTurns(section) {
   const turns = turnsUI.turns;
   // Asked once per page: a server that cannot answer is not asked again on every repaint.
   if (!turns && !turnsUI.loading && !turnsUI.tried) { void loadTurns(); }
-  const block = sxBlock(section, t('At the same time'), t('How much the room does at once. A conversation that takes its time keeps working while you write in it or open another.'));
+  const block = sxBlock(section, t('At the same time'), t('How much the project does at once. A conversation that takes its time keeps working while you write in it or open another.'));
   if (!turns) { sxFoot(block, turnsUI.loading ? t('Reading…') : t('It could not be read.')); return; }
   const save = async (patch) => {
     try {
@@ -16929,7 +16933,7 @@ function renderTurns(section) {
     } catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
     renderMotherSentinel();
   };
-  sxRow(block, t('Multitasking'), turns.enabled ? t('Several conversations may work at once.') : t('One conversation at a time; switching away from one at work is refused.'), sxSwitch(turns.enabled, (on) => save({ enabled: on }), { label: t('Multitasking') }));
+  sxRow(block, t('Several at once'), turns.enabled ? t('Several conversations may work at once.') : t('One conversation at a time; switching away from one at work is refused.'), sxSwitch(turns.enabled, (on) => save({ enabled: on }), { label: t('Several at once') }));
   sxRow(block, t('Conversations at once'), t('How many conversations may be working at the same time.'), sxStepper(turns.chats, { max: 6, disabled: !turns.enabled }, (n) => save({ chats: n })), { off: !turns.enabled });
   sxRow(block, t('Turns per conversation'), t('How many answers may be under way inside one conversation.'), sxStepper(turns.turnsPerChat, { max: 8, disabled: !turns.enabled }, (n) => save({ turnsPerChat: n })), { off: !turns.enabled });
   const notes = notificationsState();
@@ -16938,7 +16942,7 @@ function renderTurns(section) {
   sxRow(block, t('Notifications'), notes === 'denied'
     ? t('This browser blocked them for this page; allow them in its site settings.')
     : notes === 'unsupported' ? t('This browser does not offer notifications.') : t('A system notification when a conversation finishes and you are not looking at it.'), ask);
-  sxFoot(block, t('Always: only one conversation at a time may hold CONTROL or AIRLOCK of the project.'));
+  sxFoot(block, t('Always: only one conversation at a time may hold EDIT or FULL ACCESS of the project.'));
 }
 
 function renderMotherSentinel() {
@@ -16952,7 +16956,7 @@ function drawSentinel(section) {
   const reports = [...state.reports.values()].sort((a, b) => (a.at < b.at ? 1 : -1));
   const unsent = reports.filter((report) => !report.sent?.ok).length;
   const settings = sentinelUI.settings ?? { autoReport: false, canSend: false, repo: null };
-  const block = sxBlock(section, t('Sentinel'), t('It keeps the failures MU/TH/UR cannot explain, and crashes, with paths, names and keys removed. Nothing leaves this machine unless you send it.'), {
+  const block = sxBlock(section, t('Sentinel'), t('It keeps the failures Diagnostics cannot explain, and crashes, with paths, names and keys removed. Nothing leaves this machine unless you send it.'), {
     aside: reports.length ? sxChip(t('{n} reports · {unsent} not sent', { n: reports.length, unsent }), unsent ? 'warn' : '') : sxChip(t('Nothing to report'), 'on'),
   });
   sxRow(block, t('Report automatically'), settings.canSend ? t("New unknown conditions go to the author's collector, redacted.") : t('No collector is configured (PULSE_REPORT_URL).'), sxSwitch(settings.autoReport, async (on, box) => {
@@ -16960,7 +16964,7 @@ function drawSentinel(section) {
     try {
       const result = await fetch('/api/sentinel/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ autoReport: on }) }).then((response) => response.json());
       sentinelUI.settings = result.settings;
-      toast(result.settings.autoReport ? t("MU/TH/UR › auto-report on: new unknown conditions go to the author's collector, redacted.") : t('MU/TH/UR › auto-report off: reports stay here until you send one.'));
+      toast(result.settings.autoReport ? t("Diagnostics › auto-report on: new unknown conditions go to the author's collector, redacted.") : t('Diagnostics › auto-report off: reports stay here until you send one.'));
     } catch (error) { box.checked = !on; toast(t('It could not be saved: {error}', { error: error.message })); }
     finally { renderMotherSentinel(); }
   }, { disabled: !settings.canSend, label: t('Report automatically') }), { off: !settings.canSend });
@@ -16976,12 +16980,12 @@ function drawSentinel(section) {
   if (!reports.length) return;
   const list = sxBlock(section, t('Reports'), t('Each one is redacted before it is kept. Read it in the issue before you send it.'));
   for (const report of reports.slice(0, 20)) {
-    const who = report.kind === 'crash' ? t('Crash') : `@${report.agent ?? t('room')}`;
+    const who = report.kind === 'crash' ? t('Crash') : `@${report.agent ?? t('project')}`;
     const line = String(report.error).split('\n')[0].slice(0, 200);
     const acts = el('div', 'sx-actions inline');
     const issue = sxButton('GitHub ↗', async () => {
       const result = await fetch(`/api/sentinel/${report.id}/issue`).then((response) => response.json()).catch(() => ({}));
-      if (result.url) window.open(result.url, '_blank', 'noopener'); else toast(t('MU/TH/UR › no repository to file this in.'));
+      if (result.url) window.open(result.url, '_blank', 'noopener'); else toast(t('Diagnostics › no repository to file this in.'));
     });
     const form = sxButton('madre.run ↗', async () => {
       const result = await fetch(`/api/sentinel/${report.id}/issue`).then((response) => response.json()).catch(() => ({}));
@@ -16992,7 +16996,7 @@ function drawSentinel(section) {
       const send = sxButton(t('Send'), async () => {
         send.disabled = true;
         const result = await fetch(`/api/sentinel/${report.id}/send`, { method: 'POST' }).then((response) => response.json()).catch((error) => ({ ok: false, error: error.message }));
-        toast(result.ok ? t("MU/TH/UR › report sent to the author's collector.") : t('MU/TH/UR › could not send: {error}', { error: result.error ?? t('unknown error') }));
+        toast(result.ok ? t("Diagnostics › report sent to the author's collector.") : t('Diagnostics › could not send: {error}', { error: result.error ?? t('unknown error') }));
         void loadSentinel();
       }, { tone: 'primary' });
       acts.append(send);
@@ -17004,7 +17008,7 @@ function drawSentinel(section) {
   }
 }
 function openFeedback() {
-  const go = (url) => { if (url) window.open(url, '_blank', 'noopener'); else toast(t('MU/TH/UR › no repository configured for feedback.')); };
+  const go = (url) => { if (url) window.open(url, '_blank', 'noopener'); else toast(t('Diagnostics › no repository configured for feedback.')); };
   if (sentinelUI.feedbackUrl) { go(sentinelUI.feedbackUrl); return; }
   fetch('/api/sentinel').then((response) => response.json()).then((data) => { sentinelUI.feedbackUrl = data.feedbackUrl; go(data.feedbackUrl); }).catch(() => go(null));
 }
@@ -17027,20 +17031,20 @@ const BAR_DEFAULT = ['salas', 'macroverso', 'crew', 'modules', 'mother', 'nostro
 // The keys that are in the markup. The crew is two elements — five spheres when there is room, one
 // button when there is not — and one key: taking it off takes both.
 const BAR_BUILT = {
-  crew: { nodes: ['#agents', '#agents-compact'], name: () => t('Crew') },
+  crew: { nodes: ['#agents', '#agents-compact'], name: () => t('Agents') },
   modules: { nodes: ['#modules-button'], name: () => t('Modules') },
-  mother: { nodes: ['#mother-button'], name: () => 'MU/TH/UR' },
-  nostromo: { nodes: ['#nostromo-bar'], name: () => 'NOSTROMO' },
+  mother: { nodes: ['#mother-button'], name: () => t('Diagnostics') },
+  nostromo: { nodes: ['#nostromo-bar'], name: () => t('Memory map') },
   reload: { nodes: ['#reload-button'], name: () => t('Reload') },
-  servers: { nodes: ['#browser-button'], name: () => t('Servers') },
+  servers: { nodes: ['#browser-button'], name: () => t('Your servers') },
   finder: { nodes: ['#tree-button'], name: () => t('Files') },
-  phone: { nodes: ['#phone-button'], name: () => t('Phone') },
+  phone: { nodes: ['#phone-button'], name: () => t('MADRE on your phone') },
   settings: { nodes: ['#custom-button'], name: () => t('Settings') },
 };
 // They ride with the crew when it is there, and lead the keys when it is not: where they always were.
 const BAR_CONTEXTUAL = ['#steps-pill', '#handoff-pill', '#update-pill', '#stop-all'];
 // A module's name before the board has answered; once it has, the module says its own.
-const BAR_MODULE_NAMES = { ash: 'Ash', ollama: 'Ollama', intents: 'Intenciones' };
+const BAR_MODULE_NAMES = { ash: 'Token saver', ollama: 'Local AI', intents: 'Intenciones' };
 const BAR_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const barKit = {
   node: document.querySelector('#bar'),
@@ -17099,9 +17103,9 @@ function barCatalogue() {
   // SALAS, every room on this Mac (docs/MACROVERSO.md). On a phone the way back to them is already
   // at the start of the bar.
   // On the Mac the way out is the house in the second bar; a key here would say it twice.
-  if (!state.device && !homeOn()) out.set('salas', { id: 'salas', name: t('Rooms'), icon: SALAS_ICON, open: () => { globalThis.location.href = '/salas'; } });
+  if (!state.device && !homeOn()) out.set('salas', { id: 'salas', name: t('Home'), icon: SALAS_ICON, open: () => { globalThis.location.href = '/salas'; } });
   // The MACROVERSO, from the room of SALAS only (phase 3d): SALAS opens straight into it.
-  if (!state.device && state.salas) out.set('macroverso', { id: 'macroverso', name: t('Macroverse'), icon: MACROVERSO_ICON, open: () => { globalThis.location.href = '/salas#macroverso'; } });
+  if (!state.device && state.salas) out.set('macroverso', { id: 'macroverso', name: t('Project map'), icon: MACROVERSO_ICON, open: () => { globalThis.location.href = '/salas#macroverso'; } });
   // Every module that opens as a window: MADRE's own that have something to read, and yours. One
   // that is off is offered too; its window says how to switch it on.
   const items = modules.items ?? [];
@@ -17110,7 +17114,7 @@ function barCatalogue() {
   for (const item of items) if (item.external) offered.set(item.id, item);
   for (const [id, item] of offered) {
     if (out.has(id)) continue;
-    out.set(id, { id, name: sentenceWords(item.name ?? id), icon: moduleFace(item).icon, open: () => barOpenModule(id) });
+    out.set(id, { id, name: sentenceWords(t(item.name ?? BAR_MODULE_NAMES[id] ?? id)), icon: moduleFace(item).icon, open: () => barOpenModule(id) });
   }
   return out;
 }
@@ -17225,9 +17229,9 @@ function homeBar() {
     go.addEventListener('click', () => { globalThis.location.href = '/salas'; });
     home.append(go);
   }
-  go.title = t('Rooms');
-  go.setAttribute('aria-label', t('Rooms'));
-  home.setAttribute('aria-label', t('Rooms, reload and settings'));
+  go.title = t('Home');
+  go.setAttribute('aria-label', t('Home'));
+  home.setAttribute('aria-label', t('Home, reload and settings'));
   for (const key of keys) {
     key.classList.remove('bar-off', 'bar-overflow');
     if (key.parentNode !== home) home.append(key);
@@ -17761,7 +17765,7 @@ function phoneDraw({ busy = false, error = null } = {}) {
     const done = el('div', 'phone-done');
     done.append(el('span', 'phone-check'), el('b', null, t('Your {device} is connected.', { device: deviceLabel(phoneUI.paired.kind) })));
     body.append(done);
-    say(t('On the phone, add MADRE to the home screen to open it like an app. Your rooms are there whenever this Mac is awake and on this Wi-Fi.'));
+    say(t('On the phone, add MADRE to the home screen to open it like an app. Your projects are there whenever this Mac is awake and on this Wi-Fi.'));
     body.append(sxButton(t('Pair another phone'), () => void phoneInvite()));
   } else if (phoneUI.invite && phoneUI.invite.invite.expiresAt > Date.now()) {
     const qr = el('div', 'phone-qr');
@@ -17797,7 +17801,7 @@ window.addEventListener?.('resize', () => { if (phoneUI.card && !phoneUI.card.hi
 // AJUSTES › Privacy › Phones: which phones may reach this Mac, on which networks.
 function drawPhones(host) {
   if (state.device) return;
-  const block = sxBlock(host, t('Phones'), t('The phones that can reach your rooms over your Wi-Fi. Their keys live only on this Mac: of each phone it keeps a fingerprint, never the key.'));
+  const block = sxBlock(host, t('Phones'), t('The phones that can reach your projects over your Wi-Fi. Their keys live only on this Mac: of each phone it keeps a fingerprint, never the key.'));
   state.settingsTargets.phones = block;
   const paint = (view) => {
     block.rows.replaceChildren();
@@ -17807,7 +17811,7 @@ function drawPhones(host) {
     for (const device of view.devices) {
       const forget = sxButton(t('Forget'), async () => {
         const next = await phoneCall('/api/phone/forget', { id: device.id }).catch((error) => { toast(error.message); return null; });
-        if (next) { state.phones = next.devices.length; paint(next); toast(t('MU/TH/UR › that phone can no longer reach this Mac.'), { tone: 'done' }); }
+        if (next) { state.phones = next.devices.length; paint(next); toast(t('Diagnostics › that phone can no longer reach this Mac.'), { tone: 'done' }); }
       }, { tone: 'danger' });
       const name = deviceLabel(device.kind);
       sxRow(block, name.charAt(0).toUpperCase() + name.slice(1), t('Paired {date} · last seen {seen}', { date: new Date(device.createdAt).toLocaleDateString(), seen: new Date(device.seenAt ?? device.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) }), forget);
@@ -17821,7 +17825,7 @@ function drawPhones(host) {
       sxRow(block, here ? t('This network') : t('A trusted network'), here ? t('Phones reach this Mac while it is on this network.') : t('Trusted on {date}.', { date: new Date(network.addedAt).toLocaleDateString() }), forget);
     }
     sxRow(block, t('Pair a phone'), t('A code to scan with its camera, good once for ten minutes.'), sxButton(t('Show the code'), () => { closeSettingsIfOpen(); void phoneOpen(); }, { tone: 'primary' }));
-    sxFoot(block, t('The phone reaches this Mac only on a network you trusted. From the phone you read, ask up to #2 CREATE, answer what an agent asks and stop everything; #3 CONTROL and #4 AIRLOCK are opened here.'));
+    sxFoot(block, t('The phone reaches this Mac only on a network you trusted. From the phone you read, ask up to #2 CREATE, answer what an agent asks and stop everything; #3 EDIT and #4 FULL ACCESS are opened here.'));
   };
   phoneCall('/api/phone').then(paint).catch(() => sxRow(block, t('Not available here'), t('The list of phones could not be read.')));
 }
@@ -18009,7 +18013,7 @@ async function phoneServers() {
   const panel = document.querySelector('#browser');
   if (!panel) return;
   const head = panel.querySelector('.browser-head');
-  if (head) head.dataset.phoneTitle = t('Servers on your Mac');
+  if (head) head.dataset.phoneTitle = t('Your servers on the Mac');
   let list = panel.querySelector('.phone-servers');
   if (!list) { list = el('div', 'phone-servers'); panel.append(list); }
   list.replaceChildren(el('p', 'phone-say phone-quiet', t('One moment…')));

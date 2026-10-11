@@ -137,7 +137,7 @@ const el = (tag, className, text) => {
 };
 
 // The same small words as the phone's SALAS (salas.js).
-const chatName = (title) => (title === 'First conversation' ? t('First conversation') : title === 'Untitled' ? t('Untitled') : title);
+const chatName = (title) => (title === 'First conversation' ? t('First conversation') : title === 'Untitled' ? t('Untitled') : title === 'Coordinator' ? t('Coordinator') : title);
 function ago(iso) {
   const at = Date.parse(iso ?? '');
   if (!Number.isFinite(at)) return '';
@@ -150,12 +150,13 @@ function ago(iso) {
   if (away < 604800) return words.format(Math.round(seconds / 86400), 'day');
   return new Date(at).toLocaleDateString(language, { day: 'numeric', month: 'short' });
 }
-const MODE_NAMES = ['GHOST', 'EXCHANGE', 'CREATE', 'CONTROL', 'AIRLOCK'];
+// The modes as the room names them (app.js, MODES): asked when shown, so the language is the page's.
+const modeName = (n) => [t('INCOGNITO'), t('CHAT ONLY'), t('CREATE'), t('EDIT'), t('FULL ACCESS')][n] ?? '';
 function askLine(ask) {
-  if (ask.kind === 'mode') return t('@{agent} asks for #{n} {label}', { agent: ask.agent, n: ask.mode, label: MODE_NAMES[ask.mode] ?? '' });
+  if (ask.kind === 'mode') return t('@{agent} asks for #{n} {label}', { agent: ask.agent, n: ask.mode, label: modeName(ask.mode) });
   if (ask.kind === 'run') return ask.text ? t('@{agent} wants to run {line}', { agent: ask.agent, line: ask.text }) : t('@{agent} wants to run a command', { agent: ask.agent });
-  if (ask.kind === 'bishop') return t('BISHOP proposes #{n} to @{agent}: arm it with your key', { n: ask.mode, agent: ask.agent });
-  if (ask.kind === 'plan') return ask.text ? t('BISHOP waits for your press: {reason}', { reason: ask.text }) : t('BISHOP waits for your press');
+  if (ask.kind === 'bishop') return t('The Coordinator proposes #{n} to @{agent}: unlock it with your key', { n: ask.mode, agent: ask.agent });
+  if (ask.kind === 'plan') return ask.text ? t('The Coordinator waits for your press: {reason}', { reason: ask.text }) : t('The Coordinator waits for your press');
   return ask.text ? t('@{agent} asks you: {question}', { agent: ask.agent, question: ask.text }) : t('@{agent} asks you to choose', { agent: ask.agent });
 }
 // The folder, as a person writes it: the home folder is ~.
@@ -191,7 +192,7 @@ function memoryStrip(census) {
 function stateOf(room) {
   const glance = room.glance ?? {};
   if (!room.open) return { key: 'asleep', words: room.lastOpened ? t('Asleep · last open {when}', { when: ago(room.lastOpened) }) : t('Asleep') };
-  if (glance.outdated) return { key: 'outdated', words: t('Update MADRE in this room to see it here.') };
+  if (glance.outdated) return { key: 'outdated', words: t('Update MADRE in this project to see it here.') };
   if (glance.unreachable) return { key: 'quiet', words: t('Not answering right now') };
   if (glance.waitingCount) return { key: 'waiting', words: t('Waiting for you · {n}', { n: glance.waitingCount }) };
   if (glance.working?.length) return { key: 'working', words: glance.working.length === 1 ? t('@{agent} is working', { agent: glance.working[0] }) : t('{n} agents working', { n: glance.working.length }) };
@@ -254,7 +255,7 @@ function card(room) {
     const why = room.here ? t('This page closes with it.') : glance.working?.length ? t('What is running stops.') : t('Nothing is running.');
     actions.append(el('span', 'sm-ask', why), button('sm-btn danger small', t('Close it'), () => closeRoom(room)), button('sm-btn ghost small', t('Cancel'), () => { asking.delete(room.id); draw(); }));
   } else if (room.open) {
-    const go = el('a', 'sm-btn primary small', room.here ? t('Back to the room') : t('Open'));
+    const go = el('a', 'sm-btn primary small', room.here ? t('Back to the project') : t('Open'));
     go.href = addressOf(room);
     actions.append(go);
     if (!glance.outdated) actions.append(button('sm-btn ghost small', t('Close'), () => { failed.delete(room.id); asking.add(room.id); draw(); }));
@@ -339,7 +340,7 @@ function drawWaiting() {
     row.append(el('b', null, roomLabel(room)), el('span', null, first ? askLine(first) : t('Waiting for you · {n}', { n: room.glance.waitingCount })));
     ui.waiting.body.append(row);
   }
-  if (rooms.length > 2) ui.waiting.body.append(el('p', 'sm-hint', t('And {n} more rooms.', { n: rooms.length - 2 })));
+  if (rooms.length > 2) ui.waiting.body.append(el('p', 'sm-hint', t('And {n} more projects.', { n: rooms.length - 2 })));
 }
 
 // MEMORY: what the open rooms hold, added up, by kind. A room asleep is not asked, so it is not
@@ -364,7 +365,7 @@ function drawMemory() {
     const item = el('span', `k-${kind}`, `${kindWord(kind)} · ${sum.kinds[kind]}`);
     legend.append(item);
   }
-  ui.memory.body.append(legend, el('p', 'sm-hint', [sum.memories ? t('{n} travel', { n: sum.travelling }) : null, t('Counted in the open rooms.')].filter(Boolean).join(' · ')));
+  ui.memory.body.append(legend, el('p', 'sm-hint', [sum.memories ? t('{n} travel', { n: sum.travelling }) : null, t('Counted in the open projects.')].filter(Boolean).join(' · ')));
 }
 
 // AGENTS: the ones on this computer, with the session each has. Connected once, every project
@@ -402,7 +403,7 @@ function attentionItems() {
   for (const room of data?.rooms ?? []) {
     if (!room.open) continue;
     const name = roomLabel(room);
-    if (room.glance?.outdated) items.push({ tone: 'wait', words: t('{room} runs an older MADRE.', { room: name }), hint: t('Update it to see it here and to link it.'), href: addressOf(room), go: t('Open') });
+    if (room.glance?.outdated) items.push({ tone: 'wait', words: t('{room} runs an older MADRE.', { room: name }), hint: t('Update it to see it here and to connect it.'), href: addressOf(room), go: t('Open') });
     else if (room.glance?.unreachable) items.push({ tone: 'bad', words: t('{room} is not answering.', { room: name }), hint: t('It may be busy. If it stays like this, close it and open it again.') });
   }
   for (const agent of (agentsSeen?.agents ?? []).filter((one) => one.id !== 'madre')) {
@@ -413,9 +414,9 @@ function attentionItems() {
   for (const enlace of data?.enlaces ?? []) {
     if (!enlace.expires || Date.parse(enlace.expires) > soon) continue;
     const { source, reader } = endsOf(enlace);
-    items.push({ tone: 'wait', words: t('The link {reader} ← {source} ends {when}.', { reader: roomName(reader), source: roomName(source), when: ago(enlace.expires) }), hint: t('Sign it again if it should go on.'), act: () => ui.linksSheet.showModal(), go: t('See the links') });
+    items.push({ tone: 'wait', words: t('The connection {reader} ← {source} ends {when}.', { reader: roomName(reader), source: roomName(source), when: ago(enlace.expires) }), hint: t('Sign it again if it should go on.'), act: () => ui.linksSheet.showModal(), go: t('See the connections') });
   }
-  if (versionSeen?.available && versionSeen.latest) items.push({ tone: 'ok', words: t('MADRE {version} is out.', { version: versionSeen.latest }), hint: t('You run {version}. Each room updates from its settings, in Version.', { version: versionSeen.current }), href: versionSeen.release, external: true, go: t('What it brings') });
+  if (versionSeen?.available && versionSeen.latest) items.push({ tone: 'ok', words: t('MADRE {version} is out.', { version: versionSeen.latest }), hint: t('You run {version}. Each project updates from its settings, in Version.', { version: versionSeen.current }), href: versionSeen.release, external: true, go: t('What it brings') });
   return items;
 }
 function drawAttention() {
@@ -426,7 +427,7 @@ function drawAttention() {
   if (!items.length) {
     const calm = el('li', 'sm-attention-item is-calm');
     const words = el('div', 'sm-attention-words');
-    words.append(el('b', null, t('All in order.')), el('span', null, t('No room, agent or link needs you.')));
+    words.append(el('b', null, t('All in order.')), el('span', null, t('No project, agent or connection needs you.')));
     calm.append(el('i', 'dot'), words);
     ui.attention.list.append(calm);
     return;
@@ -459,8 +460,8 @@ async function loadDecisions() {
 function drawDecisions() {
   const list = ui.decisions.list;
   list.replaceChildren();
-  if (!decisions) { list.append(el('li', 'sm-hint', t('Reading the open rooms…'))); return; }
-  if (!decisions.length) { list.append(el('li', 'sm-hint', t('No decisions yet in the open rooms. When an archive keeps one, it shows here.'))); return; }
+  if (!decisions) { list.append(el('li', 'sm-hint', t('Reading the open projects…'))); return; }
+  if (!decisions.length) { list.append(el('li', 'sm-hint', t('No decisions yet in the open projects. When an archive keeps one, it shows here.'))); return; }
   for (const one of decisions.slice(0, 4)) {
     const item = el('li', 'sm-decision');
     const head = el('div', 'sm-decision-head');
@@ -472,7 +473,8 @@ function drawDecisions() {
 // A project's name as a small tag: a way into it when it is open.
 function roomTag(id, name) {
   const room = data?.rooms.find((one) => one.id === id) ?? null;
-  const tag = el(room?.open ? 'a' : 'span', 'sm-chip port sm-tag-room', name);
+  // The Coordinator's own project is named as the Coordinator, in the reader's language.
+  const tag = el(room?.open ? 'a' : 'span', 'sm-chip port sm-tag-room', id === data?.salas ? t('Coordinator') : name);
   if (room?.open) tag.href = addressOf(room);
   return tag;
 }
@@ -529,8 +531,8 @@ ui.work.again.addEventListener('click', () => void loadWork({ again: true }));
 // LINKS (docs/MACROVERSO.md, phase 3c): the contracts between rooms, read from /api/salas, each
 // one revocable here, and the sheet that signs a new one. A contract says which room reads which,
 // what kinds cross and until when; what crosses is counted, never shown.
-const roomLabel = (room) => (room.id === data?.salas ? 'BISHOP' : room.name);
-const roomName = (id) => { const room = data?.rooms.find((one) => one.id === id); return room ? roomLabel(room) : id === data?.salas ? 'BISHOP' : id; };
+const roomLabel = (room) => (room.id === data?.salas ? t('Coordinator') : room.name);
+const roomName = (id) => { const room = data?.rooms.find((one) => one.id === id); return room ? roomLabel(room) : id === data?.salas ? t('Coordinator') : id; };
 const kindsWords = (kinds) => (kinds ?? []).map((kind) => (KIND_WORDS[kind] ?? kind).toLowerCase()).join(', ');
 // Who reads and who serves, from the contract's own words: `a→b` means the notes travel from a to b.
 function endsOf(enlace) {
@@ -545,7 +547,7 @@ function linkRow(enlace) {
   const what = [kindsWords(enlace.kinds), enlace.expires ? t('until {date}', { date: new Date(enlace.expires).toLocaleDateString(language, { day: 'numeric', month: 'short' }) }) : t('no expiry')];
   if (enlace.orders?.allowed) what.push(t('orders up to #{n}', { n: enlace.orders.maxMode }));
   // D-S13: a link BISHOP signed on its own says so, so it is never mistaken for one you signed.
-  if (enlace.signed?.by === 'bishop') what.push(t('signed by BISHOP'));
+  if (enlace.signed?.by === 'bishop') what.push(t('signed by the Coordinator'));
   node.append(el('p', 'what', what.join(' · ')));
   const traffic = enlace.traffic ?? {};
   // S-021: the last reading says who read, as the room that asked said it.
@@ -562,7 +564,7 @@ function linkRow(enlace) {
     recallBox.disabled = false;
     await refresh();
   });
-  recall.append(recallBox, document.createTextNode(t('Recall on every turn (up to 3 notes)')));
+  recall.append(recallBox, document.createTextNode(t('Always include (up to 3 notes)')));
   node.append(recall);
   const actions = el('div', 'sm-actions');
   if (revoking.has(enlace.id)) actions.append(el('span', 'sm-ask', t('Nothing crosses from then on.')), button('sm-btn danger', t('Revoke it'), () => revokeLink(enlace.id)), button('sm-btn ghost', t('Cancel'), () => { revoking.delete(enlace.id); draw(); }));
@@ -579,8 +581,8 @@ function drawLinks(projects) {
   const reads = enlaces.reduce((sum, enlace) => sum + (enlace.traffic?.reads24h ?? 0), 0);
   ui.linksSum.textContent = enlaces.length
     ? [enlaces.length === 1 ? t('1 in force') : t('{n} in force', { n: enlaces.length }), t('{n} reads in 24 h', { n: reads })].join(' · ')
-    : enough ? t('No links yet.') : t('Add a project to link it.');
-  ui.linksNote.textContent = t('A link lets one room read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes that travel into turns cross.');
+    : enough ? t('No connections yet.') : t('Add a project to connect it.');
+  ui.linksNote.textContent = t('A connection lets one project read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes that travel into turns cross.');
   ui.links.replaceChildren(...enlaces.map(linkRow));
   if (!enlaces.length && ui.linksSheet.open) ui.linksSheet.close();
   drawMap(projects, enlaces);
@@ -605,7 +607,7 @@ const svgNode = (tag, attributes = {}) => {
 };
 function drawMap(projects, enlaces) {
   ui.map.replaceChildren();
-  if (!projects.length) { ui.map.append(el('p', 'sm-hint', t('Your projects show here, round BISHOP, with the links between them.'))); return; }
+  if (!projects.length) { ui.map.append(el('p', 'sm-hint', t('Your projects show here, round the Coordinator, with the connections between them.'))); return; }
   const W = 320, H = 200, cx = W / 2, cy = H / 2 - 6;
   const shown = projects.slice(0, 10);
   const at = new Map([[data.salas, { x: cx, y: cy, r: 16 }]]);
@@ -668,7 +670,7 @@ function drawMap(projects, enlaces) {
 // one side, off, and ask for the room's designation typed, as arming #3 does. It warns when the
 // room that serves is asleep or older, and says the whole contract before it is signed.
 const LINK_KINDS = ['decision', 'fact', 'preference', 'question'];
-const LINK_KIND_NOTES = { decision: () => t('What was agreed: the choices the room made.'), fact: () => t('What is known: data and findings the room settled.'), preference: () => t('How you like to work: conventions and tastes.'), question: () => t('What is open: questions still waiting for an answer.') };
+const LINK_KIND_NOTES = { decision: () => t('What was agreed: the choices the project made.'), fact: () => t('What is known: data and findings the project settled.'), preference: () => t('How you like to work: conventions and tastes.'), question: () => t('What is open: questions still waiting for an answer.') };
 const LINK_DAYS = [[1, () => t('A day')], [7, () => t('A week')], [30, () => t('30 days')], [0, () => t('No expiry')]];
 let sheet = null;
 function openLinkSheet({ reader = null, source = null } = {}) {
@@ -850,7 +852,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     if (at > 0) actions.append(button('sm-btn', t('Back'), () => { at -= 1; render({ back: true }); }));
 
     if (kind === 'who') {
-      intro(t('Which room reads, and from which?'), t('A link lets one room look up the notes of another. The one that reads asks; the one that serves answers with its notes. Nothing is ever written into the one that serves.'));
+      intro(t('Which project reads, and from which?'), t('A connection lets one project look up the notes of another. The one that reads asks; the one that serves answers with its notes. Nothing is ever written into the one that serves.'));
       const box = card();
       const serves = el('div', 'lw-control lw-pick');
       serves.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('The one that serves')), turn);
@@ -859,47 +861,47 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       box.append(row(t('Both ways'), t('Each one reads the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
       for (const said of cautions()) box.append(caution(said));
       page.append(box);
-      actions.append(next(() => (pick.reader === pick.source ? t('Choose two different rooms.') : null)));
+      actions.append(next(() => (pick.reader === pick.source ? t('Choose two different projects.') : null)));
     } else if (kind === 'what') {
-      intro(t('Which notes cross?'), t('Turn on only what the room that reads needs. Decisions and facts are usually enough.'));
+      intro(t('Which notes cross?'), t('Turn on only what the project that reads needs. Decisions and facts are usually enough.'));
       const box = card();
       box.classList.add('lw-grid');
       for (const kindOf of LINK_KINDS) {
         box.append(row(kindWord(kindOf), LINK_KIND_NOTES[kindOf](), toggle(pick.kinds.has(kindOf), (on) => { if (on) pick.kinds.add(kindOf); else pick.kinds.delete(kindOf); error.textContent = ''; render(); }, kindWord(kindOf)), { recommended: kindOf === 'decision' || kindOf === 'fact', dot: kindOf }));
       }
-      page.append(box, el('p', 'lw-foot', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the room that serves. Never the ledger, files, med bay or jettisoned.')));
+      page.append(box, el('p', 'lw-foot', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the project that serves. Never the ledger, files, med bay or jettisoned.')));
       actions.append(next(() => (pick.kinds.size ? null : t('Choose at least one kind.'))));
     } else if (kind === 'time') {
-      intro(t('For how long?'), t('A link ends on its own when it expires. Until then, the room that reads looks the notes up only when its agents ask, unless you want them to arrive on every turn.'));
+      intro(t('For how long?'), t('A connection ends on its own when it expires. Until then, the project that reads looks the notes up only when its agents ask, unless you want them to arrive on every turn.'));
       const box = card();
       const ends = el('div', 'lw-control');
       ends.append(rail(LINK_DAYS.map(([value, words]) => [value, words()]), pick.days, (value) => { pick.days = value; }, t('It ends')));
       box.append(row(t('It ends'), t('A week is enough to try it; signing it again takes a moment.'), ends, { recommended: pick.days === 7 }));
-      box.append(row(t('Recall on every turn'), t('The room that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.'), toggle(pick.recall, (on) => { pick.recall = on; render(); }, t('Recall on every turn'))));
+      box.append(row(t('Always include'), t('The project that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.'), toggle(pick.recall, (on) => { pick.recall = on; render(); }, t('Always include'))));
       page.append(box);
       actions.append(next());
     } else if (kind === 'orders') {
       const name = nameOf(ordersInto());
-      intro(t('Orders from the super agent'), t('With orders, BISHOP can send a task to {room}, and its agents carry it out there. Without them, BISHOP only reads. #3 and #4 never travel: they arrive as a proposal you arm in that room.', { room: name }));
+      intro(t('Orders from the coordinator'), t('With orders, the Coordinator can send a task to {room}, and its agents carry it out there. Without them, the Coordinator only reads. #3 and #4 never travel: they arrive as a proposal you unlock in that project.', { room: name }));
       const box = card();
-      box.append(row(t('Allow orders into {room}', { room: name }), t('Leave it off unless you need BISHOP to act in {room}.', { room: name }), toggle(pick.orders, (on) => { pick.orders = on; render(); }, t('Allow orders into {room}', { room: name })), { recommended: !pick.orders }));
+      box.append(row(t('Allow orders into {room}', { room: name }), t('Leave it off unless you need the Coordinator to act in {room}.', { room: name }), toggle(pick.orders, (on) => { pick.orders = on; render(); }, t('Allow orders into {room}', { room: name })), { recommended: !pick.orders }));
       if (pick.orders) {
         const modes = el('div', 'lw-control');
-        modes.append(rail([1, 2].map((n) => [n, `#${n} ${MODE_NAMES[n]}`]), pick.maxMode, (value) => { pick.maxMode = value; }, t('Up to which mode')));
+        modes.append(rail([1, 2].map((n) => [n, `#${n} ${modeName(n)}`]), pick.maxMode, (value) => { pick.maxMode = value; }, t('Up to which mode')));
         box.append(row(t('Up to which mode'), null, modes));
         const hourly = el('div', 'lw-control');
         hourly.append(rail([3, 6, 12].map((n) => [n, String(n)]), pick.perHour, (value) => { pick.perHour = value; }, t('How many an hour')));
         box.append(row(t('How many an hour'), null, hourly));
         const typed = el('input', 'lw-input'); typed.type = 'text'; typed.autocomplete = 'off'; typed.spellcheck = false; typed.value = pick.designation;
-        typed.setAttribute('aria-label', t('Type the designation of {room} to allow orders into it', { room: name }));
+        typed.setAttribute('aria-label', t('Type the name of {room} to allow orders into it', { room: name }));
         typed.addEventListener('input', () => { pick.designation = typed.value; error.textContent = ''; });
-        const said = row(t('Type the designation of {room} to allow orders into it', { room: name }), null, null);
+        const said = row(t('Type the name of {room} to allow orders into it', { room: name }), null, null);
         said.classList.add('lw-stack');
         said.append(typed);
         box.append(said);
       }
       page.append(box);
-      actions.append(next(() => (pick.orders && !pick.designation.trim() ? t('Type the designation to allow orders, or turn them off.') : null)));
+      actions.append(next(() => (pick.orders && !pick.designation.trim() ? t('Type the project name to allow orders, or turn them off.') : null)));
     } else {
       intro(t('Read it before you sign'), t('This is the whole contract. Nothing is signed until you press Sign.'));
       const list = el('ul', 'lw-card lw-review');
@@ -907,8 +909,8 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       said(pick.both ? t('{a} and {b} will read each other\'s {kinds}.', { a: nameOf(pick.reader), b: nameOf(pick.source), kinds: kindsSaid() }) : t('{reader} will read the {kinds} of {source}.', { reader: nameOf(pick.reader), source: nameOf(pick.source), kinds: kindsSaid() }));
       said(pick.days ? t('Until {date}.', { date: until() }) : t('With no expiry: it lasts until you revoke it.'));
       said(pick.recall ? t('On every turn, up to 3 of these notes arrive without being asked for.') : t('Its agents read them only when they choose to.'));
-      if (ordersInto()) said(pick.orders ? t('BISHOP may send orders into {room}, up to #{n}, {k} an hour.', { room: nameOf(ordersInto()), n: pick.maxMode, k: pick.perHour }) : t('No orders cross: BISHOP only reads.'));
-      said(t('Nothing is written across, and you can revoke it at any moment from Links.'));
+      if (ordersInto()) said(pick.orders ? t('The Coordinator may send orders into {room}, up to #{n}, {k} an hour.', { room: nameOf(ordersInto()), n: pick.maxMode, k: pick.perHour }) : t('No orders cross: the Coordinator only reads.'));
+      said(t('Nothing is written across, and you can revoke it at any moment from Connections.'));
       page.append(list);
       const warn = cautions();
       if (warn.length) { const box = card(); for (const words of warn) box.append(caution(words)); page.append(box); }
@@ -927,7 +929,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
           .then(async (response) => ({ ok: response.ok, body: await response.json().catch(() => ({})) })).catch(() => ({ ok: false, body: {} }));
         sign.disabled = false;
         sign.textContent = t('Sign');
-        if (!answer.ok) { error.textContent = answer.body.error ?? t('The link could not be signed.'); return; }
+        if (!answer.ok) { error.textContent = answer.body.error ?? t('The connection could not be signed.'); return; }
         sheet.close();
         await refresh();
       });
@@ -949,10 +951,10 @@ ui.link.addEventListener('click', () => openLinkSheet());
 
 async function refresh() {
   const answer = await fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
-  if (!answer) { ui.foot.textContent = t('This room did not answer. It may have closed.'); ui.bar.live.classList.add('is-off'); ui.bar.live.lastChild.textContent = t('Not answering right now'); return; }
+  if (!answer) { ui.foot.textContent = t('This project did not answer. It may have closed.'); ui.bar.live.classList.add('is-off'); ui.bar.live.lastChild.textContent = t('Not answering right now'); return; }
   if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); }
   data = answer;
-  ui.foot.textContent = t('Every project runs on this Mac, in a room of its own, with its own memory.');
+  ui.foot.textContent = t('Every project runs on this Mac, on its own, with its own memory.');
   draw();
 }
 
@@ -963,7 +965,7 @@ async function startRoom(room, { enter = false } = {}) {
   const answer = await fetch('/api/salas/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room: room.id }) })
     .then(async (response) => ({ ok: response.ok, body: await response.json().catch(() => ({})) })).catch(() => ({ ok: false, body: {} }));
   busy.delete(room.id);
-  if (!answer.ok) failed.set(room.id, answer.body.error ?? t('The room did not open.'));
+  if (!answer.ok) failed.set(room.id, answer.body.error ?? t('The project did not open.'));
   // Opened from its card, the person goes in: that is what «Open» means.
   else if (enter && answer.body.port) { location.href = `http://127.0.0.1:${answer.body.port}/`; return answer; }
   await refresh();
@@ -982,12 +984,12 @@ async function closeRoom(room) {
     clearInterval(timer);
     document.body.classList.add('sm-gone');
     ui.none.hidden = false;
-    ui.none.replaceChildren(el('span', null, t('This room closed. Open MADRE again to come back to the lobby.')));
+    ui.none.replaceChildren(el('span', null, t('This project closed. Open MADRE again to come back to Home.')));
     ui.stop.hidden = true;
     ui.projects.hidden = true;
     return;
   }
-  if (!answer.ok) { busy.delete(room.id); failed.set(room.id, answer.body.error ?? t('That room did not answer.')); draw(); return; }
+  if (!answer.ok) { busy.delete(room.id); failed.set(room.id, answer.body.error ?? t('That project did not answer.')); draw(); return; }
   // It closes in a moment; the card stays «closing» until the list says it is asleep.
   for (let wait = 0; wait < 20; wait += 1) {
     await new Promise((resolve) => setTimeout(resolve, 400));
@@ -1001,19 +1003,19 @@ async function closeRoom(room) {
 // THE MACROVERSE (macroverso.js): the same rooms as universes, entered from here.
 function macroWords() {
   return {
-    title: t('Macroverse'),
-    back: t('Back to the lobby'),
-    hint: t('Drag the space to move it · wheel to come closer · click a universe to look at it · drag it to turn it · carry one onto BISHOP for BISHOP to read it, or onto another to link them · ← → from one to the next · Esc to come back'),
-    bishop: 'BISHOP',
-    bishopAbout: t('Your super agent. It reads across your projects, signs the links between them and carries an order from one to another.'),
-    bishopReads: (n) => (n ? (n === 1 ? t('It reads 1 project by a link') : t('It reads {n} projects by links', { n })) : t('It reads no project yet: each one it reads is a link you sign.')),
-    notLinked: t('Not linked yet: touch one to link it'),
-    talk: t('Talk to BISHOP'),
+    title: t('Project map'),
+    back: t('Back to Home'),
+    hint: t('Drag the space to move it · wheel to come closer · click a project to look at it · drag it to turn it · carry one onto the Coordinator for the Coordinator to read it, or onto another to connect them · ← → from one to the next · Esc to come back'),
+    bishop: t('Coordinator'),
+    bishopAbout: t('Your coordinator. It reads across your projects, signs the connections between them and carries an order from one to another.'),
+    bishopReads: (n) => (n ? (n === 1 ? t('It reads 1 project by a connection') : t('It reads {n} projects by connections', { n })) : t('It reads no project yet: each one it reads is a connection you sign.')),
+    notLinked: t('Not connected yet: touch one to connect it'),
+    talk: t('Talk to the Coordinator'),
     asleep: t('Asleep'),
     recenter: t('RECENTER'),
-    veins: (n) => t('{n} veins', { n }),
-    links: t('Links'),
-    link: t('Link…'),
+    veins: (n) => t('{n} connections', { n }),
+    links: t('Connections'),
+    link: t('Connect…'),
     // One link as seen from one of its rooms.
     linkRow: (enlace, roomId) => {
       const other = roomName(enlace.rooms.a === roomId ? enlace.rooms.b : enlace.rooms.a);
@@ -1025,18 +1027,18 @@ function macroWords() {
       const open = rooms.filter((room) => room.open);
       const memories = open.reduce((sum, room) => sum + (room.glance?.census?.memories ?? 0), 0);
       const waiting = open.filter((room) => room.glance?.waitingCount).length;
-      return [data?.mac ?? null, t('{n} universes', { n: rooms.length }), waiting ? t('{n} waiting for you', { n: waiting }) : null, t('{n} memories', { n: memories })].filter(Boolean).join(' · ');
+      return [data?.mac ?? null, t('{n} projects', { n: rooms.length }), waiting ? t('{n} waiting for you', { n: waiting }) : null, t('{n} memories', { n: memories })].filter(Boolean).join(' · ');
     },
     state: (room) => stateOf(room).words,
     path: homeWord,
     ask: askLine,
     kind: (kind) => KIND_WORDS[kind] ?? kind,
     counts: (room) => (room.open ? [t('{n} conversations', { n: room.glance?.chats ?? 0 }), t('{n} memories', { n: room.glance?.census?.memories ?? 0 })].join(' · ') : room.lastOpened ? t('Asleep · last open {when}', { when: ago(room.lastOpened) }) : t('Asleep')),
-    enter: t('Enter the room'),
-    backToRoom: t('Back to the room'),
+    enter: t('Enter the project'),
+    backToRoom: t('Back to the project'),
     wake: t('Wake'),
     waking: t('Waking…'),
-    all: t('All the universes'),
+    all: t('All the projects'),
     close: t('Close'),
   };
 }
@@ -1125,7 +1127,7 @@ function drawTopbar() {
   // Where you are, and the way back to the room that serves this page, when it is a project's.
   const here = data.rooms.find((room) => room.id === data.here) ?? null;
   b.backRoom.hidden = !here || here.id === data.salas;
-  if (here && here.id !== data.salas) { b.backRoom.href = '/'; b.backRoom.lastChild.textContent = here.name; b.backRoom.title = t('Back to the room'); }
+  if (here && here.id !== data.salas) { b.backRoom.href = '/'; b.backRoom.lastChild.textContent = here.name; b.backRoom.title = t('Back to the project'); }
   b.live.classList.remove('is-off');
   b.live.lastChild.textContent = data.mac ?? '';
   // The rooms on the bar: the open projects, or the ones the person pinned, in their order.
@@ -1403,7 +1405,7 @@ function pinsDrawCard() {
     tile.setAttribute('aria-label', tile.title);
     grid.append(tile);
   }
-  pins.card.replaceChildren(head, grid.children.length ? grid : el('p', 'bar-card-empty', t('Everything is already on the bar.')), el('p', 'bar-card-hint', t('Drag a room to move it. A project comes to the bar from its card: right-click it, or drag it here.')));
+  pins.card.replaceChildren(head, grid.children.length ? grid : el('p', 'bar-card-empty', t('Everything is already on the bar.')), el('p', 'bar-card-hint', t('Drag a project to move it. A project comes to the bar from its card: right-click it, or drag it here.')));
   pins.card.hidden = false;
   pinsPlaceCard();
 }
@@ -1649,7 +1651,7 @@ function drawBishop(room) {
   b.state.querySelector('span').textContent = state.words;
   const waking = busy.get(data?.salas) === 'starting';
   for (const way of [b.go, b.tab]) way.setAttribute('aria-disabled', String(waking));
-  b.go.textContent = waking ? t('Waking…') : t('Talk to BISHOP');
+  b.go.textContent = waking ? t('Waking…') : t('Talk to the Coordinator');
   syncBishopLinks();
   // What it waits for, each one a door into its room.
   b.asks.replaceChildren();
@@ -1731,7 +1733,7 @@ function projectPicker({ onAdded, compact = false }) {
     const words = el('span', 'sm-folder-words');
     words.append(el('b', null, name), el('small', null, homeWord(path)));
     item.append(box, words);
-    if (known) item.append(el('span', 'sm-tag', t('In the lobby')));
+    if (known) item.append(el('span', 'sm-tag', t('In Home')));
     else if (project) item.append(el('span', 'sm-tag is-project', t('Project')));
     if (open) {
       const into = button('sm-into', '›', (event) => { event.preventDefault(); open(); });
@@ -1807,7 +1809,7 @@ function openAddSheet() {
   const inner = el('div', 'sm-sheet-body');
   const head = el('header', 'sm-sheet-head');
   head.append(el('h3', null, t('Add a project')), closeKey(() => addSheet.close()));
-  inner.append(head, el('p', 'hint', t('A project is a folder: MADRE opens a room for it, with its own conversations and its own memory. Adding it does not open it; you open it from its card.')));
+  inner.append(head, el('p', 'hint', t('A project is a folder: MADRE gives it its own conversations and its own memory. Adding it does not open it; you open it from its card.')));
   inner.append(projectPicker({ onAdded: () => addSheet?.close() }));
   addSheet.append(inner);
   document.body.append(addSheet);
@@ -1995,7 +1997,7 @@ function openWizard() {
       if (room.open) item.append(el('span', 'sm-tag is-project', t('Already open')));
       list.append(item);
     }
-    if (!projects.length) list.append(el('p', 'hint', t('No projects yet. You can add them from the lobby whenever you like.')));
+    if (!projects.length) list.append(el('p', 'hint', t('No projects yet. You can add them from Home whenever you like.')));
     const actions = el('div', 'actions');
     const go = button('sm-btn primary', t('Done'), async () => {
       go.disabled = true;
@@ -2006,7 +2008,7 @@ function openWizard() {
       wizard.close();
     });
     actions.append(button('sm-btn', t('Back'), () => { step = 1; projectsStep({ back: true }); }), go);
-    frame(t('Open what you will use'), t('Each open project runs on this Mac with its own room. The rest stay in the lobby, asleep, until you open them.'), list, actions);
+    frame(t('Open what you will use'), t('Each open project runs on this Mac on its own. The rest stay in Home, asleep, until you open them.'), list, actions);
   }
   wizard.addEventListener('close', () => { stop(); wizard.remove(); wizard = null; void loadAgents(); });
   wizard.showModal();
@@ -2021,8 +2023,8 @@ function openWizard() {
 // BISHOP's ways in, the projects and the version; a room's turns, memory or permissions are set
 // in that room. Nothing scrolls inside the window: the screen behind it does.
 const SET_SECTIONS = [
-  ['You', 'How the lobby looks and what its bar holds', ['look', 'bar']],
-  ['The crew', 'Who works on this Mac', ['agents', 'bishop']],
+  ['You', 'How Home looks and what its bar holds', ['look', 'bar']],
+  ['The agents', 'Who works on this Mac', ['agents', 'bishop']],
   ['System', 'The projects of this Mac and the version', ['projects', 'release']],
 ];
 // The room's own icons where the room has the category (app.js, SETTINGS_CATS); the bar, BISHOP
@@ -2031,7 +2033,7 @@ const SET_CATS = {
   look: { name: 'Appearance', icon: '<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/>' },
   bar: { name: 'Top bar', icon: '<rect x="2.6" y="5.4" width="14.8" height="9.2" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 10h2.2M11.6 10h2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
   agents: { name: 'Agents', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
-  bishop: { name: 'BISHOP', icon: '<path d="M2.6 10c1.7-3.1 4.3-4.8 7.4-4.8s5.7 1.7 7.4 4.8c-1.7 3.1-4.3 4.8-7.4 4.8S4.3 13.1 2.6 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.3" fill="currentColor"/>' },
+  bishop: { name: 'Coordinator', icon: '<path d="M2.6 10c1.7-3.1 4.3-4.8 7.4-4.8s5.7 1.7 7.4 4.8c-1.7 3.1-4.3 4.8-7.4 4.8S4.3 13.1 2.6 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.3" fill="currentColor"/>' },
   projects: { name: 'Projects', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
   release: { name: 'Version', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
 };
@@ -2040,12 +2042,12 @@ const SET_ORDER = ['look', 'bar', 'agents', 'bishop', 'projects', 'release'];
 const SET_INDEX = [
   ['look', 'Preview'], ['look', 'Theme'], ['look', 'Accent'], ['look', 'Wallpaper'], ['look', 'Intensity'], ['look', 'Blur'], ['look', 'Bubbles'], ['look', 'Text'], ['look', 'Language'],
   ['bar', 'Arrange the bar'], ['bar', 'Back to default'],
-  ['bishop', 'Talk to BISHOP'], ['bishop', 'Open BISHOP in a new tab'],
+  ['bishop', 'Talk to the Coordinator'], ['bishop', 'Open the Coordinator in a new tab'],
   ['projects', 'Add a project'], ['projects', 'See the welcome again'],
   ['release', 'Check now'],
 ];
 const THEME_WORDS = { auto: () => t('Automatic'), light: () => t('Light'), dark: () => t('Dark') };
-const catName = (id) => (id === 'bishop' ? 'BISHOP' : t(SET_CATS[id].name));
+const catName = (id) => t(SET_CATS[id].name);
 const setIcon = (id) => { const span = el('span', 'settings-icon'); span.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${SET_CATS[id].icon}</svg>`; span.style.setProperty('--cat', 'var(--phosphor)'); return span; }; // trusted: our own SVG strings
 const CHEVRON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 6.2 8 10l3.8-3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const chevron = (className) => { const mark = el('span', `${className} chev-icon`); mark.innerHTML = CHEVRON; return mark; }; // trusted: our own SVG string
@@ -2099,7 +2101,7 @@ function setStatus(id) {
   if (id === 'bar') {
     if (!pinsStored()) return { line: t('The open projects, as they open') };
     const count = pinsShown().length;
-    return { line: count ? t('{n} rooms pinned', { n: count }) : t('Nothing pinned') };
+    return { line: count ? t('{n} projects pinned', { n: count }) : t('Nothing pinned') };
   }
   if (id === 'agents') {
     if (!agentsSeen) return { line: t('Reading…') };
@@ -2161,9 +2163,9 @@ function lookPreview(looks) {
   const agent = el('div', 'row assistant');
   const col = el('div', 'col');
   const who = el('div', 'who');
-  who.append(el('span', null, 'CODEX'), el('span', 'badge mode m2', '#2 CREATE'), el('span', 'badge ash', 'ASH'));
+  who.append(el('span', null, 'CODEX'), el('span', 'badge mode m2', `#2 ${modeName(2)}`), el('span', 'badge ash', t('TOKEN SAVER')));
   const bubble = el('div', 'bubble');
-  bubble.append(t('The room keeps what you decide. '), el('b', null, t('Bold reads like this')), ' · ', el('code', null, 'npm test'));
+  bubble.append(t('The project keeps what you decide. '), el('b', null, t('Bold reads like this')), ' · ', el('code', null, 'npm test'));
   col.append(who, bubble);
   agent.append(el('span', 'avatar'), col);
   const you = el('div', 'row user');
@@ -2184,7 +2186,7 @@ function fillLook(host) {
   const looks = readLooks();
   // Where the choices are kept, and the way back to MADRE as it comes, on one line above it all.
   const top = el('div', 'sm-look-top');
-  top.append(el('p', 'sx-intro', t('Kept in this browser, for the lobby and for the room served at this address.')));
+  top.append(el('p', 'sx-intro', t('Kept in this browser, for Home and for the project served at this address.')));
   host.append(top);
   // Two columns when the window is wide (it opens over the whole window): the preview, with how
   // the conversation reads and the language under it; the colours and the wallpaper beside it. So
@@ -2261,8 +2263,8 @@ function fillLook(host) {
     paperBox.append(tune);
   }
   sxBlock(page, t('Wallpaper'), photo
-    ? t('A photograph wears the room\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
-    : t('Behind the lobby, and behind the conversation of the room served at this address. Light and dark each have their own.')).rows.append(paperBox);
+    ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+    : t('Behind Home, and behind the conversation of the project served at this address. Light and dark each have their own.')).rows.append(paperBox);
 
   const talk = sxBlock(side, t('Conversation'));
   sxRow(talk, t('Bubbles'), null, customSeg(BUBBLES.map((value) => [value, BUBBLE_WORDS[value]()]), looks.bubbles, (value) => saveLooks({ bubbles: value })), { stack: true });
@@ -2285,7 +2287,7 @@ function fillLook(host) {
   host.append(frame);
 }
 function fillBar(host) {
-  const block = sxBlock(host, t('Top bar'), t('The rooms you keep at hand, in the order you choose. A project comes to the bar from its card: right-click it, or drag it to the bar.'));
+  const block = sxBlock(host, t('Top bar'), t('The projects you keep at hand, in the order you choose. A project comes to the bar from its card: right-click it, or drag it to the bar.'));
   const ids = pinsShown();
   if (!ids.length) sxRow(block, t('Nothing pinned'), null);
   for (const id of ids) {
@@ -2306,18 +2308,18 @@ function fillAgents(host, keep) {
 }
 function fillBishop(host) {
   const room = bishopRoom();
-  const block = sxBlock(host, 'BISHOP', t('Its agent and its mode are chosen in its own room.'));
-  sxRow(block, t('Talk to BISHOP'), room ? stateOf(room).words : null, sxButton(t('Open'), () => { settingsSheet?.close(); openBishop(); }, { tone: 'primary' }));
-  sxRow(block, t('Open BISHOP in a new tab'), null, sxButton(t('Open'), () => openBishop({ newTab: true })));
+  const block = sxBlock(host, t('Coordinator'), t('Its agent and its mode are chosen in its own project.'));
+  sxRow(block, t('Talk to the Coordinator'), room ? stateOf(room).words : null, sxButton(t('Open'), () => { settingsSheet?.close(); openBishop(); }, { tone: 'primary' }));
+  sxRow(block, t('Open the Coordinator in a new tab'), null, sxButton(t('Open'), () => openBishop({ newTab: true })));
 }
 function fillProjects(host) {
-  const block = sxBlock(host, t('Projects'), t('A project is a folder: MADRE opens a room for it, with its own conversations and its own memory. Adding it does not open it; you open it from its card.'));
+  const block = sxBlock(host, t('Projects'), t('A project is a folder: MADRE gives it its own conversations and its own memory. Adding it does not open it; you open it from its card.'));
   sxRow(block, t('Add a project'), null, sxButton(t('Add'), () => { settingsSheet?.close(); openAddSheet(); }, { tone: 'primary' }));
   sxRow(block, t('See the welcome again'), null, sxButton(t('Open'), () => { settingsSheet?.close(); welcomed = true; openWizard(); }));
 }
 function fillRelease(host) {
   const info = versionSeen;
-  const block = sxBlock(host, t('Version'), info ? t('You run {version}. Each room updates from its settings, in Version.', { version: info.current }) : null);
+  const block = sxBlock(host, t('Version'), info ? t('You run {version}. Each project updates from its settings, in Version.', { version: info.current }) : null);
   const check = info?.enabled ? sxButton(t('Check now'), async () => {
     check.disabled = true;
     const answer = await fetch('/api/version?force=1', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
@@ -2342,7 +2344,7 @@ function openSettings(section = null) {
   if (settingsSheet) { settingsSheet.show(section); return; }
   const state = { open: null, query: '', stops: [] };
   const dialog = el('dialog', 'sm-sheet sm-settings');
-  dialog.setAttribute('aria-label', t('Lobby settings'));
+  dialog.setAttribute('aria-label', t('Home settings'));
   // The room's window, by its own name, so it wears exactly what the room's wears.
   const win = el('div', 'sm-sheet-body sm-settings-window');
   win.id = 'settings';
@@ -2498,37 +2500,38 @@ function openSettings(section = null) {
 ui.gear.addEventListener('click', () => openSettings());
 
 function translateStatic() {
-  document.title = `MADRE · ${t('Lobby')}`;
-  ui.title.textContent = t('Lobby');
+  document.title = `MADRE · ${t('Home')}`;
+  ui.title.textContent = t('Home');
   ui.add.textContent = t('Add a project');
-  ui.bar.crumb.textContent = t('Lobby');
-  ui.bar.open.setAttribute('aria-label', t('Rooms on the bar'));
+  ui.bar.crumb.textContent = t('Home');
+  ui.bar.open.setAttribute('aria-label', t('Projects on the bar'));
   ui.bar.agents.setAttribute('aria-label', t('Agents'));
-  ui.bar.links.querySelector('span').textContent = t('Links');
+  ui.bar.links.querySelector('span').textContent = t('Connections');
   ui.bar.reload.title = t('Reload the page');
   ui.bar.reload.setAttribute('aria-label', t('Reload the page'));
   ui.stop.querySelector('span').textContent = t('Stop all');
-  ui.macro.querySelector('span').textContent = t('Macroverse');
-  ui.gear.title = t('Lobby settings');
-  ui.gear.setAttribute('aria-label', t('Lobby settings'));
+  ui.macro.querySelector('span').textContent = t('Project map');
+  ui.gear.title = t('Home settings');
+  ui.gear.setAttribute('aria-label', t('Home settings'));
   ui.search.placeholder = t('Search a project…');
   ui.search.setAttribute('aria-label', t('Search a project…'));
   ui.filter.setAttribute('aria-label', t('Show'));
   const FILTER_WORDS = { all: t('All projects'), open: t('Open projects'), asleep: t('Asleep projects') };
   for (const choice of ui.filter.querySelectorAll('[data-filter]')) choice.textContent = FILTER_WORDS[choice.dataset.filter];
-  ui.bishop.go.textContent = t('Talk to BISHOP');
-  ui.bishop.tab.title = t('Open BISHOP in a new tab');
-  ui.bishop.tab.setAttribute('aria-label', t('Open BISHOP in a new tab'));
-  ui.bishop.about.textContent = t('Your super agent. It reads across your projects, signs the links between them and carries an order from one to another.');
-  ui.work.title.textContent = t('The last work');
+  $('sm-bishop-name').textContent = t('Coordinator');
+  ui.bishop.go.textContent = t('Talk to the Coordinator');
+  ui.bishop.tab.title = t('Open the Coordinator in a new tab');
+  ui.bishop.tab.setAttribute('aria-label', t('Open the Coordinator in a new tab'));
+  ui.bishop.about.textContent = t('Your coordinator. It reads across your projects, signs the connections between them and carries an order from one to another.');
+  ui.work.title.textContent = t('Recent summary');
   ui.work.again.textContent = t('Summarise again');
   ui.waiting.title.textContent = t('Waiting on you');
-  ui.linksTileTitle.textContent = t('Links');
-  ui.link.textContent = t('Link projects');
-  ui.linksAll.textContent = t('See the links');
-  ui.linksTitle.textContent = t('Links');
+  ui.linksTileTitle.textContent = t('Connections');
+  ui.link.textContent = t('Connect projects');
+  ui.linksAll.textContent = t('See the connections');
+  ui.linksTitle.textContent = t('Connections');
   ui.linksClose.setAttribute('aria-label', t('Close'));
-  ui.linkMore.textContent = t('Link projects');
+  ui.linkMore.textContent = t('Connect projects');
   ui.memory.title.textContent = t('Memory');
   ui.decisions.title.textContent = t('Recent decisions');
   ui.attention.title.textContent = t('Needs you');

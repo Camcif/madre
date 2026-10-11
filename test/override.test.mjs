@@ -7,13 +7,13 @@ import { mergeOverride, overrideSettings, OVERRIDE_GRACE, OVERRIDE_KEYS } from '
 const read = (file) => readFile(join(import.meta.dirname, '..', file), 'utf8');
 const PHRASE = { salt: 'a'.repeat(32), hash: 'b'.repeat(64) };
 
-test('override: nothing stored is today\'s ritual — the designation, AIRLOCK as the second key, asked every message', () => {
+test('override: nothing stored is today\'s ritual — the designation, typed twice for #4, asked every message', () => {
   assert.deepEqual(overrideSettings(), { keys: { 3: 'designation', 4: 'designation-airlock' }, grace: { 3: 0, 4: 0 }, phrase: null });
   assert.deepEqual(overrideSettings(null), overrideSettings({}));
 });
 
 test('override: #4 always asks for something, and its grace is never longer than 5 minutes', () => {
-  assert.ok(!OVERRIDE_KEYS[4].includes('confirm'), 'AIRLOCK can be opened with one click');
+  assert.ok(!OVERRIDE_KEYS[4].includes('confirm'), '#4 FULL ACCESS can be opened with one click');
   assert.equal(overrideSettings({ keys: { 4: 'confirm' } }).keys[4], 'designation-airlock');
   assert.equal(overrideSettings({ grace: { 4: 30 } }).grace[4], 0);
   assert.deepEqual(OVERRIDE_GRACE[4], [0, 5]);
@@ -60,7 +60,7 @@ test('override: the room stores it, says it on boot and in AJUSTES, and the brow
 test('override: the key for #3 and #4 is one of the room\'s alerts, said in sentences', async () => {
   const [app, page, css] = await Promise.all([read('public/app.js'), read('public/index.html'), read('public/styles.css')]);
   assert.match(page, /<dialog id="override" class="room-ask key-ask" aria-labelledby="override-title">/);
-  assert.match(app, /override\.title\.textContent = mode === 4 \? t\('Open #4 AIRLOCK for @\{agent\}'/);
+  assert.match(app, /override\.title\.textContent = mode === 4 \? t\('Open #4 FULL ACCESS for @\{agent\}'/);
   assert.ok(!app.includes('SPECIAL ORDER 937 ACKNOWLEDGED'), 'the key still answers in capitals');
   // The room's questions wear a glyph and speak in sentences; the console's keep the console.
   assert.match(app, /sheet\.title\.textContent = inConsole \? title : askWords\(title\);/);

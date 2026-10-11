@@ -49,7 +49,7 @@ export const BRANDS = {
 
 BRANDS.madre = {
   label: 'MADRE',
-  vendor: 'the room · local',
+  vendor: 'the project · local',
   color: '#9bff66',
   colorLight: '#2f8a1c',
   ink: '#0a1405',
@@ -68,8 +68,8 @@ BRANDS.ollama = {
 
 // BISHOP, the guardian of the rooms (docs/MACROVERSO.md): MADRE's own robot, not a vendor's.
 BRANDS.bishop = {
-  label: 'BISHOP',
-  vendor: 'the room of Salas',
+  label: 'Coordinator',
+  vendor: 'the Coordinator\'s project',
   color: '#4FC3F7',
   colorLight: '#0277BD',
   ink: '#04131C',

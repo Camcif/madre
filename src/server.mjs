@@ -1426,7 +1426,7 @@ export async function createPulseServer({
           await phone.tick();
           // Whichever room hosts it, the bridge has to answer before the code is shown.
           for (let wait = 0; wait < 10 && !(await bridgeAnswers()); wait += 1) await new Promise((done) => setTimeout(done, 200));
-          if (!(await bridgeAnswers())) return sendJson(response, 503, { error: t('The bridge did not open on port {port}. Another program may be using it.', { port: BRIDGE_PORT }) });
+          if (!(await bridgeAnswers())) return sendJson(response, 503, { error: t('MADRE on your phone did not open on port {port}. Another program may be using it.', { port: BRIDGE_PORT }) });
           const link = `http://${address}:${BRIDGE_PORT}/bridge/pair?c=${invite.code}`;
           return sendJson(response, 200, { invite: { id: invite.id, expiresAt: invite.expiresAt }, url: link, qr: qrSvg(link, { label: t('Code to pair your phone') }), ...(await phoneView()) });
         }
@@ -1510,7 +1510,7 @@ export async function createPulseServer({
       if (request.method === 'GET' && url.pathname === '/api/salas/universe') {
         const id = url.searchParams.get('id') ?? '';
         const room = (await knownRooms(root)).find((one) => one.id === id);
-        if (!room) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        if (!room) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
         if (!room.open) return sendJson(response, 200, { id, asleep: true });
         const answer = await askRoom(room.open.port, `/api/memory?designation=${encodeURIComponent(room.name)}`, { timeoutMs: 4000 });
         if (answer.outdated) return sendJson(response, 200, { id, outdated: true });
@@ -1526,12 +1526,12 @@ export async function createPulseServer({
           const folder = await ensureSalasProject(root);
           room = { id: payload.room, root: folder, open: null };
         }
-        if (!room) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        if (!room) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
         if (room.open) return sendJson(response, 200, { room: room.id, port: room.open.port, already: true });
         if (!room.root) return sendJson(response, 404, { error: t('The folder of that project is no longer on this Mac.') });
         startRoom({ projectRoot: room.root, roomDir: join(root, 'rooms', room.id) });
         const up = await roomComesUp(root, room.id);
-        if (!up) return sendJson(response, 504, { error: t('The room did not open. What it said on the way up is in start.log, beside its record.') });
+        if (!up) return sendJson(response, 504, { error: t('The project did not open. What it said on the way up is in start.log, beside its record.') });
         return sendJson(response, 200, { room: up.id, port: up.open.port });
       }
       // ---- The lobby adds projects (2026-10-10, src/salas.mjs). Only this page, on this Mac: a
@@ -1543,8 +1543,8 @@ export async function createPulseServer({
         const host = String(request.headers.host ?? '');
         const localHost = /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host);
         const site = request.headers['sec-fetch-site'];
-        if (!localHost || (site !== undefined && site !== 'same-origin' && site !== 'none')) return sendJson(response, 403, { error: t('This is done from the lobby, on this Mac.') });
-        if (request.method === 'POST' && request.headers.origin !== `http://${host}`) return sendJson(response, 403, { error: t('This is done from the lobby, on this Mac.') });
+        if (!localHost || (site !== undefined && site !== 'same-origin' && site !== 'none')) return sendJson(response, 403, { error: t('This is done from Home, on this Mac.') });
+        if (request.method === 'POST' && request.headers.origin !== `http://${host}`) return sendJson(response, 403, { error: t('This is done from Home, on this Mac.') });
         const home = process.env.PULSE_LOBBY_HOME || homedir();
         if (request.method === 'GET' && url.pathname === '/api/salas/folders') {
           const listed = await listFolders({ path: url.searchParams.get('path') || null, home, stateRoot: root });
@@ -1562,7 +1562,7 @@ export async function createPulseServer({
         // model the lobby shows the conversations as they are, and says why.
         if (url.pathname === '/api/salas/work' && (request.method === 'GET' || request.method === 'POST')) {
           const salas = salasRoomId(root);
-          const rooms = (await knownRooms(root)).map((one) => ({ id: one.id, name: one.id === salas ? 'BISHOP' : one.name }));
+          const rooms = (await knownRooms(root)).map((one) => ({ id: one.id, name: one.id === salas ? 'Coordinator' : one.name }));
           const items = await recentWork({ stateRoot: root, rooms, limit: 5 });
           const sources = items.map(({ room, name, chat, title, at, said }) => ({ room, name, chat, title, at, last: said?.at(-1) ?? null }));
           if (!items.length) return sendJson(response, 200, { state: 'empty', sources });
@@ -1606,7 +1606,7 @@ export async function createPulseServer({
                 if (!Array.isArray(answer?.memories)) return [];
                 return answer.memories
                   .filter((note) => note.kind === 'decision' && (note.zone === 'hold' || note.zone === 'bridge') && typeof note.text === 'string')
-                  .map((note) => ({ room: one.id, name: one.id === salas ? 'BISHOP' : one.name, text: note.text.slice(0, 260), at: note.created ?? null }));
+                  .map((note) => ({ room: one.id, name: one.id === salas ? 'Coordinator' : one.name, text: note.text.slice(0, 260), at: note.created ?? null }));
               }));
               lobbyDecisions.list = lists.flat().sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))).slice(0, 6);
               lobbyDecisions.at = Date.now();
@@ -1640,8 +1640,8 @@ export async function createPulseServer({
           return undefined;
         }
         const answer = await askRoom(room.open.port, '/api/room/close', { method: 'POST', body: {} });
-        if (answer.outdated) return sendJson(response, 409, { error: t('That room runs an older MADRE. Update it, or close it from its terminal.'), outdated: true });
-        if (answer.unreachable) return sendJson(response, 502, { error: t('That room did not answer.') });
+        if (answer.outdated) return sendJson(response, 409, { error: t('That project runs an older MADRE. Update it, or close it from its terminal.'), outdated: true });
+        if (answer.unreachable) return sendJson(response, 502, { error: t('That project did not answer.') });
         return sendJson(response, 202, { room: room.id, closing: true });
       }
       if (request.method === 'POST' && url.pathname === '/api/salas/stop-all') {
@@ -1666,7 +1666,7 @@ export async function createPulseServer({
       // contract names, each text through this room's privacy guard, and nothing of the ledger.
       if (request.method === 'GET' && url.pathname === '/api/enlace/memories') {
         if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
-        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a link; only a room can.') });
+        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a connection; only a project can.') });
         const key = await channelKey(root).catch(() => null);
         if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
         const here = basename(roomDir);
@@ -1675,9 +1675,9 @@ export async function createPulseServer({
         if (!mayServe({ contract, serving: here, asking }).ok) return sendJson(response, 404, { error: NO_SUCH_LINK });
         const sealed = room.motherStatus()?.lockedForMs ?? 0;
         if (sealed > 0) return sendJson(response, 423, { error: `CODE000. THE ARCHIVE IS SEALED FOR ${Math.ceil(sealed / 60000)} MORE MINUTE${Math.ceil(sealed / 60000) === 1 ? '' : 'S'}.`, lockedForMs: sealed });
-        if (!memory) return sendJson(response, 503, { error: t('The room has no memory.') });
+        if (!memory) return sendJson(response, 503, { error: t('The project has no memory.') });
         const reads = await countRecent(roomDir, contract.id, 'read');
-        if (reads >= contract.orders.perHour) return sendJson(response, 429, { error: t('This link was read {n} times in the last hour, its limit. Try again later.', { n: reads }) });
+        if (reads >= contract.orders.perHour) return sendJson(response, 429, { error: t('This connection was read {n} times in the last hour, its limit. Try again later.', { n: reads }) });
         const q = String(url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
         const limit = Math.min(ENLACE_MAX_LIMIT, Math.max(1, Math.trunc(Number(url.searchParams.get('limit'))) || ENLACE_MAX_LIMIT));
         // The kinds asked for, if any, inside the kinds signed: a reading narrows, never widens.
@@ -1708,7 +1708,7 @@ export async function createPulseServer({
       // with the query as a hash) and the notes are handed on; nothing of them is kept.
       if (request.method === 'POST' && url.pathname === '/api/enlace/ask') {
         if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
-        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a link; only a room can.') });
+        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a connection; only a project can.') });
         const key = await channelKey(root).catch(() => null);
         if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
         const payload = await body(request).catch(() => ({}));
@@ -1719,20 +1719,20 @@ export async function createPulseServer({
         const turnId = String(payload.turn ?? '');
         const host = turnId ? liveRooms().find((one) => one.runningTurn?.(turnId)) : null;
         const running = host?.runningTurn(turnId) ?? null;
-        if (!running || running.agent !== payload.agent || !(running.mode >= 1)) return sendJson(response, 409, { error: t('That reading does not belong to a turn running in this room.') });
+        if (!running || running.agent !== payload.agent || !(running.mode >= 1)) return sendJson(response, 409, { error: t('That reading does not belong to a turn running in this project.') });
         const wanted = String(payload.room ?? '').trim();
         const rooms = await knownRooms(root);
         const named = rooms.filter((one) => one.id === wanted);
         if (!named.length) named.push(...rooms.filter((one) => one.name.toLowerCase() === wanted.toLowerCase()));
-        if (!wanted || !named.length) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        if (!wanted || !named.length) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
         const readable = readsFrom(activeContracts(await readConfig(root), { salas: salasRoomId(root) }), here);
         const link = named.map((source) => ({ source, contract: readable.find((one) => one.from === source.id)?.contract ?? null })).find((one) => one.contract) ?? null;
         if (!link) return sendJson(response, 404, { error: NO_SUCH_LINK });
         const { source, contract } = link;
         const asked = Array.isArray(payload.kinds) ? payload.kinds.map(String) : [];
         const kinds = asked.length ? contract.kinds.filter((kind) => asked.includes(kind)) : contract.kinds;
-        if (!kinds.length) return sendJson(response, 422, { error: t('This link lets this room read only: {kinds}.', { kinds: contract.kinds.join(', ') }) });
-        if (!source.open) return sendJson(response, 409, { error: t('That room is asleep. Wake it from Salas to read from it.') });
+        if (!kinds.length) return sendJson(response, 422, { error: t('This connection lets this project read only: {kinds}.', { kinds: contract.kinds.join(', ') }) });
+        if (!source.open) return sendJson(response, 409, { error: t('That project is asleep. Wake it from Home to read from it.') });
         const q = String(payload.query ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
         const answer = await askEnlace({
           port: source.open.port, contract, asking: here, q, kinds: asked.length ? kinds : null, limit: payload.limit, key, turn: turnId, agent: running.agent,
@@ -1740,19 +1740,19 @@ export async function createPulseServer({
           roomDir,
         });
         if (answer.notes) return sendJson(response, 200, { from: source.name, contract: contract.id, notes: answer.notes });
-        if (answer.outdated) return sendJson(response, 409, { error: t('That room runs an older MADRE. Update it, or close it from its terminal.') });
-        if (answer.unreachable) return sendJson(response, 502, { error: t('That room did not answer.') });
-        return sendJson(response, answer.status ?? 502, { error: answer.refused ?? t('That room did not answer.') });
+        if (answer.outdated) return sendJson(response, 409, { error: t('That project runs an older MADRE. Update it, or close it from its terminal.') });
+        if (answer.unreachable) return sendJson(response, 502, { error: t('That project did not answer.') });
+        return sendJson(response, answer.status ?? 502, { error: answer.refused ?? t('That project did not answer.') });
       }
       // What another room tells this one by the channel: a link of this room's was signed or
       // revoked. One line in the ledger, never a message; any other type is refused.
       if (request.method === 'POST' && url.pathname === '/api/enlace/notice') {
         if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
-        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a link; only a room can.') });
+        if (request.headers.origin !== undefined) return sendJson(response, 403, { error: t('A page cannot read across a connection; only a project can.') });
         const key = await channelKey(root).catch(() => null);
         if (!key || !sameKey(request.headers[CHANNEL_HEADER], key)) return sendJson(response, 403, { error: t('That is not the key of this Mac.') });
         const payload = await body(request).catch(() => ({}));
-        if (!ENLACE_NOTICES.includes(payload.type) || !payload.payload || typeof payload.payload !== 'object' || Array.isArray(payload.payload)) return sendJson(response, 422, { error: t('That is not a notice a link sends.') });
+        if (!ENLACE_NOTICES.includes(payload.type) || !payload.payload || typeof payload.payload !== 'object' || Array.isArray(payload.payload)) return sendJson(response, 422, { error: t('That is not a notice a connection sends.') });
         await room.record(payload.type, payload.payload);
         return sendJson(response, 202, { accepted: true });
       }
@@ -1777,7 +1777,7 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/salas/enlaces') {
         const payload = await body(request).catch(() => ({}));
         const rooms = await knownRooms(root);
-        for (const id of [payload.a, payload.b]) if (!rooms.some((one) => one.id === id)) return sendJson(response, 404, { error: t('MADRE does not know that room on this Mac.') });
+        for (const id of [payload.a, payload.b]) if (!rooms.some((one) => one.id === id)) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
         let contract;
         try {
           // BISHOP signs only from the room's own process (no Origin: never a page), and the contract
@@ -1796,7 +1796,7 @@ export async function createPulseServer({
       // reads is handed, not what that room may read; the contract is otherwise untouched.
       if (request.method === 'POST' && url.pathname === '/api/salas/enlaces/recall') {
         const payload = await body(request).catch(() => ({}));
-        if (request.headers.origin === undefined) return sendJson(response, 403, { error: t('This is changed by you, from Salas.') });
+        if (request.headers.origin === undefined) return sendJson(response, 403, { error: t('This is changed by you, from Home.') });
         if (typeof payload.recall !== 'boolean') return sendJson(response, 422, { error: t('recall is on or off.') });
         const id = String(payload.id ?? '');
         const contract = activeContracts(await readConfig(root), { salas: salasRoomId(root) }).find((one) => one.id === id);
@@ -1990,7 +1990,7 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         const relative = String(payload.path ?? '').trim().replace(/^\/+/, '');
         if (relative && needsDesignation(relative) && !designationOk(payload.designation)) {
-          return sendJson(response, 403, { error: t('This file is one the room guards. Type the project\'s designation to save it.'), guarded: true });
+          return sendJson(response, 403, { error: t('This file is one the project guards. Type the project name to save it.'), guarded: true });
         }
         const result = await createEmptyFile(canonicalProjectRoot, relative);
         if (result.status !== 201) return sendJson(response, result.status, { error: t(result.error) });
@@ -2002,7 +2002,7 @@ export async function createPulseServer({
         const relative = String(payload.path ?? '').replace(/^\/+/, '');
         if (!relative) return sendJson(response, 400, { error: t('Nothing to save.') });
         if (needsDesignation(relative) && !designationOk(payload.designation)) {
-          return sendJson(response, 403, { error: t('This file is one the room guards. Type the project\'s designation to save it.'), guarded: true });
+          return sendJson(response, 403, { error: t('This file is one the project guards. Type the project name to save it.'), guarded: true });
         }
         const result = await writeEdited(canonicalProjectRoot, relative, payload.content, { mtimeMs: payload.mtimeMs, force: payload.force === true });
         if (result.status !== 200) return sendJson(response, result.status, { error: t(result.error), changed: result.changed, mtimeMs: result.mtimeMs });
@@ -2016,7 +2016,7 @@ export async function createPulseServer({
       // resolve to the same route.
       const previewMatch = request.method === 'GET' && url.pathname.match(/^\/preview\/(project|attachments)\/(.*)$/);
       if (previewMatch) {
-        if (!(await ripleyOn())) return sendJson(response, 412, { error: t('RIPLEY is off. Enable it in MODULES to render files.') });
+        if (!(await ripleyOn())) return sendJson(response, 412, { error: t('Preview is off. Enable it in MODULES to render files.') });
         const which = previewMatch[1] === 'attachments' ? attachmentsRoot : canonicalProjectRoot;
         const relative = decodeURIComponent(previewMatch[2]);
         const file = await readServable(which, relative);
@@ -2118,7 +2118,7 @@ export async function createPulseServer({
         if (!/^https?:$/.test(target.protocol)) return sendJson(response, 400, { error: t('Only http and https.') });
         const local = ['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname);
         if (!local && !(await readConfig(root)).modules?.ripley?.web) {
-          return sendJson(response, 403, { error: t('RIPLEY reaches this computer only · turn the web on in MODULES to open an address outside it') });
+          return sendJson(response, 403, { error: t('PREVIEW reaches this computer only · turn the web on in MODULES to open an address outside it') });
         }
         try {
           const controller = new AbortController();
@@ -2131,7 +2131,7 @@ export async function createPulseServer({
         }
       }
       if (request.method === 'GET' && url.pathname === '/api/ports') {
-        if (!(await ripleyOn())) return sendJson(response, 412, { error: t('RIPLEY is off. Enable it in MODULES to render files.') });
+        if (!(await ripleyOn())) return sendJson(response, 412, { error: t('Preview is off. Enable it in MODULES to render files.') });
         // Only this project's servers, read by the servers sentinel: the same reading its watch
         // makes, so the menu and the live updates never disagree about what is here.
         const read = await serverSentinel.scan();
@@ -2200,7 +2200,7 @@ export async function createPulseServer({
       if (eyecatVerdict) {
         const payload = await body(request).catch(() => ({}));
         if (!designationOk(payload.designation)) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
-        if (!memory) return sendJson(response, 503, { error: t('The room has no memory.') });
+        if (!memory) return sendJson(response, 503, { error: t('The project has no memory.') });
         const finding = eyecat.findings().find((item) => item.key === payload.key);
         if (!finding) return sendJson(response, 404, { error: t('EYECAT is not holding that one.') });
         const settled = eyecat.settle(finding.key, { verdict: eyecatVerdict[1] === 'confirm' ? 'aberration' : 'dismissed' });
@@ -2269,7 +2269,7 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         if (!designationOk(payload.designation)) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
         await refreshPrivacy();
-        if (!privacy.enabled) return sendJson(response, 412, { error: t('No private terms are set. Write them first.') });
+        if (!privacy.enabled) return sendJson(response, 412, { error: t('No hidden data is set. Write it first.') });
         const result = await room.purgePrivate();
         // The log was rewritten in place: the broadcaster's byte offset is stale, the sequences are not.
         mainFeed.offset = (await store.tail(0)).offset;
@@ -2317,7 +2317,7 @@ export async function createPulseServer({
           const fetched = await new Promise((resolve) => execFile(fetching.command, fetching.args, { cwd: root, timeout: 180000, shell: process.platform === 'win32', windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => resolve(error ? (String(stderr || error.message).split('\n').map((line) => line.trim()).find((line) => line && !/complete log|^npm (error|ERR!)(\s+code\b.*)?\s*$/i.test(line)) ?? error.message) : null)));
           if (fetched !== null) {
             await room.record('room.update.refused', { from: info.current, to: info.latest, error: fetched.slice(0, 300) });
-            return sendJson(response, 502, { error: t('npm does not hand out {version} yet; a new release can take a few minutes. The room stays open: try again in a moment.', { version: info.latest }) });
+            return sendJson(response, 502, { error: t('npm does not hand out {version} yet; a new release can take a few minutes. The project stays open: try again in a moment.', { version: info.latest }) });
           }
         }
         await room.record('room.updating', { from: info.current, to: info.latest, install, command });
@@ -2350,14 +2350,14 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         if (!designationOk(payload.designation)) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
         const result = await room.code000({ strikes: Number(payload.strikes) || CODE000_STRIKES });
-        return result ? sendJson(response, 200, { code: result.code, lockedForMs: result.lockedForMs, n: result.n }) : sendJson(response, 503, { error: t('MOTHER is silent.') });
+        return result ? sendJson(response, 200, { code: result.code, lockedForMs: result.lockedForMs, n: result.n }) : sendJson(response, 503, { error: t('Security is silent.') });
       }
       if (request.method === 'GET' && url.pathname === '/api/memory') {
         if (!designationOk(url.searchParams.get('designation'))) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
         const sealed = room.motherStatus()?.lockedForMs ?? 0;
         if (sealed > 0) return sendJson(response, 423, { error: `CODE000. THE ARCHIVE IS SEALED FOR ${Math.ceil(sealed / 60000)} MORE MINUTE${Math.ceil(sealed / 60000) === 1 ? '' : 'S'}.`, lockedForMs: sealed });
         const research = room.memoryResearch();
-        if (!research) return sendJson(response, 503, { error: t('The room has no memory.') });
+        if (!research) return sendJson(response, 503, { error: t('The project has no memory.') });
         // How grown this archive is, read from the same notes the map draws.
         const grown = maturity({ readiness: datasetReadiness(await store.readAll(), research.memories), notes: research.memories, links: research.links, stats: research.stats });
         return sendJson(response, 200, { ...research, maturity: grown });
@@ -2551,7 +2551,7 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         if (!designationOk(payload.designation)) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
         const done = room.dismissAsk(String(payload.id ?? '').slice(0, 80));
-        return done ? sendJson(response, 200, done) : sendJson(response, 404, { error: t('The room has no memory.') });
+        return done ? sendJson(response, 200, done) : sendJson(response, 404, { error: t('The project has no memory.') });
       }
       // One memory's own traffic: who it keeps arriving with, who asked for it, what a
       // refutation did. Read while its card is open, so the card is alive rather than a snapshot.
@@ -2559,7 +2559,7 @@ export async function createPulseServer({
       if (trafficMatch) {
         if (!designationOk(url.searchParams.get('designation'))) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
         const sealed = room.motherStatus()?.lockedForMs ?? 0;
-        if (sealed > 0) return sendJson(response, 423, { error: t('CODE000. THE ARCHIVE IS SEALED.'), lockedForMs: sealed });
+        if (sealed > 0) return sendJson(response, 423, { error: t('TEMPORARY LOCK. THE ARCHIVE IS SEALED.'), lockedForMs: sealed });
         const traffic = room.memoryTraffic(Number(trafficMatch[1]));
         return traffic ? sendJson(response, 200, traffic) : sendJson(response, 404, { error: t('No such memory.') });
       }
@@ -2567,7 +2567,7 @@ export async function createPulseServer({
       if (forgetMatch) {
         const payload = await body(request).catch(() => ({}));
         if (!designationOk(payload.designation)) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
-        if ((room.motherStatus()?.lockedForMs ?? 0) > 0) return sendJson(response, 423, { error: t('CODE000. THE ARCHIVE IS SEALED.') });
+        if ((room.motherStatus()?.lockedForMs ?? 0) > 0) return sendJson(response, 423, { error: t('TEMPORARY LOCK. THE ARCHIVE IS SEALED.') });
         const row = await room.forgetMemory(forgetMatch[1]);
         return row ? sendJson(response, 200, { forgotten: row, stats: room.memoryStats() }) : sendJson(response, 404, { error: t('No such memory.') });
       }
@@ -2823,7 +2823,7 @@ export async function createPulseServer({
         const here = await scopeOf(url);
         if (here.error) return sendJson(response, 404, here);
         // From a phone a mode is granted up to #2, as it is asked for up to #2.
-        if (viaPhone && decision !== 'deny' && (here.room.modeAsked(requestId) ?? 0) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.') });
+        if (viaPhone && decision !== 'deny' && (here.room.modeAsked(requestId) ?? 0) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
         const result = here.room.decideMode(requestId, decision);
         return sendJson(response, result.ok ? 200 : 409, result);
       }
@@ -2833,7 +2833,7 @@ export async function createPulseServer({
         // where the message came from. Only the bridge's word counts for that, never the body's.
         if (viaPhone) {
           const written = typeof payload.text === 'string' ? Number(payload.text.match(/(^|\s)#([0-4])(?=\s|$)/)?.[2] ?? -1) : -1;
-          if (Math.max(Number.isInteger(payload.mode) ? payload.mode : 1, written) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 CONTROL and #4 AIRLOCK are opened from the Mac.') });
+          if (Math.max(Number.isInteger(payload.mode) ? payload.mode : 1, written) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
           payload.via = phoneKind;
         } else delete payload.via;
         // `?chat=` sends into a conversation held open beside the one on screen. TURNS counts it
@@ -2847,9 +2847,9 @@ export async function createPulseServer({
         if (!gate.ok) return sendJson(response, gate.status ?? 403, { error: gate.error, mode: gate.mode, maxMode: gate.maxMode });
         const turns = await turnsPolicy();
         if (turns.enabled) {
-          if (room.turnsRunning() >= turns.turnsPerChat) return sendJson(response, 429, { error: t('This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in MU/TH/UR → TURNS.', { n: room.turnsRunning(), max: turns.turnsPerChat }) });
+          if (room.turnsRunning() >= turns.turnsPerChat) return sendJson(response, 429, { error: t('This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in Diagnostics → TURNS.', { n: room.turnsRunning(), max: turns.turnsPerChat }) });
           const others = busyChats().filter((id) => id !== here.id).length + (!here.main && openRoom().busy() ? 1 : 0);
-          if (!room.busy() && others + 1 > turns.chats) return sendJson(response, 429, { error: t('{n} other conversations are already working, and TURNS allows {max} at a time. Wait for one to finish, or raise it in MU/TH/UR → TURNS.', { n: others, max: turns.chats }) });
+          if (!room.busy() && others + 1 > turns.chats) return sendJson(response, 429, { error: t('{n} other conversations are already working, and TURNS allows {max} at a time. Wait for one to finish, or raise it in Diagnostics → TURNS.', { n: others, max: turns.chats }) });
         } else if (!here.main && !room.busy() && openRoom().busy()) {
           // TURNS off: one conversation drives the crew at a time, beside or not.
           return sendJson(response, 409, { error: t('A turn is running in this conversation. Let it finish, or STOP ALL, and try again.') });

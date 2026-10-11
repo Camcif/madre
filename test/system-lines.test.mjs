@@ -39,7 +39,7 @@ test('a system line\'s title loses the separator that hung off it, and a word in
   // «claro · » as a title on its own line: the dot is all that was left of the join.
   const clear = tidy(line({ b: 'claro · ' }, '@codex 0% of the provider limit'));
   assert.equal(clear.childNodes[0].childNodes[0].textContent, 'claro');
-  for (const tail of ['MU/TH/UR › ', 'connections › ', 'plan · ', 'warning · ']) {
+  for (const tail of ['Diagnostics › ', 'connections › ', 'plan · ', 'warning · ']) {
     const tidied = tidy(line({ b: tail }, 'something happened'));
     assert.doesNotMatch(tidied.childNodes[0].childNodes[0].textContent, /[\s·›:]$/, `"${tail}" kept its tail`);
   }

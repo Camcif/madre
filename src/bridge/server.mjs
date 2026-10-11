@@ -181,7 +181,7 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
       response.writeHead(answer.statusCode ?? 502, out);
       answer.pipe(response);
     });
-    upstream.on('error', () => { if (!response.headersSent) sendJson(response, 502, { error: t('That room did not answer. It may have just closed on your Mac.') }); else response.end(); });
+    upstream.on('error', () => { if (!response.headersSent) sendJson(response, 502, { error: t('That project did not answer. It may have just closed on your Mac.') }); else response.end(); });
     // A phone that leaves (a stream it stops reading) takes its request to the room with it.
     response.on('close', () => upstream.destroy());
     if (buffered) upstream.end(buffered);
@@ -200,7 +200,7 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
     if (request.method === 'GET' && url.pathname === '/bridge/pair') {
       if (!strangers(`pair:${remote}`)) return sendNote(response, 429, t('Too many tries'), t('Wait a minute and scan the code again.'));
       const paired = await redeemInvite(root, url.searchParams.get('c') ?? '', { userAgent: request.headers['user-agent'] ?? '', now: now() });
-      if (!paired) return sendNote(response, 410, t('This code no longer works'), t('Each code works once and for ten minutes. Make a new one on your Mac: Phone, in the bar.'));
+      if (!paired) return sendNote(response, 410, t('This code no longer works'), t('Each code works once and for ten minutes. Make a new one on your Mac: MADRE on your phone, in the bar.'));
       response.writeHead(303, { ...SECURITY, location: '/salas?listo=1', 'set-cookie': cookie(PHONE_COOKIE, paired.token, MONTH_S), 'cache-control': 'no-store' });
       return response.end();
     }
@@ -212,7 +212,7 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
     const device = store.enabled ? await deviceForToken(root, cookies[PHONE_COOKIE], { now: now(), store }) : null;
     if (!device) {
       if (!strangers(`token:${remote}`)) return sendJson(response, 429, { error: t('Too many tries') });
-      if (wantsPage(request, url.pathname)) return sendNote(response, 401, t('This phone is not paired'), t('On your Mac, press Phone in the bar and scan the code with this phone\'s camera.'));
+      if (wantsPage(request, url.pathname)) return sendNote(response, 401, t('This phone is not paired'), t('On your Mac, in the bar, press MADRE on your phone and scan the code with this phone\'s camera.'));
       return sendJson(response, 401, { error: t('This phone is not paired.'), pair: true });
     }
     if (!phones(device.id)) return sendJson(response, 429, { error: t('Too many requests from this phone. Wait a moment.') });
@@ -221,7 +221,7 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
     if (!['GET', 'HEAD'].includes(request.method)) {
       const site = request.headers['sec-fetch-site'];
       const origin = request.headers.origin;
-      if ((site && site !== 'same-origin') || (origin && origin !== `http://${host}`)) return sendJson(response, 403, { error: t('A page from somewhere else cannot act in this room.') });
+      if ((site && site !== 'same-origin') || (origin && origin !== `http://${host}`)) return sendJson(response, 403, { error: t('A page from somewhere else cannot act in this project.') });
     }
 
     if (request.method === 'GET' && OWN[url.pathname]) {
@@ -239,7 +239,7 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
     if (request.method === 'POST' && url.pathname === '/bridge/open') {
       const payload = await readBody(request, 4096).then((raw) => JSON.parse(raw.toString('utf8') || '{}')).catch(() => ({}));
       const room = (await roomsOnThisMac(root)).find((one) => one.id === payload.room);
-      if (!room) return sendJson(response, 404, { error: t('That room is closed on your Mac.') });
+      if (!room) return sendJson(response, 404, { error: t('That project is closed on your Mac.') });
       return sendJson(response, 200, { ok: true, room: room.id }, { 'set-cookie': cookie(ROOM_COOKIE, room.id, MONTH_S) });
     }
     if (request.method === 'POST' && url.pathname === '/bridge/stop-all') {
@@ -252,7 +252,7 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
     const room = (await roomsOnThisMac(root)).find((one) => one.id === cookies[ROOM_COOKIE]);
     if (!room) {
       if (wantsPage(request, url.pathname)) { response.writeHead(303, { ...SECURITY, location: '/salas', 'cache-control': 'no-store' }); return response.end(); }
-      return sendJson(response, 409, { error: t('That room is closed on your Mac.'), salas: true });
+      return sendJson(response, 409, { error: t('That project is closed on your Mac.'), salas: true });
     }
     return pass(request, response, url, room, device);
   }
@@ -260,7 +260,7 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
   return http.createServer((request, response) => {
     handle(request, response).catch((error) => {
       if (response.headersSent) { response.end(); return; }
-      sendJson(response, error.status ?? 500, { error: error.status === 413 ? t('That is too large to send from the phone.') : t('The bridge could not do that.') });
+      sendJson(response, error.status ?? 500, { error: error.status === 413 ? t('That is too large to send from the phone.') : t('MADRE on your phone could not do that.') });
     });
   });
 }

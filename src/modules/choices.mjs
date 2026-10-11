@@ -19,10 +19,10 @@ import { t } from '../i18n.mjs';
 export default defineModule({
   id: 'choices',
   configKey: 'choices',
-  name: 'Choices',
+  name: 'Options',
   vendor: 'MADRE',
   version: '1.0.0',
-  summary: 'Lets an agent hand a decision back to you as buttons instead of a paragraph, when the answer turns on three or more real options. Costs about 135 tokens of instruction per turn while it is on, counted in the economy like every other block.',
+  summary: 'Lets an agent hand a decision back to you as buttons instead of a paragraph, when the answer turns on three or more real options. Costs about 135 tokens of instruction per turn while it is on, counted in Spending like every other block.',
   creates: ['nothing in the project', 'a switch in ~/.pulse/config.json'],
   async status(ctx) {
     return {

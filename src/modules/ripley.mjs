@@ -6,7 +6,7 @@ import { t } from '../i18n.mjs';
 
 export default defineModule({
   id: 'ripley',
-  name: 'RIPLEY',
+  name: 'Preview',
   vendor: 'MADRE · PREVIEW',
   version: '1.0.0',
   summary: 'Renders HTML, SVG and Markdown from the project in the file viewer, inside a sealed frame, and opens a browser on the servers answering on this computer.',

@@ -570,7 +570,7 @@ test('serves the single-room interface', async () => {
     const html = await response.text();
     assert.equal(response.status, 200);
     assert.match(html, /One conversation\. Every agent\./);
-    assert.match(html, /Ask the room/);
+    assert.match(html, /Ask the project/);
     // Said once, on one line, then kept behind the ? in the composer's row: never dropped.
     assert.match(html, /may reach their provider/);
     assert.match(html, /id="onboarding"/);
@@ -2578,7 +2578,7 @@ test('POST /api/commands records a command.output event the transcript shares wi
       assert.deepEqual(card.payload.args, ['branches']);
       const context = buildConversationContext(events);
       assert.equal(context.messages.at(-1).role, 'command');
-      assert.match(context.messages.at(-1).text, /Git Pulse/);
+      assert.match(context.messages.at(-1).text, /^Git · /);
       const unknown = await fetch(`${base}/api/commands`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '/nope' }) });
       assert.equal(unknown.status, 404);
       const notCommand = await fetch(`${base}/api/commands`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'hello' }) });

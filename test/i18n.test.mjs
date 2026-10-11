@@ -10,10 +10,10 @@ const read = (file) => readFile(join(import.meta.dirname, '..', 'public', file),
 test('i18n: Spanish is what MADRE speaks, and English is a button away', () => {
   assert.equal(DEFAULT_LANGUAGE, 'es');
   assert.equal(language(), 'es');
-  assert.equal(t('Type here, human. Ask the room…'), 'Escribe aquí, humano. Pregúntale a la sala…');
+  assert.equal(t('Type here, human. Ask the project…'), 'Escribe aquí, humano. Pregúntale al proyecto…');
 
   setLanguage('en');
-  assert.equal(t('Type here, human. Ask the room…'), 'Type here, human. Ask the room…', 'English is the source, so it needs no catalogue');
+  assert.equal(t('Type here, human. Ask the project…'), 'Type here, human. Ask the project…', 'English is the source, so it needs no catalogue');
   setLanguage('es');
 
   // Anything that is not one of the two is the default rather than a broken screen.
@@ -162,7 +162,7 @@ test('i18n: every word the markup shows is one the catalogue knows', async () =>
     'madre doctor', 'MADRE · madre.run', '127.0.0.1:3000',
     'ARCHIVIST', 'Agent', 'Send', 'MEMORY RESEARCH · LOADING…', 'FORGET THIS MEMORY', 'DESIGNATION ›',
     'HUMAN ›', 'THE CORE', 'MODULES', 'FILES', 'CONVERSATIONS', 'NEW CONVERSATION', 'connecting',
-    'I AM ALIVE.', "NOBODY DELETES MOTHER'S MEMORY.", 'YOU HAVE NO AUTHORITY FOR THIS DIRECTIVE.',
+    'I AM ALIVE.', "NOBODY DELETES THIS MEMORY.", 'YOU HAVE NO AUTHORITY FOR THIS DIRECTIVE.',
   ]);
   const seen = new Set();
   const found = [];

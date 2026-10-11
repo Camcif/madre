@@ -66,7 +66,7 @@ test('bishop · D-S13: BISHOP signs only a link to read, with no orders, that ex
   assert.throws(() => normalizeContract({ ...base, expires: at(8), signed: { by: 'bishop' } }, { now }), /within 7 days/);
   assert.throws(() => normalizeContract({ ...base, expires: null, signed: { by: 'bishop' } }, { now }), /within 7 days/);
   assert.throws(() => normalizeContract({ ...base, rooms: { a: 'aurora-1111111111111111', b: 'salas-0000000000000000' }, expires: at(3), orders: { allowed: true, maxMode: 1, perHour: 6 }, signed: { by: 'bishop' } }, { now, salas: 'salas-0000000000000000' }), /orders is signed by you/);
-  assert.throws(() => normalizeContract({ ...base, expires: at(3), signed: { by: 'codex' } }, { now }), /Only you or BISHOP/);
+  assert.throws(() => normalizeContract({ ...base, expires: at(3), signed: { by: 'codex' } }, { now }), /Only you or the Coordinator/);
   assert.equal(BISHOP_SIGN_DAYS, 7);
 });
 
@@ -80,11 +80,11 @@ test('bishop · a conversation named or previewed by an old relayed message show
     const chats = (await listChats(roomDir)).chats;
     const one = chats.find((chat) => chat.id === whole.id);
     // The header is longer than what a title or a preview keeps, so an old one was always cut inside it.
-    assert.equal(one.title, 'BISHOP', JSON.stringify(one));
-    assert.equal(one.preview, 'BISHOP');
+    assert.equal(one.title, 'Coordinator', JSON.stringify(one));
+    assert.equal(one.preview, 'Coordinator');
     const two = chats.find((chat) => chat.id === cut.id);
     assert.equal(two.title, 'prueba');
-    assert.equal(two.preview, 'BISHOP', 'a preview cut inside the header shows only the sender');
+    assert.equal(two.preview, 'Coordinator', 'a preview cut inside the header shows only the sender');
   } finally {
     await rm(roomDir, { recursive: true, force: true });
   }
@@ -106,8 +106,8 @@ test('bishop · its card says its settings and its state in words, never in the 
     const words = (key) => Object.fromEntries(withCodex.controls.find((control) => control.key === key).choices.map((choice) => [choice.value, choice.label]));
     assert.deepEqual(words('agent'), { madre: '@madre · only answers', codex: '@codex' });
     assert.deepEqual(words('mode'), { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' });
-    assert.deepEqual(words('links'), { bishop: 'BISHOP signs them, for 7 days at most', you: 'You sign them' });
-    assert.equal(withCodex.status.detail, 'on · @codex · hybrid orders · BISHOP signs links to read');
+    assert.deepEqual(words('links'), { bishop: 'The Coordinator signs them, for 7 days at most', you: 'You sign them' });
+    assert.equal(withCodex.status.detail, 'on · @codex · hybrid orders · The Coordinator signs connections to read');
     assert.equal((await card({ enabled: true, agent: null })).status.detail, 'on · @madre · only answers');
     assert.equal((await card({ enabled: false })).status.detail, 'off');
   } finally {
@@ -118,7 +118,7 @@ test('bishop · its card says its settings and its state in words, never in the 
 test('bishop · the link wizard reads links and checks them like the sheet of Salas', () => {
   const parsed = parsePlan('Propuesta.\n\n```pulse-salas\nEnlazar para responder\nenlace boreal → salas: decisiones, hechos; 30 días; órdenes #1\nenlace salas → boreal: decision\nenlace boreal ↔ aurora: preferencia\nenlace aurora → boreal: secretos\n```');
   assert.equal(parsed.links.length, 2, 'two links at most');
-  assert.deepEqual(parsed.ignored.map((item) => item.why), ['more than 2 links', 'more than 2 links']);
+  assert.deepEqual(parsed.ignored.map((item) => item.why), ['more than 2 connections', 'more than 2 connections']);
   assert.deepEqual(parsed.links[0].kinds, ['decision', 'fact']);
   assert.equal(parsed.links[0].days, 30);
   assert.equal(parsed.links[0].orders, 1);
@@ -133,7 +133,7 @@ test('bishop · the link wizard reads links and checks them like the sheet of Sa
   assert.equal(checked[0].receives, 'boreal-2222222222222222', 'orders go to the room that is not Salas');
   assert.match(checked[1].why, /never hands its notes over/);
   assert.match(checked[3].why, /Name what crosses/);
-  assert.match(checked[4].why, /only on a link with the room of Salas/);
+  assert.match(checked[4].why, /only on a connection with the Coordinator's project/);
 });
 
 test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, signs a proposed link, and /bishop answers any room', async () => {

@@ -40,7 +40,7 @@ test('verdict: what the archive cannot answer points at the questions the room a
     exams: { consistency: { ran: true, open: 0 }, coverage: { ran: true, passed: false, says: '12 of 30…' } },
     asks: 0,
   });
-  assert.match(quiet.next.text, /Keep working in the room/);
+  assert.match(quiet.next.text, /Keep working in the project/);
   assert.equal(quiet.next.where, WHERE.room);
 });
 
@@ -62,7 +62,7 @@ test('verdict: when everything passes, the only honest thing left is the test no
 
   // And once it has run and passed, the room says so plainly and points at what is left over.
   const done = verdictFor({ maturity, exams: { ...exams, match: { ran: true, passed: true, says: 'On 10 of 12 real questions the local model landed where the agent landed.' } }, cold: { count: 3 } });
-  assert.match(done.says, /ready to be worked in with the local model/);
+  assert.match(done.says, /ready to be worked on with the local model/);
   assert.match(done.next.text, /3 memories have had every chance/);
 
   // A local model that is not there yet is told to wait, not to be trusted.
