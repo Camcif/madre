@@ -65,7 +65,9 @@ export function dueMoment(state, now = Date.now()) {
 
 // A page in view says so: the first time starts the count, then a minute is added at most once a
 // minute. Answers which moment is due, if any.
-export async function tickAsk(root, now = Date.now()) {
+// `quietSince`: a moment that asks for quiet — the day of the bonjour (src/tour.mjs) — keeps every
+// ask away for QUIET_MS after it, as an ask itself would. The minutes still count.
+export async function tickAsk(root, now = Date.now(), { quietSince = null } = {}) {
   const state = await readAsk(root);
   const at = new Date(now).toISOString();
   if (!state.first) state.first = at;
@@ -75,7 +77,8 @@ export async function tickAsk(root, now = Date.now()) {
     state.lastTick = at;
     await writeAsk(root, state);
   }
-  return { due: dueMoment(state, now), minutes: state.minutes };
+  const hushed = quietSince && now - Date.parse(quietSince) < QUIET_MS;
+  return { due: hushed ? null : dueMoment(state, now), minutes: state.minutes };
 }
 
 // The person answered the moment they were asked at. Every moment reached by then counts as shown,

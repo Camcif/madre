@@ -64,6 +64,7 @@ import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
 import { checkForUpdate, detectInstall, updateCommand, releaseUrl, applyCommand, fetchCommand } from './updates.mjs';
 import { bootWhatsNew, markSeen, newestNotes, notesFor, whatsNew } from './whats-new.mjs';
 import { answerAsk, tickAsk } from './review-ask.mjs';
+import { CHAPTERS, HINTS, TOUR_VERSION, cameBefore, changeTour, readTour, recoverProject, roomsWithoutProject } from './tour.mjs';
 
 // Where a person reads the module contract, in the language the room is speaking.
 const SDK_PAGE = { es: 'https://madre.run/sdk/', en: 'https://madre.run/en/sdk/' };
@@ -2366,7 +2367,8 @@ export async function createPulseServer({
       // is never asked.
       if (request.method === 'POST' && url.pathname === '/api/review-ask/tick') {
         if (viaPhone) return sendJson(response, 200, { due: null });
-        return sendJson(response, 200, await tickAsk(root));
+        // Never on the day of the bonjour: one welcome is enough for a day.
+        return sendJson(response, 200, await tickAsk(root, Date.now(), { quietSince: (await readTour(root)).bonjourAt }));
       }
       if (request.method === 'POST' && url.pathname === '/api/review-ask/answer') {
         if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
@@ -2374,6 +2376,35 @@ export async function createPulseServer({
         const result = await answerAsk(root, { moment: String(payload.moment ?? ''), answer: String(payload.answer ?? '') });
         if (result.error) return sendJson(response, 422, { error: t('That is not an answer to this question.') });
         return sendJson(response, 200, result);
+      }
+      // The welcome of 1.0 (src/tour.mjs): where the person is in it, kept in ~/.pulse for every
+      // project and port, and the projects of 0.7.2 brought to Home. Only the pages of this Mac:
+      // a phone never gets the bonjour, and nothing here is changed from anywhere else.
+      if (url.pathname === '/api/tour' || url.pathname.startsWith('/api/tour/')) {
+        const host = String(request.headers.host ?? '');
+        const site = request.headers['sec-fetch-site'];
+        const fromHere = /^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host) && (site === undefined || site === 'same-origin' || site === 'none');
+        if (request.method === 'GET' && url.pathname === '/api/tour') {
+          const state = await readTour(root);
+          if (viaPhone || !fromHere) return sendJson(response, 200, { version: TOUR_VERSION, state, owed: false, returning: false, chapters: CHAPTERS, hints: HINTS });
+          return sendJson(response, 200, { version: TOUR_VERSION, state, owed: !state.bonjourAt, returning: state.path ? state.path === 'back' : await cameBefore(root), chapters: CHAPTERS, hints: HINTS });
+        }
+        if (viaPhone || !fromHere || (request.method === 'POST' && request.headers.origin !== `http://${host}`)) return sendJson(response, 403, { error: t('This is done on the Mac.') });
+        if (request.method === 'POST' && url.pathname === '/api/tour') {
+          const changed = await changeTour(root, await body(request).catch(() => null));
+          if (changed.error) return sendJson(response, 422, { error: t('That is not a change to the tour.') });
+          return sendJson(response, 200, { state: changed });
+        }
+        if (request.method === 'GET' && url.pathname === '/api/tour/projects') {
+          return sendJson(response, 200, { rooms: await roomsWithoutProject(root) });
+        }
+        if (request.method === 'POST' && url.pathname === '/api/tour/projects') {
+          const payload = await body(request).catch(() => ({}));
+          const found = await recoverProject({ stateRoot: root, home: process.env.PULSE_LOBBY_HOME || homedir(), id: String(payload.id ?? '') });
+          if (found.error) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
+          return sendJson(response, 200, found);
+        }
+        return sendJson(response, 404, { error: 'Not found' });
       }
       if (request.method === 'GET' && url.pathname === '/api/version') {
         return sendJson(response, 200, await versionView({ force: url.searchParams.get('force') === '1' }));

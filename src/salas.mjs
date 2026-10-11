@@ -103,7 +103,7 @@ export async function markProject(roomDir, projectRoot, { now = new Date() } = {
 const PROJECT_MARKS = ['.git', 'package.json', 'pyproject.toml', 'requirements.txt', 'Cargo.toml', 'go.mod', 'composer.json', 'Gemfile', 'pom.xml', 'build.gradle', 'Package.swift', 'deno.json', '.pulse'];
 const NOT_PROJECTS = new Set(['node_modules', 'Library', 'Applications', 'Pictures', 'Music', 'Movies', 'Public', 'OneDrive', 'Dropbox']);
 // Where people keep their projects, looked at one level deep for suggestions.
-const PROJECT_HOMES = ['', 'Projects', 'projects', 'Developer', 'dev', 'Dev', 'code', 'Code', 'src', 'repos', 'Repos', 'GitHub', 'git', 'work', 'Work', 'Sites', 'Documents', 'Desktop'];
+export const PROJECT_HOMES = ['', 'Projects', 'projects', 'Developer', 'dev', 'Dev', 'code', 'Code', 'src', 'repos', 'Repos', 'GitHub', 'git', 'work', 'Work', 'Sites', 'Documents', 'Desktop'];
 
 const inside = (child, parent) => child === parent || child.startsWith(parent.endsWith('/') ? parent : `${parent}/`);
 async function looksLikeProject(folder) {

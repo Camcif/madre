@@ -1,0 +1,150 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { CHAPTERS, cameBefore, changeTour, readTour, recoverProject, roomsWithoutProject } from '../src/tour.mjs';
+import { projectRoomId, salasRoomId } from '../src/salas.mjs';
+import { tickAsk } from '../src/review-ask.mjs';
+import { createPulseServer } from '../src/server.mjs';
+
+// The welcome of 1.0 (2026-10-11): kept in ~/.pulse/tour.json, one per person and not one per
+// port; and the projects of 0.7.2 brought to Home by their folder's name, proved by its hash.
+const scratch = (prefix) => mkdtemp(join(tmpdir(), prefix));
+const room = async (state, id, files = {}) => {
+  await mkdir(join(state, 'rooms', id), { recursive: true });
+  for (const [name, text] of Object.entries(files)) await writeFile(join(state, 'rooms', id, name), text);
+};
+
+test('tour · kept in ~/.pulse, one change at a time, and a file for another version starts it again', async () => {
+  const state = await scratch('madre-tour-');
+  try {
+    const first = await readTour(state);
+    assert.deepEqual(first, { version: '1.0', path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {} });
+    const now = new Date('2026-10-11T10:00:00Z');
+    await changeTour(state, { path: 'back', bonjour: true }, now);
+    await changeTour(state, { chapter: 'links', at: 'links' }, now);
+    await changeTour(state, { chapter: 'moved' }, now);
+    // The bonjour is dated once; seen again, it keeps its first day.
+    await changeTour(state, { bonjour: true }, new Date('2026-10-12T10:00:00Z'));
+    const kept = await readTour(state);
+    assert.equal(kept.bonjourAt, now.toISOString());
+    assert.deepEqual(kept.done, ['moved', 'links'], 'chapters kept out of their order');
+    assert.equal(kept.at, 'links');
+    await changeTour(state, { closed: true });
+    assert.equal((await readTour(state)).closed, true);
+    await changeTour(state, { finished: true, hint: 'key4' });
+    const finished = await readTour(state);
+    assert.ok(finished.finished && !finished.closed && finished.hints.key4);
+    // What is not a change is refused, and nothing is written.
+    for (const wrong of [{ path: 'sideways' }, { chapter: 'nowhere' }, { at: 'nowhere' }, { hint: 'everything' }, null]) {
+      assert.ok((await changeTour(state, wrong)).error, `${JSON.stringify(wrong)} was taken`);
+    }
+    assert.deepEqual(await readTour(state), finished);
+    // Read field by field: what a hand wrote wrong is dropped, the rest stays.
+    await writeFile(join(state, 'tour.json'), JSON.stringify({ ...finished, done: ['home', 'nowhere'], path: 'sideways', hints: { switch: 'yesterday', links: now.toISOString() } }));
+    const read = await readTour(state);
+    assert.deepEqual(read.done, ['home']);
+    assert.equal(read.path, null);
+    assert.deepEqual(Object.keys(read.hints), ['links']);
+    await writeFile(join(state, 'tour.json'), JSON.stringify({ ...finished, version: '0.7' }));
+    assert.equal((await readTour(state)).bonjourAt, null, 'a tour of another version counted as this one');
+    assert.deepEqual((await changeTour(state, { reset: true })).done, []);
+    assert.equal(CHAPTERS.length, 12);
+  } finally {
+    await rm(state, { recursive: true, force: true });
+  }
+});
+
+test('tour · who came before, and the projects of 0.7.2 found by name and proved by hash', async () => {
+  const state = await scratch('madre-tour-rooms-');
+  const home = await realpath(await scratch('madre-tour-home-'));
+  try {
+    // A project added in Home and never opened is not someone who came before; the Coordinator's
+    // own room is not either.
+    await room(state, salasRoomId(state), { 'events.jsonl': '{}\n' });
+    await room(state, 'fresh-0123456789abcdef', { 'project.json': '{}' });
+    assert.equal(await cameBefore(state), false);
+
+    // Three rooms of 0.7.2: one whose folder is in ~/Projects, one forgotten on purpose, one whose
+    // folder is gone; and a folder with the right name in the wrong place for another hash.
+    const alpha = join(home, 'Projects', 'alpha');
+    await mkdir(alpha, { recursive: true });
+    const alphaId = projectRoomId(await realpath(alpha));
+    await room(state, alphaId, { 'events.jsonl': '{}\n' });
+    await room(state, 'beta-0123456789abcdef', { 'events.jsonl': '{}\n', 'project.forgotten.json': '{}' });
+    await room(state, 'gone-fedcba9876543210', { 'memory.sqlite': '' });
+    await mkdir(join(home, 'gone'), { recursive: true });
+    assert.equal(await cameBefore(state), true);
+    assert.deepEqual(await roomsWithoutProject(state), [{ id: alphaId, name: 'alpha' }, { id: 'gone-fedcba9876543210', name: 'gone' }]);
+
+    const found = await recoverProject({ stateRoot: state, home, id: alphaId });
+    assert.deepEqual(found, { id: alphaId, name: 'alpha', root: await realpath(alpha), found: true });
+    const record = JSON.parse(await readFile(join(state, 'rooms', alphaId, 'project.json'), 'utf8'));
+    assert.equal(record.root, await realpath(alpha));
+    assert.deepEqual(await recoverProject({ stateRoot: state, home, id: 'gone-fedcba9876543210' }), { id: 'gone-fedcba9876543210', name: 'gone', found: false }, 'a folder with the name but not the hash was taken');
+    assert.deepEqual(await roomsWithoutProject(state), [{ id: 'gone-fedcba9876543210', name: 'gone' }]);
+    assert.equal((await recoverProject({ stateRoot: state, home, id: 'beta-0123456789abcdef' })).error, 'unknown', 'a forgotten project came back');
+  } finally {
+    await Promise.all([state, home].map((dir) => rm(dir, { recursive: true, force: true })));
+  }
+});
+
+test('tour · the review ask keeps quiet on the day of the bonjour', async () => {
+  const state = await scratch('madre-tour-ask-');
+  try {
+    const start = Date.parse('2026-10-11T10:00:00Z');
+    for (let minute = 0; minute <= 20; minute += 1) await tickAsk(state, start + minute * 60 * 1000);
+    const quietSince = new Date(start + 5 * 60 * 1000).toISOString();
+    assert.equal((await tickAsk(state, start + 21 * 60 * 1000, { quietSince })).due, null, 'asked on the day of the bonjour');
+    assert.equal((await tickAsk(state, start + 22 * 60 * 1000)).due, 'm20');
+    assert.equal((await tickAsk(state, start + 26 * 60 * 60 * 1000, { quietSince })).due, 'm20', 'quiet for more than a day');
+  } finally {
+    await rm(state, { recursive: true, force: true });
+  }
+});
+
+test('tour · the routes: the pages of this Mac only, never a phone', async () => {
+  const state = await scratch('madre-tour-routes-');
+  const project = await scratch('madre-tour-routes-project-');
+  const home = await realpath(await scratch('madre-tour-routes-home-'));
+  const roster = [{ id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/fake', version: 'test' }];
+  const before = process.env.PULSE_LOBBY_HOME;
+  process.env.PULSE_LOBBY_HOME = home;
+  let server;
+  try {
+    const old = join(home, 'old');
+    await mkdir(old, { recursive: true });
+    const oldId = projectRoomId(await realpath(old));
+    await room(state, oldId, { 'events.jsonl': '{}\n' });
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: roster, invokers: {} }));
+    const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+    const base = `http://127.0.0.1:${port}`;
+    const get = (path, headers = {}) => fetch(`${base}${path}`, { headers });
+    const post = (path, payload, headers = { origin: base }) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(payload ?? {}) });
+
+    const told = await (await get('/api/tour')).json();
+    assert.equal(told.owed, true);
+    assert.equal(told.returning, true, 'a room with a conversation is someone who came before');
+    assert.equal((await (await get('/api/tour', { 'x-madre-device': 'phone-1' })).json()).owed, false, 'a phone was offered the bonjour');
+    assert.equal((await post('/api/tour', { bonjour: true }, {})).status, 403, 'changed by a process with no page');
+    assert.equal((await post('/api/tour', { bonjour: true }, { origin: 'http://127.0.0.1:1' })).status, 403, 'changed from another page');
+    assert.equal((await post('/api/tour', { bonjour: true }, { origin: base, 'x-madre-device': 'phone-1' })).status, 403, 'changed from a phone');
+    assert.equal((await post('/api/tour', { chapter: 'nowhere' })).status, 422);
+    const changed = await (await post('/api/tour', { path: 'back', bonjour: true, chapter: 'moved' })).json();
+    assert.deepEqual(changed.state.done, ['moved']);
+    assert.equal((await (await get('/api/tour')).json()).owed, false, 'the bonjour came twice');
+
+    // (The room this server serves has no record either: a test starts it without one.)
+    assert.deepEqual((await (await get('/api/tour/projects')).json()).rooms.find((one) => one.id === oldId), { id: oldId, name: 'old' });
+    const brought = await (await post('/api/tour/projects', { id: oldId })).json();
+    assert.equal(brought.found, true);
+    assert.equal(brought.root, await realpath(old));
+    assert.equal((await post('/api/tour/projects', { id: oldId })).status, 404, 'brought twice');
+    assert.ok(!(await (await get('/api/tour/projects')).json()).rooms.some((one) => one.id === oldId), 'still listed once brought');
+  } finally {
+    if (before === undefined) delete process.env.PULSE_LOBBY_HOME; else process.env.PULSE_LOBBY_HOME = before;
+    if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    for (const dir of [state, project, home]) await rm(dir, { recursive: true, force: true });
+  }
+});

@@ -4212,6 +4212,7 @@ export const ES = {
   'Options': 'Opciones',
   'Images': 'Imágenes',
   'Continuity': 'Continuidad',
+  'That is not a change to the tour.': 'Eso no es un cambio del recorrido.',
   'Suggestion': 'Sugerencia',
   'Continuity (AHP+) for this project': 'Continuidad (AHP+) para este proyecto',
   'It keeps the project\'s state, decisions, evidence, checkpoints and handoffs in the repository itself, in .ahp/.': 'Guarda en el propio repositorio el estado del proyecto, sus decisiones, evidencia, puntos de control y traspasos, en .ahp/.',
