@@ -8,6 +8,7 @@
 import { setLanguage, t } from './i18n.js';
 import { brandOf, monogram } from './brands.js';
 import { startReviewAsk } from './review-ask.js';
+import { startTour } from './tour.js';
 import { creep, finishLoader, makeLoader, setLoader, showCurtain } from './loader.js';
 
 const $ = (id) => document.getElementById(id);
@@ -333,7 +334,8 @@ function draw() {
   drawBishop(data.rooms.find((room) => room.id === data.salas) ?? null);
   drawWaiting();
   drawProjects(all);
-  if (!all.length && !welcomed) { welcomed = true; openWizard(); }
+  if (!all.length && !welcomed) { welcomed = true; void homeTour.loaded.then((answer) => { if (!answer?.owed) openWizard(); }); }
+  welcomeHome();
   const working = open.some((room) => room.glance?.working?.length);
   ui.stop.hidden = !working;
   drawLinks(all);
@@ -817,6 +819,56 @@ if (typeof ResizeObserver === 'function') {
     drawnAt = size;
     drawMap(mapDrawn.projects, mapDrawn.enlaces);
   }).observe(ui.map);
+}
+
+// THE WELCOME OF 1.0 (public/tour.js): the bonjour the first time, the chapters after it, the pill
+// that waits in the bar, `?` for the gestures, and the hint on Connections. In Home, «Take me
+// there» opens what lives here; for what lives inside a project it opens the one open most
+// recently, if any is. A new person is handed to the wizard (agents, projects, open) first.
+const agentsReady = () => (agentsSeen?.agents ?? []).some((agent) => agent.id !== 'madre' && agentState(agent, agentsSeen).ok);
+const intoAProject = () => {
+  const room = data ? projectsInOrder().open[0] : null;
+  return room ? () => leaveTo(addressOf(room)) : undefined;
+};
+const homeTour = startTour({
+  page: 'home',
+  pillSlot: $('sm-tour-pill'),
+  ready: () => Boolean(data) && !wizard && !sheet,
+  welcome: { needed: () => !projectsInOrder().all.length || !agentsReady(), open: (then) => { welcomed = true; openWizard({ then }); } },
+  onProjects: () => void refresh(),
+  go: {
+    get project() { return intoAProject(); },
+    get talk() { return intoAProject(); },
+    get modes() { return intoAProject(); },
+    get modules() { return intoAProject(); },
+    get phone() { return intoAProject(); },
+    coordinator: () => openBishop(),
+    links: () => openLinkSheet(),
+    get maps() { return ui.macro.hidden ? undefined : () => ui.macro.click(); },
+    settings: () => openSettings(),
+    gestures: () => homeTour.openGestures(),
+  },
+});
+// Once Home has drawn: the bonjour if it is owed; if it was given, the hint on Connections — what
+// it is, and, for whoever came from 0.7.2, what the word meant before.
+let welcomeAsked = false;
+function welcomeHome() {
+  if (welcomeAsked) return;
+  welcomeAsked = true;
+  void homeTour.loaded.then(async (answer) => {
+    if (answer?.owed) { await homeTour.maybeBonjour(); return; }
+    if (!answer?.state?.bonjourAt) return;
+    setTimeout(() => {
+      const tile = $('sm-links-tile');
+      if (!tile || tile.hidden || document.querySelector('dialog[open]')) return;
+      void homeTour.hint('links', tile.querySelector('.sm-tile-head') ?? tile, {
+        title: t('Connections'),
+        text: homeTour.path() === 'back'
+          ? t('A connection lets one project look up what another learned, by a contract you sign. In 0.7.2 «Connections» was signing your agents in: that is now in Settings › Agents.')
+          : t('A connection lets one project look up what another learned, by a contract you sign. Nothing is written across.'),
+      });
+    }, 2200);
+  });
 }
 
 // LINKING TWO ROOMS, step by step. A link lets one room read the notes of another; nothing is
@@ -2452,8 +2504,10 @@ function wizardScene(kind) {
   return scene;
 }
 let wizard = null;
-function openWizard() {
+let wizardThen = null;          // what comes once the wizard closes: the chapters, after a bonjour
+function openWizard({ then = null } = {}) {
   if (wizard) return;
+  wizardThen = then;
   wizard = el('dialog', 'sm-sheet sm-wide sm-wizard');
   const inner = el('div', 'sm-sheet-body');
   wizard.append(inner);
@@ -2546,7 +2600,7 @@ function openWizard() {
     actions.append(button('sm-btn', t('Back'), () => { step = 1; projectsStep({ back: true }); }), go);
     frame(t('Open what you will use'), t('Each open project runs on this Mac on its own. The rest stay in Home, asleep, until you open them.'), list, actions);
   }
-  wizard.addEventListener('close', () => { stop(); wizard.remove(); wizard = null; void loadAgents(); });
+  wizard.addEventListener('close', () => { stop(); wizard.remove(); wizard = null; void loadAgents(); const after = wizardThen; wizardThen = null; after?.(); });
   wizard.showModal();
   void agentsStep();
 }
@@ -2579,7 +2633,7 @@ const SET_INDEX = [
   ['look', 'Preview'], ['look', 'Theme'], ['look', 'Accent'], ['look', 'Wallpaper'], ['look', 'Intensity'], ['look', 'Blur'], ['look', 'Project cards'], ['look', 'Text'], ['look', 'Project order'], ['look', 'Language'],
   ['bar', 'Arrange the bar'], ['bar', 'Back to default'],
   ['bishop', 'Talk to the Coordinator'], ['bishop', 'Open the Coordinator in a new tab'],
-  ['projects', 'Add a project'], ['projects', 'See the welcome again'],
+  ['projects', 'Add a project'], ['projects', 'See the welcome again'], ['projects', 'The tour of MADRE 1.0'],
   ['release', 'Check now'],
 ];
 const THEME_WORDS = { auto: () => t('Automatic'), light: () => t('Light'), dark: () => t('Dark') };
@@ -2865,6 +2919,7 @@ function fillProjects(host) {
   const block = sxBlock(host, t('Projects'), t('A project is a folder: MADRE gives it its own conversations and its own memory. Adding it does not open it; you open it from its card.'));
   sxRow(block, t('Add a project'), null, sxButton(t('Add'), () => { settingsSheet?.close(); openAddSheet(); }, { tone: 'primary' }));
   sxRow(block, t('See the welcome again'), null, sxButton(t('Open'), () => { settingsSheet?.close(); welcomed = true; openWizard(); }));
+  sxRow(block, t('The tour of MADRE 1.0'), t('Everything new, chapter by chapter. ? opens the gestures anywhere.'), sxButton(t('See the tour'), () => { settingsSheet?.close(); homeTour.openChapters(); }));
 }
 function fillRelease(host) {
   const info = versionSeen;

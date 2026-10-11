@@ -148,3 +148,22 @@ test('tour · the routes: the pages of this Mac only, never a phone', async () =
     for (const dir of [state, project, home]) await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('tour · the chapters the page tells are the ones the server keeps, in both languages', async () => {
+  const { CHAPTERS: told, GESTURES } = await import('../public/tour-chapters.js');
+  assert.deepEqual(told.map((chapter) => chapter.id), CHAPTERS, 'a chapter the server would refuse, or one it keeps that the page never tells');
+  for (const chapter of told) {
+    for (const field of ['title', 'lead']) assert.ok(chapter[field]?.es && chapter[field]?.en, `${chapter.id} has no ${field} in both languages`);
+    assert.equal(chapter.points.es.length, chapter.points.en.length, `${chapter.id} says more in one language`);
+    if (!['gestures'].includes(chapter.id)) assert.equal(chapter.points.es.length, 3, `${chapter.id} is not three sentences`);
+    for (const where of chapter.where) assert.ok(['home', 'room'].includes(where));
+  }
+  for (const [group, rows] of GESTURES) {
+    assert.ok(group.es && group.en);
+    for (const [what] of rows) assert.ok(what.es && what.en, `${group.es}: a gesture with one language`);
+  }
+  // Served beside the page, like the loader.
+  const server = await readFile(join(import.meta.dirname, '..', 'src', 'server.mjs'), 'utf8');
+  assert.match(server, /'\/loader\.js', '\/tour\.js', '\/tour-chapters\.js'\]/);
+  for (const page of ['app.js', 'salas-mac.js']) assert.match(await readFile(join(import.meta.dirname, '..', 'public', page), 'utf8'), /from '\.\/tour\.js'/, `${page} has no welcome`);
+});

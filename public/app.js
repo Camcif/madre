@@ -7,6 +7,10 @@ import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t
 import { createEditor } from './editor.js';
 import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
+import { startTour as startWelcome } from './tour.js';
+// Made the first time the room asks for it (roomTour, below), which can be while this file is
+// still being read: declared here, before anything can ask.
+let roomTourKept = null;
 import { LOADER_MARK, creep, finishLoader, makeLoader, setLoader, showCurtain } from './loader.js';
 import { familyOf, languageLabel, tokenize } from './syntax.js';
 import { COLLAPSED, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, activityOf, collapsedChip, createNostromo, dwarfChip, hexMix, rawActivity, travels } from './nostromo-engine.js';
@@ -3038,6 +3042,11 @@ function openOverride(id, { raise = false, mode = 3, then = null, cancelled = nu
   override.title.textContent = mode === 4 ? t('Open #4 FULL ACCESS for @{agent}', { agent: id }) : t('Unlock #3 EDIT for @{agent}', { agent: id });
   override.arm.textContent = mode === 4 ? t('Open') : t('Unlock');
   override.dialog.classList.toggle('m4', mode === 4);
+  if (mode === 4) {
+    let slot = override.frame?.querySelector('.tour-hint-slot');
+    if (!slot && override.form) { slot = el('div', 'tour-hint-slot'); override.form.before(slot); }
+    if (slot) void roomTour().hint('key4', slot, { inside: true, title: t('#4 asks for your key twice'), text: t('With #4 the agent may run commands, publish and deploy: what leaves your Mac does not come back. That is why the key is typed twice.') });
+  }
   override.brief.textContent = OVERRIDE_BRIEF[mode].what(id);
   override.safe.textContent = OVERRIDE_BRIEF[mode].safe();
   override.raised.hidden = !raise;
@@ -6253,7 +6262,7 @@ const SETTINGS_INDEX = [
   ['memory', 'Who distils first'], ['memory', 'Who may distil'], ['memory', 'Share of the context'], ['memory', 'Related'], ['memory', 'Smart search'], ['memory', 'Dataset'], ['memory', 'Analysis and tests'],
   ['permissions', 'The key of each mode'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
   ['privacy', 'Hidden data'], ['privacy', 'Replaced with'], ['privacy', 'Keys, tokens and e-mail addresses'], ['privacy', 'Your home path'], ['privacy', 'Erase private data'],
-  ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'Report automatically'], ['release', 'Tell the author'],
+  ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'The tour of MADRE 1.0'], ['release', 'Report automatically'], ['release', 'Tell the author'],
 ];
 const settingsWindow = { node: document.querySelector('#settings'), body: document.querySelector('#settings-body'), search: document.querySelector('#settings-search'), box: null, ready: false, open: null, query: '', mode: 'board', observer: null };
 try { settingsWindow.box = JSON.parse(localStorage.getItem('pulse.settingsWindow') ?? 'null'); } catch { /* no storage */ }
@@ -16515,14 +16524,48 @@ tour.back?.addEventListener('click', () => { tour.index = Math.max(0, tour.index
 tour.skip?.addEventListener('click', endTour);
 tour.dialog?.addEventListener('close', () => { try { localStorage.setItem('pulse.tour', 'seen'); } catch { /* no storage */ } });
 window.addEventListener?.('resize', () => { if (tour.dialog?.open) placeTour(); });
-document.querySelector('#tour-button')?.addEventListener('click', () => { document.querySelector('#mother')?.close?.(); stepsResume(); startTour(); });
+document.querySelector('#tour-button')?.addEventListener('click', () => { document.querySelector('#mother')?.close?.(); stepsResume(); roomTour().openChapters(); });
 function maybeStartTour() {
   // The half on the right of a split window is the same room; the left half already did this.
   // A phone gets the room as it is: the tour points at keys that live on the Mac.
   if (state.tourArmed || SPLIT_CHAT || state.device) return;
   state.tourArmed = true;
-  // What is new comes first; the tour, if this page still owes it, waits until that is closed.
-  void maybeShowWhatsNew().then((shown) => { if (!shown) tourIfOwed(); });
+  // The welcome of 1.0 (public/tour.js) comes first, once per person, and replaces the old tour
+  // and What's new 1.0. Once it was given, only a later version's news come, never the old tour;
+  // and the first time the room is here after it, Switch project says what it is.
+  void roomTour().loaded.then(async (answer) => {
+    if (answer?.owed) { await roomTour().maybeBonjour(); return; }
+    if (answer?.state?.bonjourAt) {
+      const shown = await maybeShowWhatsNew();
+      if (!shown) setTimeout(() => { if (switcher.key && !document.querySelector('dialog[open]')) void roomTour().hint('switch', switcher.key, { title: t('Switch project'), text: t('It takes you to another open project. Its light tells you when one needs you or finishes while you are here.') }); }, 2400);
+      return;
+    }
+    void maybeShowWhatsNew().then((shown) => { if (!shown) tourIfOwed(); });
+  });
+}
+// The welcome and its chapters in a project: what «Take me there» does here, and when the bonjour
+// must wait — for an agent to be connected and for every turn to finish. The right half of a split
+// window and a phone get none of it.
+function roomTour() {
+  roomTourKept ??= startWelcome({
+    page: 'room',
+    phone: Boolean(state.device || SPLIT_CHAT),
+    pillSlot: SPLIT_CHAT ? null : document.querySelector('#tour-pill-slot'),
+    ready: () => [...state.agents.values()].some((agent) => agent.ready) && !state.running.size && !state.plansRunning.size,
+    go: {
+      home: () => leaveTo('/salas'),
+      project: () => { if (switcher.key) switchOpen(); },
+      talk: () => els.input?.focus(),
+      modes: () => openSettingsOn('permissions'),
+      coordinator: () => { if (state.salas) { els.input?.focus(); return; } els.input.value = '/bishop '; els.input.focus(); if (typeof autosize === 'function') autosize(); },
+      maps: () => void openNostromo(),
+      settings: () => openSettings(true),
+      modules: () => { openModules(); void refreshModules().then(() => renderModules()); },
+      phone: () => phoneUI.button?.click(),
+      gestures: () => roomTour().openGestures(),
+    },
+  });
+  return roomTourKept;
 }
 function tourIfOwed() {
   let seen = 'seen';
@@ -16854,6 +16897,7 @@ function drawRelease(section, info) {
   // What this version brought, again: the board that opened after the update, for whoever closed
   // it too fast or wants to show someone. Only where it exists.
   if (info.notes) sxRow(block, t("What's new in this version"), null, sxButton(t('Open'), () => void openWhatsNew()));
+  if (!state.device) sxRow(block, t('The tour of MADRE 1.0'), t('Everything new, chapter by chapter. ? opens the gestures anywhere.'), sxButton(t('See the tour'), () => { openSettings(false); roomTour().openChapters(); }));
   const when = info.checkedAt ? new Date(info.checkedAt).toLocaleString() : null;
   const check = sxSwitch(info.enabled, async (on, box) => {
     box.disabled = true;
@@ -17060,7 +17104,7 @@ const BAR_BUILT = {
   settings: { nodes: ['#custom-button'], name: () => t('Settings') },
 };
 // They ride with the crew when it is there, and lead the keys when it is not: where they always were.
-const BAR_CONTEXTUAL = ['#steps-pill', '#handoff-pill', '#update-pill', '#stop-all'];
+const BAR_CONTEXTUAL = ['#steps-pill', '#tour-pill-slot', '#handoff-pill', '#update-pill', '#stop-all'];
 // A module's name before the board has answered; once it has, the module says its own.
 const BAR_MODULE_NAMES = { ash: 'Token saver', ollama: 'Local AI', intents: 'Intenciones' };
 const BAR_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
