@@ -5812,6 +5812,14 @@ function applyTheme(mode) {
   else rootElement.dataset.theme = mode;
   const systemLight = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches;
   rootElement.dataset.scheme = mode === 'auto' ? (systemLight ? 'light' : 'dark') : mode;
+  // A phone's browser paints the strip under the clock in the page's theme colour where it still
+  // reads one: the room's ground, whichever theme is on (2026-10-11).
+  try {
+    const ground = typeof getComputedStyle === 'function' && rootElement.nodeType === 1 ? getComputedStyle(rootElement).getPropertyValue('--bg').trim() : '';
+    let tint = document.querySelector?.('meta[name="theme-color"]');
+    if (!tint && ground && document.head) { tint = document.createElement('meta'); tint.name = 'theme-color'; document.head.append(tint); }
+    if (tint && ground) tint.content = ground;
+  } catch { /* no page to tint */ }
   // Whatever was already painted in an agent's colour takes the colour of the new ground.
   for (const node of document.querySelectorAll?.('[data-agent]') ?? []) {
     if (node.style?.getPropertyValue?.('--agent')) node.style.setProperty('--agent', agentColor(node.dataset.agent));

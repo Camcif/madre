@@ -70,7 +70,7 @@ function drawRoom(room) {
   const row = el('button', 'salas-room');
   row.type = 'button';
   const head = el('span', 'salas-room-head');
-  head.append(el('b', null, room.project), el('time', null, ago(room.chat?.at)));
+  head.append(el('b', null, room.coordinator ? t('Coordinator') : room.project), el('time', null, ago(room.chat?.at)));
   row.append(head);
   if (room.waitingCount) row.classList.add('waiting');
   if (room.outdated || room.unreachable) {

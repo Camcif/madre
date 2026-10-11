@@ -19,6 +19,7 @@ import { readHandoff } from './handoff.mjs';
 import { deviceForToken, readStore, redeemInvite } from './devices.mjs';
 import { isPrivateAddress, lanAddresses } from './network.mjs';
 import { inspects, phonePolicy } from './policy.mjs';
+import { salasRoomId } from '../salas.mjs';
 
 export const BRIDGE_PORT = 4316;
 const PHONE_COOKIE = 'madre_phone';
@@ -230,7 +231,9 @@ export function createBridge({ root, port = BRIDGE_PORT, publicDirectory, hosts 
     }
     if (request.method === 'GET' && url.pathname === '/bridge/rooms') {
       const rooms = await roomsOnThisMac(root);
-      const seen = await Promise.all(rooms.map(async (room) => ({ id: room.id, project: room.project, ...(await glance(room, device)) })));
+      // The Coordinator's own project says so: the phone names it as Home on the Mac does.
+      const coordinator = salasRoomId(root);
+      const seen = await Promise.all(rooms.map(async (room) => ({ id: room.id, project: room.project, ...(room.id === coordinator ? { coordinator: true } : {}), ...(await glance(room, device)) })));
       // Where the person stood on the Mac, offered when it is newer than where they stood here.
       const where = await readHandoff(root);
       const carry = where.mac && (!where.phone || where.mac.at > where.phone.at) && now() - where.mac.at < 12 * 60 * 60 * 1000 ? where.mac : null;

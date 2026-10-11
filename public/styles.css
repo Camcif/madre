@@ -362,7 +362,9 @@ code { font-family: var(--mono); font-size: .9em; color: var(--phosphor); backgr
 .row.compact { margin-top: 0; }
 .row.compact .avatar { visibility: hidden; }
 .row.user { grid-template-columns: 1fr; align-self: flex-end; justify-items: end; }
-.row .col { display: grid; gap: 6px; min-width: 0; }
+/* The column's one track never grows past the column: Safari sized an implicit track to a message's
+   widest line (a table, a block of code) and the bubble ran past the screen, cut off (2026-10-11). */
+.row .col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
 .who { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--agent, var(--text-2)); margin: 0 0 2px 12px; display: flex; gap: 10px; align-items: baseline; min-width: 0; }
 /* The quoted line gives way first: the cost and who spoke are short and must not be pushed out. */
 .who .reply { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -7630,6 +7632,10 @@ html.via-phone body { background: transparent !important; }
   -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 46px), rgba(0, 0, 0, .55) calc(100% - 22px), transparent);
   mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 46px), rgba(0, 0, 0, .55) calc(100% - 22px), transparent);
 }
+/* Under the clock, Safari (iOS 26) paints the page as it scrolls, out of reach of anything fixed,
+   unless something fixed and solid touches the top edge: then it paints that colour there. A strip
+   of the room's ground behind the bar is that something (2026-10-11). */
+.via-phone .phone-edge { position: fixed; top: 0; left: 0; right: 0; height: calc(env(safe-area-inset-top) + 8px + 54px); z-index: 38; pointer-events: none; background-color: var(--bg); }
 .via-phone .shell > .thread { overflow: visible; height: auto; padding-top: calc(env(safe-area-inset-top) + 64px); }
 .via-phone .shell > .composer { position: fixed; left: 8px; right: 8px; bottom: var(--kb, 0px); z-index: 40; margin: 0; width: auto; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
 .via-phone :is(.shell > .colophon, #colophon) { display: none !important; }
@@ -7645,6 +7651,8 @@ html.via-phone body { background: transparent !important; }
 .phone-focus { position: absolute; width: 1px; height: 1px; overflow: hidden; outline: 0; }
 .phone-veil { position: fixed; inset: 0; z-index: 54; background: rgba(0, 0, 0, .42); }
 .phone-veil[hidden] { display: none; }
+.phone-edge { display: none; }
+.via-phone .phone-edge { display: block; }
 /* The modes a window has on the Mac stay there; its × stays everywhere. */
 .via-phone :is(.win-edge, .stage-grip, .chat-beside, .surface-mode:not(.close), .surface-sep, #viewer-edit, #tree-new) { display: none !important; }
 .phone-desk-note { margin: 0; padding: 10px 16px; font-size: 13px; line-height: 1.45; color: var(--text-2); background: color-mix(in srgb, var(--acc, var(--phosphor)) 10%, transparent); }
@@ -7653,6 +7661,12 @@ html.via-phone body { background: transparent !important; }
 .via-phone .salas-link { flex: none; }
 /* In MODULES on a phone: nothing opens as a window, and installing somebody's module is the Mac's. */
 .via-phone :is(.mods-app, #modules-add) { display: none !important; }
+/* Settings on a phone: a row whose control is a choice of words (a segmented control, a list)
+   puts it under its name, the width of the sheet, instead of squeezing both into one line until
+   «Automatic» read «Auto…» (2026-10-11). A switch stays beside its name. */
+.via-phone #settings .sx-row:has(.sx-control :is(.custom-seg, .sx-seg, select, .sx-pick)) { flex-direction: column; align-items: stretch; gap: 10px; }
+.via-phone #settings .sx-row:has(.sx-control :is(.custom-seg, .sx-seg, select, .sx-pick)) .sx-control { max-width: none; justify-content: stretch; }
+.via-phone #settings .sx-row:has(.sx-control :is(.custom-seg, .sx-seg, select, .sx-pick)) .sx-control > * { flex: 1; min-width: 0; }
 
 /* The box you write in, on a phone: room to breathe, keys a thumb can hit (40px), the line that
    names the crew left to the orb that already shows who answers, and the mode, model and effort
@@ -7667,8 +7681,10 @@ html.via-phone body { background: transparent !important; }
 /* The chips sit on the room's ground, not on the conversation: what scrolls under the box fades out
    behind the box and is gone behind the chips, as at the top. */
 .via-phone .shell > .composer::before {
-  content: ''; position: absolute; z-index: -1; left: -8px; right: -8px; top: 30%; bottom: 0; pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--phone-ground) 45%);
+  content: ''; position: absolute; z-index: -1; left: -8px; right: -8px; top: -14px; bottom: 0; pointer-events: none;
+  /* From above the questions that ride on the box: nothing of the conversation shows between them
+     and the box (2026-10-11). */
+  background: linear-gradient(to bottom, transparent, var(--phone-ground) 16%);
 }
 /* Over a wallpaper both ends keep a trace of it; the words over them still read on the room's ground. */
 html.via-phone { --phone-ground: var(--bg); }
@@ -7684,9 +7700,18 @@ html.via-phone[data-wallpaper]:not([data-wallpaper="default"]) { --phone-ground:
    quote ellipsizes, and the tokens are already under the bubble. */
 .via-phone .row { grid-template-columns: 28px minmax(0, 1fr); }
 .via-phone .row.user { grid-template-columns: minmax(0, 1fr); }
+/* The reading column is the screen on a phone: 12px from each edge, a reply as wide as it can be
+   beside its sender's mark, the person's own words a little in from the left so they read as theirs
+   (2026-10-11: a reply used three quarters of the screen). */
+.via-phone .thread-inner { width: auto; margin-left: 12px; margin-right: 12px; }
+.via-phone .row { max-width: 100%; gap: 8px; }
+.via-phone .row.user { max-width: 90%; }
 .via-phone .row .col > * { min-width: 0; max-width: 100%; }
-.via-phone .who { overflow: hidden; }
+.via-phone .who { overflow: hidden; flex-wrap: wrap; row-gap: 4px; }
 .via-phone .who .spent { display: none; }
+/* What a command printed keeps its columns on a phone: the block scrolls sideways under a thumb
+   instead of folding a table into a column of numbers. */
+.via-phone :is(.command-card pre, .codeblock pre) { white-space: pre; overflow-wrap: normal; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 
 /* NOSTROMO on a phone is a chart (app.js): the fingers are the chart's, the card rises from the
    bottom like a pin's card on a map, and forgetting a memory is the Mac's, so its key is not here. */
@@ -8490,9 +8515,9 @@ dialog.tour-bonjour::backdrop { background: transparent; }
 
 /* A hint: one line, once, beside the place it speaks of, in the top layer — a bubble, no beak. And
    a notice (the phone's card, the tour open in another tab): the same bubble, near the top. */
-.tour-hint, .tour-notice { position: fixed; inset: auto; margin: 0; display: grid; gap: 6px; padding: 14px 16px 12px; border: 0; border-radius: 18px; box-sizing: border-box; font-family: var(--read); color: var(--text); background: color-mix(in srgb, var(--bg-2, var(--bg)) 94%, transparent); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); box-shadow: 0 0 0 .5px color-mix(in srgb, var(--text) 14%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12), 0 18px 40px -16px rgba(0, 0, 0, .45); animation: tour-rise calc(360ms * var(--motion-scale, 1)) cubic-bezier(.2, .8, .2, 1) both; z-index: 2147483000; overflow: visible; }
+.tour-hint, .tour-notice { position: fixed; inset: auto; height: auto; max-height: calc(100dvh - 120px); overflow-y: auto; margin: 0; display: grid; align-content: start; gap: 6px; padding: 14px 16px 12px; border: 0; border-radius: 18px; box-sizing: border-box; font-family: var(--read); color: var(--text); background: color-mix(in srgb, var(--bg-2, var(--bg)) 94%, transparent); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); box-shadow: 0 0 0 .5px color-mix(in srgb, var(--text) 14%, transparent), inset 0 1px 0 rgba(255, 255, 255, .12), 0 18px 40px -16px rgba(0, 0, 0, .45); animation: tour-rise calc(360ms * var(--motion-scale, 1)) cubic-bezier(.2, .8, .2, 1) both; z-index: 2147483000; }
 :root[data-scheme="light"] :is(.tour-hint, .tour-notice) { box-shadow: 0 0 0 .5px rgba(20, 30, 20, .12), inset 0 1px 0 #ffffff, 0 18px 40px -18px rgba(20, 30, 20, .3); }
-.tour-notice { --tour-acc: var(--s-acc, var(--acc, var(--phosphor))); left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 74px); width: min(380px, calc(100vw - 24px)); margin-inline: auto; }
+.tour-notice { --tour-acc: var(--s-acc, var(--acc, var(--phosphor))); left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 74px); bottom: auto; width: min(380px, calc(100vw - 24px)); margin-inline: auto; }
 .tour-notice b { font-size: 15px; font-weight: 650; }
 .tour-notice p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
 .tour-notice-acts { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
