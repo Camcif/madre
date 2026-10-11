@@ -2023,7 +2023,6 @@ export const ES = {
 
   // El canal de releases.
   'MADRE {latest} is on npm · you run {current}': 'MADRE {latest} está en npm · tú corres la {current}',
-  'Diagnostics › closing to install {version}. Back in a moment.': 'Diagnóstico › cerrando para instalar la {version}. Regreso en un momento.',
   'The update did not start: {error}': 'La actualización no arrancó: {error}',
   'Diagnostics › release channel on: one check a day.': 'Diagnóstico › canal de releases encendido: una revisión al día.',
   'Diagnostics › release channel off: no request leaves for npm.': 'Diagnóstico › canal de releases apagado: no sale ninguna petición a npm.',
@@ -4277,4 +4276,15 @@ export const ES = {
   'Each one reads the notes of the other. Nothing is written into either.': 'Cada uno lee las notas del otro. No se escribe nada en ninguno.',
   'One project': 'Un proyecto',
   'The other project': 'El otro proyecto',
+  // La invitación a dejar una estrella o una reseña (2026-10-10).
+  'Are you enjoying MADRE?': '¿Te está gustando MADRE?',
+  'If MADRE saves you work, a star on GitHub or a few words about it help more people find it. It takes a minute.': 'Si MADRE te ahorra trabajo, una estrella en GitHub o unas palabras sobre él ayudan a que más gente lo encuentre. Toma un minuto.',
+  'Give it a star on GitHub': 'Darle una estrella en GitHub',
+  'Write a review': 'Escribir una reseña',
+  'Don\'t ask again': 'No volver a preguntar',
+  'Both open in your browser. MADRE sends nothing.': 'Los dos se abren en tu navegador. MADRE no envía nada.',
+  'That is not an answer to this question.': 'Esa no es una respuesta a esta pregunta.',
+  // La carga de MADRE: el pulso y la barra (2026-10-10).
+  'Downloading MADRE {version}…': 'Descargando MADRE {version}…',
+  'Restarting MADRE…': 'Reiniciando MADRE…',
 };

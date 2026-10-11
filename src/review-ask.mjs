@@ -1,0 +1,95 @@
+// Asking for a star or a review (2026-10-10): three times at most, and never again once answered.
+//
+// After twenty minutes of MADRE in use, and on the second and the seventh day after it was first
+// used, the room asks once whether MADRE is being liked: a star on GitHub, or a review on
+// madre.run. Whoever answers — a star, a review, or «don't ask again» — is never asked again; «not
+// now» only lets that moment pass. A later moment that comes first takes the earlier ones with it,
+// so nobody is asked twice in a row, and never twice within a day.
+//
+// Use is counted by the pages themselves: while one is in view it says so once a minute, and the
+// minutes are added here, one per minute however many pages are open. What is kept lives in
+// ~/.pulse/review-ask.json, not in a browser: each room is its own origin, and the same person on
+// another port has been asked already. Nothing here touches the network; the two links are opened
+// by the person, in their browser.
+
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+const FILE = 'review-ask.json';
+const DAY = 24 * 60 * 60 * 1000;
+export const ASK_MOMENTS = [
+  { id: 'm20', reached: (state) => state.minutes >= 20 },
+  { id: 'd2', reached: (state, now) => now - Date.parse(state.first) >= 2 * DAY },
+  { id: 'd7', reached: (state, now) => now - Date.parse(state.first) >= 7 * DAY },
+];
+export const ASK_ANSWERS = ['later', 'star', 'review', 'never'];
+// One minute of use is counted at most once a minute, whichever page says it.
+const TICK_MS = 55 * 1000;
+// Never asked twice within this long, whatever moments have come.
+const QUIET_MS = 20 * 60 * 60 * 1000;
+
+const fresh = () => ({ first: null, minutes: 0, lastTick: null, shown: {}, answer: null });
+
+export async function readAsk(root) {
+  try {
+    const raw = JSON.parse(await readFile(join(root, FILE), 'utf8'));
+    const state = fresh();
+    if (typeof raw?.first === 'string' && Number.isFinite(Date.parse(raw.first))) state.first = raw.first;
+    if (Number.isFinite(raw?.minutes) && raw.minutes >= 0) state.minutes = Math.floor(raw.minutes);
+    if (typeof raw?.lastTick === 'string' && Number.isFinite(Date.parse(raw.lastTick))) state.lastTick = raw.lastTick;
+    if (raw?.shown && typeof raw.shown === 'object') for (const { id } of ASK_MOMENTS) if (typeof raw.shown[id] === 'string') state.shown[id] = raw.shown[id];
+    if (ASK_ANSWERS.includes(raw?.answer) && raw.answer !== 'later') state.answer = raw.answer;
+    return state;
+  } catch {
+    return fresh();
+  }
+}
+
+async function writeAsk(root, state) {
+  await mkdir(root, { recursive: true });
+  const file = join(root, FILE);
+  const draft = `${file}.${process.pid}.tmp`;
+  await writeFile(draft, `${JSON.stringify(state, null, 2)}\n`);
+  await rename(draft, file);
+}
+
+// The moment that is due now, or null: the latest one reached and not shown yet, unless the person
+// already answered or was asked within the last QUIET_MS.
+export function dueMoment(state, now = Date.now()) {
+  if (state.answer || !state.first) return null;
+  const last = Math.max(0, ...Object.values(state.shown).map((at) => Date.parse(at)).filter(Number.isFinite));
+  if (last && now - last < QUIET_MS) return null;
+  const reached = ASK_MOMENTS.filter((moment) => !state.shown[moment.id] && moment.reached(state, now));
+  return reached.at(-1)?.id ?? null;
+}
+
+// A page in view says so: the first time starts the count, then a minute is added at most once a
+// minute. Answers which moment is due, if any.
+export async function tickAsk(root, now = Date.now()) {
+  const state = await readAsk(root);
+  const at = new Date(now).toISOString();
+  if (!state.first) state.first = at;
+  const last = state.lastTick ? Date.parse(state.lastTick) : 0;
+  if (!last || now - last >= TICK_MS) {
+    if (last) state.minutes += 1;
+    state.lastTick = at;
+    await writeAsk(root, state);
+  }
+  return { due: dueMoment(state, now), minutes: state.minutes };
+}
+
+// The person answered the moment they were asked at. Every moment reached by then counts as shown,
+// so an earlier one never comes after a later one; any answer but «not now» ends the asking.
+export async function answerAsk(root, { moment, answer }, now = Date.now()) {
+  if (!ASK_ANSWERS.includes(answer)) return { error: 'answer' };
+  if (!ASK_MOMENTS.some(({ id }) => id === moment)) return { error: 'moment' };
+  const state = await readAsk(root);
+  const at = new Date(now).toISOString();
+  if (!state.first) state.first = at;
+  for (const one of ASK_MOMENTS) {
+    if (!state.shown[one.id] && (one.id === moment || one.reached(state, now))) state.shown[one.id] = at;
+  }
+  if (answer !== 'later') state.answer = answer;
+  await writeAsk(root, state);
+  return { answer: state.answer, shown: state.shown };
+}

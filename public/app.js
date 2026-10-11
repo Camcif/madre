@@ -6,6 +6,8 @@ import { answerFor, INQUIRIES, STRIKES } from './inquiry.js';
 import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t, fill } from './i18n.js';
 import { createEditor } from './editor.js';
 import { resay } from './resay.js';
+import { startReviewAsk } from './review-ask.js';
+import { LOADER_MARK, creep, finishLoader, makeLoader, setLoader } from './loader.js';
 import { familyOf, languageLabel, tokenize } from './syntax.js';
 import { COLLAPSED, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, activityOf, collapsedChip, createNostromo, dwarfChip, hexMix, rawActivity, travels } from './nostromo-engine.js';
 
@@ -5791,7 +5793,7 @@ async function switchLanguage() {
   try { localStorage.setItem('pulse.language', next); } catch { /* no storage */ }
   // Kept with the room's other settings too, so the next browser on this machine opens in it.
   await fetch('/api/language', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ language: next }) }).catch(() => null);
-  location.reload();
+  reloadWithGrace();
 }
 
 // Each choice is a data attribute on the root that styles.css reads under #messages only. The
@@ -9441,7 +9443,12 @@ globalThis.__pulse.steps = { done: (id) => stepDone(id), resume: () => stepsResu
 
 /* ---------- bootstrap ---------- */
 
+// Arriving from RELOAD (index.html put the curtain back): its loader goes on from the share the
+// page that left had reached, and climbs with the boot — the state read, the conversation drawn.
+const arrival = document.getElementById?.('reload-curtain')?.querySelector?.('.madre-loader') ?? null;
+const arrivalCreep = arrival ? creep(arrival, { to: 0.62 }) : null;
 const initial = await fetch('/api/state').then((response) => response.json());
+setLoader(arrival, 0.7);
 // The half on the right, asked for a conversation that is gone: it says so and goes no further.
 // The left half closes it the next time it reads the list.
 if (SPLIT_CHAT && !Array.isArray(initial.events)) {
@@ -9531,22 +9538,34 @@ try {
     }
   }
 } catch { /* no storage: it draws on every load, as before */ }
-// RELOAD, with grace, the way MADRE first appears: the room softens behind a curtain of its own
-// ground and the pulse is traced across the middle with its dot running at the tip. The page goes.
-// The new one puts the same curtain back before its first frame — the pulse traced, the dot at
-// its end — and once the room is drawn the name appears beside the dot, the curtain clears, and
-// the bar's logo and live light pulse once.
+// RELOAD, with grace (2026-10-10): the room softens behind a curtain of its own ground, and in the
+// middle MADRE's loader (loader.js) — the pulse beating, the bar starting to fill. The page goes
+// with the share it reached; the new one puts the same curtain back before its first frame at that
+// share, fills the bar as it boots, and clears; the bar's logo and live light pulse once.
 function reloadWithGrace() {
   if (reducedMotion() || document.querySelector('.reload-curtain')) { window.location.reload(); return; }
   const curtain = el('div', 'reload-curtain');
-  const logo = document.querySelector('.brand-logo')?.cloneNode(true);
-  if (logo) curtain.append(logo);
+  const loader = makeLoader({ progress: 0.04 });
+  curtain.append(loader);
   document.body.append(curtain);
   document.documentElement.classList.add('reloading');
-  try { sessionStorage.setItem('madre.curtain', '1'); } catch { /* the new page simply arrives */ }
-  setTimeout(() => window.location.reload(), 1400);
+  creep(loader, { to: 0.34, rate: 0.09 });
+  setTimeout(() => {
+    try { sessionStorage.setItem('madre.curtain', loader.dataset.p ?? '0.3'); } catch { /* the new page simply arrives */ }
+    window.location.reload();
+  }, 900);
 }
 document.querySelector('#reload-button')?.addEventListener('click', reloadWithGrace);
+// A wait that takes the whole room (2026-10-10): the RELOAD curtain with MADRE's loader, saying what
+// it waits for. Answers the loader and the way to clear it.
+function waitCurtain({ label = '', progress = 0.04 } = {}) {
+  document.querySelector('.reload-curtain')?.remove();
+  const curtain = el('div', 'reload-curtain');
+  const loader = makeLoader({ progress, label });
+  curtain.append(loader);
+  document.body.append(curtain);
+  return { loader, done: () => { curtain.classList.add('leaving'); setTimeout(() => curtain.remove(), 760); } };
+}
 // The crew's column closes when the press lands anywhere else.
 document.addEventListener?.('click', (event) => { if (!els.picker?.contains?.(event.target)) els.picker?.classList?.remove('open'); });
 (() => {
@@ -9562,9 +9581,9 @@ document.addEventListener?.('click', (event) => { if (!els.picker?.contains?.(ev
       setTimeout(() => document.documentElement.classList.remove('just-arrived'), 1400);
     }, 760);
   };
-  // The room is drawn under the curtain: the dot gives way to the name, then the curtain clears.
-  const reveal = () => { curtain.classList.add('revealed'); setTimeout(() => requestAnimationFrame(lift), 760); };
-  setTimeout(() => requestAnimationFrame(reveal), 220);
+  // The room is drawn under the curtain: the bar fills, holds a moment, and the curtain clears.
+  arrivalCreep?.();
+  void finishLoader(curtain.querySelector('.madre-loader')).then(lift);
 })();
 
 // The windows, as they were left, within the same limit.
@@ -9617,6 +9636,7 @@ renderOnboarding();
 // `/git` and every module command answered «unknown» in a room that had them enabled all along.
 void refreshCommands();
 for (const event of initial.events) renderEvent(event);
+setLoader(arrival, 0.9);
 scrollToEnd();
 matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(themeMode); renderAgents(); renderPicker(); });
 
@@ -11754,7 +11774,8 @@ function jobSheet() {
   node.setAttribute('role', 'status');
   node.setAttribute('aria-live', 'polite');
   node.hidden = true;
-  node.innerHTML = '<span class="job-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10 3.5v9M6.4 9l3.6 3.6L13.6 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 15.8h11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>'; // trusted: our own SVG
+  // MADRE's loader in a card (loader.js): the pulse beats while the work goes on.
+  node.innerHTML = `<span class="job-icon madre-loader-mark" aria-hidden="true">${LOADER_MARK}</span>`; // trusted: our own SVG
   const words = el('div', 'job-words');
   node.title_ = el('b', 'job-title');
   node.state_ = el('span', 'job-state');
@@ -15123,7 +15144,7 @@ function drawPrivacy(host, data) {
       const payload = await fetch('/api/privacy/purge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ designation }) }).then((response) => response.json());
       if (payload.error) throw new Error(payload.error);
       toast(t('Diagnostics › private data erased: {events} events · {entries} exchanges · {memories} memories. Reloading.', { events: payload.purged.events, entries: payload.purged.entries, memories: payload.purged.memories }));
-      setTimeout(() => location.reload(), 1600);
+      setTimeout(() => reloadWithGrace(), 1600);
     } catch (error) {
       // The same wrong name at the other door that asks it.
       if (error.message === t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.')) designationRefused();
@@ -16800,20 +16821,38 @@ function drawRelease(section, info) {
   if (canRestart) {
     const restart = sxButton(updateUI.restarting ? t('Restarting…') : t('Restart with {version}', { version: info.latest }), async () => {
       restart.disabled = true; restart.textContent = t('Restarting…'); updateUI.restarting = true;
+      // The whole room waits, as a Mac does for its update: the loader on the curtain, through the
+      // three steps there are — the new version arriving, the room closed, the room back with it.
+      const waiting = waitCurtain({ label: t('Downloading MADRE {version}…', { version: info.latest }) });
+      let stopCreep = creep(waiting.loader, { to: 0.45, rate: 0.02 });
       try {
         const payload = await fetch('/api/updates/apply', { method: 'POST' }).then((response) => response.json());
         if (payload.error) throw new Error(payload.error);
-        toast(t('Diagnostics › closing to install {version}. Back in a moment.', { version: payload.to }));
+        stopCreep();
+        setLoader(waiting.loader, 0.5, t('Restarting MADRE…'));
+        stopCreep = creep(waiting.loader, { to: 0.88, rate: 0.015, every: 400 });
         const from = info.current;
         const wait = async () => {
           for (let attempt = 0; attempt < 90; attempt += 1) {
             await new Promise((resolve) => setTimeout(resolve, 2000));
-            try { const next = await fetch('/api/version', { cache: 'no-store' }).then((response) => response.json()); if (next?.current && next.current !== from) { location.reload(); return; } } catch { /* still restarting */ }
+            try {
+              const next = await fetch('/api/version', { cache: 'no-store' }).then((response) => response.json());
+              if (next?.current && next.current !== from) {
+                stopCreep();
+                setLoader(waiting.loader, 0.94, t('MADRE {version} is ready', { version: next.current }));
+                // The page that comes keeps the curtain and the share, and fills the rest as it boots.
+                try { sessionStorage.setItem('madre.curtain', waiting.loader.dataset.p ?? '0.94'); } catch { /* it simply arrives */ }
+                setTimeout(() => location.reload(), 420);
+                return;
+              }
+            } catch { /* still restarting */ }
           }
+          stopCreep();
+          waiting.done();
           updateUI.restarting = false; renderUpdate(); toast(t('Diagnostics › the project did not come back on its own. Start it from your terminal.'));
         };
         void wait();
-      } catch (error) { updateUI.restarting = false; renderUpdate(); toast(t('The update did not start: {error}', { error: error.message })); }
+      } catch (error) { stopCreep(); waiting.done(); updateUI.restarting = false; renderUpdate(); toast(t('The update did not start: {error}', { error: error.message })); }
     }, { tone: 'primary' });
     restart.disabled = updateUI.restarting;
     sxRow(fresh, t('Restart here'), null, restart);
@@ -18206,3 +18245,7 @@ function phoneKeyboard() {
   view.addEventListener('scroll', settle);
   settle();
 }
+
+// Asking for a star or a review (review-ask.js): on the Mac, and never while something is going on
+// — an agent at work, a plan running, words half written in the box.
+startReviewAsk({ busy: () => Boolean(state.device || state.running.size || state.plansRunning.size || els.input?.value?.trim()) });

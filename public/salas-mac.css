@@ -210,7 +210,9 @@ body.salas-mac {
 /* «Ask BISHOP about this one»: BISHOP's own mark, a key of its own at the end of the row. */
 
 .sm-none { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0; padding: 22px; border-radius: 22px; font-size: 14px; color: var(--text-2); background: var(--plane-meta, color-mix(in srgb, var(--text) 4%, transparent)); }
-.sm-foot { margin: 24px 0 0; font-size: 12.5px; color: var(--text-2); }
+.sm-foot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 24px 0 0; }
+.sm-foot { margin: 0; font-size: 12.5px; color: var(--text-2); }
+.sm-foot-row .sm-colophon { flex: none; width: auto; margin: 0; }
 body.sm-gone .sm-hero h1 { color: var(--text-3); }
 
 /* BISHOP, the heart of the lobby: its mark, its state, the two ways in (here, or a new tab), its

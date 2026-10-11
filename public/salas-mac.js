@@ -7,11 +7,13 @@
 
 import { setLanguage, t } from './i18n.js';
 import { brandOf, monogram } from './brands.js';
+import { startReviewAsk } from './review-ask.js';
+import { creep, finishLoader, makeLoader, setLoader } from './loader.js';
 
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 const ui = {
-  title: $('sm-title'), stop: $('sm-stop'), macro: $('sm-macro'), foot: $('sm-foot'), gear: $('sm-gear'),
+  title: $('sm-title'), stop: $('sm-stop'), macro: $('sm-macro'), foot: $('sm-foot'), colophon: $('sm-colophon'), gear: $('sm-gear'),
   bar: { backRoom: $('sm-back-room'), crumb: $('sm-crumb'), live: $('sm-live'), open: $('sm-tb-open'), agents: $('sm-tb-agents'), waiting: $('sm-tb-waiting'), update: $('sm-tb-update'), links: $('sm-tb-links'), linksCount: $('sm-tb-links-count'), reload: $('sm-reload') },
   add: $('sm-add'), search: $('sm-search'), filter: $('sm-filter'), projects: $('sm-projects'), none: $('sm-none'),
   bishop: {
@@ -261,9 +263,7 @@ function card(room) {
   const actions = el('div', 'sm-actions');
   const doing = busy.get(room.id);
   if (failed.has(room.id)) node.append(el('p', 'sm-error', failed.get(room.id)));
-  if (doing === 'starting') actions.append(el('span', 'sm-doing', t('Waking…')));
-  else if (doing === 'closing') actions.append(el('span', 'sm-doing', t('Closing…')));
-  else if (doing === 'forgetting') actions.append(el('span', 'sm-doing', t('Removing…')));
+  if (doing) actions.append(waitFor(room.id, { starting: t('Waking…'), closing: t('Closing…'), forgetting: t('Removing…') }[doing] ?? ''));
   else if (forgetting.has(room.id)) {
     // Taking it out of MADRE says what goes and what stays before it happens.
     const links = (data.enlaces ?? []).filter((one) => one.rooms?.a === room.id || one.rooms?.b === room.id).length;
@@ -991,6 +991,11 @@ async function refresh() {
   if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); }
   data = answer;
   ui.foot.textContent = t('Every project runs on this Mac, on its own, with its own memory.');
+  // The room's corner (app.js, #colophon): the version this Home runs, and NOTICE's own line.
+  if (answer.version) {
+    ui.colophon.replaceChildren(el('b', null, `MADRE ${answer.version}`), document.createTextNode('\u00a0·\u00a0© 2026 Jossue Alcalá'));
+    ui.colophon.hidden = false;
+  }
   draw();
 }
 
@@ -1000,12 +1005,40 @@ async function startRoom(room, { enter = false } = {}) {
   draw();
   const answer = await fetch('/api/salas/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ room: room.id }) })
     .then(async (response) => ({ ok: response.ok, body: await response.json().catch(() => ({})) })).catch(() => ({ ok: false, body: {} }));
+  if (answer.ok) await waitDone(room.id); else waitDrop(room.id);
   busy.delete(room.id);
   if (!answer.ok) failed.set(room.id, answer.body.error ?? t('The project did not open.'));
   // Opened from its card, the person goes in: that is what «Open» means.
   else if (enter && answer.body.port) { leaveTo(`http://127.0.0.1:${answer.body.port}/`); return answer; }
   await refresh();
   return answer;
+}
+
+// A card's wait (2026-10-10): MADRE's loader in a line (loader.js), kept across the redraws of the
+// card so it never starts over, creeping while the project wakes, closes or leaves, and filled when
+// it is done.
+const waits = new Map();       // room id → its loader while the card waits
+function waitFor(id, label) {
+  let loader = waits.get(id);
+  if (!loader) {
+    loader = makeLoader({ small: true, progress: 0.04 });
+    loader.stop = creep(loader, { to: 0.9, rate: 0.03, every: 200 });
+    waits.set(id, loader);
+  }
+  setLoader(loader, 0, label);
+  return loader;
+}
+// It did not happen: the loader goes without filling, and the card says why.
+function waitDrop(id) {
+  waits.get(id)?.stop?.();
+  waits.delete(id);
+}
+function waitDone(id) {
+  const loader = waits.get(id);
+  if (!loader) return Promise.resolve();
+  waits.delete(id);
+  loader.stop?.();
+  return finishLoader(loader, { hold: 220 });
 }
 
 // Out of MADRE (2026-10-10): Home forgets it (src/salas.mjs, forgetProject); its folder and its
@@ -1016,6 +1049,7 @@ async function forgetRoom(room) {
   failed.delete(room.id);
   draw();
   const answer = await post('/api/salas/forget', { room: room.id });
+  if (answer.ok) await waitDone(room.id); else waitDrop(room.id);
   busy.delete(room.id);
   if (!answer.ok) { failed.set(room.id, answer.body.error ?? t('It could not be taken out of MADRE.')); draw(); return; }
   if (pinsStored()?.includes(room.id)) pinRemove(room.id);
@@ -1040,13 +1074,14 @@ async function closeRoom(room) {
     ui.projects.hidden = true;
     return;
   }
-  if (!answer.ok) { busy.delete(room.id); failed.set(room.id, answer.body.error ?? t('That project did not answer.')); draw(); return; }
+  if (!answer.ok) { waitDrop(room.id); busy.delete(room.id); failed.set(room.id, answer.body.error ?? t('That project did not answer.')); draw(); return; }
   // It closes in a moment; the card stays «closing» until the list says it is asleep.
   for (let wait = 0; wait < 20; wait += 1) {
     await new Promise((resolve) => setTimeout(resolve, 400));
     await refresh();
     if (!data?.rooms.find((one) => one.id === room.id)?.open) break;
   }
+  await waitDone(room.id);
   busy.delete(room.id);
   draw();
 }
@@ -1685,7 +1720,21 @@ function pinsIndexAt(x) {
 }
 
 ui.bar.links.addEventListener('click', () => { if ((data?.enlaces ?? []).length) { if (!ui.linksSheet.open) ui.linksSheet.showModal(); } else openLinkSheet(); });
-ui.bar.reload.addEventListener('click', () => location.reload());
+// RELOAD, as a room reloads (app.js, reloadWithGrace): the curtain of Home's own ground with MADRE's
+// loader; the page goes with the share it reached and the new one fills the rest (salas-mac.html).
+function reloadWithGrace() {
+  if (motionStill() || document.querySelector('.reload-curtain')) { location.reload(); return; }
+  const curtain = el('div', 'reload-curtain');
+  const loader = makeLoader({ progress: 0.04 });
+  curtain.append(loader);
+  document.body.append(curtain);
+  creep(loader, { to: 0.34, rate: 0.09 });
+  setTimeout(() => {
+    try { sessionStorage.setItem('madre.curtain', loader.dataset.p ?? '0.3'); } catch { /* the new page simply arrives */ }
+    location.reload();
+  }, 900);
+}
+ui.bar.reload.addEventListener('click', reloadWithGrace);
 
 // From Home into a project, and back (2026-10-10): the page settles back under a veil of its own
 // ground and goes (styles.css, madre-leaving); the room lifts the veil as it arrives. Every way in
@@ -2532,7 +2581,7 @@ function fillLook(host) {
   sxRow(words, t('Interface'), t('The page reloads in it when you choose to.'), customSeg([['es', 'Español'], ['en', 'English']], language, async (code) => {
     try { localStorage.setItem('pulse.language', code); } catch { /* no storage */ }
     await post('/api/language', { language: code });
-    location.reload();
+    reloadWithGrace();
   }, 'two'));
 
   const atDefault = looks.accent === 'madre' && looks.wallpaper === 'default' && looks.style === 'veil' && looks.veil === TUNES.veil.value && looks.blur === TUNES.blur.value && looks.bubbles === BUBBLES[0] && looks.text === TEXTS[0];
@@ -2800,6 +2849,17 @@ translateStatic();
 drawWork();
 drawDecisions();
 await refresh();
+// Arriving from RELOAD (salas-mac.html put the curtain back): Home has read its projects, so the
+// bar fills and the curtain clears.
+{
+  const curtain = document.getElementById('reload-curtain');
+  if (curtain) {
+    void finishLoader(curtain.querySelector('.madre-loader')).then(() => {
+      curtain.classList.add('leaving');
+      setTimeout(() => curtain.remove(), 760);
+    });
+  }
+}
 void loadAgents();
 void loadVersion();
 void loadWork();
@@ -2812,3 +2872,7 @@ timer = setInterval(() => { if (!document.hidden && !busy.size && !pins.dropping
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { void refresh(); void loadAgents(); void loadWork(); void loadDecisions(); } });
 // The decisions are asked again every few minutes (the route itself asks the rooms no oftener).
 setInterval(() => { if (!document.hidden) void loadDecisions(); }, 5 * 60 * 1000);
+
+// Asking for a star or a review (review-ask.js), when Home is quiet: nothing waking or closing,
+// the bar not being arranged.
+startReviewAsk({ busy: () => busy.size > 0 || pins.editing || Boolean(pins.drag) || Boolean(pins.dropping) });

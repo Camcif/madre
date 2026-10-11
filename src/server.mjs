@@ -63,6 +63,7 @@ import { loadConfig as readConfig, updateConfig } from './config.mjs';
 import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
 import { checkForUpdate, detectInstall, updateCommand, releaseUrl, applyCommand, fetchCommand } from './updates.mjs';
 import { bootWhatsNew, markSeen, newestNotes, notesFor, whatsNew } from './whats-new.mjs';
+import { answerAsk, tickAsk } from './review-ask.mjs';
 
 // Where a person reads the module contract, in the language the room is speaking.
 const SDK_PAGE = { es: 'https://madre.run/sdk/', en: 'https://madre.run/en/sdk/' };
@@ -1326,7 +1327,7 @@ export async function createPulseServer({
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
         return response.end(html);
       }
-      if (request.method === 'GET' && ['/app.js', '/nostromo-engine.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js'].includes(url.pathname)) {
+      if (request.method === 'GET' && ['/app.js', '/nostromo-engine.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js', '/review-ask.js', '/loader.js'].includes(url.pathname)) {
         const js = await readFile(join(publicDirectory, url.pathname.slice(1)));
         response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
         return response.end(js);
@@ -2352,6 +2353,20 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/whats-new/seen') {
         await markSeen(root, PACKAGE.version);
         return sendJson(response, 200, { seen: PACKAGE.version });
+      }
+      // Asking for a star or a review (src/review-ask.mjs): a page in view says so once a minute and
+      // hears whether a moment is due; the answer ends the asking or lets that moment pass. A phone
+      // is never asked.
+      if (request.method === 'POST' && url.pathname === '/api/review-ask/tick') {
+        if (viaPhone) return sendJson(response, 200, { due: null });
+        return sendJson(response, 200, await tickAsk(root));
+      }
+      if (request.method === 'POST' && url.pathname === '/api/review-ask/answer') {
+        if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
+        const payload = await body(request).catch(() => ({}));
+        const result = await answerAsk(root, { moment: String(payload.moment ?? ''), answer: String(payload.answer ?? '') });
+        if (result.error) return sendJson(response, 422, { error: t('That is not an answer to this question.') });
+        return sendJson(response, 200, result);
       }
       if (request.method === 'GET' && url.pathname === '/api/version') {
         return sendJson(response, 200, await versionView({ force: url.searchParams.get('force') === '1' }));

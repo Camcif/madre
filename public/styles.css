@@ -7205,9 +7205,9 @@ dialog.nostromo-key .room-ask-icon { --tone: #e5484d; }
 
 /* The corner, readable: the version and its author in the reading face on the room's material,
    the version a touch heavier. Nothing to click. */
-:root[data-scheme] .shell > .colophon { display: inline-flex; align-items: center; gap: 0; padding: 4px 10px; border-radius: 999px; font-family: var(--read); font-size: 11.5px; font-weight: 450; letter-spacing: 0; color: color-mix(in srgb, var(--text) 78%, transparent); text-shadow: none; opacity: 1; background: color-mix(in srgb, var(--bg) 62%, transparent); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
-:root[data-scheme="light"] .shell > .colophon { background: rgba(255, 255, 255, .66); color: color-mix(in srgb, var(--text) 80%, transparent); }
-.shell > .colophon b { font-weight: 650; color: var(--text); }
+:root[data-scheme] :is(.shell > .colophon, .sm-colophon) { display: inline-flex; align-items: center; gap: 0; padding: 4px 10px; border-radius: 999px; font-family: var(--read); font-size: 11.5px; font-weight: 450; letter-spacing: 0; color: color-mix(in srgb, var(--text) 78%, transparent); text-shadow: none; opacity: 1; background: color-mix(in srgb, var(--bg) 62%, transparent); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
+:root[data-scheme="light"] :is(.shell > .colophon, .sm-colophon) { background: rgba(255, 255, 255, .66); color: color-mix(in srgb, var(--text) 80%, transparent); }
+:is(.shell > .colophon, .sm-colophon) b { font-weight: 650; color: var(--text); }
 
 /* NOSTROMO in the bar: a brain that beats under the pointer, twice and a rest, like a pulse. */
 .bar .nostromo-bar .brain-glyph { transform-origin: 50% 55%; }
@@ -8252,3 +8252,59 @@ html.madre-arriving body { animation: madre-rise calc(620ms * var(--motion-scale
 :is(#nostromo, .mv) .nostromo-actions .mother-close:focus-visible { outline: 2px solid color-mix(in srgb, var(--acc, var(--phosphor)) 70%, transparent); outline-offset: 2px; }
 #nostromo .nostromo-card header .mother-close { background: var(--surface, var(--panel)); color: var(--text-2); box-shadow: var(--key-rest); }
 #nostromo .nostromo-card header .mother-close:hover { background: var(--surface, var(--panel)); color: var(--text); box-shadow: var(--key-over, var(--key-rest)); }
+
+/* Asking for a star or a review (review-ask.js): the room's question, its two answers that open a
+   page as keys, one over the other and the star first, and under them, quieter, «not now» and
+   «don't ask again». */
+a.room-ask-choice { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+dialog.room-ask.review-ask:not(.console) .review-ask-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 2px; }
+dialog.room-ask.review-ask:not(.console) .review-ask-actions .room-ask-choice { width: 100%; height: 40px; white-space: nowrap; }
+dialog.room-ask.review-ask:not(.console) .review-ask-actions .primary { order: -1; }
+dialog.room-ask.review-ask:not(.console) .review-ask-quiet { display: flex; justify-content: center; gap: 4px; margin-top: -2px; }
+dialog.room-ask.review-ask:not(.console) .room-ask-choice.quiet { height: 30px; padding: 0 10px; border: 0; background: transparent; box-shadow: none; color: var(--text-2); font-family: var(--read); font-size: 12.5px; font-weight: 450; letter-spacing: 0; text-transform: none; }
+dialog.room-ask.review-ask:not(.console) .room-ask-choice.quiet:hover, dialog.room-ask.review-ask:not(.console) .room-ask-choice.quiet:focus-visible { color: var(--text); background: color-mix(in srgb, var(--text) 7%, transparent); outline: none; }
+dialog.room-ask.review-ask:not(.console) .review-ask-note { margin: 0; font-size: 11.5px; line-height: 1.4; text-align: center; color: var(--text-3); }
+
+/* ==========================================================================================
+   MADRE LOADING (loader.js; 2026-10-10)
+   ------------------------------------------------------------------------------------------
+   As a Mac starts: the pulse of the logo beating in the middle, a thin bar under it that fills,
+   the share done in small figures, and what is being waited for. The bar is the theme's ink on
+   its ground; the pulse, the accent. One loader for every wait that takes time.
+   ========================================================================================== */
+.madre-loader { --p: 0; display: grid; justify-items: center; gap: 16px; color: var(--text); text-align: center; }
+.madre-loader-mark { display: grid; place-items: center; width: 120px; height: 46px; color: var(--acc, var(--phosphor)); animation: madre-loader-breathe 1.8s ease-in-out infinite; }
+.madre-loader-mark svg { width: 120px; height: auto; overflow: visible; }
+.madre-loader-trace { opacity: .22; }
+.madre-loader-beat { stroke-dasharray: 34 66; stroke-dashoffset: 34; animation: madre-loader-run 1.4s cubic-bezier(.45, 0, .25, 1) infinite; }
+.madre-loader-dot { transform-box: fill-box; transform-origin: center; animation: madre-loader-dot 1.4s ease-in-out infinite; }
+.madre-loader-bar { position: relative; display: block; width: 200px; height: 4px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text) 15%, transparent); }
+.madre-loader-bar i { position: absolute; inset: 0; border-radius: inherit; background: var(--text); transform: scaleX(var(--p)); transform-origin: left center; transition: transform calc(320ms * var(--motion-scale, 1)) cubic-bezier(.2, .7, .2, 1); }
+.madre-loader-pct { margin-top: -6px; font-family: var(--read); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: .02em; color: var(--text-2); }
+.madre-loader-said { min-height: 1em; margin-top: -8px; font-family: var(--read); font-size: 12.5px; color: var(--text-2); }
+.madre-loader-said:empty { display: none; }
+@keyframes madre-loader-run { from { stroke-dashoffset: 34; } to { stroke-dashoffset: -66; } }
+@keyframes madre-loader-dot { 0%, 100% { transform: scale(1); opacity: .55; } 55% { transform: scale(1.35); opacity: 1; } }
+@keyframes madre-loader-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .madre-loader-mark, .madre-loader-beat, .madre-loader-dot { animation: none; } .madre-loader-beat { stroke-dasharray: none; stroke-dashoffset: 0; } }
+/* The RELOAD curtain holds the loader (app.js, reloadWithGrace; index.html puts the curtain back on
+   arrival): no wordmark gliding any more, the pulse and the bar instead. */
+.reload-curtain .madre-loader { animation: curtain-logo-in 520ms cubic-bezier(.2, .7, .2, 1) both; }
+.reload-curtain.leaving .madre-loader { animation: curtain-logo-out 420ms ease forwards; }
+/* The jobs' card (app.js, jobSheet: installs, model downloads, module updates) wears the same
+   loader: the beating pulse where the arrow was, and the thin bar of the theme's ink. */
+.job-icon.madre-loader-mark { width: 44px; height: 34px; border-radius: 0; background: none; color: var(--acc, var(--phosphor)); }
+.job-icon.madre-loader-mark svg { width: 44px; }
+.job-sheet:is(.done, .failed) .madre-loader-mark { animation: none; }
+.job-sheet:is(.done, .failed) :is(.madre-loader-beat, .madre-loader-dot) { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; opacity: 1; }
+.job-sheet.failed .job-icon.madre-loader-mark { background: none; color: var(--danger); }
+.job-bar { height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--text) 15%, transparent); box-shadow: none; }
+.job-bar i { border-radius: 999px; background: var(--text); }
+/* In a line, for a card's own wait (salas-mac.js, waitFor): the pulse, what it waits for, the bar and
+   the share. */
+.madre-loader.small { grid-auto-flow: column; justify-content: start; justify-items: start; align-items: center; gap: 10px; }
+.madre-loader.small .madre-loader-mark { order: 0; width: 34px; height: 16px; }
+.madre-loader.small .madre-loader-mark svg { width: 34px; }
+.madre-loader.small .madre-loader-said { order: 1; margin: 0; font-size: 12.5px; white-space: nowrap; }
+.madre-loader.small .madre-loader-bar { order: 2; width: 84px; }
+.madre-loader.small .madre-loader-pct { order: 3; min-width: 4ch; margin: 0; font-size: 11px; }
