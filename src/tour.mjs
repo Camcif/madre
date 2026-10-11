@@ -24,7 +24,11 @@ export const CHAPTERS = ['moved', 'home', 'project', 'talk', 'modes', 'coordinat
 export const HINTS = ['switch', 'links', 'key4'];
 const PATHS = ['new', 'back'];
 
-const fresh = () => ({ version: TOUR_VERSION, path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {} });
+const fresh = () => ({ version: TOUR_VERSION, path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {}, held: null });
+// A tab that shows the bonjour or the chapters says so every few seconds; another tab that finds it
+// said within this long tells the person it is open there, instead of a second bonjour.
+export const HELD_MS = 45 * 1000;
+const TAB = /^[\w-]{6,64}$/;
 const tourFile = (stateRoot) => join(stateRoot, 'tour.json');
 
 // What is kept, checked field by field: a file written by hand or by an older MADRE is read for
@@ -42,6 +46,7 @@ export async function readTour(stateRoot) {
     closed: raw.closed === true,
     finished: iso(raw.finished),
     hints: Object.fromEntries(HINTS.filter((id) => iso(raw.hints?.[id])).map((id) => [id, raw.hints[id]])),
+    held: raw.held && TAB.test(String(raw.held.by ?? '')) && iso(raw.held.at) ? { by: raw.held.by, at: raw.held.at } : null,
   };
 }
 
@@ -76,6 +81,13 @@ export async function changeTour(stateRoot, change, now = new Date()) {
   }
   if (change.closed !== undefined) state.closed = change.closed === true;
   if (change.finished === true) { state.finished ??= at; state.closed = false; }
+  // Which tab has the tour open now (one says it every few seconds while it does), and that it
+  // let go — only the tab that holds it lets go.
+  if (change.hold !== undefined) {
+    if (!TAB.test(String(change.hold))) return { error: 'tab' };
+    state.held = { by: change.hold, at };
+  }
+  if (change.release !== undefined && state.held?.by === change.release) state.held = null;
   if (change.hint !== undefined) {
     if (!HINTS.includes(change.hint)) return { error: 'hint' };
     state.hints[change.hint] ??= at;

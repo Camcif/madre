@@ -71,14 +71,16 @@ const SCENES = {
 };
 
 // `onChange` hears the kept state each time it is known or changes (null if it could not be read).
-export function startTour({ page, go = {}, ready = () => true, phone = false, pillSlot = null, welcome = null, onProjects = null, onChange = null } = {}) {
+// `phone`: none of it here (a phone, or the right half of a split window); `device`: this page is a
+// phone, which gets one card the first time instead of the bonjour.
+export function startTour({ page, go = {}, ready = () => true, phone = false, device = false, pillSlot = null, welcome = null, onProjects = null, onChange = null } = {}) {
   let info = null;
   let state = null;
   let windowNode = null;
   let sheetNode = null;
   let hintNode = null;
   let current = null;
-  const loaded = tourApi.read().then((answer) => {
+  const loaded = (phone ? Promise.resolve(null) : tourApi.read()).then((answer) => {
     info = answer;
     state = answer?.state ?? null;
     paintPill();
@@ -95,6 +97,70 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, pi
   const path = () => state?.path ?? (info?.returning ? 'back' : 'new');
   const chapters = () => CHAPTERS.filter((chapter) => chapter.id !== 'moved' || path() === 'back');
   const busyWith = () => Boolean(windowNode?.open || sheetNode?.open || document.querySelector('dialog.tour-bonjour[open]'));
+
+  // ---- One tab at a time. The tab that shows the bonjour or the chapters holds the tour and says
+  // so every few seconds (src/tour.mjs, HELD_MS); another tab that finds it held says it is open
+  // there, with a way to go on here, instead of a second bonjour. Tabs are different origins (one
+  // port per project), so this is told through ~/.pulse, not between the tabs.
+  const tab = `tab-${String(globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(/[^\w-]/g, '').slice(0, 24)}`;
+  let holding = 0;
+  const hold = () => {
+    if (holding || phone) return;
+    void keep({ hold: tab });
+    holding = setInterval(() => { void tourApi.change({ hold: tab }); }, 15000);
+  };
+  const letGo = () => {
+    if (!holding) return;
+    clearInterval(holding);
+    holding = 0;
+    void fetch('/api/tour', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ release: tab }) }).catch(() => null);
+  };
+  const letGoIfDone = () => setTimeout(() => { if (!busyWith()) letGo(); }, 0);
+  const heldElsewhere = (kept) => Boolean(kept?.held && kept.held.by !== tab && Date.now() - Date.parse(kept.held.at) < 45000);
+  globalThis.addEventListener?.('pagehide', letGo);
+
+  // ---- A bubble that says something once, near the top, with its keys: the card of the phone,
+  // the tour open in another tab.
+  function notice({ id, title, lines = [], actions = [] }) {
+    document.querySelector(`.tour-notice[data-id="${id}"]`)?.remove();
+    const card = el('section', 'tour-notice');
+    card.dataset.id = id;
+    card.setAttribute('role', 'status');
+    card.append(el('b', null, title));
+    for (const line of lines) card.append(el('p', null, line));
+    const acts = el('div', 'tour-notice-acts');
+    for (const [words, act, primary] of actions) acts.append(key(`tour-btn small${primary ? ' primary' : ' quiet'}`, words, () => { card.remove(); act?.(); }));
+    card.append(acts);
+    if (typeof card.showPopover === 'function') card.popover = 'manual';
+    document.body.append(card);
+    try { card.showPopover?.(); } catch { /* not a popover: on the page */ }
+    return card;
+  }
+  function elsewhere() {
+    notice({
+      id: 'elsewhere',
+      title: t('The tour is open in another tab'),
+      lines: [t('It goes on there. If you closed that tab, go on here.')],
+      actions: [[t('Not now'), null, false], [t('Go on here'), () => { if (!state?.bonjourAt) showBonjour(); else openChapters(state.at); }, true]],
+    });
+  }
+  // The phone, the first time: what it does and what stays on the Mac, in three sentences. A phone
+  // changes nothing in ~/.pulse, so this one is remembered by the phone itself.
+  const PHONE_CARD = 'madre.phone.welcome';
+  function phoneCard() {
+    try { if (localStorage.getItem(PHONE_CARD)) return; } catch { return; }
+    notice({
+      id: 'phone',
+      title: t('MADRE on your phone'),
+      lines: [
+        t('Here you follow your projects and talk to your agents, up to #2.'),
+        t('#3 and #4, permissions and anything that installs stay on the Mac.'),
+        t('What you start here you carry on on the Mac, and the other way round.'),
+      ],
+      actions: [[t('Got it'), () => { try { localStorage.setItem(PHONE_CARD, '1'); } catch { /* asked again next time */ } }, true]],
+    });
+  }
+  if (device) setTimeout(phoneCard, 1200);
 
   // ---- The pill: «Continue the tour · 4 of 12», while there is a tour to continue.
   function paintPill() {
@@ -122,10 +188,16 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, pi
     // Never over work in progress, a window the person opened, or an agent not yet connected.
     for (let tries = 0; tries < 720 && (!ready() || document.querySelector('dialog[open]')); tries += 1) await new Promise((resolve) => setTimeout(resolve, 500));
     if (!ready() || document.querySelector('dialog[open]')) return false;
+    // Asked again now: another tab may have shown it while this one waited.
+    const fresh = await tourApi.read();
+    if (fresh?.state) state = fresh.state;
+    if (!fresh?.owed) return false;
+    if (heldElsewhere(fresh.state)) { elsewhere(); return false; }
     showBonjour();
     return true;
   }
   function showBonjour() {
+    hold();
     const back = path() === 'back';
     const node = el('dialog', 'tour-bonjour');
     node.setAttribute('aria-labelledby', 'tour-bonjour-title');
@@ -157,7 +229,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, pi
     stage.append(mark, title, body, ...(note ? [note] : []), acts);
     node.append(stage);
     node.addEventListener('cancel', (event) => { event.preventDefault(); later.click(); });
-    node.addEventListener('close', () => setTimeout(() => node.remove(), 400));
+    node.addEventListener('close', () => { letGoIfDone(); setTimeout(() => node.remove(), 400); });
     document.body.append(node);
     node.showModal();
     onward.focus();
@@ -200,6 +272,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, pi
     const list = chapters();
     current = list.find((chapter) => chapter.id === at) ?? list.find((chapter) => !state?.done.includes(chapter.id)) ?? list[0];
     if (!windowNode) build();
+    hold();
     if (!windowNode.open) windowNode.showModal();
     paintPill();
     show(current);
@@ -227,6 +300,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, pi
     sheet.append(head, body);
     windowNode.append(sheet);
     windowNode.addEventListener('close', () => {
+      letGoIfDone();
       const list = chapters();
       const all = list.every((chapter) => state?.done.includes(chapter.id));
       void keep(all ? { finished: true } : { closed: true });
@@ -385,15 +459,15 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, pi
     if (typeof card.showPopover === 'function') card.popover = 'manual';
     document.body.append(card);
     try { card.showPopover?.(); } catch { /* not a popover: on the page */ }
-    // Below the anchor when there is room, above it otherwise; never off the screen.
+    // A bubble beside the place it speaks of, with no beak: under it when there is room, over it
+    // otherwise, lined up with the side of the screen the place is on, never off the screen.
     const width = Math.min(300, window.innerWidth - 24);
-    const left = Math.max(12, Math.min(window.innerWidth - width - 12, box.left + box.width / 2 - width / 2));
     card.style.width = `${width}px`;
     const height = card.getBoundingClientRect().height;
+    const onTheRight = box.left + box.width / 2 > window.innerWidth / 2;
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, onTheRight ? box.right - width : box.left));
     const below = box.bottom + 10 + height < window.innerHeight;
     Object.assign(card.style, { left: `${left}px`, top: `${below ? box.bottom + 10 : Math.max(12, box.top - height - 10)}px` });
-    card.classList.add(below ? 'below' : 'above');
-    card.style.setProperty('--arrow', `${Math.max(16, Math.min(width - 16, box.left + box.width / 2 - left))}px`);
     document.addEventListener('keydown', onKey, true);
     return true;
   }

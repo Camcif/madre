@@ -20,7 +20,15 @@ test('tour · kept in ~/.pulse, one change at a time, and a file for another ver
   const state = await scratch('madre-tour-');
   try {
     const first = await readTour(state);
-    assert.deepEqual(first, { version: '1.0', path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {} });
+    assert.deepEqual(first, { version: '1.0', path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {}, held: null });
+    // One tab holds it while it shows it; only that tab lets go.
+    await changeTour(state, { hold: 'tab-aaaaaa' });
+    assert.equal((await readTour(state)).held.by, 'tab-aaaaaa');
+    await changeTour(state, { release: 'tab-bbbbbb' });
+    assert.equal((await readTour(state)).held.by, 'tab-aaaaaa', 'another tab let go of it');
+    await changeTour(state, { release: 'tab-aaaaaa' });
+    assert.equal((await readTour(state)).held, null);
+    assert.equal((await changeTour(state, { hold: '../../x' })).error, 'tab');
     const now = new Date('2026-10-11T10:00:00Z');
     await changeTour(state, { path: 'back', bonjour: true }, now);
     await changeTour(state, { chapter: 'links', at: 'links' }, now);

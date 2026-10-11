@@ -4214,6 +4214,12 @@ export const ES = {
   'Continuity': 'Continuidad',
   'That is not a change to the tour.': 'Eso no es un cambio del recorrido.',
   // El recorrido de 1.0 (public/tour.js).
+  'The tour is open in another tab': 'El recorrido está abierto en otra pestaña',
+  'It goes on there. If you closed that tab, go on here.': 'Sigue allá. Si cerraste esa pestaña, síguelo aquí.',
+  'Go on here': 'Seguir aquí',
+  'Here you follow your projects and talk to your agents, up to #2.': 'Aquí sigues tus proyectos y hablas con tus agentes, hasta #2.',
+  '#3 and #4, permissions and anything that installs stay on the Mac.': '#3 y #4, los permisos y lo que instala algo se quedan en la Mac.',
+  'What you start here you carry on on the Mac, and the other way round.': 'Lo que empiezas aquí lo sigues en la Mac, y al revés.',
   'A connection lets one project look up what another learned, by a contract you sign. In 0.7.2 «Connections» was signing your agents in: that is now in Settings › Agents.': 'Una conexión deja que un proyecto consulte lo que otro aprendió, con un contrato que tú firmas. En 0.7.2, «Conexiones» era iniciar sesión de los agentes: eso ahora está en Ajustes › Agentes.',
   'A connection lets one project look up what another learned, by a contract you sign. Nothing is written across.': 'Una conexión deja que un proyecto consulte lo que otro aprendió, con un contrato que tú firmas. No se escribe nada de un lado al otro.',
   'It is right here, on this screen.': 'Está aquí, en esta pantalla.',

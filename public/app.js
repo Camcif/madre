@@ -16556,6 +16556,7 @@ function roomTour() {
   roomTourKept ??= startWelcome({
     page: 'room',
     phone: Boolean(state.device || SPLIT_CHAT),
+    device: Boolean(state.device) && !SPLIT_CHAT,
     pillSlot: SPLIT_CHAT ? null : document.querySelector('#tour-pill-slot'),
     ready: () => [...state.agents.values()].some((agent) => agent.ready) && !state.running.size && !state.plansRunning.size,
     onChange: (kept) => { welcomeKept = kept; stepsPaint(); },
@@ -18350,5 +18351,6 @@ function phoneKeyboard() {
 // Asking for a star or a review (review-ask.js): on the Mac, and never while something is going on
 // — an agent at work, a plan running, words half written in the box.
 startReviewAsk({ busy: () => Boolean(state.device || state.running.size || state.plansRunning.size || els.input?.value?.trim()) });
-// The tour of 1.0 reads where the person is as the room opens, so First steps knows whether to wait.
-if (!SPLIT_CHAT && !state.device) roomTour();
+// The tour of 1.0 reads where the person is as the room opens, so First steps knows whether to
+// wait; on a phone, the phone's card is said the first time.
+if (!SPLIT_CHAT) roomTour();
