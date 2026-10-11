@@ -5,7 +5,7 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { LINK_KINDS, MAX_ORDER_MODE, receivesOrders, servingRooms } from '../enlaces.mjs';
+import { LINK_KINDS, MAX_ORDER_MODE, receivesOrders } from '../enlaces.mjs';
 import { salasRoomId } from '../salas.mjs';
 
 export const MAX_ORDERS = 4;
@@ -140,7 +140,7 @@ export const resolveOrders = ({ orders, ...where }) => orders.map((order, index)
 
 // One proposed link, checked the way the sheet of Salas and `normalizeContract` would: two rooms
 // this Mac knows, the room of Salas never handing over, kinds that may cross, orders only with
-// Salas at one end. A link already in force says so. Signing it is the human's press.
+// Salas at one end. A pair already connected, either way round, says so. Signing it is the human's press.
 export function resolveLinks({ links, rooms, contracts, salas }) {
   return links.map((link, index) => {
     const from = findRoom(rooms, link.from);
@@ -157,8 +157,9 @@ export function resolveLinks({ links, rooms, contracts, salas }) {
       orders = { allowed: true, maxMode: Math.min(link.orders, MAX_ORDER_MODE), perHour: 6 };
     }
     const receives = orders ? (base.from === salas ? base.to : base.from) : null;
-    const same = contracts.find((one) => [one.rooms.a, one.rooms.b].sort().join() === [base.from, base.to].sort().join()
-      && (link.both ? one.direction === 'both' : servingRooms(one).includes(base.from)));
+    // Two projects are connected once (2026-10-11): any connection in force between them, whichever
+    // way it goes, is the one there is; signing another is refused (src/server.mjs).
+    const same = contracts.find((one) => [one.rooms.a, one.rooms.b].sort().join() === [base.from, base.to].sort().join());
     if (same) return { ...base, orders, receives, status: 'exists', why: 'That connection is already in force.', contract: same.id };
     return { ...base, orders, receives, status: 'ready', why: null };
   });

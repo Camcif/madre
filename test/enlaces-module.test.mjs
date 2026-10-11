@@ -110,20 +110,28 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.deepEqual(toldB[0].payload, { contract: orderedContract, other: 'salas', otherId: salas, role: 'serves', kinds: ['fact'], expires: null, orders: orderedContract.orders });
     assert.equal((await events(b, 'message.created')).length, 0);
 
-    // Orders left out are no orders: off, #0, six an hour (B serves Salas questions, to be read by BISHOP).
-    const plain = (await (await post(portA, '/api/salas/enlaces', { a: idB, b: salas, direction: 'a→b', kinds: ['question'] }, page(portA))).json()).contract;
+    // Orders left out are no orders: off, #0, six an hour (A serves Salas questions, to be read by
+    // BISHOP: B and Salas are already connected, and a pair is connected once).
+    const plain = (await (await post(portA, '/api/salas/enlaces', { a: idA, b: salas, direction: 'a→b', kinds: ['question'] }, page(portA))).json()).contract;
     assert.deepEqual(plain.orders, { allowed: false, maxMode: 0, perHour: 6 }, 'orders absent did not default to none');
-    assert.equal((await events(b, 'enlace.signed')).at(-1).payload.role, 'serves');
+    assert.equal((await events(a, 'enlace.signed')).at(-1).payload.role, 'serves');
 
     // The link this test reads through: A serves B, decisions and facts, more readings an hour
     // than this test makes (the ceiling of six is 3b's, and it is proved there).
     const signed = await post(portA, '/api/salas/enlaces', { a: idA, b: idB, direction: 'a→b', kinds: ['decision', 'fact'], expires: null, orders: { allowed: false, maxMode: 0, perHour: 50 } }, page(portA));
     assert.equal(signed.status, 200);
     const { contract } = await signed.json();
+    // Two projects are connected once: the same pair, either way round or both, is refused while
+    // this one is in force.
+    for (const again of [{ a: idA, b: idB, direction: 'a→b' }, { a: idB, b: idA, direction: 'a→b' }, { a: idA, b: idB, direction: 'both' }]) {
+      const twice = await post(portA, '/api/salas/enlaces', { ...again, kinds: ['fact'] }, page(portA));
+      assert.equal(twice.status, 409, `${again.direction} signed again over a pair in force`);
+      assert.match((await twice.json()).error, /already connected/);
+    }
     assert.deepEqual(Object.keys(contract), ['id', 'rooms', 'direction', 'kinds', 'zones', 'expires', 'revoked', 'orders', 'signed', 'recall']);
     assert.equal(contract.recall, false, '3e: recall is off unless ticked');
     assert.deepEqual(contract.orders, { allowed: false, maxMode: 0, perHour: 50 });
-    assert.deepEqual((await events(a, 'enlace.signed')).map((event) => event.payload), [{ contract, other: nameB, otherId: idB, role: 'serves', kinds: ['decision', 'fact'], expires: null, orders: contract.orders }]);
+    assert.deepEqual((await events(a, 'enlace.signed')).filter((event) => event.payload.contract.id === contract.id).map((event) => event.payload), [{ contract, other: nameB, otherId: idB, role: 'serves', kinds: ['decision', 'fact'], expires: null, orders: contract.orders }]);
     assert.deepEqual((await events(b, 'enlace.signed')).at(-1).payload, { contract, other: nameA, otherId: idA, role: 'reads', kinds: ['decision', 'fact'], expires: null, orders: contract.orders });
 
     // ---- Salas sees it: the id of its own room, the links in force, and no traffic yet.

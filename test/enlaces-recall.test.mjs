@@ -110,7 +110,9 @@ test('enlaces · recall on every turn: off unless ticked, at most 3 notes, a rea
     const quiet = await fetch(`${B}/api/briefing?agent=codex&text=webhook`).then((response) => response.json());
     assert.equal(quiet.dynamic, false, 'still announced after the box was cleared');
 
-    // BISHOP never ticks it: a link it signs reads only when its agents choose to.
+    // BISHOP never ticks it: a link it signs reads only when its agents choose to. (A pair is
+    // connected once, so the first link is revoked before the second is signed.)
+    assert.equal((await post(`${A}/api/salas/enlaces/revoke`, { id: contract.id }, { origin: A })).status, 200);
     const byBishop = await post(`${A}/api/salas/enlaces`, { a: idA, b: idB, direction: 'a→b', kinds: ['fact'], expires: new Date(Date.now() + 86400000).toISOString(), by: 'bishop', recall: true });
     assert.equal((await byBishop.json()).contract.recall, false);
   } finally {

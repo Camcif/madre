@@ -134,6 +134,9 @@ test('bishop · the link wizard reads links and checks them like the sheet of Sa
   assert.match(checked[1].why, /never hands its notes over/);
   assert.match(checked[3].why, /Name what crosses/);
   assert.match(checked[4].why, /only on a connection with the Coordinator's project/);
+  // A pair is connected once: the other way round of a link in force is the link there is.
+  const oneWay = [{ ...contracts[0], direction: 'a→b' }];
+  assert.equal(resolveLinks({ links: parsePlan('x\n\n```pulse-salas\nm\nenlace boreal → aurora: fact\n```').links, rooms, contracts: oneWay, salas })[0].status, 'exists');
 });
 
 test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, signs a proposed link, and /bishop answers any room', async () => {
@@ -199,7 +202,12 @@ test('bishop · hybrid sends #1 on its own, holds #2, takes #3 to its room, sign
     const settings = await post(`${S}/api/settings`, { room: { delegation: true } });
     assert.equal(settings.status, 200);
     assert.equal((await fetch(`${S}/api/settings`).then((response) => response.json())).settings.delegation, false, 'S-032: delegation stays off in Salas');
-    const page = await fetch(`${S}/api/salas/enlaces`, { method: 'POST', headers: { 'content-type': 'application/json', origin: S }, body: JSON.stringify({ a: idB, b: idA, direction: 'a→b', kinds: ['fact'], expires: new Date(Date.now() + 86400000).toISOString(), by: 'bishop' }) });
+    // Two projects are connected once: the other way round is refused while that one is in force;
+    // revoked, the page signs it — and a page cannot sign as BISHOP.
+    const fromPage = () => fetch(`${S}/api/salas/enlaces`, { method: 'POST', headers: { 'content-type': 'application/json', origin: S }, body: JSON.stringify({ a: idB, b: idA, direction: 'a→b', kinds: ['fact'], expires: new Date(Date.now() + 86400000).toISOString(), by: 'bishop' }) });
+    assert.equal((await fromPage()).status, 409, 'a pair already connected was signed again');
+    assert.equal((await fetch(`${S}/api/salas/enlaces/revoke`, { method: 'POST', headers: { 'content-type': 'application/json', origin: S }, body: JSON.stringify({ id: readOnly.id }) })).status, 200);
+    const page = await fromPage();
     assert.equal((await page.json()).contract.signed.by, 'you', 'a page cannot sign as BISHOP');
 
     // Hybrid: #1 leaves on its own and comes back; #2 waits for the press; #3 goes to its room.
