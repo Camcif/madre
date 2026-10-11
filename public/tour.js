@@ -70,7 +70,8 @@ const SCENES = {
   gestures: () => `<div class="ts-caps"><span class="ts-cap c0">⌘ ,</span><span class="ts-cap c1">Esc</span><span class="ts-cap c2">?</span></div>`,
 };
 
-export function startTour({ page, go = {}, ready = () => true, phone = false, pillSlot = null, welcome = null, onProjects = null } = {}) {
+// `onChange` hears the kept state each time it is known or changes (null if it could not be read).
+export function startTour({ page, go = {}, ready = () => true, phone = false, pillSlot = null, welcome = null, onProjects = null, onChange = null } = {}) {
   let info = null;
   let state = null;
   let windowNode = null;
@@ -81,12 +82,14 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, pi
     info = answer;
     state = answer?.state ?? null;
     paintPill();
+    onChange?.(state);
     return answer;
   });
   const keep = async (change) => {
     const answer = await tourApi.change(change);
     if (answer?.state) state = answer.state;
     paintPill();
+    onChange?.(state);
     return state;
   };
   const path = () => state?.path ?? (info?.returning ? 'back' : 'new');

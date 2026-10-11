@@ -9,8 +9,11 @@ import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
 import { startTour as startWelcome } from './tour.js';
 // Made the first time the room asks for it (roomTour, below), which can be while this file is
-// still being read: declared here, before anything can ask.
+// still being read: declared here, before anything can ask. `welcomeKept` is what it last said of
+// itself: undefined until it is known.
 let roomTourKept = null;
+let welcomeKept;
+const welcomeDone = () => welcomeKept !== undefined && (welcomeKept === null || Boolean(welcomeKept.finished));
 import { LOADER_MARK, creep, finishLoader, makeLoader, setLoader, showCurtain } from './loader.js';
 import { familyOf, languageLabel, tokenize } from './syntax.js';
 import { COLLAPSED, MEMORY_COLORS, PITCH_LIMIT, TURN_PER_PIXEL, activityOf, collapsedChip, createNostromo, dwarfChip, hexMix, rawActivity, travels } from './nostromo-engine.js';
@@ -9421,8 +9424,11 @@ function stepsPaint() {
   if (!pill) return;
   const done = steps.record?.done.length ?? 0;
   const total = FIRST_STEPS.length;
-  // Shown while there is something left, and for the moment after the last tick.
-  const shown = !state.device && Boolean(steps.record?.on) && (done < total || steps.finishing);
+  // Shown while there is something left, and for the moment after the last tick — once the tour
+  // of 1.0 is finished: until then its pill is the one in the bar (2026-10-11). Not shown before
+  // the tour's state is known, so it never comes and goes on arrival; if it cannot be read, as
+  // before.
+  const shown = !state.device && Boolean(steps.record?.on) && (done < total || steps.finishing) && welcomeDone();
   pill.hidden = !shown;
   if (!shown) return;
   pill.style?.setProperty?.('--steps', String(done / total));
@@ -16552,6 +16558,7 @@ function roomTour() {
     phone: Boolean(state.device || SPLIT_CHAT),
     pillSlot: SPLIT_CHAT ? null : document.querySelector('#tour-pill-slot'),
     ready: () => [...state.agents.values()].some((agent) => agent.ready) && !state.running.size && !state.plansRunning.size,
+    onChange: (kept) => { welcomeKept = kept; stepsPaint(); },
     go: {
       home: () => leaveTo('/salas'),
       project: () => { if (switcher.key) switchOpen(); },
@@ -18343,3 +18350,5 @@ function phoneKeyboard() {
 // Asking for a star or a review (review-ask.js): on the Mac, and never while something is going on
 // — an agent at work, a plan running, words half written in the box.
 startReviewAsk({ busy: () => Boolean(state.device || state.running.size || state.plansRunning.size || els.input?.value?.trim()) });
+// The tour of 1.0 reads where the person is as the room opens, so First steps knows whether to wait.
+if (!SPLIT_CHAT && !state.device) roomTour();
