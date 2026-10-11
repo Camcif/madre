@@ -6,6 +6,10 @@
 // touch, because a phone in a pocket touches things.
 
 import { setLanguage, t } from './i18n.js';
+import { dropStickyHover } from './touch.js';
+
+// A tapped card does not stay lit on the phone (public/touch.js).
+dropStickyHover();
 
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;

@@ -8,6 +8,9 @@ import { createEditor } from './editor.js';
 import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
 import { startTour as startWelcome } from './tour.js';
+import { dropStickyHover } from './touch.js';
+// Where nothing can hover (a phone), a tapped key does not stay lit (public/touch.js).
+dropStickyHover();
 // Made the first time the room asks for it (roomTour, below), which can be while this file is
 // still being read: declared here, before anything can ask. `welcomeKept` is what it last said of
 // itself: undefined until it is known.

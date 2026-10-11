@@ -9,6 +9,10 @@ import { setLanguage, t } from './i18n.js';
 import { brandOf, monogram } from './brands.js';
 import { startReviewAsk } from './review-ask.js';
 import { startTour } from './tour.js';
+import { dropStickyHover } from './touch.js';
+
+// Where nothing can hover (a tablet), a tapped key does not stay lit (public/touch.js).
+dropStickyHover();
 import { creep, finishLoader, makeLoader, setLoader, showCurtain } from './loader.js';
 
 const $ = (id) => document.getElementById(id);

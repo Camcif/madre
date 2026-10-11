@@ -172,6 +172,6 @@ test('tour · the chapters the page tells are the ones the server keeps, in both
   }
   // Served beside the page, like the loader.
   const server = await readFile(join(import.meta.dirname, '..', 'src', 'server.mjs'), 'utf8');
-  assert.match(server, /'\/loader\.js', '\/tour\.js', '\/tour-chapters\.js'\]/);
+  assert.match(server, /'\/loader\.js', '\/tour\.js', '\/tour-chapters\.js'[,\]]/);
   for (const page of ['app.js', 'salas-mac.js']) assert.match(await readFile(join(import.meta.dirname, '..', 'public', page), 'utf8'), /from '\.\/tour\.js'/, `${page} has no welcome`);
 });
