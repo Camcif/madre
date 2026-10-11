@@ -948,7 +948,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     // The swap, on the first step: it turns the link round, and the scene shows it.
     const turn = button('sm-btn small', t('Swap'), () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); });
     turn.disabled = coordinator(pick.reader);
-    if (turn.disabled) turn.title = t('The Coordinator only looks up: it shares its memory with no project.');
+    if (turn.disabled) turn.title = t('The Coordinator never shares its memory: it is always the one that looks up.');
     const intro = (title, lead) => {
       const box = el('div', 'lw-intro');
       box.append(el('span', 'lw-eyebrow', t('Step {n} of {total}', { n: at + 1, total: steps.length })), el('h3', null, title));
@@ -980,11 +980,13 @@ function openLinkSheet({ reader = null, source = null } = {}) {
         box.append(row(t('Shares its memory'), t('Its notes can be read. Nothing is written into it.'), serves));
         box.append(row(t('Looks it up'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('Looks it up'))));
       }
-      if (coordinator(pick.reader) || coordinator(pick.source)) box.append(caution(t('The Coordinator only looks up: it shares its memory with no project.')));
+      // The Coordinator looks up and, if the Orders step allows it, gives orders #1 and #2; what it
+      // never does is share its own memory (src/enlaces.mjs).
+      if (coordinator(pick.reader) || coordinator(pick.source)) box.append(caution(sayBold('The Coordinator looks up {room} and can send it orders up to #2: you choose that in the Orders step. Its own memory it shares with no project.', { room: nameOf(ordersInto()) })));
       else box.append(row(t('Both ways'), t('Each one looks up the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
       for (const said of cautions()) box.append(caution(said));
       page.append(box);
-      actions.append(next(() => (pick.reader === pick.source ? t('Choose two different projects.') : coordinator(pick.source) ? t('The Coordinator only looks up: it shares its memory with no project.') : null)));
+      actions.append(next(() => (pick.reader === pick.source ? t('Choose two different projects.') : coordinator(pick.source) ? t('The Coordinator never shares its memory: it is always the one that looks up.') : null)));
     } else if (kind === 'what') {
       intro(t('What can it look up?'), t('Turn on only what it needs. Decisions and facts are usually enough.'));
       const box = card();
