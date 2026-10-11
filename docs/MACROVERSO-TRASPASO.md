@@ -57,7 +57,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `a2538f0` | Claude | Lobby: sin título ni subtítulo, herramientas al centro; fondo de pantalla de la sala en Ajustes del lobby |
 | `717a42a` | Claude | Lobby: Apariencia con todo PERSONALIZAR de la sala (capa/mesh, intensidad, desenfoque, burbujas, texto; mismas claves `pulse.*`); tarjetas del bento con la fórmula de planos de la conversación en lugar del brillo neumórfico |
 | `ce68328` | Claude | Lobby: AJUSTES como los de la sala (ventana `#settings`, tablero Tú / La tripulación / Sistema, hoja sobre el tablero, búsqueda, vista previa); salas ancladas en la barra (`pulse.lobbyBar`: clic derecho o arrastrar la tarjeta; ordenar y quitar como en la barra de la sala); el scroll de los modales va fuera de la ventana |
-| *este commit* | Claude | Lobby: Apariencia a todo lo ancho de Ajustes, en dos columnas y sin scroll a 900 px; los términos del enlace en una franja bajo la escena, sin tapar la animación |
+| `7f52582` | Claude | Lobby: Apariencia a todo lo ancho de Ajustes, en dos columnas y sin scroll a 900 px; los términos del enlace en una franja bajo la escena, sin tapar la animación |
+| *este commit* | Claude | Nombres claros en toda la interfaz (ver §1·c); #4 pide la misma llave dos veces en vez de AIRLOCK |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -109,6 +110,39 @@ elegido en la caja o `PULSE_OPENCODE_MODEL`, y no para variantes `-fast` (no est
 filtro en un contenedor corta el vidrio de sus hijos; `#messages#messages` existe para ganarle a
 las reglas de los fondos de paisaje; sin fondo de paisaje la página borra `data-wallpaper`; en el
 panel oculto del navegador no avanzan transiciones, `requestAnimationFrame` ni `ResizeObserver`.
+
+### 1·c · Nombres claros (2026-10-10)
+
+El dueño eligió nombres sencillos para que la gente entienda MADRE sin jerga (catálogo con tres
+opciones por nombre en una página de claude.ai; elecciones guardadas en su base). Se aplicaron a
+todo lo que se lee: catálogo (`public/es.js`, clave en inglés + valor en español), el código que
+dice esas claves, los textos del servidor que llegan a la pantalla, el HTML, los nombres de los
+módulos y la documentación de usuario. **Los identificadores no cambiaron**: rutas (`/salas`),
+comandos (`madre salas`, `/bishop`, `/create`, `STOPALL`), ids de módulos y de modos
+(`bishop`, `ripley`, `ghost`…), carpetas (`.pulse/`), herramientas MCP (`pulse-enlaces`,
+`enlace_search`), el encabezado de protocolo `BISHOP › …` y todo lo que se envía a los agentes
+(`src/capabilities.mjs`, `src/room/prompt.mjs`, `src/mother.mjs`), que sigue con los nombres de antes.
+
+| Antes | Ahora (ES · EN) |
+|---|---|
+| Sala / room | Proyecto · Project |
+| Lobby / Salas | Inicio · Home |
+| Macroverso | Mapa de proyectos · Project map |
+| Enlaces | Conexiones · Connections |
+| MU/TH/UR | Diagnóstico · Diagnostics |
+| MOTHER | Seguridad · Security |
+| BISHOP | Coordinador · Coordinator |
+| NOSTROMO | Mapa de memoria · Memory map |
+| Tripulación / crew | Agentes · Agents |
+| Modos GHOST · EXCHANGE · CREATE · CONTROL · AIRLOCK | INCÓGNITO · SOLO CONVERSAR · CREAR · EDITAR · ACCESO TOTAL (EN: INCOGNITO · CHAT ONLY · CREATE · EDIT · FULL ACCESS) |
+| Módulos Ash · Ollama · Image Studio · PLAYWRIGHT · RIPLEY · Git Pulse · Runs · Choices · AHP+ · Conectores | Ahorro de tokens · IA local · Imágenes · Navegador de pruebas · Vista previa · Git · Comandos · Opciones · Continuidad · Integraciones |
+
+Se quedan: @madre, Archivista, EYECAT, Centinela, Módulos, Intenciones, Bóveda/bodega, las zonas y
+estrellas de la memoria, Recuerdo, Dataset, Aberración y los huevos de pascua. La segunda llave de
+#4 ya no es la palabra AIRLOCK: es la misma llave de #3 escrita dos veces (los ids guardados
+`designation-airlock` / `phrase-airlock` no cambian). Las frases que el servidor dejó escritas en
+historiales viejos se siguen traduciendo: `public/resay.js` guarda la redacción vieja junto a la nueva.
+Pendiente de decidir: el banner de la marca (`docs/madre-banner.svg`, «MU/TH/UR 6000 · INTERFACE 2037»).
 
 ## 2 · Mapa de lo construido
 

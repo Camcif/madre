@@ -1,4 +1,4 @@
-# MADRE · EN EL TELÉFONO
+# MADRE · EN TU TELÉFONO
 
 Documento único del trabajo para usar MADRE desde el teléfono. Ids `MOV-xxx` para el trabajo,
 `D-Mxx` para las decisiones. Nada aquí está construido todavía; el estado de cada id vive en la
@@ -8,9 +8,9 @@ tabla de la sección 6.
 
 ## 1 · La idea, en una frase
 
-**Tus salas siguen en tu Mac; el teléfono es otra ventana a ellas.** Los agentes, el proyecto y la
+**Tus proyectos siguen en tu Mac; el teléfono es otra ventana a ellos.** Los agentes, el proyecto y la
 memoria no se mudan: lo que viaja es la conversación, y viaja cifrada. Desde el teléfono hablas
-con todas tus salas a la vez, en casa o fuera, y pasas de la computadora al teléfono y de vuelta
+con todos tus proyectos a la vez, en casa o fuera, y pasas de la computadora al teléfono y de vuelta
 sin perder el hilo, como Handoff en los equipos de Apple.
 
 Qué no es:
@@ -29,39 +29,39 @@ El listón: **dos pasos para empezar, cero comandos, nada que configurar despué
 
 ### 2.1 · Emparejar: dos pasos
 
-1. En MADRE, una tecla nueva en la barra, **Teléfono**, abre una tarjeta con un QR y una sola
+1. En MADRE, una tecla nueva en la barra, **MADRE en tu teléfono**, abre una tarjeta con un QR y una sola
    frase: «Escanéalo con la cámara de tu teléfono».
 2. La persona apunta la cámara. Se abre MADRE en el teléfono, ya dentro: «Listo. Tu Mac está en tu
    teléfono». Una segunda pantalla le enseña, con un dibujo del propio sistema, cómo añadirla a la
    pantalla de inicio (en iOS es lo que habilita los avisos).
 
 No hay cuenta, ni correo, ni contraseña, ni código que teclear. El QR vale una sola vez y caduca en
-diez minutos. La tecla Teléfono también entra en «Primeros pasos» como un paso opcional.
+diez minutos. La tecla MADRE en tu teléfono también entra en «Primeros pasos» como un paso opcional.
 
-### 2.2 · Todas las salas, en una pantalla
+### 2.2 · Todos los proyectos, en una pantalla
 
-El teléfono abre en **Salas**: una lista como la de Mensajes, una fila por proyecto abierto en la
+El teléfono abre en **Inicio**: una lista como la de Mensajes, una fila por proyecto abierto en la
 Mac, con lo último que se dijo, quién está trabajando ahora y una marca cuando un agente espera
-algo de ti (un permiso, una elección, una pregunta). Tocar una fila abre esa sala; volver regresa a
-la lista sin perder lo que pasa en las demás. El botón **STOPALL** está siempre a la mano: frenar
+algo de ti (un permiso, una elección, una pregunta). Tocar una fila abre ese proyecto; volver regresa a
+la lista sin perder lo que pasa en los demás. El botón **STOPALL** está siempre a la mano: frenar
 todo desde cualquier lugar es la función de seguridad más valiosa del teléfono.
 
 ### 2.3 · Continuidad (el Handoff de MADRE)
 
 - **De la Mac al teléfono.** Al abrir MADRE en el teléfono, arriba aparece «Seguir donde ibas ·
-  Gumball · prueba de multitarea»: la misma sala, la misma conversación, a la altura donde estabas
+  Gumball · prueba de multitarea»: el mismo proyecto, la misma conversación, a la altura donde estabas
   leyendo y con el borrador que dejaste en la caja.
 - **Del teléfono a la Mac.** Cuando vuelves a la computadora, una píldora en la barra (donde vive
   la de versión nueva) dice «Continuar desde el iPhone · borrador en Gumball». Un clic y estás ahí.
 - **Presencia.** La barra de la Mac muestra un teléfono pequeño cuando hay uno conectado. El
   teléfono dice si la Mac está despierta («Tu Mac está dormida: te avisamos cuando vuelva»).
-- **Quién lo dijo.** Lo que se escribe desde el teléfono queda en el registro de la sala con su
+- **Quién lo dijo.** Lo que se escribe desde el teléfono queda en el registro del proyecto con su
   origen: «Tú · desde iPhone».
 
 ### 2.4 · Avisos (fase 2)
 
-Solo lo que pide tu atención, agrupado por sala: un agente terminó, un agente pide permiso o una
-elección, MU/TH/UR detectó un problema. Nada de un aviso por cada línea de la sala.
+Solo lo que pide tu atención, agrupado por proyecto: un agente terminó, un agente pide permiso o una
+elección, Diagnóstico detectó un problema. Nada de un aviso por cada línea del proyecto.
 
 ## 3 · Arquitectura
 
@@ -69,11 +69,11 @@ elección, MU/TH/UR detectó un problema. Nada de un aviso por cada línea de la
 
 | Pieza | Dónde | Qué implica |
 |---|---|---|
-| Una sala por proyecto, un proceso y un puerto cada una | `src/server.mjs:192-206` | Cada sala abierta deja `~/.pulse/rooms/<proyecto>/open.json` con `{pid, port, at}`: el registro de salas ya existe. |
-| La sala solo escucha en `127.0.0.1` | `src/server.mjs:2344` | No se cambia. Ninguna sala se expone nunca. |
-| Guarda de peticiones: Host local y Origin propio | `src/request-guard.mjs` | No se relaja. El puente habla con la sala como `127.0.0.1`. |
+| Un proceso y un puerto por proyecto | `src/server.mjs:192-206` | Cada proyecto abierto deja `~/.pulse/rooms/<proyecto>/open.json` con `{pid, port, at}`: el registro de proyectos ya existe. |
+| El proyecto solo escucha en `127.0.0.1` | `src/server.mjs:2344` | No se cambia. Ningún proyecto se expone nunca. |
+| Guarda de peticiones: Host local y Origin propio | `src/request-guard.mjs` | No se relaja. El puente habla con el proyecto como `127.0.0.1`. |
 | Flujo en vivo por SSE | `/api/events`, `public/app.js:9061` | El puente lo reenvía tal cual (fase 1) o lo convierte en tramas (fase 2). |
-| Interfaz para teléfono | `public/styles.css` (`max-width: 720px`), barra con «Más» | Base de la vista móvil; falta la pantalla Salas y la continuidad. |
+| Interfaz para teléfono | `public/styles.css` (`max-width: 720px`), barra con «Más» | Base de la vista móvil; falta la pantalla Inicio y la continuidad. |
 | Registro de salidas | `src/outbound.mjs` | El relevo de la fase 2 se declara como un destino más, visible en Privacidad. |
 | Sin dependencias, Node ≥ 22.5 | `package.json` | Node trae `WebSocket` (cliente) y `node:crypto`: alcanza para el puente y el cifrado sin paquetes. |
 
@@ -82,27 +82,27 @@ elección, MU/TH/UR detectó un problema. Nada de un aviso por cada línea de la
 Una pieza única por Mac, **el puente** (`src/bridge/`), es lo único que el teléfono alcanza:
 
 ```
-teléfono ──(fase 1: Wi-Fi · fase 2: relevo cifrado)──▶ PUENTE ──▶ 127.0.0.1:<puerto de cada sala>
+teléfono ──(fase 1: Wi-Fi · fase 2: relevo cifrado)──▶ PUENTE ──▶ 127.0.0.1:<puerto de cada proyecto>
 ```
 
-- **Vive dentro de una sala, sin proceso propio** (`host.mjs`). Cada sala, cada 15 segundos, se
+- **Vive dentro de un proyecto, sin proceso propio** (`host.mjs`). Cada proyecto, cada 15 segundos, se
   pregunta si un teléfono debería poder llegar ahora: el acceso está encendido, hay un teléfono
   emparejado o un código vigente, y la red es de confianza. Si es así, intenta abrir el puerto
-  4316. La primera que lo logra hospeda el puente; las demás lo encuentran tomado. Si la sala que
-  lo hospeda se cierra, la siguiente lo toma. En una red sin confianza, quien lo hospeda lo cierra.
+  4316. El primero que lo logra hospeda el puente; los demás lo encuentran tomado. Si el proyecto que
+  lo hospeda se cierra, el siguiente lo toma. En una red sin confianza, quien lo hospeda lo cierra.
   Así no hay que lanzar, vigilar ni matar un proceso aparte, y el puente vive exactamente mientras
-  haya una sala abierta.
-- **Conoce las salas** leyendo los `open.json`, comprobando que su proceso vive y preguntando a
-  cada una `/api/version`. Una sala de una versión que no habla con el puente aparece en la lista
-  con «Actualiza esta sala para usarla desde el teléfono».
-- **Reenvía** a `http://127.0.0.1:<puerto>/…` de la sala elegida (una cookie, `madre_room`, dice
-  cuál), reescribiendo `Host` y `Origin` a los de la sala, de modo que la guarda de la sala no
+  haya un proyecto abierto.
+- **Conoce los proyectos** leyendo los `open.json`, comprobando que su proceso vive y preguntando a
+  cada uno `/api/version`. Un proyecto de una versión que no habla con el puente aparece en la lista
+  con «Actualiza este proyecto para usarlo desde el teléfono».
+- **Reenvía** a `http://127.0.0.1:<puerto>/…` del proyecto elegido (una cookie, `madre_room`, dice
+  cuál), reescribiendo `Host` y `Origin` a los del proyecto, de modo que la guarda del proyecto no
   cambia. Añade `x-madre-device` y `x-madre-device-kind` (y borra los que mande el teléfono) para
   que el registro diga desde dónde se habló.
-- **La página de la sala es la de la sala.** Como la sala se elige por cookie y no por ruta, cada
+- **La página del proyecto es la del proyecto.** Como el proyecto se elige por cookie y no por ruta, cada
   ruta absoluta de la página sigue funcionando detrás del puente, sin cargadores ni reescrituras.
-  Cada sala sirve su propia versión de la interfaz; el puente solo sirve Salas y sus estilos.
-- **Defensa en la sala también:** una petición con `x-madre-device` no puede pedir #3/#4, no
+  Cada proyecto sirve su propia versión de la interfaz; el puente solo sirve Inicio y sus estilos.
+- **Defensa en el proyecto también:** una petición con `x-madre-device` no puede pedir #3/#4, no
   alcanza `/api/phone` y no cuenta como «esta computadora» para las llaves de proveedor y de
   módulos, aunque llegue desde 127.0.0.1.
 - **Aplica la política del teléfono** (sección 4) con una lista de rutas **permitidas**, no
@@ -125,8 +125,8 @@ en lugar de Postgres:
 - **En Ajustes › Privacidad › Teléfonos**, la lista de teléfonos emparejados y de redes de
   confianza, cada uno con «Olvidar», y un interruptor que apaga el acceso de todos. Olvidar revoca
   al instante: la siguiente petición del teléfono ya no entra.
-- **Varias salas escriben el mismo archivo:** cada cambio toma un candado de archivo y escribe por
-  renombrado, así que nadie lee medio archivo y dos salas a la vez no se pisan.
+- **Varios proyectos escriben el mismo archivo:** cada cambio toma un candado de archivo y escribe por
+  renombrado, así que nadie lee medio archivo y dos proyectos a la vez no se pisan.
 
 ### 3.4 · Fase 1 · En tu Wi-Fi
 
@@ -148,12 +148,12 @@ en una red desconocida el teléfono no se ofrece.
   (no se instala como app de verdad, no hay avisos) ni `crypto.subtle` (la frase de #3/#4 no se
   puede comprobar en el teléfono).
 - La primera vez, macOS puede preguntar si permite conexiones entrantes a `node`. La tarjeta
-  Teléfono lo anticipa con una frase.
+  MADRE en tu teléfono lo anticipa con una frase.
 - No funciona fuera de esa red.
 
 Por eso la fase 1 se ofrece **solo en redes que la persona marca como de confianza** («Esta es mi
 red de casa») y se presenta como **avance**: sirve para construir y validar todo lo que la fase 2
-reutiliza (puente, emparejamiento, política, Salas, continuidad) con la persona real, antes de que
+reutiliza (puente, emparejamiento, política, Inicio, continuidad) con la persona real, antes de que
 exista el relevo.
 
 ### 3.5 · Fase 2 · En cualquier lugar, cifrado de extremo a extremo
@@ -175,7 +175,7 @@ teléfono (app.madre.run, https, PWA) ──WebSocket──▶ relay.madre.run (
   tamaños y horas. Ni nosotros podemos leer una conversación.
 - **Avisos cifrados.** El puente cifra el contenido del aviso con las llaves de la suscripción del
   teléfono (RFC 8291) y el relevo solo firma con VAPID y entrega bytes opacos.
-- **La interfaz** de `app.madre.run` es la misma de la sala, servida como estática. Las llamadas
+- **La interfaz** de `app.madre.run` es la misma del proyecto, servida como estática. Las llamadas
   de la página se vuelven RPC cifrado sobre el WebSocket, y el flujo SSE se vuelve tramas.
 - **Privacidad visible.** El relevo aparece en Ajustes › Privacidad como destino de salida, con la
   frase «cifrado de extremo a extremo; el relevo no puede leerlo». Emparejar un teléfono es el
@@ -189,22 +189,22 @@ Lo que decide D-M03:
 
 | Acción | Teléfono |
 |---|---|
-| Leer salas y conversaciones, buscar, abrir archivos en el visor | Sí |
-| Escribir en #0 GHOST, #1 EXCHANGE y #2 CREATE, con modelo y esfuerzo; `/image`, `/module`, Intenciones | Sí |
+| Leer proyectos y conversaciones, buscar, abrir archivos en el visor | Sí |
+| Escribir en #0 INCÓGNITO, #1 SOLO CONVERSAR y #2 CREAR, con modelo y esfuerzo; `/image`, `/module`, Intenciones | Sí |
 | Responder elecciones, aprobar comandos que pide un agente y conceder un modo que pide, hasta #2 | Sí |
-| Deshacer un cambio (UNDO) | Sí |
+| Deshacer un cambio (DESHACER) | Sí |
 | **STOPALL** y detener un turno | Sí, siempre |
-| Ajustes: apariencia, sala, memoria, privacidad, versión | Sí |
+| Ajustes: apariencia, proyecto, memoria, privacidad, versión | Sí |
 | Encender o apagar los módulos de MADRE | Sí |
 | Archivos y servidores | Para ver; «se ve mejor en la Mac» |
 | Permisos y la llave de #3/#4 | No: se leen, se cambian en la Mac |
-| #3 CONTROL | Llega con la fase 2 (su frase necesita `crypto.subtle`) |
-| #4 AIRLOCK | Nunca desde el teléfono en esta versión |
+| #3 EDITAR | Llega con la fase 2 (su frase necesita `crypto.subtle`) |
+| #4 ACCESO TOTAL | Nunca desde el teléfono en esta versión |
 | Llaves de proveedor, instalar un módulo de terceros, olvidar memorias, editar archivos, emparejar otro teléfono | No: «Esto se hace en la Mac» |
 
-En el teléfono no hay ventanas: lo que en la Mac flota (Ajustes, MU/TH/UR, Módulos, Archivos,
-Servidores, el visor) es una hoja del tamaño de la pantalla. La página entera hace scroll, para que
-Safari esconda sus barras, y NOSTROMO es un mapa plano que se dibuja solo cuando algo cambia.
+En el teléfono no hay ventanas: lo que en la Mac flota (Ajustes, Diagnóstico, Módulos, Archivos,
+Tus servidores, el visor) es una hoja del tamaño de la pantalla. La página entera hace scroll, para que
+Safari esconda sus barras, y el Mapa de memoria es un mapa plano que se dibuja solo cuando algo cambia.
 
 ## 5 · Fases y entregas
 
@@ -213,9 +213,9 @@ Safari esconda sus barras, y NOSTROMO es un mapa plano que se dibuja solo cuando
 - MOV-001 Puente.
 - MOV-002 Dispositivos y llaves.
 - MOV-003 Política del teléfono.
-- MOV-004 Pantalla Salas.
+- MOV-004 Pantalla Inicio.
 - MOV-005 Continuidad: borrador, conversación y posición; píldora «Continuar desde…».
-- MOV-006 Tecla Teléfono y emparejamiento en dos pasos.
+- MOV-006 Tecla MADRE en tu teléfono y emparejamiento en dos pasos.
 - MOV-007 Teléfonos en Ajustes › Privacidad.
 - MOV-008 Origen «desde iPhone» en el registro.
 - MOV-009 Pruebas, incluido un recorrido de punta a punta con un navegador en tamaño teléfono.
@@ -240,12 +240,12 @@ La versión de cada fase se decide al cerrarla (D-M06). El puerto a Windows apun
 
 | Id | Qué | Dónde | Fase | Estado |
 |---|---|---|---|---|
-| MOV-001 | Puente dentro de la primera sala que toma el puerto, registro de salas, reenvío con `Host`/`Origin` reescritos y sala elegida por cookie | `src/bridge/server.mjs`, `host.mjs` | 1 | HECHO · 2026-10-07 |
+| MOV-001 | Puente dentro del primer proyecto que toma el puerto, registro de proyectos, reenvío con `Host`/`Origin` reescritos y proyecto elegido por cookie | `src/bridge/server.mjs`, `host.mjs` | 1 | HECHO · 2026-10-07 |
 | MOV-002 | Invitaciones, sesiones por dispositivo, HMAC en `~/.pulse/devices.json`, llave en `~/.pulse/credentials/`, redes por la dirección del router, QR propio | `src/bridge/devices.mjs`, `network.mjs`, `qr.mjs` | 1 | HECHO · 2026-10-07 |
 | MOV-003 | Lista de rutas permitidas y política por modo (sección 4), tope de peticiones, cabeceras | `src/bridge/policy.mjs` | 1 | HECHO · 2026-10-07 |
-| MOV-004 | Pantalla Salas: estado por sala, quién trabaja, «Te espera» (elecciones y comandos propuestos desde el último mensaje del humano, modos pedidos por un plan) con la sala que espera arriba y abierta en esa conversación, Detener todo (con segundo toque) | `public/salas.*`, `/api/glance` | 1 | HECHO · 2026-10-07 |
+| MOV-004 | Pantalla Inicio: estado por proyecto, quién trabaja, «Te espera» (elecciones y comandos propuestos desde el último mensaje del humano, modos pedidos por un plan) con el proyecto que espera arriba y abierto en esa conversación, Detener todo (con segundo toque) | `public/salas.*`, `/api/glance` | 1 | HECHO · 2026-10-07 |
 | MOV-005 | Continuidad en ambos sentidos | `public/app.js`, puente | 1 | HECHO · 2026-10-07 |
-| MOV-006 | Tecla Teléfono, QR, pantalla «Listo» y guía de «Añadir a inicio» | `public/` | 1 | HECHO · 2026-10-07 |
+| MOV-006 | Tecla MADRE en tu teléfono, QR, pantalla «Listo» y guía de «Añadir a inicio» | `public/` | 1 | HECHO · 2026-10-07 |
 | MOV-007 | Teléfonos emparejados y «Olvidar» | Ajustes › Privacidad | 1 | HECHO · 2026-10-07 |
 | MOV-008 | `x-madre-device` → «desde iPhone» en el registro | `src/room.mjs` | 1 | HECHO · 2026-10-07 |
 | MOV-009 | Pruebas de puente, política, emparejamiento, red, continuidad y QR | `test/phone-bridge.test.mjs`, `test/qr.test.mjs` | 1 | HECHO · 2026-10-07 |
@@ -267,7 +267,7 @@ patrones, reescritos sin dependencias:
 | Invitación por QR de un solo uso y sesión de dispositivo con HMAC | `apps/api/src/devices.ts`, `session.ts`, `server.ts:277-345` | MOV-002 |
 | Lista blanca de rutas, `Sec-Fetch-Site`, orígenes explícitos | `apps/api/src/server.ts:110-152`, `:555` | MOV-003 |
 | Cascarón PWA | `apps/web/public/manifest.webmanifest`, `sw.js` | MOV-012 (y le falta lo de iOS) |
-| OAuth 2.1 + MCP por HTTP | `apps/api/src/oauth*.ts`, `mcp.ts` | Futuro: la sala como conector de Claude en el teléfono |
+| OAuth 2.1 + MCP por HTTP | `apps/api/src/oauth*.ts`, `mcp.ts` | Futuro: el proyecto como conector de Claude en el teléfono |
 
 ## 8 · Decisiones abiertas
 
@@ -275,7 +275,7 @@ patrones, reescritos sin dependencias:
 |---|---|---|---|
 | **D-M01** | La regla decía que MADRE no guarda credenciales propias (`src/credentials.mjs:3-6`). Emparejar exige al menos una llave propia. Se enmienda: MADRE no guarda credenciales de proveedores; la llave de sus teléfonos vive solo en `~/.pulse/credentials/`, solo para el dueño, y de cada teléfono se guarda la huella, nunca el token (`AGENTS.md`). En Windows `0o600` no protege nada (WIN-014): la función no se ofrece allí hasta que ese id se cierre. | Fase 1 | **RESUELTA · 2026-10-07** |
 | **D-M02** | La fase 1 sale como avance, limitada a las redes que la persona marca como de confianza. | Fase 1 | **RESUELTA · 2026-10-07** |
-| **D-M03** | La política de la sección 4. El 2026-10-07, ya con el teléfono en la mano, se abrieron Ajustes (salvo permisos), los módulos de MADRE, conceder un modo hasta #2 y UNDO. #3 desde el teléfono pide la frase, que se comprueba con `crypto.subtle`; en la fase 1 (`http`) el navegador no lo ofrece, así que #3 desde el teléfono llega con la fase 2. | Fase 1 | **RESUELTA · 2026-10-07** |
+| **D-M03** | La política de la sección 4. El 2026-10-07, ya con el teléfono en la mano, se abrieron Ajustes (salvo permisos), los módulos de MADRE, conceder un modo hasta #2 y DESHACER. #3 desde el teléfono pide la frase, que se comprueba con `crypto.subtle`; en la fase 1 (`http`) el navegador no lo ofrece, así que #3 desde el teléfono llega con la fase 2. | Fase 1 | **RESUELTA · 2026-10-07** |
 | **D-M04** | Costos y límites del relevo: plan de Cloudflare, tope por buzón, caducidad. | Fase 2 | **ABIERTA** |
 | **D-M05** | ¿`app.madre.run` como subdominio del sitio actual, o proyecto aparte en Cloudflare? | Fase 2 | **ABIERTA** |
 | **D-M06** | Número de versión de cada fase. | Cierre de cada fase | **ABIERTA** |
@@ -287,33 +287,33 @@ patrones, reescritos sin dependencias:
   empezar.
 - `2026-10-07` · D-M01, D-M02 y D-M03 resueltas. Empieza la fase 1.
 - `2026-10-07` · Fase 1 construida (MOV-001..009). Decisiones de construcción: el puente vive
-  dentro de una sala y el puerto hace de candado, en vez de un proceso aparte; la sala se elige por
+  dentro de un proyecto y el puerto hace de candado, en vez de un proceso aparte; el proyecto se elige por
   cookie para no tocar la página. Hallazgo: en macOS, Node no ve la tabla `arp`; la red se reconoce
   por `ipconfig getsummary` (IPv6). El QR propio coincide con la librería `qrcode` en 2,360
   entradas. Un iPhone real se emparejó con el QR en pantalla; el resto se probó con el navegador
-  en tamaño teléfono, por la IP de la red: emparejar, Salas, abrir sala, #3/#4 bloqueados,
+  en tamaño teléfono, por la IP de la red: emparejar, Inicio, abrir proyecto, #3/#4 bloqueados,
   continuidad en los dos sentidos, olvidar.
-- `2026-10-07` · Primera ronda con un iPhone real: logo de Salas, scroll de página para que
+- `2026-10-07` · Primera ronda con un iPhone real: logo de Inicio, scroll de página para que
   Safari esconda sus barras, campos a 16 px (sin zoom al tocar), barra sin desbordes, ventanas
-  como hojas, NOSTROMO fijo, Ajustes y módulos abiertos al teléfono (D-M03 ampliada).
-- `2026-10-07` · «Te espera» en Salas: la sala lleva en memoria lo que espera al humano (no lee el
+  como hojas, Mapa de memoria fijo, Ajustes y módulos abiertos al teléfono (D-M03 ampliada).
+- `2026-10-07` · «Te espera» en Inicio: el proyecto lleva en memoria lo que espera al humano (no lee el
   registro en cada consulta) y lo que lleva más de 12 horas sin respuesta deja de contar. Con
   esto la fase 1 queda completa.
 - `2026-10-07` · Conversaciones en el teléfono: una hoja a la vez por encima de la barra y la caja
   (antes la tapaban y no había salida), y el teléfono ve cada conversación por su dirección
   (`/?en=<id>`, la misma maquinaria `?chat=` de la mitad derecha). Elegir o empezar una
-  conversación en el teléfono ya no cambia la que la sala tiene abierta en la Mac: antes la Mac
+  conversación en el teléfono ya no cambia la que el proyecto tiene abierta en la Mac: antes la Mac
   se quedaba mostrando una y enviando a otra.
 - `2026-10-07` · Pasada de UX con el iPhone real. El fondo de pantalla no se veía: el fondo del
   `html` impedía que el del `body` subiera y el `body` lo tapaba. Los cierres de las hojas se
   ocultaban con los botones de ventana (comparten `surface-mode`). Un `<dialog>` enfoca su primer
   campo al abrirse y en iOS eso levanta el teclado: cada hoja abre con el foco en un ancla sin
   campo. Hojas al estilo iOS (asa, velo, deslizar para cerrar, esquinas de 20 px), caja de texto
-  con más aire y una altura que sigue al teclado por `visualViewport`. Servidores en el teléfono
+  con más aire y una altura que sigue al teclado por `visualViewport`. Tus servidores en el teléfono
   es una lista con su estado, sin el navegador de la Mac. Queda por confirmar en el iPhone: el
   teclado, el gesto de deslizar y las áreas seguras.
 - `2026-10-07` · Segunda pasada, en el Safari real del simulador de iOS (iPhone 17 Pro, iOS 26),
-  que mostró lo que el emulador de Chrome escondía: en Safari «‹ Salas» se encogía en vez de
+  que mostró lo que el emulador de Chrome escondía: en Safari «‹ Inicio» se encogía en vez de
   desbordar, así que la barra nunca pasaba teclas a «•••»; el hueco bajo la conversación medía
   906 px por medirse desde la posición de la caja; con el teclado, `getBoundingClientRect` es
   relativo a la vista visible y `innerHeight` se encoge, y la caja quedaba a media pantalla. Ahora
@@ -324,8 +324,8 @@ patrones, reescritos sin dependencias:
   manera; agregada a inicio, el área segura deja la barra debajo. Para probar: cada `simctl
   openurl` abre una pestaña con su propio flujo en vivo, y a las seis Safari deja de cargar
   (límite de HTTP/1.1 por servidor); se cierra Safari del simulador para empezar limpio.
-- `2026-10-08` · NOSTROMO en el teléfono deja de ser la foto fija del cerebro (se veía como una
-  mancha) y pasa a ser un mapa plano: sectores por tipo, MOTHER al centro, enlaces trazados, puntos
+- `2026-10-08` · El Mapa de memoria en el teléfono deja de ser la foto fija del cerebro (se veía como una
+  mancha) y pasa a ser un mapa plano: sectores por tipo, el núcleo al centro, enlaces trazados, puntos
   de tamaño fijo en pantalla y proporcionales entre sí, un dedo mueve, dos acercan, se dibuja solo
-  cuando cambia algo. La ficha sube desde abajo y no ofrece olvidar (D-M03). El núcleo de MOTHER ya
+  cuando cambia algo. La ficha sube desde abajo y no ofrece olvidar (D-M03). El núcleo de la memoria ya
   no enfoca su consola al abrirse en el teléfono.

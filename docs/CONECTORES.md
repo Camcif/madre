@@ -1,31 +1,31 @@
-# MADRE · CONECTORES · traer un servicio a la sala
+# MADRE · INTEGRACIONES · traer un servicio al proyecto
 
 Documento único de este trabajo. Todo lo que se decida, se construya o se descarte sobre
-conectores —lo que trae datos de fuera y lo que manda algo hacia fuera— se anota aquí y
+integraciones —lo que trae datos de fuera y lo que manda algo hacia fuera— se anota aquí y
 en ningún otro lado.
 
 | | |
 |---|---|
-| Estado | **Fase 2 completa** · la puerta, la bodega, la escalera y el primer conector: CORREO manda. Sin decisiones abiertas |
+| Estado | **Fase 2 completa** · la puerta, la bodega, la escalera y la primera integración: CORREO manda. Sin decisiones abiertas |
 | Versión objetivo | `0.7.0` |
 | Origen | Lectura de código del 2026-10-02 sobre `main` @ `b021e35` |
 | Medido | CORREO pesa 418 líneas de código (122 SMTP + 189 servidor + 107 módulo) y 278 de pruebas. Cero dependencias |
-| Antes de escribir uno | **§6**: qué alcanza un módulo y de quién es el muro. Contesta «¿se puede conectar con X?» sin escribir una línea |
-| Regla en vigor | Un conector **declara a dónde llega** o su tráfico sale en el registro como dirección no declarada |
+| Antes de escribir una | **§6**: qué alcanza un módulo y de quién es el muro. Contesta «¿se puede conectar con X?» sin escribir una línea |
+| Regla en vigor | Una integración **declara a dónde llega** o su tráfico sale en el registro como dirección no declarada |
 
 ---
 
-## 1 · Qué es un conector y qué no
+## 1 · Qué es una integración y qué no
 
-Un conector es un **módulo** que entrega a cada turno una herramienta MCP que habla con
-un servicio de fuera. No es una categoría nueva: es lo que ya hacen IMAGE STUDIO (los
-modelos de imagen de Gemini) y el servidor de memoria (el archivo de la sala).
+Una integración es un **módulo** que entrega a cada turno una herramienta MCP que habla con
+un servicio de fuera. No es una categoría nueva: es lo que ya hacen IMÁGENES (los
+modelos de imagen de Gemini) y el servidor de memoria (el archivo del proyecto).
 
 **Dentro del alcance:** que un módulo pueda declarar a dónde llega; dónde vive la llave
-que necesita; y qué ceremonia hace falta cuando un conector **manda** algo en vez de solo
+que necesita; y qué ceremonia hace falta cuando una integración **manda** algo en vez de solo
 leer.
 
-**Fuera del alcance:** cualquier nube de MADRE. Un conector habla desde *esta* máquina con
+**Fuera del alcance:** cualquier nube de MADRE. Una integración habla desde *esta* máquina con
 un servicio del *usuario*, con las credenciales del usuario. No hay intermediario.
 
 ---
@@ -34,14 +34,14 @@ un servicio del *usuario*, con las credenciales del usuario. No hay intermediari
 
 - **El andamiaje entero del SDK.** Un módulo es un archivo que no importa nada: ficha,
   interruptor, ajustes declarados, comandos `/`, rutas bajo `/api/x/<id>/`, condiciones
-  para MU/TH/UR. Se instala arrastrándolo a MÓDULOS.
+  para Diagnóstico. Se instala arrastrándolo a MÓDULOS.
 - **`toolsForTurn(ctx, turn)`**, que es el enganche: devuelve descriptores de servidor MCP
   y los cuatro agentes tienen esa herramienta en su turno.
-- **Dos conectores funcionando como plantilla**, con su tamaño real medido:
+- **Dos integraciones funcionando como plantilla**, con su tamaño real medido:
   `src/mcp/memory-server.mjs` (221 líneas) y `src/mcp/image-server.mjs` (202).
 - **Las vallas del SDK:** un módulo no puede usar rutas fuera de `/api/x/<id>/`, ni grabar
   eventos `message.*` o `agent.*`, ni recibir credenciales de nadie. Un fallo suyo no
-  detiene la sala.
+  detiene el proyecto.
 - **CN-001 · Declaración de destino** (esta tanda). Ver §3.
 
 ---
@@ -54,8 +54,8 @@ un servicio del *usuario*, con las credenciales del usuario. No hay intermediari
 alcanzar está escrita en el código con cuatro respuestas —qué viaja, cuándo, a dónde, y
 dónde se apaga— y parchea `fetch` global para que ningún módulo pueda evitar el registro.
 
-Un conector rompía eso sin querer: su tráfico salía como «fue a una dirección que nada
-aquí declara», que es verdad y es inútil — el humano no podía distinguir un conector que
+Una integración rompía eso sin querer: su tráfico salía como «fue a una dirección que nada
+aquí declara», que es verdad y es inútil — el humano no podía distinguir una integración que
 instaló de algo yendo mal.
 
 Ahora un módulo declara `reaches: [{ id, host, to, what, when, where }]`, en la misma
@@ -63,40 +63,40 @@ forma y contestando las mismas preguntas. Y:
 
 - **Se guarda aparte de las del núcleo y se marca con `module`.** Quién prometió qué es
   parte de la promesa: MADRE responde por su lista y solo *reporta* las de un módulo.
-- **Se reconstruye en cada carga de módulos**, nunca se acumula: desinstalar un conector
-  se lleva su destino con él.
+- **Se reconstruye en cada carga de módulos**, nunca se acumula: desinstalar una integración
+  se lleva su destino con ella.
 
 ### CN-002 · Dónde vive la llave — **hecho**
 
 Aquí hay una tensión real con una promesa escrita. Hoy `src/credentials.mjs` escribe una
 llave **solo donde ese CLI la busca** (`~/.gemini/.env`, el `auth.json` de OpenCode), con
-`0600`, y la ficha dice «MADRE no guarda copia». Para un conector **no hay CLI**: el
+`0600`, y la ficha dice «MADRE no guarda copia». Para una integración **no hay CLI**: el
 módulo de MADRE necesita el token él mismo.
 
-O sea: un conector obliga a decidir si **MADRE empieza a guardar secretos**. Es D-001 y no
+O sea: una integración obliga a decidir si **MADRE empieza a guardar secretos**. Es D-001 y no
 se toma a la ligera.
 
 ### CN-003 · Mandar no es leer — **hecho**
 
-Un conector que lee es reversible: en el peor caso trajo algo que no servía. Un conector
+Una integración que lee es reversible: en el peor caso trajo algo que no servía. Una integración
 que **manda** —un correo, un mensaje, un registro en un sistema— no lo es. Y lo que sale
 lleva el nombre del usuario.
 
-MADRE ya tenía la escalera: en `#4` AIRLOCK la regla es *«antes de que algo salga, dilo en
-una línea: exactamente qué sale y a dónde, y luego hazlo»*. Un conector que manda vive ahí.
+MADRE ya tenía la escalera: en `#4` ACCESO TOTAL la regla es *«antes de que algo salga, dilo en
+una línea: exactamente qué sale y a dónde, y luego hazlo»*. Una integración que manda vive ahí.
 
 Lo impone el núcleo en `toolsForTurn`, no cada módulo: una herramienta declarada en `sends`
 se retira de la lista por debajo de `#4`, y el `brief` dice por qué viene corta. Un módulo
 no puede ampliarse su propio permiso olvidándose de declarar.
 
-### CN-005 · El primer conector: CORREO manda correo — **hecho**
+### CN-005 · La primera integración: CORREO manda correo — **hecho**
 
 Un módulo (`src/modules/correo.mjs`), un servidor MCP (`src/mcp/smtp-server.mjs`) y un cliente
 SMTP de 122 líneas sobre `node:tls` (`src/smtp.mjs`). Sin dependencias. Gmail con contraseña de
 aplicación, puerto 465, TLS desde el primer byte — nunca STARTTLS sobre un puerto en claro,
 porque entonces la sesión empieza destapada.
 
-Lo que hace que esto sea un conector y no un script que manda correos:
+Lo que hace que esto sea una integración y no un script que manda correos:
 
 - **La llave vive en la bodega.** `ctx.vault` es el rincón de este módulo en `src/vault.mjs`, con
   el id cerrado por construcción en el SDK: pedir el secreto de otro módulo no es algo que un
@@ -106,7 +106,7 @@ Lo que hace que esto sea un conector y no un script que manda correos:
   este módulo firmó. Y si el humano apunta CORREO a otro proveedor, se vuelve a declarar bajo el
   mismo id, así que el registro deja de responder por un servidor que ya no se usa.
 - **Mandar es del peldaño `#4`.** `sends: ['send_email']` y el núcleo lo retira por debajo de
-  AIRLOCK. No «no funciona»: ni siquiera se le cuenta al modelo que existe.
+  ACCESO TOTAL. No «no funciona»: ni siquiera se le cuenta al modelo que existe.
 - **Una lista de permitidos**, opcional, en el servidor y no en el prompt — un prompt es una
   sugerencia. Vacía significa cualquiera, a propósito: estrecharla es algo que el humano
   enciende, no un silencio por omisión.
@@ -124,13 +124,13 @@ nada. CN-001 estaba a medias desde que se dio por hecho. Arreglado, y ahora la p
 **Lo que NO hace, dicho aquí para que no se descubra usándolo:** adjuntos, HTML, CC/BCC, colas,
 reintentos. Un mensaje de texto plano, o nada.
 
-### CN-004 · Lo que el conector trae, viaja
+### CN-004 · Lo que la integración trae, viaja
 
-Un conector de correo mete correos en el prompt, y ese prompt va a OpenAI, Anthropic o
+Una integración de correo mete correos en el prompt, y ese prompt va a OpenAI, Anthropic o
 Google según el agente. No es un defecto del diseño: es su consecuencia, y hay que decirla
-en la ficha del conector, no en la letra pequeña.
+en la ficha de la integración, no en la letra pequeña.
 
-`PRIVACY` (términos que nunca aparecen) y `#0 GHOST` (lo que no se recuerda) siguen siendo
+`PRIVACY` (términos que nunca aparecen) y `#0 INCÓGNITO` (lo que no se recuerda) siguen siendo
 las salidas. `@madre`, con Ollama, no sale de la máquina.
 
 ---
@@ -140,22 +140,22 @@ las salidas. `@madre`, con Ollama, no sale de la máquina.
 **D-001 · ¿MADRE guarda secretos?** (CN-002) — **CERRADA 2026-10-02: (a), bodega propia.**
 Hecha en `src/vault.mjs`. El razonamiento: el usuario sigue estando en local, así que una
 bodega en su máquina no mueve el secreto a ningún sitio nuevo — solo lo pone donde hace
-falta, porque un conector no tiene CLI al que entregárselo. Los términos están escritos en
+falta, porque una integración no tiene CLI al que entregárselo. Los términos están escritos en
 la cabecera del archivo y probados: `0600` dentro de `0700`, solo desde `127.0.0.1`, el
 ledger anota que se guardó una y con qué nombre pero nunca el valor, y `summary()` —lo
 único que sale de ahí para el resto de MADRE— lleva nombre y longitud, jamás el secreto.
 
-**D-002 · ¿Qué ceremonia pide un conector que manda?** (CN-003) — **CERRADA 2026-10-02: `#4`.**
-Mandar vive en AIRLOCK y en ningún peldaño por debajo. Lo impone el núcleo, no la buena
-voluntad del módulo: un conector declara qué herramientas suyas mandan (`sends`) y
+**D-002 · ¿Qué ceremonia pide una integración que manda?** (CN-003) — **CERRADA 2026-10-02: `#4`.**
+Mandar vive en ACCESO TOTAL y en ningún peldaño por debajo. Lo impone el núcleo, no la buena
+voluntad del módulo: una integración declara qué herramientas suyas mandan (`sends`) y
 `toolsForTurn` las retira de la lista por debajo de `#4`, así que al modelo ni siquiera se
 le cuenta que existe una herramienta que no puede usar. Un servidor cuyas herramientas
 *todas* mandan no viaja entero. Y un módulo que no declare no amplía nada por omisión:
 lo que no se declara, no se retira — pero tampoco se puede usar para mandar sin que el
-humano esté en `#4`, porque ahí es donde la regla de AIRLOCK ya obliga a decir en una
+humano esté en `#4`, porque ahí es donde la regla de ACCESO TOTAL ya obliga a decir en una
 línea qué sale y a dónde.
 
-**D-003 · ¿Cuál es el primer conector, y por qué camino?** — **CERRADA 2026-10-02: correo, SMTP,
+**D-003 · ¿Cuál es la primera integración, y por qué camino?** — **CERRADA 2026-10-02: correo, SMTP,
 mandar primero.** Hecho en `src/smtp.mjs`, `src/mcp/smtp-server.mjs` y `src/modules/correo.mjs`.
 La mitad de *leer* sigue abierta y es ahora **D-004**.
 
@@ -174,7 +174,7 @@ Lo que sí dejó: el mapa de §6, que es lo que de verdad hacía falta saber.
 
 ---
 
-## 5 · El primer conector: correo
+## 5 · La primera integración: correo
 
 Pedido: recibir y mandar correo, por el camino más fácil. Tres caminos, y «fácil» no
 significa lo mismo en los tres.
@@ -222,13 +222,13 @@ declarar a dónde llega, servir sus propias rutas, traer comandos `/` y dibujar 
 
 ### El límite es cómo cada servicio deja que un humano entregue su propia llave
 
-Esa es la única pregunta que decide si un conector es posible, y se contesta en tres peldaños.
+Esa es la única pregunta que decide si una integración es posible, y se contesta en tres peldaños.
 
 #### Peldaño A · Pegas una llave y funciona
 
 El servicio le da al humano una credencial estática en minutos —token personal, API key,
 contraseña de aplicación—, revocable sola, sin registrar ninguna app y sin que nadie revise
-nada. **Un conector aquí funciona el día que se escribe, para cualquiera que instale MADRE.**
+nada. **Una integración aquí funciona el día que se escribe, para cualquiera que instale MADRE.**
 Es el peldaño de CORREO y es donde vive casi todo lo útil:
 
 | | con qué llave |
@@ -242,7 +242,7 @@ Es el peldaño de CORREO y es donde vive casi todo lo útil:
 | Odoo | API key del usuario, en la API JSON-2. **XML-RPC se descontinúa en 19.1**: una integración nueva no debería nacer ahí |
 | Correo | contraseña de aplicación, SMTP e IMAP — ya hecho para mandar |
 | Cualquier base de datos | Postgres, MySQL, Redis, SQLite: la cadena de conexión *es* la credencial |
-| Cualquier API con `Authorization: Bearer` | si el humano puede copiar el token, el conector es posible |
+| Cualquier API con `Authorization: Bearer` | si el humano puede copiar el token, la integración es posible |
 
 #### Peldaño B · El usuario registra su propia app
 
@@ -268,34 +268,34 @@ que va por agregadores. Cualquier cosa que pida «editor verificado».
 
 **Qué significa el muro en la práctica, dicho sin dramatismo:** no es «imposible». Es «imposible
 como algo que funcione al instalarlo». Cada usuario tendría que ser su propio desarrollador, y un
-producto que pide eso no tiene conector: tiene tarea.
+producto que pide eso no tiene integración: tiene tarea.
 
 ### Qué no puede hacer un módulo, aunque el servicio se deje
 
 Estas vallas son de MADRE y no las mueve ningún proveedor:
 
 - Rutas solo bajo `/api/x/<id>/`. Jamás encima de una ruta de MADRE, jamás con el id de otro.
-- No escribe eventos `message.*` ni `agent.*`: el relato de lo que pasó en la sala no se edita
+- No escribe eventos `message.*` ni `agent.*`: el relato de lo que pasó en el proyecto no se edita
   desde fuera.
 - No lee el secreto de otro módulo. El id va cerrado dentro del SDK: no es que esté prohibido, es
   que no se puede escribir.
 - No se amplía su propio permiso. Lo que manda se retira por debajo de `#4` desde el núcleo.
-- Si se cae, se cae solo. Un fallo suyo no detiene un turno ni la sala.
+- Si se cae, se cae solo. Un fallo suyo no detiene un turno ni el proyecto.
 - Corre con los permisos de quien abrió MADRE. Eso no es una valla: es la razón de que instalar
   el módulo de alguien más sea una decisión y no un clic.
 
 ### La regla para decidir si vale la pena
 
-Un conector vale cuando las tres son ciertas:
+Una integración vale cuando las tres son ciertas:
 
 1. **El humano consigue la credencial en menos de cinco minutos y sin ser desarrollador.**
 2. **La credencial se revoca sola**, sin tocar la contraseña de la cuenta ni nada más.
 3. **Lo que trae o lo que saca cabe en una línea** en la ficha — porque si no cabe, tampoco cabe
    en la cabeza de quien lo enciende.
 
-Y una advertencia que vale para todo el peldaño A igual que para el C: **lo que un conector trae,
+Y una advertencia que vale para todo el peldaño A igual que para el C: **lo que una integración trae,
 viaja** (CN-004). Un lector de lo que sea mete texto ajeno en el prompt, y ese prompt va al modelo
-del agente. Es consecuencia del diseño, no defecto, y se dice en la ficha del conector — no en la
+del agente. Es consecuencia del diseño, no defecto, y se dice en la ficha de la integración — no en la
 letra chica.
 
 ---
@@ -311,8 +311,8 @@ No lo copian.
 
 | fecha | qué |
 |---|---|
-| 2026-10-02 | **SDK cerrado y comunicado.** El contrato son 36 campos, todos documentados, con una prueba que compara la guía contra el código en las dos direcciones. Ejemplo de conector que funciona tal cual, y la pregunta «¿se puede con X?» contestada dentro de la guía. En la sala: la tarjeta de desarrollo dice qué es un módulo y deja un botón a la caja de texto; `/modules` encuentra `/module` y ofrece cuatro instrucciones para editar. En el README, la declaración en lenguaje llano — y corregida la promesa «no guarda tus credenciales», que dejó de ser exacta el día que existió la bodega. |
-| 2026-10-02 | **D-004 cerrada: leer no se hace todavía**, y el muro quedó mapeado en §6. Gmail en lectura es scope restringido con evaluación CASA anual y tope de ~100 usuarios sin verificar, así que no hay conector que funcione al instalarlo: habría que pedirle a cada usuario su propio proyecto en Google Cloud. De ahí salió lo que de verdad hacía falta: el límite de un módulo no es el SDK, es cómo cada servicio deja que un humano entregue su propia llave. Tres peldaños, con el catálogo de qué cae en cada uno. |
-| 2026-10-02 | **D-003 cerrada y fase 2 completa: CORREO manda.** SMTP+TLS sin dependencias (418 líneas, 278 de prueba). Con él, tres piezas nuevas de núcleo que cualquier conector futuro hereda: `ctx.vault` acotado al módulo por construcción, `secrets` declarados que MADRE dibuja sola, y `reaches` validado en `defineModule`. Encontrado y arreglado de paso: `reaches` nunca llegaba al objeto del módulo, así que CN-001 llevaba desde su commit sin declarar nada. 386/386 pruebas. |
+| 2026-10-02 | **SDK cerrado y comunicado.** El contrato son 36 campos, todos documentados, con una prueba que compara la guía contra el código en las dos direcciones. Ejemplo de integración que funciona tal cual, y la pregunta «¿se puede con X?» contestada dentro de la guía. En el proyecto: la tarjeta de desarrollo dice qué es un módulo y deja un botón a la caja de texto; `/modules` encuentra `/module` y ofrece cuatro instrucciones para editar. En el README, la declaración en lenguaje llano — y corregida la promesa «no guarda tus credenciales», que dejó de ser exacta el día que existió la bodega. |
+| 2026-10-02 | **D-004 cerrada: leer no se hace todavía**, y el muro quedó mapeado en §6. Gmail en lectura es scope restringido con evaluación CASA anual y tope de ~100 usuarios sin verificar, así que no hay integración que funcione al instalarla: habría que pedirle a cada usuario su propio proyecto en Google Cloud. De ahí salió lo que de verdad hacía falta: el límite de un módulo no es el SDK, es cómo cada servicio deja que un humano entregue su propia llave. Tres peldaños, con el catálogo de qué cae en cada uno. |
+| 2026-10-02 | **D-003 cerrada y fase 2 completa: CORREO manda.** SMTP+TLS sin dependencias (418 líneas, 278 de prueba). Con él, tres piezas nuevas de núcleo que cualquier integración futura hereda: `ctx.vault` acotado al módulo por construcción, `secrets` declarados que MADRE dibuja sola, y `reaches` validado en `defineModule`. Encontrado y arreglado de paso: `reaches` nunca llegaba al objeto del módulo, así que CN-001 llevaba desde su commit sin declarar nada. 386/386 pruebas. |
 | 2026-10-02 | **D-001 cerrada: bodega propia** (`src/vault.mjs`) y **D-002 cerrada: mandar solo en `#4`**, impuesto por el núcleo. Con esto la fase 1 queda completa: declarar destino, guardar la llave y la escalera del envío. |
-| 2026-10-02 | Documento abierto. **CN-001 hecho**: un módulo declara sus destinos (`reaches`), se guardan aparte de los del núcleo y marcados, y se reconstruyen en cada carga. D-001 (dónde vive la llave), D-002 (ceremonia para mandar) y D-003 (el primer conector) abiertas. Medido: los dos conectores que ya existen pesan 202 y 221 líneas. |
+| 2026-10-02 | Documento abierto. **CN-001 hecho**: un módulo declara sus destinos (`reaches`), se guardan aparte de los del núcleo y marcados, y se reconstruyen en cada carga. D-001 (dónde vive la llave), D-002 (ceremonia para mandar) y D-003 (la primera integración) abiertas. Medido: las dos integraciones que ya existen pesan 202 y 221 líneas. |

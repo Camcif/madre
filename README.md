@@ -16,7 +16,7 @@ MU/TH/UR 6000 · INTERFACE 2037 · MADRE IS READY
 
 <br>
 
-# Los agentes que ya tienes.<br>Una sala. Una memoria.
+# Los agentes que ya tienes.<br>Un proyecto. Una memoria.
 
 Codex, Claude Code, Gemini CLI y OpenCode trabajando sobre el mismo proyecto,
 en la misma conversación, recordando lo mismo.
@@ -29,7 +29,7 @@ Eso es todo. No hay cuenta que crear, ni nube que configurar, ni llave que pegar
 MADRE usa las sesiones que esas CLIs ya tienen en tu máquina.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/room.png" alt="La sala de MADRE: Codex y Claude respondiendo en el mismo hilo sobre el mismo proyecto" width="100%">
+  <img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/room.png" alt="Un proyecto en MADRE: Codex y Claude respondiendo en el mismo hilo" width="100%">
 </p>
 
 <p align="center"><sub>Una pregunta. Dos agentes. El segundo leyó al primero.</sub></p>
@@ -48,13 +48,13 @@ Hoy eso son cuatro ventanas, cuatro contextos y tú copiando y pegando entre ell
 
 ## Una memoria que sobrevive a la sesión
 
-Todo lo que se dice queda indexado. Cuando la conversación pasa de la ventana de contexto, cada agente recibe de vuelta lo que hace falta, citado. Cada diez intercambios, la sala destila lo dicho en notas con tipo: una decisión, un hecho, una preferencia, una pregunta abierta.
+Todo lo que se dice queda indexado. Cuando la conversación pasa de la ventana de contexto, cada agente recibe de vuelta lo que hace falta, citado. Cada diez intercambios, el proyecto destila lo dicho en notas con tipo: una decisión, un hecho, una preferencia, una pregunta abierta.
 
-Preguntas *«¿por qué elegimos Postgres?»* tres semanas después y la sala contesta, aunque esa decisión la tomara otro agente en otra sesión.
+Preguntas *«¿por qué elegimos Postgres?»* tres semanas después y el proyecto contesta, aunque esa decisión la tomara otro agente en otra sesión.
 
 Con [Ollama](https://ollama.com) corriendo, esa memoria además **habla**: `@madre` es un quinto agente, local, gratis, que responde desde todo el archivo con citas y no escribe nada.
 
-Y la puedes **ver**. En NOSTROMO el archivo es un cerebro en tres dimensiones que giras con el ratón: cada memoria es una estrella cuyo brillo dice cuánto la usa la sala y cuya superficie cuenta si la confirmaste, si nadie la ha revisado o si se está enfriando. En MEMORIA, un tablero te dice qué tan bien está contestando el archivo y qué conviene hacer después.
+Y la puedes **ver**. En el Mapa de memoria el archivo es un cerebro en tres dimensiones que giras con el ratón: cada memoria es una estrella cuyo brillo dice cuánto la usa el proyecto y cuya superficie cuenta si la confirmaste, si nadie la ha revisado o si se está enfriando. En MEMORIA, un tablero te dice qué tan bien está contestando el archivo y qué conviene hacer después.
 
 ## Leen por defecto. Escriben cuando tú lo dices.
 
@@ -62,12 +62,12 @@ Cada mensaje sale con un modo de permiso, y tu modo es el techo de todo lo que e
 
 | | | |
 |---|---|---|
-| `#1` | **EXCHANGE** | Leer y coordinar. El predeterminado. |
-| `#2` | **CREATE** | Añadir archivos nuevos. Lo que ya existía se restaura al terminar. |
-| `#3` | **CONTROL** | Editar el proyecto. Checkpoint antes, lista de cambios y `UNDO` después. |
-| `#4` | **AIRLOCK** | Comandos, `git push`, deploys. Pide dos llaves. |
+| `#1` | **SOLO CONVERSAR** | Leer y coordinar. El predeterminado. |
+| `#2` | **CREAR** | Añadir archivos nuevos. Lo que ya existía se restaura al terminar. |
+| `#3` | **EDITAR** | Editar el proyecto. Punto de restauración antes, lista de cambios y `DESHACER` después. |
+| `#4` | **ACCESO TOTAL** | Comandos, `git push`, deploys. Pide la llave dos veces. |
 
-También hay `#0 GHOST`, para lo que no debe quedar en ninguna parte.
+También hay `#0 INCÓGNITO`, para lo que no debe quedar en ninguna parte.
 
 Subir a `#3` o `#4` es una ceremonia deliberada: MADRE te pide el nombre de la carpeta del proyecto, escrito por ti. Ningún agente puede concederse un permiso escribiéndolo en su respuesta.
 
@@ -93,9 +93,9 @@ El agente lee el SDK, escribe el archivo, y MADRE te enseña una tarjeta para re
 
 **Conectarla con un servicio de fuera** es lo que más se pide, y la respuesta corta es *casi siempre sí*: el límite no es MADRE, es cómo ese servicio deja que entregues tu propia llave. Vale la pena cuando la consigues en menos de cinco minutos sin ser desarrollador y la puedes revocar sola — GitHub, Linear, Notion, Jira, Slack, Telegram, Stripe, Shopify, Odoo, cualquier base de datos. Donde hay muro es donde el proveedor exige revisar tu app antes de dejarte pasar: Gmail en lectura, Meta, banca.
 
-Tu módulo declara qué llave necesita y MADRE dibuja el campo; declara a dónde llega y el registro de salidas responde por él; declara qué herramientas suyas **mandan** algo, y la sala se las retira a los agentes salvo en el peldaño `#4`. Nada de eso lo programas: lo declaras.
+Tu módulo declara qué llave necesita y MADRE dibuja el campo; declara a dónde llega y el registro de salidas responde por él; declara qué herramientas suyas **mandan** algo, y el proyecto se las retira a los agentes salvo en el peldaño `#4`. Nada de eso lo programas: lo declaras.
 
-**[Escribir un módulo →](docs/SDK.md)** · con dos ejemplos completos que funcionan tal cual: [el mínimo](docs/sdk/hello-module.mjs) y [un conector](docs/sdk/connector-module.mjs).
+**[Escribir un módulo →](docs/SDK.md)** · con dos ejemplos completos que funcionan tal cual: [el mínimo](docs/sdk/hello-module.mjs) y [una integración](docs/sdk/connector-module.mjs).
 
 <br>
 
@@ -109,11 +109,11 @@ Esto importa más que cualquier función.
 
 **No hay nube.** MADRE no tiene servidor, ni cuenta, ni backend. Corre en `127.0.0.1` y se muere cuando cierras la terminal.
 
-**Tus llaves, donde hacen falta y en ningún otro lado.** Cuando das la llave de un agente, MADRE la escribe en el archivo donde ese CLI la busca, cerrada a tu usuario, y no conserva copia. Un conector no tiene CLI al que dársela, así que esa —y solo esa— la guarda MADRE, en su propia bodega de tu máquina, con permisos de solo tu usuario, aceptada únicamente desde esta computadora. Nunca en su config, ni en su registro, ni en sus logs, ni en lo que lee un agente: la ficha solo muestra que hay una guardada y cuántos caracteres tiene.
+**Tus llaves, donde hacen falta y en ningún otro lado.** Cuando das la llave de un agente, MADRE la escribe en el archivo donde ese CLI la busca, cerrada a tu usuario, y no conserva copia. Una integración no tiene CLI al que dársela, así que esa —y solo esa— la guarda MADRE, en su propia bodega de tu máquina, con permisos de solo tu usuario, aceptada únicamente desde esta computadora. Nunca en su config, ni en su registro, ni en sus logs, ni en lo que lee un agente: la ficha solo muestra que hay una guardada y cuántos caracteres tiene.
 
 **Nada sale por su cuenta.** Lo que un agente lee viaja a *su* proveedor, con tu cuenta y tus límites — como si lo hubieras corrido en tu terminal, porque eso es exactamente lo que MADRE hace. Los dos únicos envíos propios están bajo tu interruptor: una consulta diaria a npm por si hay versión nueva, y los reportes de fallos, apagados por defecto.
 
-**Y te deja leerlo.** Dentro de la sala puedes abrir el documento exacto que MADRE escribe en tu nombre cada turno, el comando exacto con el que lo entrega, y el registro de cada llamada que salió de esta máquina. No es una promesa: es una pantalla.
+**Y te deja leerlo.** Dentro del proyecto puedes abrir el documento exacto que MADRE escribe en tu nombre cada turno, el comando exacto con el que lo entrega, y el registro de cada llamada que salió de esta máquina. No es una promesa: es una pantalla.
 
 **Cero dependencias.** Node y nada más.
 
@@ -131,7 +131,7 @@ Necesitas **Node 22.5** o superior y al menos una de estas CLIs con sesión inic
 npx @jossuealcala/madre
 ```
 
-Desde cualquier carpeta, abre el **lobby** en `http://127.0.0.1:4317/salas`: todos tus proyectos en un lugar, con BISHOP arriba. La primera vez te acompaña en tres pasos: **conectar tus agentes** (instalar y firmar cada CLI ahí mismo, una vez para todos tus proyectos), **agregar tus proyectos** (eliges las carpetas; agregarlas no las abre) y **abrir** los que vas a usar. Cada proyecto corre en su propia sala, con su propia memoria.
+Desde cualquier carpeta, abre **Inicio** en `http://127.0.0.1:4317/salas`: todos tus proyectos en un lugar, con el Coordinador arriba. La primera vez te acompaña en tres pasos: **conectar tus agentes** (instalar y firmar cada CLI ahí mismo, una vez para todos tus proyectos), **agregar tus proyectos** (eliges las carpetas; agregarlas no las abre) y **abrir** los que vas a usar. Cada proyecto corre por su cuenta, con su propia memoria.
 
 Si prefieres entrar directo a un proyecto, como antes:
 
@@ -144,7 +144,7 @@ npx @jossuealcala/madre start
 npx @jossuealcala/madre doctor    # qué hay instalado, quién tiene sesión
 ```
 
-La sala habla **español**. El botón `EN` la pasa a inglés.
+MADRE habla **español**. El botón `EN` la pasa a inglés.
 
 <br>
 
@@ -163,7 +163,7 @@ Beta pública. El núcleo está probado y bajo CI en macOS y Linux con Node 22 y
 
 Una versión se cierra cuando está en npm. El detalle de cada una en [CHANGELOG.md](CHANGELOG.md); lo que viene, en el [roadmap](https://github.com/jossuealcacao-exe/madre/blob/main/docs/ROADMAP.md).
 
-Problemas: desde cada remedio de MU/TH/UR («¿No se arregló?») o en [issues](https://github.com/jossuealcacao-exe/madre/issues).
+Problemas: desde cada remedio de Diagnóstico («¿No se arregló?») o en [issues](https://github.com/jossuealcacao-exe/madre/issues).
 Seguridad: [SECURITY.md](SECURITY.md) · Contribuir: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 MADRE es gratis y seguirá siéndolo. Si te ahorra tiempo y quieres que siga creciendo,
