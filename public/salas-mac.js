@@ -6,7 +6,7 @@
 // The phone has its own SALAS (salas.js), served by the bridge; the two read the same rooms.
 
 import { setLanguage, t } from './i18n.js';
-import { brandOf } from './brands.js';
+import { brandOf, monogram } from './brands.js';
 
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
@@ -651,7 +651,7 @@ function drawMap(projects, enlaces) {
   // BISHOP, in its own colours, with its own mark (brands.js).
   const brand = brandOf('bishop');
   const centre = svgNode('g', { class: 'bishop' });
-  centre.append(svgNode('circle', { cx, cy, r: 16, fill: brand.color }));
+  centre.append(svgNode('circle', { cx, cy, r: 16, fill: brand.solid ?? brand.color }));
   const face = svgNode('g', { transform: `translate(${cx - 10} ${cy - 10})`, color: brand.ink });
   face.innerHTML = brand.mark(); // trusted: our own SVG string from brands.js
   face.firstElementChild?.setAttribute('width', '20');
@@ -1229,15 +1229,19 @@ function pinsReset() {
   settingsSheet?.sync({ detail: true });
 }
 
-// A room's key on the bar: its lamp and its name. Open, it is a link to its room; asleep, pressing
-// it wakes it and goes in, as «Open» on its card does.
+// From six rooms on, each is a square with its two letters (brands.js, monogram).
+const PINS_SQUARE = 6;
+
+// A room's key on the bar: its lamp and its name, or, from six rooms on, a square with its two
+// letters and the lamp at its corner (its name is then its title). Open, it is a link to its room;
+// asleep, pressing it wakes it and goes in, as «Open» on its card does.
 function pinChip(id) {
   let chip = pins.chips.get(id);
   if (chip) return chip;
   chip = el('a', 'sm-tb-room');
   chip.dataset.barItem = id;
   chip.draggable = false;
-  chip.append(el('i'), el('span'));
+  chip.append(el('i'), el('span'), el('b', 'sm-tb-mono'));
   chip.addEventListener('click', (event) => {
     if (pins.editing) return;
     const room = data?.rooms.find((one) => one.id === id);
@@ -1274,13 +1278,16 @@ function drawPins() {
     const chip = pinChip(id);
     const lifted = pins.drag?.moved && pins.drag.id === id;
     chip.className = `sm-tb-room is-${busy.get(id) === 'starting' ? 'working' : state.key}${lifted ? ' bar-lifted' : ''}${pins.dropping === id ? ' is-moving' : ''}`;
-    chip.lastChild.textContent = room.name;
+    chip.querySelector('span').textContent = room.name;
+    chip.lastChild.textContent = monogram(room.name);
     chip.title = `${room.name} · ${busy.get(id) === 'starting' ? t('Waking…') : state.words}`;
+    chip.setAttribute('aria-label', room.name);
     if (room.open) { chip.href = addressOf(room); chip.removeAttribute('role'); chip.removeAttribute('tabindex'); }
     else { chip.removeAttribute('href'); chip.setAttribute('role', 'button'); chip.tabIndex = 0; }
   }
   for (const [id, chip] of pins.chips) if (!ids.includes(id)) { chip.remove(); pins.chips.delete(id); }
   pinsPlace(pins.drag?.order ?? (pins.dropping ? ids.filter((id) => id !== pins.dropping) : ids));
+  box.classList.toggle('is-square', ids.length + (pins.dropping && !ids.includes(pins.dropping) ? 1 : 0) >= PINS_SQUARE);
   box.hidden = !ids.length && !pins.dropping && !pins.editing;
   pinsFit();
   if (pins.editing) { pinsBadges(); pinsDrawCard(); }
@@ -1541,7 +1548,7 @@ function pinsDragOut(event, room) {
   pins.dropping = room.id;
   pins.slotAt = null;
   pins.slot = el('span', 'sm-tb-room sm-tb-slot');
-  pins.slot.append(el('i'), el('span', null, room.name));
+  pins.slot.append(el('i'), el('span', null, room.name), el('b', 'sm-tb-mono', monogram(room.name)));
   document.body.classList.add('sm-pin-dragging');
   // The source card stays as it is while it is carried: the lobby is not drawn again under it.
   requestAnimationFrame(() => drawPins());
@@ -1631,7 +1638,7 @@ const post = (url, payload) => fetch(url, { method: 'POST', headers: { 'content-
 function mark(id, size = 40) {
   const brand = brandOf(id);
   const node = el('span', 'sm-mark');
-  node.style.setProperty('--b', brand.color);
+  node.style.setProperty('--b', brand.solid ?? brand.color);
   node.style.setProperty('--b-ink', brand.ink);
   node.style.width = node.style.height = `${size}px`;
   node.innerHTML = brand.mark(); // trusted: our own SVG strings from brands.js
@@ -1702,90 +1709,226 @@ for (const [way, alwaysNew] of [[ui.bishop.go, false], [ui.bishop.tab, true]]) {
   });
 }
 
-// ---- Choosing folders. Suggestions first (folders that look like projects in the places people
-// keep them), then the folders of the home folder, walked one level at a time. Several can be
-// chosen; a folder already in the lobby says so and is not offered again.
-function projectPicker({ onAdded, compact = false }) {
+// ---- Choosing folders (2026-10-10): tiles, a page at a time. Suggestions first (folders that look
+// like projects in the places people keep them), or the folders of the home folder, walked one
+// level at a time; a search narrows either. Several can be chosen; a folder already in Home says
+// so and is not offered again. The sheet never runs past the screen: the tiles take as many rows
+// as it holds, and ‹ › turn the page, so nothing scrolls inside it.
+const SEARCH_GLYPH = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 13.2 17 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const PAGE_BACK = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const PAGE_ON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FOLD_TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.4 6.8 11 12 5.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FOLD_ROWS = 5;
+
+// The tiles and their pages. How many rows is measured, not guessed: from five down to two, the
+// most that keep the sheet inside the screen, measured again when the screen changes size. The
+// grid keeps the height of its rows whatever the page holds, so turning a page or searching never
+// moves the keys under it; a list that does not change (`snug`) takes only the rows it fills.
+function foldPages({ snug = false } = {}) {
+  const grid = el('div', 'sm-fold-grid');
+  const pager = el('div', 'sm-pager');
+  const back = button('sm-icon-key sm-page', null, () => turn(-1));
+  const on = button('sm-icon-key sm-page', null, () => turn(1));
+  back.innerHTML = PAGE_BACK; // trusted: our own SVG strings
+  on.innerHTML = PAGE_ON;
+  back.setAttribute('aria-label', t('Previous'));
+  on.setAttribute('aria-label', t('Next'));
+  const where = el('span', 'sm-page-where');
+  pager.append(back, where, on);
+  let items = [];
+  let tile = () => null;
+  let none = null;
+  let page = 0;
+  let rows = 4;
+  let cols = 3;
+  let seen = '';
+  const per = () => rows * cols;
+  const paint = () => {
+    const pages = Math.max(1, Math.ceil(items.length / per()));
+    page = Math.max(0, Math.min(page, pages - 1));
+    grid.style.setProperty('--cols', String(cols));
+    grid.style.setProperty('--rows', String(snug ? Math.max(1, Math.min(rows, Math.ceil(items.length / cols))) : rows));
+    grid.replaceChildren(...items.slice(page * per(), (page + 1) * per()).map((item) => tile(item)));
+    if (!items.length && none) grid.append(el('p', 'sm-fold-none', none()));
+    pager.hidden = pages < 2;
+    where.textContent = t('{n} of {total}', { n: page + 1, total: pages });
+    back.disabled = page === 0;
+    on.disabled = page >= pages - 1;
+  };
+  const turn = (step) => {
+    page += step;
+    paint();
+    // The key pressed stays under the finger; at the last page it is the other one.
+    if (document.activeElement === document.body || document.activeElement?.disabled) (step > 0 ? back : on).focus({ preventScroll: true });
+  };
+  const fit = () => {
+    const layer = grid.closest('dialog');
+    if (!grid.isConnected || !layer?.open || !grid.clientWidth) return;
+    const key = `${grid.clientWidth}x${layer.clientHeight}`;
+    if (key === seen) return;
+    seen = key;
+    cols = grid.clientWidth >= 540 ? 3 : grid.clientWidth >= 340 ? 2 : 1;
+    rows = FOLD_ROWS;
+    paint();
+    while (rows > 2 && layer.scrollHeight > layer.clientHeight + 1) { rows -= 1; paint(); }
+  };
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => requestAnimationFrame(fit)).observe(grid);
+  const resized = () => { if (!grid.isConnected) { window.removeEventListener('resize', resized); return; } seen = ''; requestAnimationFrame(fit); };
+  window.addEventListener('resize', resized);
+  return {
+    grid,
+    pager,
+    show(list, { draw, empty = null, keepPage = false }) {
+      items = list;
+      tile = draw;
+      none = empty;
+      if (!keepPage) page = 0;
+      paint();
+    },
+  };
+}
+
+// One folder as a tile: its mark (green when it looks like a project), its name and where it is.
+// Chosen, the tile takes the accent and its mark a tick; a folder already in Home is only shown.
+function foldTile({ name, path, note = null, project = true, known = false, checked = false, onToggle = null, enter = null }) {
+  const item = el('label', `sm-fold${project ? ' is-project' : ''}${known ? ' known' : ''}${checked ? ' is-on' : ''}`);
+  item.title = homeWord(path);
+  const box = el('input');
+  box.type = 'checkbox';
+  box.checked = checked;
+  box.disabled = known;
+  box.addEventListener('change', () => { item.classList.toggle('is-on', box.checked); onToggle?.(box.checked); });
+  const glyph = el('span', 'sm-fold-glyph');
+  glyph.innerHTML = FOLDER_GLYPH; // trusted: our own SVG strings
+  const tick = el('i', 'sm-fold-tick');
+  tick.innerHTML = FOLD_TICK;
+  glyph.append(tick);
+  const words = el('span', 'sm-fold-words');
+  words.append(el('b', null, name), el('small', null, note ?? homeWord(path)));
+  item.append(box, glyph, words);
+  if (enter) {
+    const into = button('sm-into', null, (event) => { event.preventDefault(); enter(); });
+    into.innerHTML = PAGE_ON;
+    into.setAttribute('aria-label', t('Open {name}', { name }));
+    into.title = t('Open {name}', { name });
+    item.append(into);
+  }
+  return item;
+}
+
+function projectPicker({ onAdded = null, onChange = null, withAdd = true } = {}) {
   const chosen = new Map();     // path → name
-  const node = el('div', `sm-picker${compact ? ' compact' : ''}`);
-  const found = el('section', 'sm-found');
-  const browse = el('section', 'sm-browse');
+  const node = el('div', 'sm-picker');
+  const pages = foldPages();
+  let source = 'found';         // found · browse
+  let found = null;             // the suggestions, once read
+  let here = null;              // the folder being walked, as /api/salas/folders answered
+  let query = '';
+  let touched = false;          // the person chose the list: an empty one is not left on its own
+  const head = el('div', 'sm-picker-head');
+  let seg = el('span');
+  const search = el('label', 'settings-search sm-picker-search');
+  search.innerHTML = SEARCH_GLYPH; // trusted: our own SVG string
+  const input = el('input');
+  input.type = 'search';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.placeholder = t('Search a folder…');
+  input.setAttribute('aria-label', t('Search a folder…'));
+  input.addEventListener('input', () => { query = input.value.trim().toLocaleLowerCase(language); draw(); });
+  search.append(input);
+  head.append(seg, search);
+  const line = el('div', 'sm-picker-line');
   const footer = el('div', 'sm-picker-foot');
   const count = el('span', 'sm-picked');
-  const addButton = button('sm-btn primary', t('Add'), () => void add());
+  const addButton = withAdd ? button('sm-btn primary', t('Add'), () => void add()) : null;
   const error = el('p', 'error');
-  footer.append(count, addButton);
-  node.append(found, browse, error, footer);
+  footer.append(pages.pager, count);
+  if (addButton) footer.append(addButton);
+  node.append(head, line, pages.grid, footer, error);
   const sync = () => {
     count.textContent = chosen.size ? (chosen.size === 1 ? t('1 folder chosen') : t('{n} folders chosen', { n: chosen.size })) : t('Choose one or more folders');
-    addButton.disabled = !chosen.size;
-    addButton.textContent = chosen.size > 1 ? t('Add {n} projects', { n: chosen.size }) : t('Add project');
-    for (const box of node.querySelectorAll('input[data-path]')) box.checked = chosen.has(box.dataset.path);
-  };
-  const row = ({ name, path, project = true, known = false }, { open = null } = {}) => {
-    const item = el('label', `sm-folder${known ? ' known' : ''}`);
-    const box = el('input');
-    box.type = 'checkbox';
-    box.dataset.path = path;
-    box.disabled = known;
-    box.checked = chosen.has(path);
-    box.addEventListener('change', () => { if (box.checked) chosen.set(path, name); else chosen.delete(path); sync(); });
-    const words = el('span', 'sm-folder-words');
-    words.append(el('b', null, name), el('small', null, homeWord(path)));
-    item.append(box, words);
-    if (known) item.append(el('span', 'sm-tag', t('In Home')));
-    else if (project) item.append(el('span', 'sm-tag is-project', t('Project')));
-    if (open) {
-      const into = button('sm-into', '›', (event) => { event.preventDefault(); open(); });
-      into.setAttribute('aria-label', t('Open {name}', { name }));
-      into.title = t('Open {name}', { name });
-      item.append(into);
+    if (addButton) {
+      addButton.disabled = !chosen.size;
+      addButton.textContent = chosen.size > 1 ? t('Add {n} projects', { n: chosen.size }) : t('Add project');
     }
-    return item;
+    onChange?.(chosen.size);
   };
+  const matches = (one) => !query || one.name.toLocaleLowerCase(language).includes(query) || homeWord(one.path).toLocaleLowerCase(language).includes(query);
+  const tile = (one) => foldTile({
+    ...one,
+    note: one.known ? t('In Home') : null,
+    checked: chosen.has(one.path),
+    onToggle: (on) => { if (on) chosen.set(one.path, one.name); else chosen.delete(one.path); sync(); },
+  });
+  function draw({ keepPage = false } = {}) {
+    const fresh = customSeg([['found', t('Found on this Mac')], ['browse', t('Your folders')]], source, (value) => {
+      touched = true;
+      source = value;
+      draw();
+      if (value === 'browse' && !here) void walk();
+    }, 'two');
+    seg.replaceWith(fresh);
+    seg = fresh;
+    const noMatch = () => t('No folder matches «{query}».', { query: input.value.trim() });
+    if (source === 'found') {
+      line.replaceChildren(el('span', 'sm-picker-note', found ? t('Folders that look like projects, in the places people keep them.') : t('Looking…')));
+      pages.show(found ? found.filter(matches) : [], {
+        draw: tile,
+        empty: () => (!found ? t('Looking…') : query ? noMatch() : t('Nothing that looks like a project in the usual places. Look for it in Your folders.')),
+        keepPage,
+      });
+      return;
+    }
+    line.replaceChildren();
+    if (here?.parent) {
+      const up = button('sm-btn ghost small sm-up', null, () => void walk(here.parent));
+      up.innerHTML = PAGE_BACK; // trusted: our own SVG string
+      up.append(el('span', null, t('Up')));
+      line.append(up);
+    }
+    line.append(el('span', 'sm-where', here?.path ? homeWord(here.path) : t('Looking…')));
+    const list = here?.entries
+      ? [...(here.path !== here.home ? [{ name: t('This folder'), path: here.path, project: false }] : []), ...here.entries.map((one) => ({ ...one, enter: () => void walk(one.path) }))]
+      : [];
+    pages.show(list.filter(matches), {
+      draw: tile,
+      empty: () => (!here ? t('Looking…') : !here.entries ? (here.error ?? t('That folder is not there.')) : query ? noMatch() : t('No folders inside.')),
+      keepPage,
+    });
+  }
   async function loadFound() {
-    found.replaceChildren(el('h4', null, t('Found on this Mac')), el('p', 'hint', t('Looking…')));
     const answer = await fetch('/api/salas/suggestions', { cache: 'no-store' }).then((response) => response.json()).catch(() => ({ suggestions: [] }));
-    const list = answer.suggestions ?? [];
-    found.replaceChildren(el('h4', null, t('Found on this Mac')));
-    if (!list.length) { found.append(el('p', 'hint', t('Nothing that looks like a project in the usual places. Look for it below.'))); return; }
-    const rows = el('div', 'sm-folders');
-    for (const one of list) rows.append(row(one));
-    found.append(rows);
+    found = answer.suggestions ?? [];
+    // Nothing found and nothing chosen yet: the folders of the home folder, where it must be.
+    if (!found.length && !touched && source === 'found') { source = 'browse'; if (!here) void walk(); }
+    draw({ keepPage: true });
   }
   async function walk(path = null) {
     const answer = await fetch(`/api/salas/folders${path ? `?path=${encodeURIComponent(path)}` : ''}`, { cache: 'no-store' }).then((response) => response.json()).catch(() => null);
-    browse.replaceChildren();
-    const head = el('div', 'sm-browse-head');
-    head.append(el('h4', null, t('Your folders')));
-    if (answer?.parent) head.append(button('sm-btn ghost small', t('Up'), () => void walk(answer.parent)));
-    browse.append(head);
-    if (!answer?.entries) { browse.append(el('p', 'hint', answer?.error ?? t('That folder is not there.'))); return; }
-    browse.append(el('p', 'sm-where', homeWord(answer.path)));
-    const rows = el('div', 'sm-folders tall');
-    if (answer.path !== answer.home) rows.append(row({ name: t('This folder'), path: answer.path, project: false, known: false }));
-    for (const one of answer.entries) rows.append(row(one, { open: () => void walk(one.path) }));
-    if (!answer.entries.length) rows.append(el('p', 'hint', t('No folders inside.')));
-    browse.append(rows);
-    sync();
+    here = answer ?? { error: t('That folder is not there.') };
+    if (path !== null) { query = ''; input.value = ''; }
+    if (source === 'browse') draw();
   }
   async function add() {
     error.textContent = '';
-    addButton.disabled = true;
+    if (addButton) addButton.disabled = true;
     const answer = await post('/api/salas/projects', { roots: [...chosen.keys()] });
-    addButton.disabled = false;
-    if (!answer.ok) { error.textContent = answer.body.refused?.[0]?.error ?? answer.body.error ?? t('They could not be added.'); return; }
+    if (addButton) addButton.disabled = false;
+    if (!answer.ok) { error.textContent = answer.body.refused?.[0]?.error ?? answer.body.error ?? t('They could not be added.'); return false; }
     if (answer.body.refused?.length) error.textContent = answer.body.refused.map((one) => `${homeWord(one.root)}: ${one.error}`).join(' · ');
     chosen.clear();
     sync();
     await refresh();
     onAdded?.(answer.body.added ?? []);
     void loadFound();
+    if (here) void walk(here.path === here.home ? null : here.path);
+    return true;
   }
+  draw();
   void loadFound();
-  void walk();
   sync();
-  return node;
+  return { node, add, count: () => chosen.size };
 }
 
 // The room's close (styles.css, .surface-modes · .x-close): a sunk track holding one key, the
@@ -1801,16 +1944,17 @@ function closeKey(onClick) {
   return track;
 }
 
-// «Add a project», on its own: the picker in a sheet.
+// «Add a project», on its own: the picker in a sheet, under the welcome's scene of the projects.
 let addSheet = null;
 function openAddSheet() {
   if (addSheet) return;
-  addSheet = el('dialog', 'sm-sheet sm-wide');
+  addSheet = el('dialog', 'sm-sheet sm-wide sm-add');
   const inner = el('div', 'sm-sheet-body');
   const head = el('header', 'sm-sheet-head');
   head.append(el('h3', null, t('Add a project')), closeKey(() => addSheet.close()));
-  inner.append(head, el('p', 'hint', t('A project is a folder: MADRE gives it its own conversations and its own memory. Adding it does not open it; you open it from its card.')));
-  inner.append(projectPicker({ onAdded: () => addSheet?.close() }));
+  // The welcome's own scene over it: the folders dropping into Home.
+  inner.append(head, wizardScene('projects'), el('p', 'hint', t('A project is a folder: MADRE gives it its own conversations and its own memory. Adding it does not open it; you open it from its card.')));
+  inner.append(projectPicker({ onAdded: () => addSheet?.close() }).node);
   addSheet.append(inner);
   document.body.append(addSheet);
   addSheet.addEventListener('close', () => { addSheet.remove(); addSheet = null; });
@@ -1976,28 +2120,41 @@ function openWizard() {
     fresh.live();
   }
   function projectsStep(options) {
+    // What is chosen here is added on the way to the next step: one key, not two.
     const actions = el('div', 'actions');
-    actions.append(button('sm-btn', t('Back'), () => { step = 0; void agentsStep({ back: true }); }), button('sm-btn primary', t('Continue'), () => { step = 2; openStep(); }));
-    frame(t('Add your projects'), t('Choose the folders you work in. Adding them does not open them: you choose which to open in the next step.'), projectPicker({ compact: true }), actions, options);
+    const next = button('sm-btn primary', t('Continue'), async () => {
+      if (picker.count()) {
+        next.disabled = true;
+        const added = await picker.add();
+        next.disabled = false;
+        if (!added) return;
+      }
+      step = 2;
+      openStep();
+    });
+    const picker = projectPicker({ withAdd: false, onChange: (n) => { next.textContent = n ? t('Add and continue') : t('Continue'); } });
+    actions.append(button('sm-btn', t('Back'), () => { step = 0; void agentsStep({ back: true }); }), next);
+    frame(t('Add your projects'), t('Choose the folders you work in. Adding them does not open them: you choose which to open in the next step.'), picker.node, actions, options);
   }
   function openStep() {
     const projects = (data?.rooms ?? []).filter((room) => room.id !== data?.salas);
-    const list = el('div', 'sm-folders');
     const chosen = new Set();
-    for (const room of projects) {
-      const item = el('label', 'sm-folder');
-      const box = el('input');
-      box.type = 'checkbox';
-      box.checked = Boolean(room.open);
-      box.disabled = Boolean(room.open);
-      box.addEventListener('change', () => { if (box.checked) chosen.add(room.id); else chosen.delete(room.id); });
-      const words = el('span', 'sm-folder-words');
-      words.append(el('b', null, room.name), el('small', null, homeWord(room.root ?? '')));
-      item.append(box, words);
-      if (room.open) item.append(el('span', 'sm-tag is-project', t('Already open')));
-      list.append(item);
-    }
-    if (!projects.length) list.append(el('p', 'hint', t('No projects yet. You can add them from Home whenever you like.')));
+    const pages = foldPages({ snug: true });
+    const list = el('div', 'sm-picker');
+    const foot = el('div', 'sm-picker-foot');
+    foot.append(pages.pager);
+    list.append(pages.grid, foot);
+    pages.show(projects, {
+      draw: (room) => foldTile({
+        name: room.name,
+        path: room.root ?? '',
+        note: room.open ? t('Already open') : null,
+        checked: Boolean(room.open) || chosen.has(room.id),
+        known: Boolean(room.open),
+        onToggle: (on) => { if (on) chosen.add(room.id); else chosen.delete(room.id); },
+      }),
+      empty: () => t('No projects yet. You can add them from Home whenever you like.'),
+    });
     const actions = el('div', 'actions');
     const go = button('sm-btn primary', t('Done'), async () => {
       go.disabled = true;

@@ -410,7 +410,8 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   assert.ok(!kit.catalogue().includes('macroverso'), 'an ordinary room offers the MACROVERSO key');
   const home = registry.get('bar-home');
   assert.equal(home.hidden, false, 'the second bar is not shown on the Mac');
-  assert.deepEqual(home.children.filter((node) => node instanceof FakeElement).map((node) => node.id), ['home-button', 'reload-button', 'custom-button'], 'the second bar does not hold the house, reload and AJUSTES, in that order');
+  // Beside the house, the key that goes to another open project (2026-10-10).
+  assert.deepEqual(home.children.filter((node) => node instanceof FakeElement).map((node) => node.id), ['home-button', 'switch-button', 'reload-button', 'custom-button'], 'the second bar does not hold the house, the switch, reload and AJUSTES, in that order');
   assert.ok(!onBar().includes('settings') && !onBar().includes('reload') && !onBar().includes('salas'), 'a key of the second bar is still on this one');
   assert.ok(kit.catalogue().includes('memory') && ['ash', 'intents', 'ollama'].every((id) => kit.catalogue().includes(id)), 'Memory and the modules with a window are not offered');
 

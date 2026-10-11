@@ -4063,7 +4063,7 @@ export const ES = {
   'No projects yet. Add the first one.': 'Todavía no hay proyectos. Agrega el primero.',
   'No projects yet. You can add them from Home whenever you like.': 'Todavía no hay proyectos. Puedes agregarlos desde Inicio cuando quieras.',
   'Not signed in': 'Sin sesión',
-  'Nothing that looks like a project in the usual places. Look for it below.': 'No encontré nada que parezca un proyecto en los lugares de siempre. Búscalo abajo.',
+  'Nothing that looks like a project in the usual places. Look for it in Your folders.': 'No encontré nada que parezca un proyecto en los lugares de siempre. Búscalo en Tus carpetas.',
   'Only folders inside your home folder.': 'Solo carpetas dentro de tu carpeta de usuario.',
   'Open the sign-in page': 'Abrir la página para iniciar sesión',
   'Open what you will use': 'Abre lo que vas a usar',
@@ -4250,4 +4250,12 @@ export const ES = {
   'TOKEN SAVER · CREATE ›': 'AHORRO DE TOKENS · CREAR ›',
   'TOKEN SAVER › ': 'AHORRO DE TOKENS › ',
   'DIAGNOSTICS · MODULE · CREATE ›': 'DIAGNÓSTICO · MÓDULO · CREAR ›',
+  // Elegir carpetas en mosaicos, por páginas, y cambiar de proyecto desde la sala (2026-10-10).
+  'Search a folder…': 'Busca una carpeta…',
+  'No folder matches «{query}».': 'Ninguna carpeta coincide con «{query}».',
+  'Folders that look like projects, in the places people keep them.': 'Carpetas que parecen proyectos, en los lugares donde suelen estar.',
+  'Add and continue': 'Agregar y continuar',
+  'Switch project': 'Cambiar de proyecto',
+  'No other projects are open.': 'No hay otros proyectos abiertos.',
+  'Finished': 'Terminó',
 };

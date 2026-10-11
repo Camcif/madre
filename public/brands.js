@@ -67,12 +67,16 @@ BRANDS.ollama = {
 };
 
 // BISHOP, the guardian of the rooms (docs/MACROVERSO.md): MADRE's own robot, not a vendor's.
+// Its mark is a white robot on #5C255E (2026-10-10, the owner's choice): `solid` is that disc.
+// Written as text or drawn as a ring on a dark ground, that plum all but vanishes, so `color` is
+// the same hue lifted; on a light ground the plum itself reads.
 BRANDS.bishop = {
   label: 'Coordinator',
   vendor: 'the Coordinator\'s project',
-  color: '#4FC3F7',
-  colorLight: '#0277BD',
-  ink: '#04131C',
+  color: '#D598D7',
+  colorLight: '#5C255E',
+  solid: '#5C255E',
+  ink: '#FFFFFF',
   mark: () => glyph('<path d="M16 9.6V6.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="5.2" r="1.9" fill="currentColor"/><rect x="7" y="9.6" width="18" height="14.4" rx="4.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12.3" cy="16" r="2.1" fill="currentColor"/><circle cx="19.7" cy="16" r="2.1" fill="currentColor"/><path d="M12.6 20.6h6.8M4.4 14.6v4.6M27.6 14.6v4.6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>'),
 };
 
@@ -86,3 +90,14 @@ export const fallbackBrand = (id) => ({
 });
 
 export const brandOf = (id) => BRANDS[id] ?? fallbackBrand(id);
+
+// A project's own mark (2026-10-10): its two letters, on the square keys of Home's bar and on the
+// icons of a room's switcher. The first letters of its first two words, or the first two of its one
+// word; a word is what starts with a letter, so «AHP 1.4.1 Field Test» is «AF» and «pulse» is «Pu».
+export function monogram(name) {
+  const words = String(name ?? '').split(/[\s._-]+/).filter((word) => /^\p{L}/u.test(word));
+  if (!words.length) return Array.from(String(name ?? '').trim())[0] ?? '?';
+  if (words.length > 1) return words.slice(0, 2).map((word) => Array.from(word)[0].toLocaleUpperCase()).join('');
+  const [first = '', second = ''] = Array.from(words[0]);
+  return first.toLocaleUpperCase() + second.toLocaleLowerCase();
+}

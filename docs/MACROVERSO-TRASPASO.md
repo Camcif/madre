@@ -58,7 +58,9 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `717a42a` | Claude | Lobby: Apariencia con todo PERSONALIZAR de la sala (capa/mesh, intensidad, desenfoque, burbujas, texto; mismas claves `pulse.*`); tarjetas del bento con la fórmula de planos de la conversación en lugar del brillo neumórfico |
 | `ce68328` | Claude | Lobby: AJUSTES como los de la sala (ventana `#settings`, tablero Tú / La tripulación / Sistema, hoja sobre el tablero, búsqueda, vista previa); salas ancladas en la barra (`pulse.lobbyBar`: clic derecho o arrastrar la tarjeta; ordenar y quitar como en la barra de la sala); el scroll de los modales va fuera de la ventana |
 | `7f52582` | Claude | Lobby: Apariencia a todo lo ancho de Ajustes, en dos columnas y sin scroll a 900 px; los términos del enlace en una franja bajo la escena, sin tapar la animación |
-| *este commit* | Claude | Nombres claros en toda la interfaz (ver §1·c); #4 pide la misma llave dos veces en vez de AIRLOCK |
+| `64e0120` | Claude | Nombres claros en toda la interfaz (ver §1·c); #4 pide la misma llave dos veces en vez de AIRLOCK |
+| `70371bc` | Claude | Docs: los nombres nuevos en el README y en las guías |
+| *este commit* | Claude | Agregar proyecto y la bienvenida en mosaicos por páginas, sin desbordarse; resumen del Coordinador alineado; el Coordinador en #5C255E con robot blanco; desde 6 proyectos la barra de Inicio pasa a teclas cuadradas; tecla para cambiar de proyecto en la sala, con el estado de los demás |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -319,6 +321,22 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   Valores seguros por defecto: **una semana** (antes 30 días), decisiones y hechos, sin recuerdo,
   sin órdenes; avisa si la que entrega duerme o corre una MADRE vieja; con órdenes exige la
   designación; la revisión dice el contrato en frases. El cuerpo del POST no cambió.
+- **Elegir carpetas** (`projectPicker`, `foldPages`, `foldTile`; 2026-10-10): mosaicos de 54 px en
+  tres columnas, una página a la vez. Las filas se miden: de 5 a 2, las que dejan la hoja dentro de la
+  pantalla (`layer.scrollHeight > layer.clientHeight`), otra vez al cambiar de tamaño. «Encontrados en
+  esta Mac» y «Tus carpetas» en un riel con buscador; lo elegido se conserva al cambiar de lista. En
+  la bienvenida no hay segunda tecla: «Agregar y continuar» agrega lo elegido. El paso «Abrir» usa
+  los mismos mosaicos (`snug`: solo las filas que llena).
+- **Cambiar de proyecto** (`switchKey`, `switchPoll`, `switchDraw` en app.js): tecla junto a la casa en
+  la segunda barra, solo en la Mac. Pregunta cada 4 s, con la página a la vista, a su propia sala
+  `/api/salas/open` (las salas abiertas con su `glance`, sin censo ni enlaces; la que pregunta va con
+  `glance: null`; 403 a otro sitio y al teléfono). «Terminó» es noticia de la pestaña
+  (`sessionStorage` `madre.switch`): una sala vista trabajando que paró, por 30 min o hasta ir a ella.
+  El ícono de un proyecto son sus dos letras (`monogram` en brands.js), el mismo de las teclas
+  cuadradas de Inicio desde 6 proyectos (`PINS_SQUARE`).
+- **El color del Coordinador**: `solid` (#5C255E, el disco de su marca, con tinta blanca) se separa de
+  `color` (#D598D7, su tono para texto y anillos sobre fondo oscuro); `--agent-solid` y la marca del
+  lobby leen `solid` cuando existe.
 - **Macroverso vivo**: un universo lejano conserva su escena con `scene.frozen` (el motor no calcula
   fuerzas, solo gira, late y pulsa) y se redibuja en `animateFar`, a lo más `FAR_FPS` por segundo y
   con `FAR_BUDGET` ms por cuadro entre todos; su lienzo sigue su tamaño en pantalla

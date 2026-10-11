@@ -1503,6 +1503,24 @@ export async function createPulseServer({
         const enlaces = await Promise.all(activeContracts(await readConfig(root), { salas }).map(async (contract) => ({ ...contract, traffic: await linkTraffic(servingRooms(contract).map((id) => join(root, 'rooms', id)), contract) })));
         return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null, salas, enlaces });
       }
+      // The open rooms, each in one line (its glance: who works, who waits, its last conversation;
+      // never its census or the links), for the room's switcher (2026-10-10), asked every few
+      // seconds while a room's page is in view. Read only by this Mac's own pages, as the work is.
+      if (request.method === 'GET' && url.pathname === '/api/salas/open') {
+        const host = String(request.headers.host ?? '');
+        const site = request.headers['sec-fetch-site'];
+        if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host) || (site !== undefined && site !== 'same-origin' && site !== 'none')) return sendJson(response, 403, { error: t('This is done from Home, on this Mac.') });
+        const here = basename(roomDir);
+        const rooms = (await knownRooms(root)).filter((one) => one.open);
+        const seen = await Promise.all(rooms.map(async (one) => ({
+          id: one.id,
+          name: one.name,
+          port: one.open.port,
+          here: one.id === here,
+          glance: one.id === here ? null : await askRoom(one.open.port, '/api/glance'),
+        })));
+        return sendJson(response, 200, { here, salas: salasRoomId(root), rooms: seen });
+      }
       // One room as the Macroverso draws it: its memories and the veins between them, read from
       // that room the way its own NOSTROMO reads them (`/api/memory`, with its designation). Without
       // `full` no words cross: a far universe is drawn from kinds, zones and sizes alone; the chosen

@@ -71,6 +71,14 @@ body.salas-mac {
 .sm-tb-room.is-waiting i { background: var(--s-acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-acc) 28%, transparent); }
 .sm-tb-room:is(.is-outdated, .is-quiet) i { background: var(--session-wait); }
 .sm-tb-room.is-more { color: var(--text-2); font-weight: 500; }
+/* Six rooms or more: each a square key with its two letters, the lamp on its corner. */
+.sm-tb-mono { display: none; }
+.sm-tb-open.is-square > .sm-tb-room:not(.is-more) { position: relative; justify-content: center; width: 26px; padding: 0; }
+.sm-tb-open.is-square > .sm-tb-room:not(.is-more) > span { display: none; }
+.sm-tb-open.is-square > .sm-tb-room:not(.is-more) > .sm-tb-mono { display: block; font-family: var(--read); font-size: 11px; font-weight: 700; letter-spacing: 0; }
+.sm-tb-open.is-square > .sm-tb-room:not(.is-more) > i { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--bg); }
+.sm-tb-open.is-square > .sm-tb-room.is-waiting > i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--s-acc) 35%, transparent); }
+.sm-tb-open.is-square > .sm-tb-room.is-asleep > i { background: var(--surface, var(--panel)); box-shadow: 0 0 0 2px var(--bg), inset 0 0 0 1.5px var(--text-3); }
 .sm-tb-room:hover { box-shadow: var(--key-over, var(--key-rest)); }
 .sm-tb-room:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
 /* The agents, with their sessions, as the room shows its crew. */
@@ -216,18 +224,21 @@ body.sm-gone .sm-hero h1 { color: var(--text-3); }
 .sm-bishop-about { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); max-width: 680px; }
 .sm-bishop-asks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* THE LAST WORK, under BISHOP: MADRE's summary, a line per thing done, each led by its project. */
-.sm-work { display: grid; gap: 10px; margin-top: 4px; padding: 14px 16px 12px; border-radius: 16px; background: color-mix(in srgb, var(--text) 4%, transparent); flex: 1; align-content: start; }
+/* The lines share two columns (subgrid): every project tag in one, every sentence starting at the
+   same place in the other, whatever the project is called. The note closes the box at its foot. */
+.sm-work { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; padding: 14px 16px 14px; border-radius: 16px; background: color-mix(in srgb, var(--text) 4%, transparent); flex: 1; }
 .sm-work-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .sm-work-head h3 { margin: 0; font-size: 14.5px; font-weight: 650; color: var(--text); }
 .sm-work-by { flex: 1; min-width: 0; font-family: var(--mono); font-size: 11px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-work-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
-.sm-work-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 10px; font-size: 13.5px; line-height: 1.5; color: var(--text); animation: sm-line-in calc(320ms * var(--motion-scale, 1)) var(--ease-out, ease-out) both; }
+.sm-work-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; row-gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sm-work-list:has(> li.raw) { grid-template-columns: max-content minmax(0, 1fr) max-content; }
+.sm-work-list li { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: baseline; font-size: 13.5px; line-height: 1.5; color: var(--text); animation: sm-line-in calc(320ms * var(--motion-scale, 1)) var(--ease-out, ease-out) both; }
+.sm-work-list .sm-tag-room { justify-self: start; max-width: 168px; overflow: hidden; text-overflow: ellipsis; }
 .sm-work-list li:nth-child(2) { animation-delay: 60ms; } .sm-work-list li:nth-child(3) { animation-delay: 120ms; } .sm-work-list li:nth-child(4) { animation-delay: 180ms; } .sm-work-list li:nth-child(5) { animation-delay: 240ms; }
-.sm-work-list li.raw { grid-template-columns: auto minmax(0, 1fr) auto; }
 .sm-work-list li.raw span { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sm-work-list li.raw b { color: var(--text); font-weight: 600; }
 .sm-work-list time { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
-.sm-work > .sm-hint { margin-top: 2px; }
+.sm-work > .sm-hint { margin-top: auto; padding-top: 2px; }
 .sm-work.is-working .sm-work-by::before, .sm-work.is-working > .sm-hint::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 7px; vertical-align: -1px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--s-acc) 30%, transparent); border-top-color: var(--s-acc); animation: sm-turn .8s linear infinite; }
 @keyframes sm-line-in { from { opacity: 0; transform: translateY(4px); } }
 /* A project's name as a tag: flat tone, a way into it when it is open. */
@@ -504,29 +515,56 @@ body.sm-in-macro { overflow: hidden; }
   .sm-fly { animation: none; opacity: 1; transform: none; }
 }
 
-/* Folders: rows on a raised list, a box to choose each, its kind as a small tag. */
-.sm-picker { display: grid; gap: 16px; }
-.sm-picker h4 { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--text); }
-.sm-folders { display: grid; gap: 0; padding: 2px 12px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
-/* A folder row is a <label> (its box is checked by a click anywhere on it); the link sheet's
-   uppercase labels are not its type. */
-.sm-sheet label.sm-folder { font-size: inherit; font-weight: inherit; letter-spacing: 0; text-transform: none; color: var(--text); }
-.sm-folder { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); cursor: pointer; }
-.sm-folder:first-child { border-top: 0; }
-.sm-folder input { width: 16px; height: 16px; margin: 0; accent-color: var(--s-acc); }
-.sm-folder.known { cursor: default; opacity: .7; }
-.sm-folder-words { display: grid; gap: 1px; min-width: 0; }
-.sm-folder-words b { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-folder-words small { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-tag { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: color-mix(in srgb, var(--text) 7%, transparent); white-space: nowrap; }
-.sm-tag.is-project { color: var(--s-acc); background: color-mix(in srgb, var(--s-acc) 14%, transparent); }
-.sm-into { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-2); font-size: 18px; line-height: 1; cursor: pointer; }
-.sm-into:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
-.sm-browse-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.sm-browse-head h4 { margin: 0; }
-.sm-where { margin: 0 0 8px; font-family: var(--mono); font-size: 12px; color: var(--text-3); }
-.sm-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* Choosing folders (salas-mac.js, projectPicker; 2026-10-10): which list (found, or your folders)
+   on a rail with a search beside it; a line that says what is shown, or where the walk is; the
+   folders as tiles, a page at a time, as many rows as the screen holds; and what was chosen, with
+   the key that adds it. The rail is the room's Appearance rail (styles.css, .sx-look .custom-seg). */
+.sm-picker { display: grid; gap: 12px; }
+.sm-picker-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sm-picker-head .custom-seg { flex: none; display: inline-grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: auto; gap: 2px; padding: 2px; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--text) 7%, transparent); }
+.sm-picker-head .seg-option { min-height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; }
+.sm-picker-head .seg-option[aria-checked="true"] { background: var(--surface, var(--panel)); box-shadow: 0 1px 2px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .06); }
+/* The room's search (styles.css, .settings-search), not the sheet's uppercase field label. */
+.sm-picker-head > .sm-picker-search { flex: 1 1 auto; max-width: none; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; font-size: 13.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-2); }
+.sm-picker-search input::-webkit-search-cancel-button { cursor: pointer; }
+.sm-picker-line { display: flex; align-items: center; gap: 10px; min-width: 0; height: 28px; font-size: 13px; color: var(--text-2); }
+.sm-picker-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-where { min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-up { flex: none; gap: 4px; padding: 0 10px 0 6px; }
+.sm-up svg { width: 14px; height: 14px; }
+.sm-fold-grid { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 4), 54px); gap: 8px; }
+.sm-fold-grid > .sm-fold { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; min-width: 0; padding: 0 8px 0 12px; border-radius: 12px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); font-size: inherit; font-weight: inherit; letter-spacing: 0; text-transform: none; color: var(--text); cursor: pointer; transition: box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), background-color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-fold-grid > .sm-fold:hover { box-shadow: var(--key-over, var(--key-rest)); }
+.sm-fold-grid > .sm-fold.is-on { background: color-mix(in srgb, var(--s-acc) 12%, var(--surface, var(--panel))); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-acc) 65%, transparent), var(--key-rest); }
+.sm-fold-grid > .sm-fold.known { cursor: default; background: color-mix(in srgb, var(--text) 4%, transparent); box-shadow: none; }
+.sm-fold-grid > .sm-fold.known :is(.sm-fold-glyph, b) { opacity: .6; }
+.sm-fold-grid > .sm-fold:has(input:focus-visible) { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
+.sm-fold input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.sm-fold-glyph { position: relative; display: grid; place-items: center; width: 24px; height: 20px; color: var(--text-3); }
+.sm-fold.is-project .sm-fold-glyph { color: color-mix(in srgb, var(--s-acc) 72%, var(--text-2)); }
+.sm-fold-glyph svg { display: block; width: 100%; height: 100%; }
+.sm-fold-tick { position: absolute; right: -6px; bottom: -5px; display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: var(--s-acc); color: var(--s-acc-ink); box-shadow: 0 0 0 2px var(--surface, var(--panel)); transform: scale(0); transition: transform calc(180ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-fold-tick svg { width: 10px; height: 10px; }
+.sm-fold.is-on .sm-fold-tick { transform: scale(1); }
+.sm-fold.known .sm-fold-tick { background: var(--text-3); }
+.sm-fold-words { display: grid; gap: 1px; min-width: 0; }
+.sm-fold-words b { font-size: 13.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-fold-words small { font-family: var(--mono); font-size: 11px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-into { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); cursor: pointer; }
+.sm-into svg { width: 14px; height: 14px; }
+.sm-into:hover, .sm-into:focus-visible { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); outline: 0; }
+.sm-fold-none { grid-column: 1 / -1; grid-row: 1 / -1; align-self: center; justify-self: center; max-width: 46ch; margin: 0; text-align: center; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.sm-picker-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 30px; }
+.sm-pager { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; }
+.sm-page { width: 28px; height: 28px; }
+.sm-page:disabled { opacity: .4; box-shadow: none; cursor: default; }
+.sm-page-where { min-width: 52px; font-family: var(--mono); font-size: 11.5px; text-align: center; color: var(--text-2); }
 .sm-picked { font-size: 13px; color: var(--text-2); }
+/* «Add a project»: the welcome's scene, a little lower, over the picker. On a short screen every
+   scene gives up height first, so the folders keep a row more. */
+.sm-add .sm-scene { height: 132px; }
+@media (max-height: 820px) { .sm-scene { height: 124px; } .sm-add .sm-scene { height: 108px; } }
+@media (max-width: 640px) { .sm-picker-head { flex-wrap: wrap; } .sm-picker-search { flex-basis: 100%; } }
 
 /* Agents, in the wizard's first step: the mark, its name and its state, and the one action it needs. */
 .sm-agents { display: grid; gap: 0; padding: 2px 14px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
@@ -537,7 +575,6 @@ body.sm-in-macro { overflow: hidden; }
 .sm-agent-words small { font-size: 12.5px; }
 .sm-agent-line { font-family: var(--mono); font-size: 11.5px !important; color: var(--text-3); overflow-wrap: anywhere; }
 .sm-agent-line a { color: var(--s-acc); }
-@media (max-width: 640px) { .sm-folder { grid-template-columns: auto minmax(0, 1fr) auto; } .sm-folder .sm-tag { display: none; } }
 
 /* LINKING TWO ROOMS, step by step (salas-mac.js, openLinkSheet), in the room's settings language:
    the step and its question, what it decides; the choices on a card, a row each, the safe one
@@ -570,7 +607,7 @@ body.sm-in-macro { overflow: hidden; }
 .lw-foot { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
 /* The scene over every step, in the welcome's style: the two rooms arriving and floating, BISHOP
    with its ring, the wire running the way the notes travel and the notes crossing it in their
-   kinds' colours; under it, in a strip of its own, the link's terms. */
+   kinds' colours; under it, the link's terms as chips, with no rule between (2026-10-10). */
 .scene-link { display: grid; height: auto; }
 .lw-field { position: relative; height: 124px; }
 .lw-wires { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -586,7 +623,7 @@ body.sm-in-macro { overflow: hidden; }
 .lw-room-mark { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); color: color-mix(in srgb, var(--s-acc) 72%, var(--text-2)); }
 .lw-room-mark svg { width: 22px; height: 19px; }
 .lw-end.is-bishop::before { content: ''; position: absolute; top: -6px; left: 50%; width: 58px; height: 58px; margin-left: -29px; border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--s-acc) 45%, transparent); animation: sm-ring 2.4s ease-out infinite; pointer-events: none; }
-.scene-link .lw-terms { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0; padding: 9px 14px 10px; border-top: 1px solid color-mix(in srgb, var(--text) 7%, transparent); background: color-mix(in srgb, var(--surface, var(--panel)) 55%, transparent); }
+.scene-link .lw-terms { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0; padding: 2px 14px 12px; }
 .scene-link .lw-terms span { padding: 2px 9px; border-radius: 7px; font-size: 11.5px; line-height: 1.55; color: var(--text-2); background: color-mix(in srgb, var(--text) 6%, transparent); white-space: nowrap; }
 .scene-link .lw-terms span:first-child { color: var(--text); font-weight: 600; }
 /* One view, no scrolling: the assistant is compact. */

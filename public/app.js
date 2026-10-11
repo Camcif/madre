@@ -1,6 +1,6 @@
 import { archiveQuestion, modeAsked } from './routing.js';
 import { calledByName, abduct } from './abduction.js';
-import { brandOf } from './brands.js';
+import { brandOf, monogram } from './brands.js';
 import { allConditions, detectPlatform, diagnose, fixesFor, PLATFORMS, searchConditions } from './troubleshooting.js';
 import { answerFor, INQUIRIES, STRIKES } from './inquiry.js';
 import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t, fill } from './i18n.js';
@@ -392,8 +392,9 @@ function paint(node, id) {
   node.dataset.agent = id;
   node.style.setProperty('--agent', agentColor(id));
   const brand = brandOf(id);
-  // The solid mark (avatars): the brand's own vivid colour on either ground, and the ink it takes.
-  node.style.setProperty('--agent-solid', brand.color);
+  // The solid mark (avatars): the brand's own vivid colour on either ground (its own disc, when it
+  // has one), and the ink it takes.
+  node.style.setProperty('--agent-solid', brand.solid ?? brand.color);
   node.style.setProperty('--agent-on', brand.ink ?? '#ffffff');
   if (brand.gradient) node.style.setProperty('--agent-gradient', brand.gradient);
   return node;
@@ -17231,6 +17232,14 @@ function homeBar() {
   }
   go.title = t('Home');
   go.setAttribute('aria-label', t('Home'));
+  // Beside the house, the key that goes to another open project (switchKey).
+  if (!switcher.key) {
+    switcher.key = switchKey();
+    if (typeof go.after === 'function') go.after(switcher.key);
+    else home.append(switcher.key);
+    switchStart();
+  }
+  switchLamp();
   home.setAttribute('aria-label', t('Home, reload and settings'));
   for (const key of keys) {
     key.classList.remove('bar-off', 'bar-overflow');
@@ -17243,6 +17252,168 @@ function homeBar() {
     home.dataset.measured = '1';
     new ResizeObserver(() => { if (home.offsetWidth) document.documentElement.style.setProperty('--home-w', `${home.offsetWidth}px`); }).observe(home);
   }
+}
+
+// SWITCHING PROJECTS (2026-10-10): a key beside the house, as ⌘-Tab is on the Mac. It lights with
+// what the other open projects are doing — someone waits for you, an agent works, one finished
+// while you were away — and opens a panel with each of them: its icon (its two letters, or the
+// Coordinator's own mark), what it is doing on the icon's corner and in a line, and under the icon,
+// as a chip, the project it is. A press goes there, in this tab (⌘-click: a new one); when no other
+// project is open the panel says so. The page asks its own room (/api/salas/open), which asks the
+// others; on the Mac only, and only while the page is in view. «Finished» is this tab's own news:
+// a project seen working that stopped, for half an hour or until you go to it.
+const SWITCH_ICON = '<rect class="ic-f" x="2.8" y="6.2" width="10.6" height="10.6" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.6 3.2h7.6a2.6 2.6 0 0 1 2.6 2.6v7.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+const SWITCH_TICK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.4 6.8 11 12 5.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SWITCH_KEPT = 'madre.switch';
+const SWITCH_NEWS_MS = 30 * 60 * 1000;
+const switcher = { key: null, panel: null, rooms: [], salas: null, timer: 0, asking: false, working: new Set(), done: new Map() };
+try {
+  const kept = JSON.parse(globalThis.sessionStorage?.getItem(SWITCH_KEPT) ?? 'null');
+  if (Array.isArray(kept?.working)) switcher.working = new Set(kept.working.filter((id) => typeof id === 'string'));
+  if (kept?.done && typeof kept.done === 'object') switcher.done = new Map(Object.entries(kept.done).filter(([, at]) => Number.isFinite(at)));
+} catch { /* a new tab, or no storage: nothing seen yet */ }
+function switchKeep() {
+  try { globalThis.sessionStorage?.setItem(SWITCH_KEPT, JSON.stringify({ working: [...switcher.working], done: Object.fromEntries(switcher.done) })); } catch { /* this page only */ }
+}
+const switchName = (room) => (room.id === switcher.salas ? t('Coordinator') : room.name);
+function switchState(room) {
+  const glance = room.glance ?? {};
+  if (glance.outdated) return { key: 'outdated', words: t('Update MADRE in this project to see it here.') };
+  if (glance.unreachable) return { key: 'quiet', words: t('Not answering right now') };
+  if (glance.waitingCount) return { key: 'waiting', count: glance.waitingCount, words: t('Waiting for you · {n}', { n: glance.waitingCount }) };
+  if (glance.working?.length) return { key: 'working', words: glance.working.length === 1 ? t('@{agent} is working', { agent: glance.working[0] }) : t('{n} agents working', { n: glance.working.length }) };
+  if (switcher.done.has(room.id)) return { key: 'done', words: t('Finished') };
+  return { key: 'calm', words: t('Calm') };
+}
+// The Coordinator first, then the projects by name: each keeps its place, whatever it is doing.
+const switchOrder = () => [...switcher.rooms].sort((a, b) => (a.id === switcher.salas ? -1 : b.id === switcher.salas ? 1 : a.name.localeCompare(b.name)));
+function switchKey() {
+  const key = el('button', 'tree-button switch-button');
+  key.id = 'switch-button';
+  key.type = 'button';
+  key.setAttribute('aria-haspopup', 'dialog');
+  key.setAttribute('aria-expanded', 'false');
+  key.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true">${SWITCH_ICON}</svg>`; // trusted: our own SVG string
+  const lamp = el('span', 'switch-lamp');
+  lamp.hidden = true;
+  key.append(lamp);
+  key.addEventListener('click', () => { if (switcher.panel?.open) switcher.panel.close(); else switchOpen(); });
+  return key;
+}
+async function switchPoll() {
+  if (!homeOn() || switcher.asking) return;
+  switcher.asking = true;
+  const answer = await fetch('/api/salas/open', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  switcher.asking = false;
+  if (!Array.isArray(answer?.rooms)) return;
+  switcher.salas = answer.salas ?? null;
+  switcher.rooms = answer.rooms.filter((room) => !room.here && Number.isInteger(room.port));
+  const now = Date.now();
+  const open = new Set(switcher.rooms.map((room) => room.id));
+  for (const room of switcher.rooms) {
+    const glance = room.glance ?? {};
+    if (glance.working?.length) { switcher.working.add(room.id); switcher.done.delete(room.id); }
+    else if (switcher.working.has(room.id) && !glance.unreachable && !glance.outdated) { switcher.working.delete(room.id); switcher.done.set(room.id, now); }
+  }
+  for (const id of switcher.working) if (!open.has(id)) switcher.working.delete(id);
+  for (const [id, at] of switcher.done) if (!open.has(id) || now - at > SWITCH_NEWS_MS) switcher.done.delete(id);
+  switchKeep();
+  switchLamp();
+  if (switcher.panel?.open) switchDraw();
+}
+function switchStart() {
+  if (switcher.timer || typeof setInterval !== 'function') return;
+  void switchPoll();
+  switcher.timer = setInterval(() => { if (!document.hidden) void switchPoll(); }, 4000);
+  switcher.timer.unref?.();
+  document.addEventListener?.('visibilitychange', () => { if (!document.hidden) void switchPoll(); });
+}
+// The key's lamp: how many wait for you (a number), an agent at work (it beats), a project that
+// finished (green); dark when the others are calm. Its title says who.
+function switchLamp() {
+  const key = switcher.key;
+  if (!key) return;
+  const seen = switchOrder().map((room) => ({ room, state: switchState(room) }));
+  const of = (kind) => seen.filter(({ state }) => state.key === kind);
+  const waiting = of('waiting');
+  const top = waiting.length ? 'waiting' : of('working').length ? 'working' : of('done').length ? 'done' : '';
+  key.dataset.state = top;
+  const lamp = key.querySelector('.switch-lamp');
+  if (lamp) {
+    lamp.hidden = !top;
+    lamp.textContent = waiting.length ? String(waiting.reduce((sum, { state }) => sum + state.count, 0)) : '';
+  }
+  const news = [...waiting, ...of('working'), ...of('done')].map(({ room, state }) => `${switchName(room)}: ${state.words}`);
+  const said = [t('Switch project'), ...news].join(' · ');
+  key.title = said;
+  key.setAttribute('aria-label', said);
+}
+function switchOpen() {
+  if (!switcher.panel) {
+    const panel = el('dialog', 'room-switch');
+    // A press outside the panel lands on the dialog itself (its box is the panel's padding-less
+    // frame), and closes it; the arrows walk the icons, as on the Mac.
+    panel.addEventListener('click', (event) => { if (event.target === panel) panel.close(); });
+    panel.addEventListener('close', () => switcher.key?.setAttribute('aria-expanded', 'false'));
+    panel.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+      const tiles = [...panel.querySelectorAll('.switch-tile')];
+      if (!tiles.length) return;
+      event.preventDefault();
+      const at = tiles.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tiles.length - 1 : (at + (/Left|Up/.test(event.key) ? -1 : 1) + tiles.length) % tiles.length;
+      tiles[next].focus();
+    });
+    document.body.append(panel);
+    switcher.panel = panel;
+  }
+  switcher.panel.setAttribute('aria-label', t('Switch project'));
+  switchDraw();
+  switcher.panel.showModal();
+  switcher.key?.setAttribute('aria-expanded', 'true');
+  switcher.panel.querySelector('.switch-tile')?.focus();
+  void switchPoll();
+}
+function switchDraw() {
+  const panel = switcher.panel;
+  if (!panel) return;
+  const focused = document.activeElement?.closest?.('.switch-tile')?.dataset.room ?? null;
+  const body = el('div', 'switch-body');
+  if (!switcher.rooms.length) {
+    body.append(el('p', 'switch-empty', t('No other projects are open.')));
+  } else {
+    const row = el('div', 'switch-row');
+    // Six to a row at most, and no more than the window holds.
+    const fits = Math.max(1, Math.floor(((globalThis.innerWidth ?? 800) - 60) / 122));
+    row.style.setProperty('--switch-cols', String(Math.min(6, fits, switcher.rooms.length)));
+    for (const room of switchOrder()) {
+      const state = switchState(room);
+      const name = switchName(room);
+      const tile = el('a', `switch-tile is-${state.key}`);
+      tile.href = `http://127.0.0.1:${room.port}/`;
+      tile.dataset.room = room.id;
+      tile.title = `${name} · ${state.words}`;
+      const icon = el('span', 'switch-icon');
+      if (room.id === switcher.salas) {
+        const brand = brandOf('bishop');
+        icon.classList.add('is-coordinator');
+        icon.style.setProperty('--icon-solid', brand.solid ?? brand.color);
+        icon.style.setProperty('--icon-ink', brand.ink ?? '#ffffff');
+        icon.innerHTML = brand.mark(); // trusted: our own SVG string from brands.js
+      } else icon.textContent = monogram(room.name);
+      const badge = el('i', 'switch-badge');
+      if (state.key === 'waiting') badge.textContent = String(state.count);
+      if (state.key === 'done') badge.innerHTML = SWITCH_TICK; // trusted: our own SVG string
+      icon.append(badge);
+      tile.append(icon, el('span', 'switch-chip', name), el('span', 'switch-state', state.words));
+      // Gone to, it is no longer news.
+      tile.addEventListener('click', () => { switcher.done.delete(room.id); switchKeep(); });
+      row.append(tile);
+    }
+    body.append(row);
+  }
+  panel.replaceChildren(body);
+  if (focused) panel.querySelector(`.switch-tile[data-room="${CSS.escape(focused)}"]`)?.focus();
 }
 
 // Reads the order, builds what it needs and hides what is off. An id nobody knows — a module that

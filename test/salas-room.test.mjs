@@ -157,6 +157,18 @@ test('sala de salas · the room says it is the room of Salas, is listed with the
     assert.equal(fromPlain.salas, salasRoomId(state));
     assert.notEqual(fromPlain.here, fromPlain.salas);
     assert.equal(fromPlain.rooms.find((room) => room.id === fromPlain.salas).here, false);
+    // The switcher's list (2026-10-10): the open rooms, each with its glance and never a census;
+    // the room that asks is marked and not asked about itself. Read only from this Mac's pages.
+    const open = await fetch(`http://127.0.0.1:${plainPort}/api/salas/open`).then((answer) => answer.json());
+    assert.equal(open.here, fromPlain.here);
+    assert.equal(open.salas, salasRoomId(state));
+    const across = open.rooms.find((room) => room.id === salasRoomId(state));
+    assert.equal(across.port, salasPort);
+    assert.ok(Array.isArray(across.glance.working) && Number.isInteger(across.glance.waitingCount), 'the other room came without its glance');
+    assert.equal(across.glance.census, undefined, 'the switcher was handed the archive\'s census');
+    assert.equal(open.rooms.find((room) => room.here).glance, null);
+    assert.equal((await fetch(`http://127.0.0.1:${plainPort}/api/salas/open`, { headers: { 'sec-fetch-site': 'cross-site' } })).status, 403, 'another site read the open rooms');
+    assert.equal((await fetch(`http://127.0.0.1:${plainPort}/api/salas/open`, { headers: { 'x-madre-device': 'd1', 'x-madre-device-kind': 'iphone' } })).status, 403, 'a phone read the open rooms');
     // Opening the room left in the notebook only what a room leaves in any project, MU/TH/UR's
     // seal (S-023); the record and the memory live beside the record, as for any room.
     assert.deepEqual(await readdir(notebook), ['.pulse']);
