@@ -62,7 +62,8 @@ decisión vive en `docs/MACROVERSO.md` (§3, §7, §8, §9) y aquí solo se señ
 | `70371bc` | Claude | Docs: los nombres nuevos en el README y en las guías |
 | `b6ecf5f` | Claude | Agregar proyecto y la bienvenida en mosaicos por páginas, sin desbordarse; resumen del Coordinador alineado; el Coordinador en #5C255E con robot blanco; desde 6 proyectos la barra de Inicio pasa a teclas cuadradas; tecla para cambiar de proyecto en la sala, con el estado de los demás |
 | `766f4fa` | Claude | Quitar un proyecto de MADRE (`POST /api/salas/forget`); transición entre páginas de MADRE; aviso al agregar; conexiones en los dos sentidos sin dirección; chevron propio de los desplegables; etiquetas bajo las burbujas a su medida; el conmutador sin parpadeo y con fondo de malla; teclas de los dos mapas según tema y acento |
-| *este commit* | Claude | El Mapa de proyectos lleva el encabezado del Mapa de memoria (`.nostromo-head`: nombre en mono, línea al lado, leyenda de estrellas, teclas al final); `dwarfChip` y `collapsedChip` pasan a `nostromo-engine.js` |
+| `90d66e1` | Claude | El Mapa de proyectos lleva el encabezado del Mapa de memoria (`.nostromo-head`: nombre en mono, línea al lado, leyenda de estrellas, teclas al final); `dwarfChip` y `collapsedChip` pasan a `nostromo-engine.js` |
+| `29e6191` | Claude | Versión y autor al pie de Inicio; invitación a dejar estrella o reseña (`src/review-ask.mjs`, `public/review-ask.js`); carga con el pulso de MADRE (`public/loader.js`) en recargas, idioma, actualización, hoja de trabajos y tarjetas de Inicio |
 
 Árbol limpio al cerrar la jornada de UX del 2026-10-09. Suite **649/649** y `npm run pack:check` en
 verde. Con la máquina cargada (load ~7–9, salas y agentes trabajando) fallan sueltas algunas pruebas
@@ -346,6 +347,20 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   lo levanta. La llegada se marca antes del primer cuadro con un script en el `<head>` de
   index.html y salas-mac.html (referrer local, navegación nueva, no recarga ni Atrás). Las páginas son
   de orígenes distintos (un puerto por sala), así que no hay View Transitions entre ellas.
+- **Invitación a reseñar** (`src/review-ask.mjs`, `public/review-ask.js`): momentos `m20` (20 minutos
+  de uso contados por las páginas a la vista, uno por minuto), `d2` y `d7` (días desde el primer uso).
+  Estado en `~/.pulse/review-ask.json`; `POST /api/review-ask/tick` cada minuto y `/answer` con
+  `later | star | review | never`. Nunca dos en 20 h, un momento posterior marca los anteriores, el
+  teléfono nunca. Los enlaces (GitHub, `madre.run/resenas/`) los abre el navegador: no pasan por el
+  registro de salidas. Para probar la hoja sin tocar el archivo real, interceptar `fetch` de
+  `/api/review-ask/*` en la página.
+- **Carga de MADRE** (`public/loader.js`: `makeLoader`, `setLoader`, `creep`, `finishLoader`,
+  `LOADER_MARK`): la barra nunca retrocede. La recarga guarda en `sessionStorage['madre.curtain']` el
+  porcentaje alcanzado; index.html y salas-mac.html reponen el telón con ese porcentaje antes del
+  primer cuadro (el marcado está copiado en el script del `<head>`, igual que `LOADER_MARK`) y se
+  quitan solos a los 15 s si la página no arranca. En la sala: 0.62 mientras llega `/api/state`, 0.7,
+  0.9 al pintar los eventos y 1 al levantar. En el panel oculto del navegador no corre
+  `requestAnimationFrame`: el telón se levanta con `then(lift)`, no con un cuadro.
 - **El color del Coordinador**: `solid` (#5C255E, el disco de su marca, con tinta blanca) se separa de
   `color` (#D598D7, su tono para texto y anillos sobre fondo oscuro); `--agent-solid` y la marca del
   lobby leen `solid` cuando existe.
