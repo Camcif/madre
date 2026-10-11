@@ -751,6 +751,21 @@ const LINK_KINDS = ['decision', 'fact', 'preference', 'question'];
 const LINK_KIND_NOTES = { decision: () => t('What was agreed: the choices the project made.'), fact: () => t('What is known: data and findings the project settled.'), preference: () => t('How you like to work: conventions and tastes.'), question: () => t('What is open: questions still waiting for an answer.') };
 const LINK_DAYS = [[1, () => t('A day')], [7, () => t('A week')], [30, () => t('30 days')], [0, () => t('No expiry')]];
 let sheet = null;
+// A sentence whose project names stand out (2026-10-11): the slots named in `bold` (all of them,
+// unless said) are written in bold, the rest as the catalogue says it.
+function sayBold(key, vars, bold = Object.keys(vars)) {
+  const out = document.createDocumentFragment();
+  const template = t(key);
+  let at = 0;
+  for (const match of template.matchAll(/\{(\w+)\}/g)) {
+    out.append(template.slice(at, match.index));
+    const value = Object.hasOwn(vars, match[1]) ? String(vars[match[1]]) : match[0];
+    out.append(bold.includes(match[1]) ? el('b', null, value) : value);
+    at = match.index + match[0].length;
+  }
+  out.append(template.slice(at));
+  return out;
+}
 const BOTH_WAYS_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7.2h11.2L12.4 4.4M16 12.8H4.8l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 function openLinkSheet({ reader = null, source = null } = {}) {
   if (!data || sheet) return;
@@ -764,13 +779,19 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     source: null, both: false, kinds: new Set(['decision', 'fact']), days: 7, recall: false,
     orders: false, maxMode: 1, perHour: 6, designation: '',
   };
-  pick.source = source ?? (rooms.find((room) => room.id !== pick.reader && ready(room)) ?? rooms.find((room) => room.id !== pick.reader))?.id;
+  pick.source = source ?? (rooms.find((room) => room.id !== pick.reader && room.id !== data.salas && ready(room)) ?? rooms.find((room) => room.id !== pick.reader && room.id !== data.salas))?.id;
+  // The Coordinator never shares its memory (src/enlaces.mjs: it gathers every project and is
+  // nobody's source), so the wizard never offers what signing would refuse: asked for with the
+  // Coordinator as the one that shares, the two change places; it never reads both ways.
+  const coordinator = (id) => Boolean(data.salas) && id === data.salas;
+  if (coordinator(pick.source)) [pick.reader, pick.source] = [pick.source, pick.reader];
+  const settle = () => { if (coordinator(pick.source) && !coordinator(pick.reader)) [pick.reader, pick.source] = [pick.source, pick.reader]; if (coordinator(pick.source) || coordinator(pick.reader)) pick.both = false; };
   const roomOf = (id) => rooms.find((room) => room.id === id) ?? null;
   const nameOf = (id) => { const room = roomOf(id); return room ? roomLabel(room) : ''; };
   // Orders only with BISHOP on one side; they would go into the other.
   const ordersInto = () => (data.salas && [pick.reader, pick.source].includes(data.salas) ? [pick.reader, pick.source].find((id) => id !== data.salas) ?? null : null);
   const stepsNow = () => ['who', 'what', 'time', ...(ordersInto() ? ['orders'] : []), 'review'];
-  const STEP_WORDS = { who: () => t('Who reads'), what: () => t('What crosses'), time: () => t('How long'), orders: () => t('Orders'), review: () => t('Review') };
+  const STEP_WORDS = { who: () => t('Projects'), what: () => t('What it looks up'), time: () => t('How long'), orders: () => t('Orders'), review: () => t('Sign') };
   // The kinds as a sentence says them: «decisiones y hechos».
   const KIND_PLURALS = { decision: () => t('decisions'), fact: () => t('facts'), preference: () => t('preferences'), question: () => t('questions') };
   const kindsSaid = () => new Intl.ListFormat(language, { type: 'conjunction' }).format(LINK_KINDS.filter((kind) => pick.kinds.has(kind)).map((kind) => KIND_PLURALS[kind]()));
@@ -789,10 +810,13 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     const words = el('div', 'lw-words');
     const head = el('div', 'lw-title');
     if (dot) head.append(el('i', `lw-dot k-${dot}`));
-    head.append(el('b', null, title));
+    // Words, or a sentence with its names in bold (sayBold).
+    const name = el('b');
+    name.append(title);
+    head.append(name);
     if (recommended) head.append(el('span', 'lw-tag', t('Recommended')));
     words.append(head);
-    if (note) words.append(el('span', 'lw-note', note));
+    if (note) { const said = el('span', 'lw-note'); said.append(note); words.append(said); }
     line.append(words);
     if (control) line.append(control);
     return line;
@@ -816,22 +840,25 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     }
     return seg;
   };
-  const roomSelect = (chosen, change, label) => {
+  const roomSelect = (chosen, change, label, { shares = false } = {}) => {
     const select = el('select', 'lw-select');
     select.setAttribute('aria-label', label);
-    for (const room of rooms) { const option = el('option', null, roomLabel(room)); option.value = room.id; if (room.id === chosen) option.selected = true; select.append(option); }
+    for (const room of rooms) {
+      if (shares && coordinator(room.id)) continue;
+      const option = el('option', null, roomLabel(room)); option.value = room.id; if (room.id === chosen) option.selected = true; select.append(option);
+    }
     select.addEventListener('change', () => change(select.value));
     return select;
   };
-  const caution = (words) => { const line = el('div', 'lw-caution'); line.append(el('i'), el('span', null, words)); return line; };
+  const caution = (words) => { const line = el('div', 'lw-caution'); const said = el('span'); said.append(words); line.append(el('i'), said); return line; };
   // What the person should know about the rooms chosen.
   function cautions() {
     const said = [];
     for (const id of pick.both ? [pick.source, pick.reader] : [pick.source]) {
       const room = roomOf(id);
       if (!room) continue;
-      if (!room.open) said.push(t('{room} is asleep: while it sleeps, it hands nothing over.', { room: roomLabel(room) }));
-      else if (room.glance?.outdated) said.push(t('{room} runs an older MADRE: it may hand nothing over until you update it.', { room: roomLabel(room) }));
+      if (!room.open) said.push(sayBold('{room} is asleep: while it sleeps, it hands nothing over.', { room: roomLabel(room) }));
+      else if (room.glance?.outdated) said.push(sayBold('{room} runs an older MADRE: it may hand nothing over until you update it.', { room: roomLabel(room) }));
     }
     return said;
   }
@@ -868,8 +895,8 @@ function openLinkSheet({ reader = null, source = null } = {}) {
   function paintStage() {
     ends.source ??= endNode('source');
     ends.reader ??= endNode('reader');
-    paintEnd(ends.source, pick.source, pick.both ? t('Reads and serves') : t('Serves'));
-    paintEnd(ends.reader, pick.reader, pick.both ? t('Reads and serves') : t('Reads'));
+    paintEnd(ends.source, pick.source, pick.both ? t('Shares and looks up') : t('Shares'));
+    paintEnd(ends.reader, pick.reader, pick.both ? t('Shares and looks up') : t('Looks up'));
     stage.querySelector('.lw-wires')?.remove();
     stage.querySelector('.lw-terms')?.remove();
     const box = field.getBoundingClientRect();
@@ -909,6 +936,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
   }
 
   function render({ back = false } = {}) {
+    settle();
     const steps = stepsNow();
     at = Math.min(at, steps.length - 1);
     const kind = steps[at];
@@ -918,11 +946,13 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     head.append(dots, closeKey(() => sheet.close()));
     const page = el('div', `sm-step lw-step${back ? ' back' : ''}`);
     // The swap, on the first step: it turns the link round, and the scene shows it.
-    const turn = button('sm-btn small', t('Swap them'), () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); });
+    const turn = button('sm-btn small', t('Swap'), () => { [pick.reader, pick.source] = [pick.source, pick.reader]; render(); });
+    turn.disabled = coordinator(pick.reader);
+    if (turn.disabled) turn.title = t('The Coordinator only looks up: it shares its memory with no project.');
     const intro = (title, lead) => {
       const box = el('div', 'lw-intro');
       box.append(el('span', 'lw-eyebrow', t('Step {n} of {total}', { n: at + 1, total: steps.length })), el('h3', null, title));
-      if (lead) box.append(el('p', 'lw-lead', lead));
+      if (lead) { const said = el('p', 'lw-lead'); said.append(lead); box.append(said); }
       page.append(box);
     };
     const error = el('p', 'error');
@@ -931,7 +961,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
     if (at > 0) actions.append(button('sm-btn', t('Back'), () => { at -= 1; render({ back: true }); }));
 
     if (kind === 'who') {
-      intro(t('Which project reads, and from which?'), t('A connection lets one project look up the notes of another. The one that reads asks; the one that serves answers with its notes. Nothing is ever written into the one that serves.'));
+      intro(t('Which projects do you want to connect?'), t('Connecting them lets one project look up what the other has already learned: its decisions, facts and preferences. It only reads; nothing in the other project ever changes.'));
       const box = card();
       if (pick.both) {
         // Both ways, neither only serves nor only reads: the two projects side by side, with no
@@ -939,44 +969,45 @@ function openLinkSheet({ reader = null, source = null } = {}) {
         const pair = el('div', 'lw-pair');
         const both = el('span', 'lw-both');
         both.innerHTML = BOTH_WAYS_ICON; // trusted: our own SVG string
-        pair.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('One project')), both, roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The other project')));
-        const line = row(t('The two projects'), t('Each one reads the notes of the other. Nothing is written into either.'), null);
+        pair.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('One project'), { shares: true }), both, roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The other project'), { shares: true }));
+        const line = row(t('The two projects'), t('Each one looks up the notes of the other. Nothing is written into either.'), null);
         line.classList.add('lw-stack');
         line.append(pair);
         box.append(line);
       } else {
         const serves = el('div', 'lw-control lw-pick');
-        serves.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('The one that serves')), turn);
-        box.append(row(t('The one that serves'), t('Its notes are read. Nothing is written into it.'), serves));
-        box.append(row(t('The one that reads'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('The one that reads'))));
+        serves.append(roomSelect(pick.source, (id) => { pick.source = id; render(); }, t('Shares its memory'), { shares: true }), turn);
+        box.append(row(t('Shares its memory'), t('Its notes can be read. Nothing is written into it.'), serves));
+        box.append(row(t('Looks it up'), t('Its agents can look the notes up when they need them.'), roomSelect(pick.reader, (id) => { pick.reader = id; render(); }, t('Looks it up'))));
       }
-      box.append(row(t('Both ways'), t('Each one reads the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
+      if (coordinator(pick.reader) || coordinator(pick.source)) box.append(caution(t('The Coordinator only looks up: it shares its memory with no project.')));
+      else box.append(row(t('Both ways'), t('Each one looks up the other. Leave it off if only one needs it.'), toggle(pick.both, (on) => { pick.both = on; render(); }, t('Both ways'))));
       for (const said of cautions()) box.append(caution(said));
       page.append(box);
-      actions.append(next(() => (pick.reader === pick.source ? t('Choose two different projects.') : null)));
+      actions.append(next(() => (pick.reader === pick.source ? t('Choose two different projects.') : coordinator(pick.source) ? t('The Coordinator only looks up: it shares its memory with no project.') : null)));
     } else if (kind === 'what') {
-      intro(t('Which notes cross?'), t('Turn on only what the project that reads needs. Decisions and facts are usually enough.'));
+      intro(t('What can it look up?'), t('Turn on only what it needs. Decisions and facts are usually enough.'));
       const box = card();
       box.classList.add('lw-grid');
       for (const kindOf of LINK_KINDS) {
         box.append(row(kindWord(kindOf), LINK_KIND_NOTES[kindOf](), toggle(pick.kinds.has(kindOf), (on) => { if (on) pick.kinds.add(kindOf); else pick.kinds.delete(kindOf); error.textContent = ''; render(); }, kindWord(kindOf)), { recommended: kindOf === 'decision' || kindOf === 'fact', dot: kindOf }));
       }
-      page.append(box, el('p', 'lw-foot', t('Only notes that travel into turns cross: hold and bridge, cleaned by the privacy guard of the project that serves. Never the ledger, files, med bay or jettisoned.')));
+      page.append(box, el('p', 'lw-foot', t('Only the notes already in use are shared, cleaned of private data first. Never your files, your whole conversations or the notes you set aside.')));
       actions.append(next(() => (pick.kinds.size ? null : t('Choose at least one kind.'))));
     } else if (kind === 'time') {
-      intro(t('For how long?'), t('A connection ends on its own when it expires. Until then, the project that reads looks the notes up only when its agents ask, unless you want them to arrive on every turn.'));
+      intro(t('For how long?'), t('The connection ends on its own on the day you choose. Until then, its agents look the notes up only when they need them, unless you turn on the option below.'));
       const box = card();
       const ends = el('div', 'lw-control');
       ends.append(rail(LINK_DAYS.map(([value, words]) => [value, words()]), pick.days, (value) => { pick.days = value; }, t('It ends')));
       box.append(row(t('It ends'), t('A week is enough to try it; signing it again takes a moment.'), ends, { recommended: pick.days === 7 }));
-      box.append(row(t('Always include'), t('The project that reads gets up to 3 of these notes on every turn, without asking. Each such turn counts as one reading of the hourly limit. Off, its agents read only when they choose to.'), toggle(pick.recall, (on) => { pick.recall = on; render(); }, t('Always include'))));
+      box.append(row(t('Always include'), t('With every question it gets up to 3 related notes without looking for them; each time counts toward the hourly limit. Off, its agents look them up only when they need to.'), toggle(pick.recall, (on) => { pick.recall = on; render(); }, t('Always include'))));
       page.append(box);
       actions.append(next());
     } else if (kind === 'orders') {
       const name = nameOf(ordersInto());
-      intro(t('Orders from the coordinator'), t('With orders, the Coordinator can send a task to {room}, and its agents carry it out there. Without them, the Coordinator only reads. #3 and #4 never travel: they arrive as a proposal you unlock in that project.', { room: name }));
+      intro(t('Orders from the coordinator'), sayBold('With orders, the Coordinator can ask {room} for a task, and its agents do it there. Without them, it only reads. Edit (#3) and Full access (#4) never go this way: they arrive as a proposal you unlock in that project.', { room: name }));
       const box = card();
-      box.append(row(t('Allow orders into {room}', { room: name }), t('Leave it off unless you need the Coordinator to act in {room}.', { room: name }), toggle(pick.orders, (on) => { pick.orders = on; render(); }, t('Allow orders into {room}', { room: name })), { recommended: !pick.orders }));
+      box.append(row(sayBold('Allow orders into {room}', { room: name }), sayBold('Leave it off unless you need the Coordinator to act in {room}.', { room: name }), toggle(pick.orders, (on) => { pick.orders = on; render(); }, t('Allow orders into {room}', { room: name })), { recommended: !pick.orders }));
       if (pick.orders) {
         const modes = el('div', 'lw-control');
         modes.append(rail([1, 2].map((n) => [n, `#${n} ${modeName(n)}`]), pick.maxMode, (value) => { pick.maxMode = value; }, t('Up to which mode')));
@@ -987,7 +1018,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
         const typed = el('input', 'lw-input'); typed.type = 'text'; typed.autocomplete = 'off'; typed.spellcheck = false; typed.value = pick.designation;
         typed.setAttribute('aria-label', t('Type the name of {room} to allow orders into it', { room: name }));
         typed.addEventListener('input', () => { pick.designation = typed.value; error.textContent = ''; });
-        const said = row(t('Type the name of {room} to allow orders into it', { room: name }), null, null);
+        const said = row(sayBold('Type the name of {room} to allow orders into it', { room: name }), null, null);
         said.classList.add('lw-stack');
         said.append(typed);
         box.append(said);
@@ -995,13 +1026,13 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       page.append(box);
       actions.append(next(() => (pick.orders && !pick.designation.trim() ? t('Type the project name to allow orders, or turn them off.') : null)));
     } else {
-      intro(t('Read it before you sign'), t('This is the whole contract. Nothing is signed until you press Sign.'));
+      intro(t('Check it and sign'), t('This is the whole connection. Nothing changes until you press Sign.'));
       const list = el('ul', 'lw-card lw-review');
-      const said = (words) => list.append(el('li', null, words));
-      said(pick.both ? t('{a} and {b} will read each other\'s {kinds}.', { a: nameOf(pick.reader), b: nameOf(pick.source), kinds: kindsSaid() }) : t('{reader} will read the {kinds} of {source}.', { reader: nameOf(pick.reader), source: nameOf(pick.source), kinds: kindsSaid() }));
+      const said = (words) => { const item = el('li'); item.append(words); list.append(item); };
+      said(pick.both ? sayBold('{a} and {b} will look up each other\'s {kinds}.', { a: nameOf(pick.reader), b: nameOf(pick.source), kinds: kindsSaid() }, ['a', 'b']) : sayBold('{reader} will look up the {kinds} of {source}.', { reader: nameOf(pick.reader), source: nameOf(pick.source), kinds: kindsSaid() }, ['reader', 'source']));
       said(pick.days ? t('Until {date}.', { date: until() }) : t('With no expiry: it lasts until you revoke it.'));
-      said(pick.recall ? t('On every turn, up to 3 of these notes arrive without being asked for.') : t('Its agents read them only when they choose to.'));
-      if (ordersInto()) said(pick.orders ? t('The Coordinator may send orders into {room}, up to #{n}, {k} an hour.', { room: nameOf(ordersInto()), n: pick.maxMode, k: pick.perHour }) : t('No orders cross: the Coordinator only reads.'));
+      said(pick.recall ? t('With every question, up to 3 of these notes arrive without being looked for.') : t('Its agents look them up only when they need them.'));
+      if (ordersInto()) said(pick.orders ? sayBold('The Coordinator may send orders into {room}, up to #{n}, {k} an hour.', { room: nameOf(ordersInto()), n: pick.maxMode, k: pick.perHour }, ['room']) : t('No orders: the Coordinator only looks up.'));
       said(t('Nothing is written across, and you can revoke it at any moment from Connections.'));
       page.append(list);
       const warn = cautions();
@@ -2321,7 +2352,7 @@ function openWizard() {
         }
       },
     });
-    frame(t('Connect your agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'), fresh.node, actions, options);
+    frame(t('Connect your agents'), t('Agents are the AI tools that write code, such as Claude Code or Codex. MADRE works with the ones already on this computer: each one is connected once, and every project uses it.'), fresh.node, actions, options);
     panel = fresh;
     await fresh.paint();
     fresh.live();
@@ -2341,7 +2372,7 @@ function openWizard() {
     });
     const picker = projectPicker({ withAdd: false, onChange: (n) => { next.textContent = n ? t('Add and continue') : t('Continue'); } });
     actions.append(button('sm-btn', t('Back'), () => { step = 0; void agentsStep({ back: true }); }), next);
-    frame(t('Add your projects'), t('Choose the folders you work in. Adding them does not open them: you choose which to open in the next step.'), picker.node, actions, options);
+    frame(t('Add your projects'), t('A project is a folder you work in. Choose yours: adding them does not open them; in the next step you pick which to open.'), picker.node, actions, options);
   }
   function openStep() {
     const projects = (data?.rooms ?? []).filter((room) => room.id !== data?.salas);

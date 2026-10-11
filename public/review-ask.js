@@ -71,9 +71,9 @@ export function startReviewAsk({ busy = () => false } = {}) {
       void post('/api/review-ask/answer', { moment, answer });
       dialog.close();
     }
-    // Esc, or a press on the dim ground around it: not now.
+    // It waits for an answer: a press on the dim ground around it does nothing (2026-10-11, it went
+    // away under a stray click). Esc is an answer, «not now».
     dialog.addEventListener('cancel', () => settle('later'));
-    dialog.addEventListener('click', (event) => { if (event.target === dialog) settle('later'); });
     dialog.addEventListener('close', () => { settle('later'); setTimeout(() => dialog?.remove(), 300); });
     document.body.append(dialog);
     dialog.showModal();

@@ -754,3 +754,5 @@ button.sm-pill { border: 0; cursor: pointer; }
 .sm-pill.is-update svg { width: 14px; height: 14px; flex: none; }
 .sm-pill.is-update:hover { background: color-mix(in srgb, var(--session-wait) 28%, transparent); }
 .sm-pill.is-update:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
+/* A project's name inside the wizard's sentences stands out (salas-mac.js, sayBold). */
+:is(.lw-lead, .lw-note, .lw-review li, .lw-caution) b { font-weight: 650; color: var(--text); }
