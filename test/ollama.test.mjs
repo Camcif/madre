@@ -293,3 +293,12 @@ test('ollama: every conversation distills locally, the one switched to and the o
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }
 });
+
+test('a local model that takes longer than the turn allows says so in words, not as an abort', async () => {
+  // Seen in the Coordinator's project (2026-10-12): «The operation was aborted due to timeout».
+  const hang = (url, options) => new Promise((resolve, reject) => options.signal.addEventListener('abort', () => reject(options.signal.reason)));
+  await assert.rejects(
+    ollamaGenerate({ model: 'qwen2.5:7b', prompt: 'hola', timeoutMs: 30, fetchImpl: hang }),
+    (error) => /Ollama \(qwen2\.5:7b\) did not respond before the timeout \(0s\)\./.test(error.message),
+  );
+});

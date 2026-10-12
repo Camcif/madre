@@ -3,6 +3,8 @@
 // so remembering costs no tokens elsewhere and nothing leaves. Nothing here is
 // required: without Ollama every path falls back to what it did before.
 
+import { t } from './i18n.mjs';
+
 export const DEFAULT_OLLAMA_HOST = 'http://127.0.0.1:11434';
 // Embedding models we know how to talk to, best first.
 export const EMBED_MODELS = ['nomic-embed-text', 'mxbai-embed-large', 'snowflake-arctic-embed', 'all-minilm', 'bge-m3'];
@@ -94,7 +96,10 @@ export function ollamaEmbedder({ host = ollamaHost(), model, fetchImpl = globalT
 export async function ollamaGenerate({ host = ollamaHost(), model, prompt, system = null, json = false, fetchImpl = globalThis.fetch, timeoutMs = 180000, temperature = 0.2, numCtx = DEFAULT_NUM_CTX } = {}) {
   const started = Date.now();
   const messages = [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: prompt }];
-  const response = await fetchImpl(`${host}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, messages, stream: false, options: { temperature, num_ctx: numCtx }, ...(json ? { format: 'json' } : {}) }), signal: AbortSignal.timeout(timeoutMs) });
+  // A model that takes longer than the turn allows says so in the room's words, as any agent does:
+  // the bare «The operation was aborted due to timeout» reached the person, in English.
+  const response = await fetchImpl(`${host}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, messages, stream: false, options: { temperature, num_ctx: numCtx }, ...(json ? { format: 'json' } : {}) }), signal: AbortSignal.timeout(timeoutMs) })
+    .catch((error) => { throw error?.name === 'TimeoutError' ? new Error(t('{label} did not respond before the timeout ({seconds}s).', { label: `Ollama (${model})`, seconds: Math.round(timeoutMs / 1000) })) : error; });
   if (!response.ok) throw new Error(`Ollama HTTP ${response.status}: ${(await response.text().catch(() => '')).slice(0, 200)}`);
   const payload = await response.json();
   const inputTokens = payload.prompt_eval_count ?? 0;

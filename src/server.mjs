@@ -1887,8 +1887,8 @@ export async function createPulseServer({
         for (const [me, other] of [[a, b], [b, a]]) {
           const role = contract.direction === 'both' ? 'both' : servingRooms(contract).includes(me.id) ? 'serves' : 'reads';
           const payload = type === 'enlace.signed'
-            ? { contract, other: other.name, otherId: other.id, role, kinds: contract.kinds, expires: contract.expires, orders: contract.orders }
-            : { contract, other: other.name, otherId: other.id };
+            ? { contract, other: other.name, otherId: other.id, coordinator: other.id === salasRoomId(root), role, kinds: contract.kinds, expires: contract.expires, orders: contract.orders }
+            : { contract, other: other.name, otherId: other.id, coordinator: other.id === salasRoomId(root) };
           if (me.id === here) await room.record(type, payload);
           else if (me.open && key) await noticeEnlace({ port: me.open.port, type, payload, key }).catch(() => null);
         }

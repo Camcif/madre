@@ -3200,7 +3200,14 @@ function renderEmptyStarts() {
   const ready = [...state.agents.values()].filter((agent) => agent.ready && agent.id !== 'madre');
   box.replaceChildren();
   if (!ready.length) return;
-  if (state.projectEmpty === undefined) {
+  // The Coordinator's own project is a folder with nothing to explain: what it is for is the rest
+  // of your projects, so that is what its first messages ask about.
+  const coordinator = state.salas ? [
+    t('What happened in my projects lately?'),
+    t('What was decided in the projects I connected?'),
+    t('Which project needs me first, and why?'),
+  ] : null;
+  if (!coordinator && state.projectEmpty === undefined) {
     state.projectEmpty = null;
     void fetch('/api/tree?path=.').then((response) => response.json()).then((data) => {
       state.projectEmpty = !(data.entries ?? []).some((entry) => !entry.name.startsWith('.'));
@@ -3208,9 +3215,9 @@ function renderEmptyStarts() {
     }).catch(() => { state.projectEmpty = false; });
     return;
   }
-  if (state.projectEmpty === null) return;
+  if (!coordinator && state.projectEmpty === null) return;
   const project = projectDesignation() || t('this project');
-  for (const text of state.projectEmpty ? [
+  for (const text of coordinator ?? (state.projectEmpty ? [
     t('I want to start a project: '),
     t('Before writing anything, ask me what I want to build and propose a plan in steps.'),
     t('Which stack would you use for a small web app that anyone can open, and why?'),
@@ -3218,7 +3225,7 @@ function renderEmptyStarts() {
     t('Explain {project} to me: what it does, how it runs, and where the important code lives.', { project }),
     t('Read the project and name the three things most likely to break. Say why, with file and line.'),
     t('What would you change first in {project}, and what would you not touch?', { project }),
-  ]) {
+  ])) {
     // One that ends open is for the human to finish: it says so, and the cursor waits at its end.
     const chip = el('button', 'empty-start', text.endsWith(': ') ? `${text}…` : text);
     chip.type = 'button';
@@ -4538,7 +4545,11 @@ function renderCreateReverted(event) {
 // said once. What crosses afterwards is counted in the ledger (`enlace.read`, `enlace.received`)
 // and never drawn here: a reading is not a bubble.
 function renderEnlace(event) {
-  const { other, role, kinds = [], expires, contract } = event.payload;
+  const { role, kinds = [], expires, contract } = event.payload;
+  // The Coordinator's project is a folder named for the code («salas»); the line names who lives
+  // there. Lines written before the flag existed are known by the id that folder always has.
+  const coordinator = event.payload.coordinator ?? (event.payload.other === 'salas' && /^salas-[0-9a-f]{16}$/.test(event.payload.otherId ?? ''));
+  const other = coordinator ? t('the Coordinator') : event.payload.other;
   const node = el('div', `system memory enlace${event.type === 'enlace.revoked' ? ' warn' : ''}`);
   const what = kinds.map((kind) => kindWord(kind).toLowerCase()).join(', ');
   node.append(el('b', null, t('CONNECTION')));
@@ -9637,7 +9648,9 @@ function boot() {
     window.dispatchEvent?.(new Event('resize'));
   }
   stepsPaint();
-  els.project.textContent = initial.projectRoot.split('/').filter(Boolean).at(-1) || initial.projectRoot;
+  // The Coordinator's own project is a folder of MADRE's, named for the code («salas»): it says
+  // who lives there instead. Its key (projectDesignation) is still the folder's name.
+  els.project.textContent = state.salas ? t('Coordinator') : (initial.projectRoot.split('/').filter(Boolean).at(-1) || initial.projectRoot);
   els.project.title = initial.projectRoot;
   // Which conversation this page is looking at, beside the project it belongs to — but only once
   // there is more than one, because a name for the only thing there is is noise.

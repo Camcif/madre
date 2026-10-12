@@ -107,7 +107,7 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     // B serves Salas under that one and was told so, by the channel, as a line and never a message.
     const toldB = await events(b, 'enlace.signed');
     assert.equal(toldB.length, 1);
-    assert.deepEqual(toldB[0].payload, { contract: orderedContract, other: 'salas', otherId: salas, role: 'serves', kinds: ['fact'], expires: null, orders: orderedContract.orders });
+    assert.deepEqual(toldB[0].payload, { contract: orderedContract, other: 'salas', otherId: salas, coordinator: true, role: 'serves', kinds: ['fact'], expires: null, orders: orderedContract.orders });
     assert.equal((await events(b, 'message.created')).length, 0);
 
     // Orders left out are no orders: off, #0, six an hour (A serves Salas questions, to be read by
@@ -131,8 +131,8 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.deepEqual(Object.keys(contract), ['id', 'rooms', 'direction', 'kinds', 'zones', 'expires', 'revoked', 'orders', 'signed', 'recall']);
     assert.equal(contract.recall, false, '3e: recall is off unless ticked');
     assert.deepEqual(contract.orders, { allowed: false, maxMode: 0, perHour: 50 });
-    assert.deepEqual((await events(a, 'enlace.signed')).filter((event) => event.payload.contract.id === contract.id).map((event) => event.payload), [{ contract, other: nameB, otherId: idB, role: 'serves', kinds: ['decision', 'fact'], expires: null, orders: contract.orders }]);
-    assert.deepEqual((await events(b, 'enlace.signed')).at(-1).payload, { contract, other: nameA, otherId: idA, role: 'reads', kinds: ['decision', 'fact'], expires: null, orders: contract.orders });
+    assert.deepEqual((await events(a, 'enlace.signed')).filter((event) => event.payload.contract.id === contract.id).map((event) => event.payload), [{ contract, other: nameB, otherId: idB, coordinator: false, role: 'serves', kinds: ['decision', 'fact'], expires: null, orders: contract.orders }]);
+    assert.deepEqual((await events(b, 'enlace.signed')).at(-1).payload, { contract, other: nameA, otherId: idA, coordinator: false, role: 'reads', kinds: ['decision', 'fact'], expires: null, orders: contract.orders });
 
     // ---- Salas sees it: the id of its own room, the links in force, and no traffic yet.
     const list = await (await fetch(`http://127.0.0.1:${portA}/api/salas`)).json();
