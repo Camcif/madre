@@ -434,6 +434,74 @@ export const ES = {
     'el archivo de este proyecto, leído y escrito a través de MADRE',
 
   // Lo que salió de esta computadora.
+  'whoever runs the agent you send a turn to':
+    'quien corre el agente al que le mandas un turno',
+  'The briefing — the document above, your question, the memories it summoned and the transcript it carries.':
+    'El briefing: el documento de arriba, tu pregunta, las memorias que trajo y la conversación que lleva.',
+  'every turn you send to an agent that is not @madre':
+    'cada turno que mandas a un agente que no es @madre',
+  'you choose it every time you send a turn; @madre answers on this computer and sends nothing':
+    'lo eliges cada vez que mandas un turno; @madre contesta en esta computadora y no manda nada',
+  'Google · Gemini embeddings':
+    'Google · embeddings de Gemini',
+  'The text of what is being embedded: the first 2000 characters of each memory, and the question a recall is made of.':
+    'El texto que se convierte en vector: los primeros 2000 caracteres de cada memoria y la pregunta con la que se busca.',
+  'a memory is written or recalled, while embeddings are set to Gemini':
+    'cuando se escribe o se busca una memoria, mientras los embeddings usen Gemini',
+  'Settings › Memory › Smart search · Ollama keeps it on this computer, off drops back to words':
+    'Ajustes › Memoria › Búsqueda inteligente · con Ollama se queda en esta computadora; apagada, busca por palabras',
+  'Google · Gemini image model':
+    'Google · modelo de imágenes de Gemini',
+  'The prompt an agent wrote for an image.':
+    'La instrucción que un agente escribió para una imagen.',
+  'an agent calls the image tool during a lease':
+    'cuando un agente usa la herramienta de imágenes durante un permiso',
+  'Modules › Images':
+    'Módulos › Imágenes',
+  'the npm registry':
+    'el registro de npm',
+  'The name of a package, to read the version of its latest release. Nothing about you or your project.':
+    'El nombre de un paquete, para leer la versión de su última publicación. Nada sobre ti ni sobre tu proyecto.',
+  'at most once a day per package, while the release channel is on':
+    'como mucho una vez al día por paquete, mientras la búsqueda de versiones esté encendida',
+  'Settings › Version and reports › Look for new versions · or PULSE_UPDATE_CHECK=0':
+    'Ajustes › Versión y reportes › Buscar versiones nuevas · o PULSE_UPDATE_CHECK=0',
+  'The name of a repository, to read the tag of its latest release. Nothing about you or your project.':
+    'El nombre de un repositorio, para leer la etiqueta de su última publicación. Nada sobre ti ni sobre tu proyecto.',
+  'at most once a day per repository, while the release channel is on':
+    'como mucho una vez al día por repositorio, mientras la búsqueda de versiones esté encendida',
+  'the author\'s error collector':
+    'el colector de errores del autor',
+  'An unknown condition: what broke, where in MADRE, and the version. Paths are cut back and your words are not in it.':
+    'Una condición desconocida: qué falló, en qué parte de MADRE y la versión. Las rutas se recortan y tus palabras no van.',
+  'you press SEND — or on its own, only while auto-report is on':
+    'cuando pulsas ENVIAR, o sola, únicamente con el auto-reporte encendido',
+  'Settings › Version and reports › Report automatically · or PULSE_REPORT_URL':
+    'Ajustes › Versión y reportes › Reportar automáticamente · o PULSE_REPORT_URL',
+  'Your Claude Code token, to read how much of your plan is left. It is read from where Claude keeps it and never stored by MADRE.':
+    'Tu token de Claude Code, para leer cuánto te queda de tu plan. Se lee de donde Claude lo guarda y MADRE nunca lo almacena.',
+  'while a Claude session is being watched for its quota':
+    'mientras se vigila la cuota de una sesión de Claude',
+  'Settings › Agents › Claude':
+    'Ajustes › Agentes › Claude',
+  'Ollama, on this computer':
+    'Ollama, en esta computadora',
+  'Memories to embed, exchanges to distil, and whatever you ask @madre. It goes to a port on this machine and stops there.':
+    'Memorias para convertir en vectores, intercambios para destilar y lo que le preguntes a @madre. Va a un puerto de esta máquina y ahí se queda.',
+  'while Ollama is running':
+    'mientras Ollama esté corriendo',
+  'Modules › Local AI':
+    'Módulos › IA local',
+  'the provider OpenCode is signed in to':
+    'el proveedor con el que OpenCode tiene sesión',
+  'its own provider':
+    'su propio proveedor',
+  '1 request went to an address nothing here declares. A module can do that; nothing can do it unlogged.':
+    '1 petición fue a una dirección que nada aquí declara. Un módulo puede hacerlo; nada puede hacerlo sin quedar registrado.',
+  '{n} requests went to an address nothing here declares. A module can do that; nothing can do it unlogged.':
+    '{n} peticiones fueron a una dirección que nada aquí declara. Un módulo puede hacerlo; nada puede hacerlo sin quedar registrado.',
+  'Every request this process made went to an address declared above.':
+    'Cada petición que hizo este proceso fue a una dirección declarada arriba.',
   'EVERY ADDRESS MADRE CAN REACH, AND WHETHER IT IS ON TODAY':
     'CADA DIRECCIÓN A LA QUE MADRE PUEDE LLEGAR, Y SI HOY ESTÁ ENCENDIDA',
   'THE LOG COULD NOT BE READ.': 'NO SE PUDO LEER EL REGISTRO.',

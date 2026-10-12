@@ -22,6 +22,7 @@
 // would be a poor place to leave it.
 
 import { appendFile, mkdir, open, stat, writeFile } from 'node:fs/promises';
+import { t } from './i18n.mjs';
 import { dirname } from 'node:path';
 
 export const KEEP = 200;                 // lines held for the screen
@@ -94,7 +95,7 @@ export const DESTINATIONS = [
     id: 'ollama', host: null, local: true, to: 'Ollama, on this computer',
     what: 'Memories to embed, exchanges to distil, and whatever you ask @madre. It goes to a port on this machine and stops there.',
     when: 'while Ollama is running',
-    where: 'MODULES → OLLAMA',
+    where: 'Modules › Local AI',
     inside: true,
   },
 ];
@@ -302,14 +303,15 @@ export class OutboundLog {
 // The declaration with today's answer filled in: is this one on, and what has it done.
 export function outboundView({ log = null, state = {}, agents = [] } = {}) {
   const counts = log?.counts() ?? {};
-  const vendors = { codex: 'OpenAI', claude: 'Anthropic', gemini: 'Google', opencode: 'the provider OpenCode is signed in to' };
-  const crew = agents.filter((agent) => agent.detected && !agent.local).map((agent) => `@${agent.id} → ${agent.route?.destination ?? vendors[agent.id] ?? 'its own provider'}`);
+  // Said in the room's language (2026-10-12): the list read in English inside a Spanish room.
+  const vendors = { codex: 'OpenAI', claude: 'Anthropic', gemini: 'Google', opencode: t('the provider OpenCode is signed in to') };
+  const crew = agents.filter((agent) => agent.detected && !agent.local).map((agent) => `@${agent.id} → ${agent.route?.destination ?? vendors[agent.id] ?? t('its own provider')}`);
   const destinations = DESTINATIONS.map((one) => ({
     id: one.id,
-    to: one.id === 'crew' && crew.length ? crew.join(' · ') : one.to,
-    what: one.what,
-    when: one.when,
-    where: one.where,
+    to: one.id === 'crew' && crew.length ? crew.join(' · ') : t(one.to),
+    what: t(one.what),
+    when: t(one.when),
+    where: t(one.where),
     local: Boolean(one.local),
     // Whether the call lands in the log at all. Everything MADRE starts does, the image studio
     // from its own process included; the crew's own conversation with its provider does not.
@@ -325,7 +327,7 @@ export function outboundView({ log = null, state = {}, agents = [] } = {}) {
     recent: log?.recent({ limit: 40 }) ?? [],
     undeclared,
     says: undeclared
-      ? `${undeclared} request${undeclared === 1 ? '' : 's'} went to an address nothing here declares. A module can do that; nothing can do it unlogged.`
-      : 'Every request this process made went to an address declared above.',
+      ? (undeclared === 1 ? t('1 request went to an address nothing here declares. A module can do that; nothing can do it unlogged.') : t('{n} requests went to an address nothing here declares. A module can do that; nothing can do it unlogged.', { n: undeclared }))
+      : t('Every request this process made went to an address declared above.'),
   };
 }
