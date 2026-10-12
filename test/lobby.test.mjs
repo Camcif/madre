@@ -197,7 +197,8 @@ test('lobby · the last work and the decisions are read only by the lobby\'s own
     assert.ok(Array.isArray(decisions.decisions));
   } finally {
     if (server) await close(server);
-    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+    // A room can still be writing its last file when the server closes: retried, the folder goes.
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 });
 
