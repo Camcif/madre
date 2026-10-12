@@ -42,7 +42,7 @@ if (!openBody.trim()) fail(`The ${version} section is empty. A release note is h
 const { notesFor } = await import('../src/whats-new.mjs');
 if (/\.0$/.test(version) && !notesFor(version)) fail(`${version} has no "what's new" in src/whats-new.mjs. Write the few things this version brings, and where they are, before closing it.`);
 
-console.log(`\nMU/TH/UR › closing ${pkg.name}@${version} · ${today}${dryRun ? ' · DRY RUN' : ''}\n`);
+console.log(`\nMADRE › closing ${pkg.name}@${version} · ${today}${dryRun ? ' · DRY RUN' : ''}\n`);
 run('npm', ['test']);
 run('npm', ['run', 'pack:check']);
 
@@ -65,9 +65,11 @@ run('git', ['push', '-q', 'origin', `v${version}`]);
 
 const section = changelog.slice(changelog.indexOf(`## ${version} · ${today}`));
 const body = section.slice(section.indexOf('\n') + 1, section.indexOf('\n## ', 1) > 0 ? section.indexOf('\n## ', 1) : undefined).trim();
-const notes = `\`\`\`\nMU/TH/UR 6000 · INTERFACE 2037 · MADRE ${version} IS READY\n\`\`\`\n\n${body}\n\n---\n\n\`\`\`\nnpx ${pkg.name}@${version} start\n\`\`\`\n`;
+// 1.0 left the names borrowed from Alien (docs/MACROVERSO-TRASPASO.md §1·c): the notes open with
+// the version itself, and end on the command that opens Home.
+const notes = `${body}\n\n---\n\n\`\`\`\nnpx ${pkg.name}@${version}\n\`\`\`\n`;
 await writeFile(resolve(root, '.release-notes.tmp.md'), notes);
-try { run('gh', ['release', 'create', `v${version}`, '--title', `MADRE ${version} · MU/TH/UR 6000`, '--notes-file', '.release-notes.tmp.md', '--latest']); }
+try { run('gh', ['release', 'create', `v${version}`, '--title', `MADRE ${version}`, '--notes-file', '.release-notes.tmp.md', '--latest']); }
 catch { console.error('  (gh release failed; create it by hand from the tag)'); }
 finally { run('rm', ['-f', '.release-notes.tmp.md']); }
 
