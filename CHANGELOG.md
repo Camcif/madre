@@ -6,7 +6,67 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 1.0.0 · Sin publicar
 
-Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventana, varias conversaciones trabajan a la vez, una segunda conversación cabe en la otra mitad y los servidores de tu proyecto viven dentro de MADRE. También trae un editor de código en el visor, y escribir un proyecto de principio a fin ya no se corta a medias.
+<p align="center"><a href="https://github.com/jossuealcacao-exe/madre/blob/main/docs/media/1.0/madre-1-0.mp4"><img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/media/1.0/madre-1-0-video.webp" alt="Ver MADRE 1.0 en 90 segundos" width="100%"></a></p>
+
+**MADRE 1.0 reúne en tu computadora todo lo que necesitas para trabajar con agentes de IA: tus agentes, tus proyectos, su memoria y tus permisos, en un solo lugar.** Codex, Claude Code, Gemini CLI y OpenCode conversan en el mismo hilo y se leen entre sí; Inicio junta todos tus proyectos; un Coordinador los ve desde arriba; y cada proyecto recuerda lo que se decidió. Sigue siendo gratis, sin cuenta y en tu computadora.
+
+### Lo esencial
+
+<p align="center"><img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/media/1.0/ksp-inicio.webp" alt="Inicio: todos tus proyectos en un lugar" width="32%"> <img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/media/1.0/ksp-agentes.webp" alt="Todas tus IAs en un mismo chat" width="32%"> <img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/media/1.0/ksp-permisos.webp" alt="Tú decides hasta dónde llega cada agente" width="32%"></p>
+
+- **Inicio: todos tus proyectos en un lugar.** `madre` sin nada más abre Inicio. Agregas las carpetas donde trabajas (MADRE sugiere las que parecen proyectos) y cada una queda dormida hasta que la abras. Cada tarjeta dice si un agente trabaja, si alguien te espera y qué pasó mientras no estabas; «Te esperan», «Decisiones recientes» y el «Resumen reciente» lo juntan todo. La primera vez, tres pasos: conectar tus agentes, agregar tus proyectos y abrir los que vas a usar.
+- **El Coordinador ve todos tus proyectos.** Es un agente que vive en Inicio: lee entre tus proyectos, firma conexiones entre ellos y lleva órdenes de uno a otro. Desde cualquier proyecto le preguntas con `/bishop` y la respuesta es solo para ti. Sus órdenes llegan hasta `#2`; `#3` y `#4` llegan como propuesta que tú desbloqueas en ese proyecto.
+- **Conexiones: un proyecto consulta lo que otro ya aprendió.** Tú firmas cada conexión: qué tipos de nota cruzan (decisiones, hechos, preferencias, preguntas), por cuánto tiempo y si el Coordinador puede dar órdenes. Solo cruzan notas que ya están en uso, limpias de datos privados; nunca tus archivos ni tus conversaciones. Se revoca cuando quieras.
+- **Una conversación, todos tus agentes, y varias a la vez.** Le escribes a un agente con `@`, eliges modo con `#`, archivo con `!` y comando con `/`. El siguiente agente recibe lo que se dijo antes y lo ves en la línea de traspaso. Pide «@madre, pregúntale al equipo…» y contestan todos, uno tras otro, con un resumen al final. Varias conversaciones trabajan al mismo tiempo, al lado o en ventanas.
+- **Tú decides hasta dónde llega cada agente.** Cada mensaje lleva un modo: `#0` Incógnito, `#1` Solo conversar (el predeterminado), `#2` Crear, `#3` Editar y `#4` Acceso total. `#3` y `#4` piden tu llave (`#4`, dos veces) y la comprueba el propio proyecto. En Ajustes › Permisos eliges qué llave usar y si vale unos minutos. Antes de editar, MADRE guarda un punto de restauración y **Deshacer** regresa el proyecto a ese momento.
+- **Tu memoria, a la vista.** Cada proyecto destila lo que se habla en notas: decisiones, hechos, preferencias y preguntas. El **Mapa de memoria**, con su tecla en la barra, dibuja esa memoria como un cerebro que giras; el **Mapa de proyectos**, en Inicio, muestra tus proyectos alrededor del Coordinador con sus conexiones.
+- **Ajustes y Diagnóstico.** Todo lo que configuras vive en una ventana (⌘ ,) con buscador: apariencia, proyecto, agentes, memoria, permisos, privacidad y versión, y cada tarjeta dice cómo está antes de abrirla. En **Diagnóstico** escribes lo que pasa con tus palabras y te dice qué hacer, con la tecla que lo resuelve.
+- **Módulos como apps.** Un tablero de mosaicos, cada uno con su interruptor y su ficha: **Ahorro de tokens**, **Intenciones** (sugiere cuánto debe pensar cada agente a partir de tus propios turnos, sin gastar tokens), **IA local** con Ollama, **GitHub** (`/gh` para pull requests, CI e issues) y **Continuidad** (AHP+), entre otros. Cada uno dice qué escribe y qué necesita antes de instalarse.
+- **Un espacio de trabajo a tu medida.** Cada panel se abre al lado o en una ventana que mueves; una segunda conversación cabe en la otra mitad; el visor edita código; los servidores de tu proyecto se abren dentro de MADRE; la barra se arma con clic derecho; y Apariencia trae 17 acentos y 12 fondos para tema claro y oscuro.
+- **Te enseña MADRE a tu paso.** Quien llega por primera vez ve «Conoce MADRE»; quien viene de una versión anterior, «El recorrido de MADRE 1.0», que empieza por lo que cambió de lugar. Son capítulos cortos que puedes dejar y retomar, y `?` abre en cualquier momento la hoja de gestos y atajos.
+
+### Si vienes de 0.7.2
+
+- **Tus proyectos, conversaciones, memoria y ajustes se quedan.** MADRE reconoce los proyectos que abriste con 0.7.2 y los trae a Inicio: busca cada carpeta donde sueles guardar tus proyectos y solo la agrega si su huella coincide. Nada se adivina, y un proyecto que quitaste de MADRE no vuelve.
+- **`madre` a secas abre Inicio**; `madre start` dentro de una carpeta sigue abriendo ese proyecto directo.
+- **«Conexiones» cambió de significado.** Iniciar sesión en tus agentes vive ahora en Ajustes › Agentes; una conexión es lo que une dos proyectos.
+- **Ajustes reúne lo que estaba repartido** entre PERSONALIZAR, MU/TH/UR, ⚙ CONEXIONES y las teclas de idioma y tema.
+- **Los nombres son más claros.** Los identificadores, comandos y carpetas no cambian (`/bishop`, `madre salas`, `.pulse/`), solo lo que se lee:
+
+| Antes | Ahora |
+|---|---|
+| Sala | Proyecto |
+| Salas · lobby | Inicio |
+| BISHOP | Coordinador |
+| Enlaces | Conexiones |
+| Macroverso | Mapa de proyectos |
+| NOSTROMO | Mapa de memoria |
+| MU/TH/UR | Diagnóstico |
+| GHOST · EXCHANGE · CREATE · CONTROL · AIRLOCK | Incógnito · Solo conversar · Crear · Editar · Acceso total |
+| Ash · Ollama · RIPLEY · AHP+ | Ahorro de tokens · IA local · Vista previa · Continuidad |
+
+- La segunda llave de `#4` ya no es la palabra AIRLOCK: es tu misma llave de `#3`, escrita dos veces.
+
+### Más seguro y más sólido
+
+Antes de cerrar 1.0 se revisó el código completo con pruebas de seguridad. Lo que se corrigió:
+
+- **Las llaves de `#3` y `#4` las comprueba el proyecto**, no solo la página: un mensaje en esos modos sin una llave aceptada se rechaza, y cambiar las llaves pide la frase actual cuando una frase protege un modo.
+- **El git de MADRE no ejecuta lo que un agente deje configurado** en un repositorio (hooks, fsmonitor, diff externo), y después de un turno en `#2` o `#3` la configuración del repositorio vuelve a como estaba.
+- **Las páginas de MADRE no se dejan enmarcar por sitios ajenos** y las imágenes externas de una respuesta quedan como enlace; la vista previa de archivos se abre aislada.
+- **Lo que cruza entre proyectos se limpia siempre** de llaves, tokens y contraseñas, aunque un proyecto haya apagado sus guardas.
+- **Nada se pisa ni se corrompe:** los ajustes, las conexiones y el estado del recorrido se escriben enteros y en turno; un registro cortado a la mitad (un apagón, un `kill -9`) ya no impide abrir la conversación; la memoria espera su turno en vez de fallar con «database is locked»; y un proyecto que murió a mitad de turno ya no deja archivos bloqueados.
+- **La purga de un término privado limpia todas las conversaciones del proyecto**, no solo la abierta.
+- **La actualización con un clic solo instala versiones válidas.**
+- **Las letras ya no se parten**: una «ó» que llegaba partida en dos trozos de la salida de un agente se guarda entera.
+- Y más arreglos de lógica: dos conversaciones abiertas a la vez ya no destilan ni pagan dos veces el mismo lote, volver a una conversación ya no suma dos veces su costo, y Diagnóstico da los remedios del sistema donde corre MADRE, no del navegador que lo lee.
+
+### Todo lo que cambió, en detalle
+
+<details>
+<summary>El registro completo de 1.0, en el orden en que se construyó</summary>
+
+> Este registro se escribió mientras se construía 1.0 y conserva los nombres de trabajo (sala, Salas, BISHOP, MU/TH/UR, NOSTROMO, AIRLOCK…). Algunas piezas se reemplazaron antes de publicar: por ejemplo, el recorrido de cinco paradas dio lugar a «Conoce MADRE» y «El recorrido de MADRE 1.0». La tabla de arriba dice cómo se llama hoy cada cosa.
 
 ### Salas en tu Mac
 
@@ -713,6 +773,8 @@ Esta versión acomoda la sala como tú quieras: todo se abre al lado o en ventan
 
 - Al presionar **REINICIAR CON** una versión recién publicada, la sala se cerraba antes de saber si npm ya la entregaba; si todavía no, no volvía y había que levantarla a mano. Ahora descarga la versión primero y solo se cierra cuando la tiene. Si npm aún no la entrega, la sala sigue abierta y te dice que lo intentes en unos minutos.
 - Lo que imprime la versión nueva al arrancar queda en `update.log`, junto al registro de la sala.
+
+</details>
 
 ## 0.7.2 · 2026-10-03
 
