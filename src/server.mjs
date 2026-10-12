@@ -1812,7 +1812,7 @@ export async function createPulseServer({
         const notes = rows
           .filter((row) => memoryTravels(row) && kinds.includes(row.kind))
           .slice(0, limit)
-          .map((row) => ({ id: row.id, kind: row.kind, zone: row.zone, text: privacy.redact(row.text).text, fromSequence: row.fromSequence, throughSequence: row.throughSequence, created: row.created }));
+          .map((row) => ({ id: row.id, kind: row.kind, zone: row.zone, text: privacy.redact(row.text, { always: true }).text, fromSequence: row.fromSequence, throughSequence: row.throughSequence, created: row.created }));
         // Which agent of the asking room read (S-021): that room's word, checked there against a turn
         // it is running; here it is only kept, shaped like an agent id or not at all.
         const reader = /^[a-z][a-z0-9_-]{0,30}$/.test(String(url.searchParams.get('agent') ?? '')) ? url.searchParams.get('agent') : null;
@@ -1904,7 +1904,10 @@ export async function createPulseServer({
           // BISHOP signs only from the room's own process (no Origin: never a page), and the contract
           // itself holds it to a link to read that expires within a week (D-S13, src/enlaces.mjs).
           const signed = payload.by === 'bishop' && request.headers.origin === undefined ? { by: 'bishop' } : undefined;
-          contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, signed, recall: payload.recall === true && !signed }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
+          // «Include always» only from the page (INI-04 of the 1.0 review): its own route refuses a
+          // process, and signing let one set it anyway, so a project got another's notes every turn.
+          const recall = payload.recall === true && !signed && request.headers.origin !== undefined;
+          contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, signed, recall }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
         } catch (error) {
           if (error.code === 'DESIGNATION') return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
           if (error.code === 'ALREADY') return sendJson(response, 409, { error: t(error.message) });

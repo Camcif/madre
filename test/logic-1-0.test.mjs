@@ -197,3 +197,22 @@ test('logic: a moment to ask for a review is handed to one page, not to every pa
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('logic: what crosses between projects is cleaned of every common secret, guards on or off (INI-05)', async () => {
+  const { Privacy } = await import('../src/privacy.mjs');
+  const off = new Privacy({ terms: [], marker: '[X]', secrets: false, paths: false, home: '/Users/nadie' });
+  const cases = [
+    ['sk_live_51HxYzABCDEFGHIJKLMNOP', '[key]'],
+    ['AKIAIOSFODNN7EXAMPLE', '[key]'],
+    ['-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----', '[private key]'],
+    ['ya29.a0AfH6SMBxxxxxxxxxxxxxxxxxxxxxx', '[token]'],
+    ['PASSWORD=hunter2hunter', 'PASSWORD=[secret]'],
+    ['Bearer 0123456789abcdef0123456789abcdef', 'Bearer [token]'],
+    ['https://user:pass1234@host.com/x', 'https://[credentials]@host.com/x'],
+    ['+52 33 1234 5678', '[phone]'],
+    ['/home/bob/x', '/home/…/x'],
+  ];
+  for (const [text, expected] of cases) assert.equal(off.redact(text, { always: true }).text, expected, text);
+  assert.equal(off.redact('sk_live_51HxYzABCDEFGHIJKLMNOP').text, 'sk_live_51HxYzABCDEFGHIJKLMNOP', 'the project\'s own switch was not respected');
+  assert.equal(off.redact('version 1.2.3, puerto 4317', { always: true }).text, 'version 1.2.3, puerto 4317');
+});

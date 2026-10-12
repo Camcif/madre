@@ -14,7 +14,19 @@
 // What a secret looks like, whatever project it turns up in. The same list the crash reporter
 // has used since the beginning, brought where the room can use it: a credential does not become
 // safe by being in a reply rather than in a stack trace.
+// Widened 2026-10-12 (INI-05 of the 1.0 review): what crosses between projects was cleaned of a few
+// shapes only, and Stripe's live keys, AWS's, private keys, Google's access tokens, a password
+// written as a setting, a bearer token and the credentials inside an address went across as they
+// were. A replacement may be a function of the match, to keep the name and hide only the value.
 const SECRETS = [
+  [/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g, '[private key]'],
+  [/\b(sk|rk|pk)_(live|test)_[A-Za-z0-9]{16,}\b/g, '[key]'],
+  [/\b(AKIA|ASIA)[0-9A-Z]{16}\b/g, '[key]'],
+  [/\bya29\.[0-9A-Za-z_-]{20,}/g, '[token]'],
+  [/\b(Bearer)\s+[A-Za-z0-9._~+/-]{20,}=*/g, (match, word) => `${word} [token]`],
+  [/\b([a-z][a-z0-9+.-]*:\/\/)[^\s:@/]+:[^\s@/]+@/gi, (match, scheme) => `${scheme}[credentials]@`],
+  [/\b(aws_secret_access_key|password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)(\s*[=:]\s*)(["']?)[^\s"']{6,}\3/gi, (match, name, between, quote) => `${name}${between}${quote}[secret]${quote}`],
+  [/\+\d{1,3}[\s-]?\(?\d{2,4}\)?[\s-]?\d{3,4}[\s-]?\d{3,4}\b/g, '[phone]'],
   [/\b(sk|rk|pk)-[A-Za-z0-9_-]{16,}\b/g, '[key]'],
   [/\bAIza[0-9A-Za-z_-]{20,}\b/g, '[key]'],
   [/\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}\b/g, '[token]'],
@@ -123,17 +135,21 @@ export class Privacy {
   // `kinds` says what was replaced: a term the human named, a key, or a home path. The room's
   // notice used to call all of them «private terms», so a home path turned into ~ read as a term
   // that was never written.
-  redact(text) {
+  // `always`: secrets and paths are hidden even where this project switched those guards off —
+  // what one project hands to another (a connection) is not this project's to leave open (INI-05).
+  redact(text, { always = false } = {}) {
     if (typeof text !== 'string' || !text) return { text, hits: 0, kinds: { terms: 0, secrets: 0, paths: 0 } };
     const kinds = { terms: 0, secrets: 0, paths: 0 };
     let out = text;
     if (this.#pattern) out = out.replace(this.#pattern, () => { kinds.terms += 1; return this.#marker; });
-    if (this.#secrets) {
-      for (const [pattern, replacement] of SECRETS) out = out.replace(pattern, () => { kinds.secrets += 1; return replacement; });
+    if (this.#secrets || always) {
+      for (const [pattern, replacement] of SECRETS) out = out.replace(pattern, (...match) => { kinds.secrets += 1; return typeof replacement === 'function' ? replacement(...match) : replacement; });
     }
-    if (this.#paths) {
+    if (this.#paths || always) {
       if (this.#home) { const parts = out.split(this.#home); kinds.paths += parts.length - 1; out = parts.join('~'); }
-      out = out.replace(/\/(Users|home)\/[^/\s"']+/g, () => { kinds.paths += 1; return '/$1/…'.replace('$1', RegExp.$1 || 'Users'); });
+      // The folder named as it was (`RegExp.$1` read whatever the last match anywhere left there,
+      // so a /home/ path came back as /Users/).
+      out = out.replace(/\/(Users|home)\/[^/\s"']+/g, (match, top) => { kinds.paths += 1; return `/${top}/…`; });
       out = out.replace(/[A-Za-z]:\\Users\\[^\\\s"']+/g, () => { kinds.paths += 1; return 'C:\\Users\\…'; });
     }
     return { text: out, hits: kinds.terms + kinds.secrets + kinds.paths, kinds };
