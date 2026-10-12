@@ -100,6 +100,9 @@ export class RunDesk {
         output += chunk;
         if (output.length > (HEAD_CHARS + TAIL_CHARS) * 2) output = keepEnds(output);
       };
+      // Decoded as a stream: a letter split between two chunks stays one letter (LOG-04).
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
       child.stdout.on('data', take);
       child.stderr.on('data', take);
       const timer = setTimeout(() => { if (record.serving) return; record.stoppedBy = `timeout (${Math.round(timeoutMs / 1000)}s)`; terminateProcessTree(child); }, timeoutMs);

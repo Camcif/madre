@@ -123,6 +123,7 @@ async function listOpenCodeModels(agent) {
   return new Promise((resolve) => {
     const child = spawn(agent.path, ['models'], { stdio: ['ignore', 'pipe', 'ignore'] });
     let out = '';
+    child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => { out += chunk; });
     const timer = setTimeout(() => child.kill('SIGKILL'), 15000);
     child.on('close', () => { clearTimeout(timer); resolve(out.split('\n').map((line) => line.trim()).filter((line) => /^[\w.-]+\/[\w.:-]+$/.test(line))); });

@@ -62,6 +62,8 @@ export async function playwrightStarts({ browser = 'chromium', env = process.env
     timer.unref?.();
     const send = (message) => { if (!settled) child.stdin.write(`${JSON.stringify(message)}\n`); };
     child.stdin.on('error', () => {});
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
       out += chunk;
       for (let newline = out.indexOf('\n'); newline >= 0; newline = out.indexOf('\n')) {

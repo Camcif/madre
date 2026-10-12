@@ -135,6 +135,10 @@ export function runReadonlyProcess({
       reject(couldNotStart(error, { label, executable, cwd }));
       return;
     }
+    // Decoded as a stream (2026-10-12, LOG-04): a letter of two or more bytes split between two
+    // chunks came out as «��», and the answer was kept that way in the record.
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     let stdout = '';
     let stderr = '';
     let settled = false;

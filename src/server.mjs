@@ -81,7 +81,7 @@ import { observable } from './modules/intents-observe.mjs';
 import { normalizeMode, setImageModule } from './capabilities.mjs';
 import { resolveGeminiKey } from './image-studio.mjs';
 import { commandByName, listCommands, parseCommand } from './commands.mjs';
-import { listDirectory, searchFiles, readServable, storeAttachment, resolveInside, createEmptyFile, writeEdited, MAX_ATTACHMENT_BYTES } from './files.mjs';
+import { listDirectory, searchFiles, readServable, storeAttachment, resolveInside, createEmptyFile, writeEdited, MAX_ATTACHMENT_BYTES, MAX_EDIT_BYTES } from './files.mjs';
 import { planFileOp, freeCopyPath, needsDesignationOnDisk, CREATIONS } from './file-ops.mjs';
 import { ServerSentinel } from './server-sentinel.mjs';
 import { Eyecat } from './eyecat-watch.mjs';
@@ -109,13 +109,18 @@ function sendJson(response, status, value) {
   response.end(JSON.stringify(value));
 }
 
-async function body(request) {
-  let text = '';
+// A request's JSON, read whole before it is decoded (2026-10-12, SRV-08): a «ñ» split between two
+// packets came out as «��». The limit is in bytes; a route that takes more says so (the editor).
+const BODY_LIMIT = 100_000;
+async function body(request, { limit = BODY_LIMIT } = {}) {
+  const chunks = [];
+  let size = 0;
   for await (const chunk of request) {
-    text += chunk;
-    if (text.length > 100_000) throw new Error('Request too large.');
+    size += chunk.length;
+    if (size > limit) throw Object.assign(new Error('Request too large.'), { status: 413 });
+    chunks.push(chunk);
   }
-  return JSON.parse(text || '{}');
+  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
 export function openUrl(url) {
@@ -2109,14 +2114,19 @@ export async function createPulseServer({
         return sendJson(response, 201, { ok: true, path: result.path });
       }
       if (request.method === 'PUT' && url.pathname === '/api/files') {
-        const payload = await body(request).catch(() => ({}));
+        // The editor saves up to MAX_EDIT_BYTES; written as JSON a file can take a few times its
+        // size (every newline and quote escaped). Too large is said as that, not as «Nothing to save».
+        let payload;
+        try { payload = await body(request, { limit: MAX_EDIT_BYTES * 3 + 65536 }); } catch (error) {
+          return sendJson(response, error.status === 413 ? 413 : 400, { error: error.status === 413 ? t('The editor saves files up to {mb} MB.', { mb: MAX_EDIT_BYTES / 1024 / 1024 }) : t('That could not be read.') });
+        }
         const relative = String(payload.path ?? '').replace(/^\/+/, '');
         if (!relative) return sendJson(response, 400, { error: t('Nothing to save.') });
         if (await needsDesignationOnDisk(canonicalProjectRoot, relative) && !designationOk(payload.designation)) {
           return sendJson(response, 403, { error: t('This file is one the project guards. Type the project name to save it.'), guarded: true });
         }
         const result = await writeEdited(canonicalProjectRoot, relative, payload.content, { mtimeMs: payload.mtimeMs, force: payload.force === true });
-        if (result.status !== 200) return sendJson(response, result.status, { error: t(result.error), changed: result.changed, mtimeMs: result.mtimeMs });
+        if (result.status !== 200) return sendJson(response, result.status, { error: result.status === 413 ? t('The editor saves files up to {mb} MB.', { mb: MAX_EDIT_BYTES / 1024 / 1024 }) : t(result.error), changed: result.changed, mtimeMs: result.mtimeMs });
         await room.record('project.file.saved', { path: relative, bytes: result.bytes });
         return sendJson(response, 200, { ok: true, bytes: result.bytes, mtimeMs: result.mtimeMs });
       }
