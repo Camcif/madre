@@ -64,7 +64,14 @@ run('git', ['push', '-q', 'origin', 'main']);
 run('git', ['push', '-q', 'origin', `v${version}`]);
 
 const section = changelog.slice(changelog.indexOf(`## ${version} · ${today}`));
-const body = section.slice(section.indexOf('\n') + 1, section.indexOf('\n## ', 1) > 0 ? section.indexOf('\n## ', 1) : undefined).trim();
+let body = section.slice(section.indexOf('\n') + 1, section.indexOf('\n## ', 1) > 0 ? section.indexOf('\n## ', 1) : undefined).trim();
+// GitHub refuses release notes over 125 000 characters, and 1.0's folded log went past them: the
+// notes then stop before the folded log and point at the CHANGELOG for the rest.
+if (body.length > 120000) {
+  const fold = body.search(/\n### [^\n]*\n+<details>/);
+  const anchor = `${version}--${today}`.replace(/\./g, '');
+  body = `${(fold > 0 ? body.slice(0, fold) : body.slice(0, 110000)).trim()}\n\nEl registro completo de esta versión está en el [CHANGELOG](https://github.com/jossuealcacao-exe/madre/blob/main/CHANGELOG.md#${anchor}).`;
+}
 // 1.0 left the names borrowed from Alien (docs/MACROVERSO-TRASPASO.md §1·c): the notes open with
 // the version itself, and end on the command that opens Home.
 const notes = `${body}\n\n---\n\n\`\`\`\nnpx ${pkg.name}@${version}\n\`\`\`\n`;
