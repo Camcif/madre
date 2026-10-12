@@ -8163,8 +8163,9 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
 #messages#messages .row > .col > :is(.who, .stamp) { background: var(--plane-meta) !important; }
 #messages#messages .row > .col > .who .badge { background: color-mix(in srgb, var(--text) 7%, transparent) !important; }
 /* The room's lines keep the shape they were given: the chip's corner and air, as wide as their
-   words. The ones that warn or ask keep their own frame. */
-#messages#messages .thread-inner > .system:not(.mother-alert, .control, .escalation, .plan, .alert, .fail) {
+   words. The ones that warn or ask keep their own frame. A plan is one of the lines (2026-10-11):
+   kept apart, it had no frame at all without a wallpaper, square and with no air. */
+#messages#messages .thread-inner > .system:not(.mother-alert, .control, .escalation, .alert, .fail) {
   width: fit-content; max-width: min(92%, 560px); margin-inline: auto; padding: 8px 16px 9px; border: 0; border-radius: 18px;
 }
 #messages#messages .row > .col > .who { width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px; }

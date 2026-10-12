@@ -5413,7 +5413,8 @@ function renderPlanEvent(event) {
   updateStopAll();
   const node = el('div', `system plan${event.type === 'plan.stopped' ? ' failed' : ''}`);
   tint(node, orchestrator);
-  const title = el('b', null, t('plan · '));
+  // The title stands on its own line, the stop key beside it while the plan runs: no dot after it.
+  const title = el('b', null, t('plan'));
   node.append(title);
   if (event.type === 'plan.created') {
     node.id = `plan-${planId}`;

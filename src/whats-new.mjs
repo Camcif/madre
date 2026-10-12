@@ -101,8 +101,8 @@ export const NOTES = {
         image: '/assets/news/1.0/bar.webp',
         title: { es: 'Tu barra, a tu gusto', en: 'Your bar, your way' },
         body: {
-          es: 'Clic derecho en la barra y los íconos tiemblan: quita con − lo que no usas y agrega Memoria, Ahorro de tokens, Intenciones, IA local o cualquier módulo con ventana. En un teléfono, lo que no cabe espera detrás de «Más».',
-          en: 'Right-click the bar and the icons jiggle: take off what you do not use with − and add Memory, Token saver, Intenciones, Local AI or any module with a window. On a phone, whatever does not fit waits behind “More”.',
+          es: 'Clic derecho en la barra y los íconos tiemblan: quita con − lo que no usas y agrega Memoria, Ahorro de tokens, Intenciones, IA local o cualquier módulo con ventana.',
+          en: 'Right-click the bar and the icons jiggle: take off what you do not use with − and add Memory, Token saver, Intenciones, Local AI or any module with a window.',
         },
         where: { es: 'Clic derecho en la barra · o déjala presionada', en: 'Right-click the bar · or press and hold it' },
         action: 'bar',

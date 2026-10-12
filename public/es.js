@@ -1322,6 +1322,7 @@ export const ES = {
   '{pct}% of {scope} used': '{pct}% de {scope} usado',
   ' · continue with {who}': ' · sigue con {who}',
   'plan · ': 'plan · ',
+  'plan': 'plan',
   "@{agent}'s plan block was not run · {why} · ask again and it will fix the block":
     'el bloque de plan de @{agent} no se corrió · {why} · vuelve a pedirlo y lo arregla',
   'Diagnostics › ': 'Diagnóstico › ',
