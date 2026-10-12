@@ -80,13 +80,13 @@ export function whoAmI(text, { model = null, crew = [] } = {}) {
     ? [
       `Soy @madre, la memoria de esta sala hablando${model ? `, con ${model} sobre Ollama en esta máquina` : ''}.`,
       'El archivista es mi otra mitad: el mismo modelo, de fondo, lee lo que la sala dice cada pocos intercambios o tras unos minutos de reposo y guarda hechos, decisiones, preferencias y preguntas abiertas. Eso es lo que ves en NOSTROMO y lo que yo cito con [#n].',
-      'No escribo archivos, no ejecuto ni tomo decisiones por nadie. Sí puedo convocar al crew si me lo pides: «@madre, pregúntale al crew …» abre una ronda con cada agente en línea y cierro con un resumen citado.',
+      'No escribo archivos, no ejecuto ni tomo decisiones por nadie. Sí puedo convocar a los agentes si me lo pides: «@madre, pregúntale al equipo …» abre una ronda con cada agente en línea y cierro con un resumen citado.',
       `Para enseñarme algo no hace falta dictármelo: trabaja en la sala y se destila solo. Si quieres una nota ahora mismo, pídesela a ${list ?? 'un agente CLI'}: ellos la guardan con memory_note.`,
     ].join(' ')
     : [
       `I am @madre, this room's memory speaking${model ? `, running ${model} on Ollama on this machine` : ''}.`,
       'The archivist is my other half: the same model, in the background, reads what the room says every few exchanges or after a few quiet minutes and keeps facts, decisions, preferences and open questions. That is what NOSTROMO shows and what I quote as [#n].',
-      'I do not write files, run anything or decide for anyone. I can convene the crew if you ask: "@madre, ask the crew …" opens a round with every agent online and I close with a cited summary.',
+      'I do not write files, run anything or decide for anyone. I can convene the agents if you ask: "@madre, ask the team …" opens a round with every agent online and I close with a cited summary.',
       `You do not need to dictate to teach me: work in the room and it distils on its own. For a note right now, ask ${list ?? 'a CLI agent'}: they save it with memory_note.`,
     ].join(' ');
 }
@@ -146,11 +146,11 @@ export function roundTable(text, { crew = [], maxSteps = 4 } = {}) {
     ? `Pregunta de la sala, vía @madre: «${question}». Responde en pocas frases con lo que sabes de primera mano; distingue lo que sabes de lo que supones.`
     : `Question from the room, via @madre: "${question}". Answer in a few sentences from first-hand knowledge; separate what you know from what you assume.`;
   const closing = es
-    ? `Resume con citas [#n] lo que el crew respondió a: «${question}». Señala coincidencias y diferencias; sin inventar consenso.`
-    : `Summarise with citations [#n] what the crew answered to: "${question}". Point out agreements and differences; never invent consensus.`;
+    ? `Resume con citas [#n] lo que respondieron los agentes a: «${question}». Señala coincidencias y diferencias; sin inventar consenso.`
+    : `Summarise with citations [#n] what the agents answered to: "${question}". Point out agreements and differences; never invent consensus.`;
   const intro = es
-    ? `Convoco al crew (${list}): «${question}». Cuando respondan, cierro con un resumen citado, sin inventar consenso.`
-    : `Convening the crew (${list}): "${question}". When they answer I close with a cited summary, never inventing consensus.`;
+    ? `Convoco a los agentes (${list}): «${question}». Cuando respondan, cierro con un resumen citado, sin inventar consenso.`
+    : `Convening the agents (${list}): "${question}". When they answer I close with a cited summary, never inventing consensus.`;
   return { question, agents, text: `${intro}\n\n\`\`\`pulse\n${agents.map((id) => `@${id}: ${step}`).join('\n')}\n@madre: ${closing}\n\`\`\`` };
 }
 
@@ -171,8 +171,8 @@ export function actionRequest(text = '', { requester = 'you' } = {}) {
       : 'I do not convene, delegate, run or write: I only answer from the room\'s memory. Ask me what the room remembers about this; to save something use memory_note.';
   }
   return es
-    ? 'Solo respondo desde la memoria de la sala: no delego, no ejecuto ni escribo. Para eso escríbele a @codex, @claude, @gemini u @opencode, los que estén en la fila. Si quieres que le pregunte algo a todo el crew, dímelo así: «@madre, pregúntale al crew …».'
-    : 'I only answer from the room\'s memory: I do not delegate, run or write. For that, write to @codex, @claude, @gemini or @opencode, whichever is in the row. If you want me to put a question to the whole crew, say: "@madre, ask the crew …".';
+    ? 'Solo respondo desde la memoria de la sala: no delego, no ejecuto ni escribo. Para eso escríbele a @codex, @claude, @gemini u @opencode, los que estén en la fila. Si quieres que le pregunte algo a todos los agentes, dímelo así: «@madre, pregúntale al equipo …».'
+    : 'I only answer from the room\'s memory: I do not delegate, run or write. For that, write to @codex, @claude, @gemini or @opencode, whichever is in the row. If you want me to put a question to every agent, say: "@madre, ask the team …".';
 }
 
 // "Responde únicamente con: CANARY-071": the whole message dictates the reply word for word.
