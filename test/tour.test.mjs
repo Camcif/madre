@@ -13,8 +13,14 @@ import { createPulseServer } from '../src/server.mjs';
 const scratch = (prefix) => mkdtemp(join(tmpdir(), prefix));
 const room = async (state, id, files = {}) => {
   await mkdir(join(state, 'rooms', id), { recursive: true });
-  for (const [name, text] of Object.entries(files)) await writeFile(join(state, 'rooms', id, name), text);
+  for (const [name, text] of Object.entries(files)) {
+    await mkdir(join(state, 'rooms', id, name, '..'), { recursive: true });
+    await writeFile(join(state, 'rooms', id, name), text);
+  }
 };
+// A line of a room's record: what the room writes the moment it opens, and a message of a person.
+const OPENED = '{"id":"a","sequence":1,"type":"local.present","timestamp":"2026-10-11T10:00:00.000Z","payload":{"model":null}}\n';
+const SAID = '{"id":"b","sequence":2,"type":"message.created","timestamp":"2026-09-01T10:00:00.000Z","payload":{"messageId":"m","role":"user","text":"hola"}}\n';
 
 test('tour · kept in ~/.pulse, one change at a time, and a file for another version starts it again', async () => {
   const state = await scratch('madre-tour-');
@@ -69,18 +75,25 @@ test('tour · who came before, and the projects of 0.7.2 found by name and prove
   const home = await realpath(await scratch('madre-tour-home-'));
   try {
     // A project added in Home and never opened is not someone who came before; the Coordinator's
-    // own room is not either.
-    await room(state, salasRoomId(state), { 'events.jsonl': '{}\n' });
+    // own room is not either; nor a room just opened — `madre start` on a first install makes its
+    // record and its memory before anyone writes a word.
+    await room(state, salasRoomId(state), { 'events.jsonl': SAID });
     await room(state, 'fresh-0123456789abcdef', { 'project.json': '{}' });
+    await room(state, 'opened-0123456789abcdef', { 'events.jsonl': OPENED, 'memory.sqlite': '', 'chats/c1/events.jsonl': OPENED });
     assert.equal(await cameBefore(state), false);
+    // A person's word in any conversation of a room, the first or a later one, is.
+    await room(state, 'talked-0123456789abcdef', { 'chats/c2/events.jsonl': OPENED + SAID });
+    assert.equal(await cameBefore(state), true);
+    await rm(join(state, 'rooms', 'talked-0123456789abcdef'), { recursive: true, force: true });
+    await rm(join(state, 'rooms', 'opened-0123456789abcdef'), { recursive: true, force: true });
 
     // Three rooms of 0.7.2: one whose folder is in ~/Projects, one forgotten on purpose, one whose
     // folder is gone; and a folder with the right name in the wrong place for another hash.
     const alpha = join(home, 'Projects', 'alpha');
     await mkdir(alpha, { recursive: true });
     const alphaId = projectRoomId(await realpath(alpha));
-    await room(state, alphaId, { 'events.jsonl': '{}\n' });
-    await room(state, 'beta-0123456789abcdef', { 'events.jsonl': '{}\n', 'project.forgotten.json': '{}' });
+    await room(state, alphaId, { 'events.jsonl': OPENED + SAID });
+    await room(state, 'beta-0123456789abcdef', { 'events.jsonl': SAID, 'project.forgotten.json': '{}' });
     await room(state, 'gone-fedcba9876543210', { 'memory.sqlite': '' });
     await mkdir(join(home, 'gone'), { recursive: true });
     assert.equal(await cameBefore(state), true);
@@ -124,7 +137,7 @@ test('tour · the routes: the pages of this Mac only, never a phone', async () =
     const old = join(home, 'old');
     await mkdir(old, { recursive: true });
     const oldId = projectRoomId(await realpath(old));
-    await room(state, oldId, { 'events.jsonl': '{}\n' });
+    await room(state, oldId, { 'events.jsonl': SAID });
     ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: roster, invokers: {} }));
     const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
     const base = `http://127.0.0.1:${port}`;
@@ -158,8 +171,19 @@ test('tour · the routes: the pages of this Mac only, never a phone', async () =
 });
 
 test('tour · the chapters the page tells are the ones the server keeps, in both languages', async () => {
-  const { CHAPTERS: told, GESTURES } = await import('../public/tour-chapters.js');
+  const { CHAPTERS: told, GESTURES, ORDER } = await import('../public/tour-chapters.js');
   assert.deepEqual(told.map((chapter) => chapter.id), CHAPTERS, 'a chapter the server would refuse, or one it keeps that the page never tells');
+  // Two tours of the same chapters: a new person never reads what moved; whoever came from 0.7.2
+  // starts there, and every other chapter tells them, in one line, what is new or different.
+  assert.deepEqual(Object.keys(ORDER), ['new', 'back']);
+  assert.deepEqual([...ORDER.new].sort(), CHAPTERS.filter((id) => id !== 'moved').sort(), 'the tour of the essentials lacks a chapter, or tells one twice');
+  assert.deepEqual([...ORDER.back].sort(), [...CHAPTERS].sort(), 'the tour of what changed lacks a chapter, or tells one twice');
+  assert.equal(ORDER.back[0], 'moved');
+  for (const chapter of told.filter((one) => one.id !== 'moved')) {
+    assert.ok(['new', 'changed'].includes(chapter.news?.kind) && chapter.news.es && chapter.news.en, `${chapter.id} does not say what changed since 0.7.2`);
+  }
+  // What moved is told against what 0.7.2 had: BISHOP and PERSONALIZE never shipped in it.
+  assert.ok(!JSON.stringify(told[0].moved).match(/BISHOP|PERSONALI/), 'what moved names something 0.7.2 never had');
   for (const chapter of told) {
     for (const field of ['title', 'lead']) assert.ok(chapter[field]?.es && chapter[field]?.en, `${chapter.id} has no ${field} in both languages`);
     assert.equal(chapter.points.es.length, chapter.points.en.length, `${chapter.id} says more in one language`);

@@ -2924,7 +2924,8 @@ function fillProjects(host) {
   const block = sxBlock(host, t('Projects'), t('A project is a folder: MADRE gives it its own conversations and its own memory. Adding it does not open it; you open it from its card.'));
   sxRow(block, t('Add a project'), null, sxButton(t('Add'), () => { settingsSheet?.close(); openAddSheet(); }, { tone: 'primary' }));
   sxRow(block, t('See the welcome again'), null, sxButton(t('Open'), () => { settingsSheet?.close(); welcomed = true; openWizard(); }));
-  sxRow(block, t('The tour of MADRE 1.0'), t('Everything new, chapter by chapter. ? opens the gestures anywhere.'), sxButton(t('See the tour'), () => { settingsSheet?.close(); homeTour.openChapters(); }));
+  const back = homeTour.path() === 'back';
+  sxRow(block, back ? t('The tour of MADRE 1.0') : t('Getting to know MADRE'), back ? t('Everything new, chapter by chapter. ? opens the gestures anywhere.') : t('The essentials, chapter by chapter. ? opens the gestures anywhere.'), sxButton(t('See the tour'), () => { settingsSheet?.close(); homeTour.openChapters(); }));
 }
 function fillRelease(host) {
   const info = versionSeen;

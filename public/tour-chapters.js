@@ -4,6 +4,18 @@
 // Everything here is what the product does today; what could not be checked in the code is not
 // said. `where` is where the thing lives: in Home, inside a project, or both; «Take me there» is
 // offered wherever the page can take the person to it (public/tour.js).
+//
+// Two people read it (2026-10-11). Whoever installs MADRE for the first time gets to know it: the
+// essentials first, in the order they are used. Whoever comes from 0.7.2 is told what changed:
+// what moved first, then what is new, then what changed, and each chapter opens with one line —
+// `news` — that says what is new or different since 0.7.2, checked against the v0.7.2 tag (BISHOP,
+// Home, the second bar, Settings and the phone did not exist there; MU/TH/UR, NOSTROMO,
+// ⚙ CONNECTIONS, AIRLOCK, the ash key and the EN and theme keys did).
+
+export const ORDER = {
+  new: ['home', 'project', 'talk', 'modes', 'settings', 'modules', 'coordinator', 'links', 'maps', 'phone', 'gestures'],
+  back: ['moved', 'home', 'coordinator', 'links', 'maps', 'project', 'settings', 'modules', 'talk', 'modes', 'phone', 'gestures'],
+};
 
 export const CHAPTERS = [
   {
@@ -11,25 +23,23 @@ export const CHAPTERS = [
     title: { es: 'Qué se movió', en: 'What moved' },
     lead: { es: 'Lo que buscabas sigue ahí, con otro nombre o en otro lugar.', en: 'What you looked for is still there, under another name or in another place.' },
     moved: [
-      ['PERSONALIZAR', { es: 'Ajustes · ⌘ ,', en: 'Settings · ⌘ ,' }],
       ['MU/TH/UR', { es: 'Diagnóstico', en: 'Diagnostics' }],
       ['NOSTROMO', { es: 'Mapa de memoria, en la barra', en: 'Memory map, on the bar' }],
-      ['BISHOP', { es: 'Coordinador', en: 'Coordinator' }],
+      [{ es: '⚙ CONEXIONES (sesión)', en: '⚙ CONNECTIONS (sign-in)' }, { es: 'Ajustes › Agentes', en: 'Settings › Agents' }],
       ['#4 AIRLOCK', { es: '#4 Acceso total: la llave dos veces', en: '#4 Full access: the key, twice' }],
-      [{ es: 'CONEXIONES (sesión)', en: 'CONNECTIONS (sign-in)' }, { es: 'Ajustes › Agentes', en: 'Settings › Agents' }],
-      ['ASH', { es: 'Ahorro de tokens, en Módulos', en: 'Token saver, in Modules' }],
+      ['ash', { es: 'Ahorro de tokens, en Módulos', en: 'Token saver, in Modules' }],
       [{ es: 'EN · tema', en: 'EN · theme' }, { es: 'Ajustes › Apariencia', en: 'Settings › Appearance' }],
     ],
     points: {
       es: [
         '<code>madre</code> sin nada más abre Inicio; <code>madre start</code> sigue abriendo el proyecto de la carpeta.',
         '«Conexiones» ya no es iniciar sesión de los agentes: eso vive en Ajustes › Agentes. Ahora una conexión deja que un proyecto consulte lo que otro aprendió.',
-        'Ajustes reúne PERSONALIZAR y las pestañas de MU/TH/UR; Diagnóstico es lo que era MU/TH/UR.',
+        'Ajustes (⌘ ,) reúne lo que estaba en MU/TH/UR, en ⚙ CONEXIONES y en las teclas EN y de tema; Diagnóstico es lo que era MU/TH/UR.',
       ],
       en: [
         '<code>madre</code> on its own opens Home; <code>madre start</code> still opens the project in the folder.',
         '«Connections» is no longer signing your agents in: that lives in Settings › Agents. A connection now lets one project look up what another learned.',
-        'Settings gathers PERSONALIZE and the tabs of MU/TH/UR; Diagnostics is what MU/TH/UR was.',
+        'Settings (⌘ ,) gathers what was in MU/TH/UR, in ⚙ CONNECTIONS and on the EN and theme keys; Diagnostics is what MU/TH/UR was.',
       ],
     },
     keys: [],
@@ -39,6 +49,7 @@ export const CHAPTERS = [
     id: 'home',
     title: { es: 'Inicio', en: 'Home' },
     lead: { es: 'Todos tus proyectos en un lugar, abiertos o dormidos.', en: 'All your projects in one place, open or asleep.' },
+    news: { kind: 'new', es: 'En 0.7.2 cada proyecto se abría por su cuenta con <code>madre start</code>; Inicio los reúne a todos.', en: 'In 0.7.2 each project opened on its own with <code>madre start</code>; Home gathers them all.' },
     points: {
       es: [
         'Agrega carpetas: no se abren hasta que tú quieras.',
@@ -62,6 +73,7 @@ export const CHAPTERS = [
     id: 'project',
     title: { es: 'Tu proyecto', en: 'Your project' },
     lead: { es: 'Cada proyecto tiene su conversación, sus archivos y su memoria.', en: 'Each project has its own conversation, files and memory.' },
+    news: { kind: 'changed', es: 'Son nuevos la segunda barra y Cambiar de proyecto, y los paneles se abren al lado o en una ventana que mueves.', en: 'The second bar and Switch project are new, and panels open beside you or in a window you move.' },
     points: {
       es: [
         'La segunda barra lleva a Inicio, a otro proyecto abierto, a recargar y a Ajustes.',
@@ -85,6 +97,7 @@ export const CHAPTERS = [
     id: 'talk',
     title: { es: 'Hablar con los agentes', en: 'Talking to your agents' },
     lead: { es: 'Una conversación, todos tus agentes.', en: 'One conversation, every agent.' },
+    news: { kind: 'changed', es: 'Se suman el módulo Intenciones, que sugiere bajo la caja cuánto debe pensar cada agente, y /gh, con el módulo GitHub.', en: 'New here: the Intenciones module, which suggests under the box how hard each agent should think, and /gh, with the GitHub module.' },
     points: {
       es: [
         'Elige el agente en el orbe; el modo, el modelo y el esfuerzo van en una fila bajo la caja.',
@@ -109,6 +122,7 @@ export const CHAPTERS = [
     id: 'modes',
     title: { es: 'Modos y permisos', en: 'Modes and permissions' },
     lead: { es: 'Cada mensaje dice hasta dónde puede llegar el agente.', en: 'Every message says how far the agent may go.' },
+    news: { kind: 'changed', es: '#4 AIRLOCK ahora es #4 Acceso total. Tú eliges qué llave abre #3 y #4, y una llave aceptada puede valer unos minutos.', en: '#4 AIRLOCK is now #4 Full access. You choose which key opens #3 and #4, and an accepted key can last a few minutes.' },
     points: {
       es: [
         '#0 Incógnito, #1 Solo conversar, #2 Crear, #3 Editar y #4 Acceso total.',
@@ -128,6 +142,7 @@ export const CHAPTERS = [
     id: 'coordinator',
     title: { es: 'El Coordinador', en: 'The Coordinator' },
     lead: { es: 'Un agente que ve todos tus proyectos desde arriba.', en: 'An agent that sees all your projects from above.' },
+    news: { kind: 'new', es: 'En 0.7.2 cada proyecto trabajaba por su cuenta; ahora un agente los ve todos.', en: 'In 0.7.2 each project worked on its own; now one agent sees them all.' },
     points: {
       es: [
         'Lee entre tus proyectos, firma conexiones y lleva órdenes de uno a otro. Le hablas en su propio proyecto, desde Inicio.',
@@ -147,6 +162,7 @@ export const CHAPTERS = [
     id: 'links',
     title: { es: 'Conexiones', en: 'Connections' },
     lead: { es: 'Un proyecto puede consultar lo que otro ya aprendió.', en: 'One project can look up what another has already learned.' },
+    news: { kind: 'new', es: 'En 0.7.2, «Conexiones» era iniciar sesión de tus agentes; ahora une dos proyectos.', en: 'In 0.7.2, «Connections» was signing your agents in; now it joins two projects.' },
     points: {
       es: [
         'Tú firmas cada conexión: qué consulta, por cuánto tiempo y si el Coordinador puede dar órdenes.',
@@ -166,6 +182,7 @@ export const CHAPTERS = [
     id: 'maps',
     title: { es: 'Los mapas', en: 'The maps' },
     lead: { es: 'Tu memoria y tus proyectos, de un vistazo.', en: 'Your memory and your projects, at a glance.' },
+    news: { kind: 'changed', es: 'NOSTROMO ahora es el Mapa de memoria, con su tecla en la barra; el Mapa de proyectos es nuevo.', en: 'NOSTROMO is now the Memory map, with its key on the bar; the Project map is new.' },
     points: {
       es: [
         'El Mapa de memoria tiene su tecla en la barra del proyecto: cada estrella es algo que MADRE recuerda de él.',
@@ -190,6 +207,7 @@ export const CHAPTERS = [
     id: 'settings',
     title: { es: 'Diagnóstico y Ajustes', en: 'Diagnostics and Settings' },
     lead: { es: 'Todo lo que configuras, en un lugar; y el remedio cuando algo falla.', en: 'Everything you set, in one place; and the remedy when something fails.' },
+    news: { kind: 'new', es: 'Lo que estaba repartido entre MU/TH/UR, ⚙ CONEXIONES y la barra ahora vive en una ventana con buscador, y Diagnóstico te da el remedio.', en: 'What was spread across MU/TH/UR, ⚙ CONNECTIONS and the bar now lives in one window with a search, and Diagnostics gives you the remedy.' },
     points: {
       es: [
         'Ajustes se abre con ⌘ , y se busca con /. Los cambios se aplican al instante.',
@@ -213,6 +231,7 @@ export const CHAPTERS = [
     id: 'modules',
     title: { es: 'Módulos', en: 'Modules' },
     lead: { es: 'Lo que le agregas a MADRE, como apps.', en: 'What you add to MADRE, like apps.' },
+    news: { kind: 'changed', es: 'Ahora son un tablero de mosaicos, como apps; ash es Ahorro de tokens, y se suman Intenciones y GitHub.', en: 'They are now a board of tiles, like apps; ash is Token saver, and Intenciones and GitHub join them.' },
     points: {
       es: [
         'Un tablero de mosaicos, cada uno con su interruptor y su ficha.',
@@ -232,6 +251,7 @@ export const CHAPTERS = [
     id: 'phone',
     title: { es: 'Tu teléfono', en: 'Your phone' },
     lead: { es: 'Sigue donde ibas, desde el teléfono.', en: 'Carry on where you were, from your phone.' },
+    news: { kind: 'new', es: 'En 0.7.2 MADRE solo se abría en la Mac.', en: 'In 0.7.2 MADRE only opened on the Mac.' },
     points: {
       es: [
         'Empareja tu teléfono con un código QR, en la misma red Wi‑Fi que tu Mac.',
@@ -267,6 +287,7 @@ export const CHAPTERS = [
     id: 'gestures',
     title: { es: 'Gestos y atajos', en: 'Gestures and shortcuts' },
     lead: { es: 'Lo que se hace con las manos. Esta hoja se abre con ? en cualquier momento.', en: 'What is done with your hands. This sheet opens with ? at any moment.' },
+    news: { kind: 'new', es: 'Los gestos y atajos de todo MADRE, juntos en una hoja por primera vez.', en: 'The gestures and shortcuts of all of MADRE, together on one sheet for the first time.' },
     points: { es: [], en: [] },
     keys: [],
     where: ['home', 'room'],

@@ -16922,7 +16922,9 @@ function drawRelease(section, info) {
   // What this version brought, again: the board that opened after the update, for whoever closed
   // it too fast or wants to show someone. Only where it exists.
   if (info.notes) sxRow(block, t("What's new in this version"), null, sxButton(t('Open'), () => void openWhatsNew()));
-  if (!state.device) sxRow(block, t('The tour of MADRE 1.0'), t('Everything new, chapter by chapter. ? opens the gestures anywhere.'), sxButton(t('See the tour'), () => { openSettings(false); roomTour().openChapters(); }));
+  // Whoever came from 0.7.2 took the tour of what changed; whoever is new, the one of the essentials.
+  const back = roomTour().path() === 'back';
+  if (!state.device) sxRow(block, back ? t('The tour of MADRE 1.0') : t('Getting to know MADRE'), back ? t('Everything new, chapter by chapter. ? opens the gestures anywhere.') : t('The essentials, chapter by chapter. ? opens the gestures anywhere.'), sxButton(t('See the tour'), () => { openSettings(false); roomTour().openChapters(); }));
   const when = info.checkedAt ? new Date(info.checkedAt).toLocaleString() : null;
   const check = sxSwitch(info.enabled, async (on, box) => {
     box.disabled = true;

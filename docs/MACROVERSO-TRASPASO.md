@@ -359,12 +359,20 @@ D-S13 (BISHOP firma enlaces de lectura de 7 días como máximo; con órdenes, el
   `/api/review-ask/*` en la página.
 - **Recorrido de 1.0** (opción B con dos piezas de C, decidido el 2026-10-11): `src/tour.mjs` guarda en
   `~/.pulse/tour.json` el camino (`new` o `back`), el día del bonjour, los capítulos leídos, dónde
-  iba y las pistas vistas. «De vuelta» es quien tiene salas con `events.jsonl` o `memory.sqlite`.
+  iba y las pistas vistas. «De vuelta» es quien escribió en alguna sala: un `message.created` con
+  `role: user` en su registro (`events.jsonl` o `chats/<id>/events.jsonl`). Tener la sala no basta:
+  una sala se crea con su registro y su memoria al abrirse, también el primer `madre start` de una
+  instalación nueva. Cada camino tiene su recorrido (`ORDER` en `public/tour-chapters.js`): el nuevo,
+  «Conoce MADRE», lo esencial en el orden en que se usa (11 capítulos); el de vuelta, «El recorrido de
+  MADRE 1.0», empieza por «Qué se movió» y cada capítulo abre con su línea `news` («Nuevo en 1.0» o
+  «Cambió en 1.0»), cotejada con la etiqueta `v0.7.2` (ahí no existían BISHOP, Inicio, la segunda
+  barra, Ajustes ni el teléfono; sí MU/TH/UR, NOSTROMO, ⚙ CONNECTIONS, AIRLOCK, ash, EN y tema).
   `public/tour.js` lo usa Inicio y cada proyecto: cada página le pasa `go` (qué hace «Llévame ahí»
   en ella) y `ready` (en la sala espera un agente listo y ningún turno). En la sala reemplaza el
   recorrido viejo (`TOUR_STEPS`) y Novedades 1.0, que marca vistas al empezar. Para probarlo sin
   tocar el `~/.pulse` real: un Inicio con `PULSE_HOME` y `PULSE_LOBBY_HOME` en una carpeta
-  temporal (salas con `events.jsonl` vacío cuyo id coincida con carpetas de esa casa), y
+  temporal (salas con un mensaje de persona en `events.jsonl` y cuyo id coincida con carpetas de
+  esa casa), y
   `POST /api/tour {"reset": true}` para empezar otra vez.
 - **Carga de MADRE** (`public/loader.js`: `makeLoader`, `setLoader`, `creep`, `finishLoader`,
   `LOADER_MARK`): la barra nunca retrocede. La recarga guarda en `sessionStorage['madre.curtain']` el

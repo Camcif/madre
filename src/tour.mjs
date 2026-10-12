@@ -13,8 +13,10 @@
 // projects and is proved by the hash. Nothing is guessed: a folder whose hash does not match is
 // not that project, and a project MADRE was told to forget is never brought back.
 
+import { createReadStream } from 'node:fs';
 import { mkdir, readdir, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createInterface } from 'node:readline';
 import { PROJECT_HOMES, associateProject, projectRoomId, salasRoomId } from './salas.mjs';
 
 export const TOUR_VERSION = '1.0';
@@ -95,16 +97,28 @@ export async function changeTour(stateRoot, change, now = new Date()) {
   return writeTour(stateRoot, state);
 }
 
-// Whoever has a room of their own already used MADRE before: a room with a conversation or a
-// memory in it. A project added in Home and never opened has neither, so a new person who adds
-// projects before the bonjour is still new.
+// Whoever already used MADRE wrote in it: a message of theirs in the record of a room. Having a room
+// proves nothing — a room is made with its record and its memory the moment it opens, a new
+// person's first `madre start` too (2026-10-11) — and a project added in Home and never opened has
+// not even that. The Coordinator's own room is not counted either.
+const PERSON_SPOKE = /"type":"message\.created".*"role":"user"/;
+async function spoke(file) {
+  const lines = createInterface({ input: createReadStream(file, { encoding: 'utf8' }), crlfDelay: Infinity });
+  try {
+    for await (const line of lines) if (PERSON_SPOKE.test(line)) return true;
+  } catch { /* unreadable: not proof of anything */ } finally {
+    lines.close();
+  }
+  return false;
+}
 export async function cameBefore(stateRoot) {
   const dir = join(stateRoot, 'rooms');
   const salas = salasRoomId(stateRoot);
   for (const id of await readdir(dir).catch(() => [])) {
     if (id === salas) continue;
-    for (const kept of ['events.jsonl', 'memory.sqlite']) {
-      if (await stat(join(dir, id, kept)).then((info) => info.isFile(), () => false)) return true;
+    const chats = await readdir(join(dir, id, 'chats')).catch(() => []);
+    for (const file of [join(dir, id, 'events.jsonl'), ...chats.map((chat) => join(dir, id, 'chats', chat, 'events.jsonl'))]) {
+      if (await stat(file).then((info) => info.isFile(), () => false) && await spoke(file)) return true;
     }
   }
   return false;

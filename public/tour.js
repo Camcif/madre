@@ -8,14 +8,16 @@
 // module what it can do — `go`, one function per chapter that takes the person there — and when
 // it must wait (`ready`): never over a turn that runs, never before an agent is connected.
 //
-// The bonjour asks nothing it can answer itself. Whoever has rooms with conversations came from
+// The bonjour asks nothing it can answer itself. Whoever wrote in a project before came from
 // 0.7.2: their projects are brought back to Home first, with the loader's real progress (one step
-// per project), and the chapters open on what moved. A new person is welcomed and, in Home, handed
-// to the assistant that connects agents and adds projects; the chapters come after it.
+// per project), and the chapters tell what changed — what moved first, then what is new, each
+// chapter with one line on what is different. A new person is welcomed and, in Home, handed to the
+// assistant that connects agents and adds projects; then the chapters tell the essentials, in the
+// order they are used (public/tour-chapters.js, ORDER).
 
 import { LOADER_MARK, finishLoader, makeLoader, setLoader } from './loader.js';
 import { language, t } from './i18n.js';
-import { CHAPTERS, GESTURES } from './tour-chapters.js';
+import { CHAPTERS, GESTURES, ORDER } from './tour-chapters.js';
 
 const say = (pair) => (typeof pair === 'string' ? pair : pair?.[language()] ?? pair?.es ?? '');
 const fill = (template, vars) => template.replace(/\{(\w+)\}/g, (whole, name) => (Object.hasOwn(vars, name) ? String(vars[name]) : whole));
@@ -96,7 +98,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     return state;
   };
   const path = () => state?.path ?? (info?.returning ? 'back' : 'new');
-  const chapters = () => CHAPTERS.filter((chapter) => chapter.id !== 'moved' || path() === 'back');
+  const chapters = () => (ORDER[path()] ?? ORDER.new).map((id) => CHAPTERS.find((chapter) => chapter.id === id)).filter(Boolean);
   const busyWith = () => Boolean(windowNode?.open || sheetNode?.open || document.querySelector('dialog.tour-bonjour[open]'));
 
   // ---- One tab at a time. The tab that shows the bonjour or the chapters holds the tour and says
@@ -210,8 +212,9 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const body = el('p', 'tour-hello-says', back
       ? t('MADRE changed a lot since 0.7.2. First I bring your projects to Home; then I tell you what is new, at your own pace.')
       : t('This is MADRE: all your AI agents in one place, with your projects, their memory and your permissions.'));
-    const note = back ? el('p', 'tour-hello-note') : null;
-    if (note) note.innerHTML = t('<code>madre</code> now opens Home; <code>madre start</code> still opens the project in the folder.'); // trusted: our own catalogue
+    const note = el('p', 'tour-hello-note');
+    if (back) note.innerHTML = t('<code>madre</code> now opens Home; <code>madre start</code> still opens the project in the folder.'); // trusted: our own catalogue
+    else note.textContent = page === 'home' && welcome?.needed?.() ? t('First we get an agent and a project ready; then I tell you the essentials, at your own pace.') : t('I tell you the essentials in a few short chapters, at your own pace.');
     const acts = el('div', 'tour-hello-acts');
     const later = key('tour-btn quiet', t('Later'), async () => {
       await keep({ path: path(), bonjour: true, closed: true });
@@ -227,7 +230,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
       else openChapters(page === 'home' ? 'home' : 'project');
     });
     acts.append(later, onward);
-    stage.append(mark, title, body, ...(note ? [note] : []), acts);
+    stage.append(mark, title, body, note, acts);
     node.append(stage);
     node.addEventListener('cancel', (event) => { event.preventDefault(); later.click(); });
     node.addEventListener('close', () => { letGoIfDone(); setTimeout(() => node.remove(), 400); });
@@ -284,10 +287,9 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const sheet = el('div', 'wn-sheet tour-sheet');
     const head = el('header', 'tour-head');
     const words = el('div', 'tour-head-words');
-    words.append(el('span', 'wn-eyebrow', t('The tour of MADRE 1.0')));
-    const title = el('h2', null, t('Everything new, at your pace'));
+    const title = el('h2');
     title.id = 'tour-window-title';
-    words.append(title);
+    words.append(el('span', 'wn-eyebrow'), title);
     const close = key('tour-close', null, () => windowNode.close());
     close.innerHTML = CLOSE_ICON; // trusted: our own SVG string
     close.setAttribute('aria-label', t('Close'));
@@ -320,6 +322,9 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const coming = shown.soon && soon().includes(shown.id);
     const chapter = coming ? { ...shown, ...shown.soon, where: [], keys: [] } : shown;
     current = shown;
+    const back = path() === 'back';
+    windowNode.querySelector('.tour-head .wn-eyebrow').textContent = back ? t('The tour of MADRE 1.0') : t('Getting to know MADRE');
+    windowNode.querySelector('#tour-window-title').textContent = back ? t('Everything new, at your pace') : t('The essentials, at your pace');
     void keep({ chapter: chapter.id, at: chapter.id });
     if (!state.done.includes(chapter.id)) state.done = [...state.done, chapter.id];
     const list = chapters();
@@ -347,7 +352,16 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
       scene.append(table);
     } else scene.innerHTML = SCENES[chapter.id]?.() ?? ''; // trusted: our own markup
     const words = el('div', 'tour-words');
-    words.append(el('span', 'tour-step', coming ? `${fill(t('{n} of {total}'), { n: index + 1, total: list.length })} · ${t('Coming soon')}` : fill(t('{n} of {total}'), { n: index + 1, total: list.length })), el('h3', null, say(chapter.title)), el('p', 'tour-lead', say(chapter.lead)));
+    words.append(el('span', 'tour-step', coming ? `${fill(t('{n} of {total}'), { n: index + 1, total: list.length })} · ${t('Coming soon')}` : fill(t('{n} of {total}'), { n: index + 1, total: list.length })), el('h3', null, say(chapter.title)));
+    // Whoever came from 0.7.2 reads first what is new or different here.
+    if (back && chapter.news && !coming) {
+      const news = el('p', `tour-news ${chapter.news.kind}`);
+      const said = el('span');
+      said.innerHTML = say(chapter.news); // trusted: our own copy
+      news.append(el('b', 'tour-news-tag', chapter.news.kind === 'new' ? t('New in 1.0') : t('Changed in 1.0')), said);
+      words.append(news);
+    }
+    words.append(el('p', 'tour-lead', say(chapter.lead)));
     const points = chapter.points?.[language()] ?? chapter.points?.es ?? [];
     if (points.length) {
       const ul = el('ul', 'tour-points');
