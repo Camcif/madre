@@ -444,7 +444,9 @@ function toast(message, { tone = null } = {}) {
   const text = String(message);
   const kind = toastTone(text, tone);
   // Who speaks stays in the words a screen reader hears; on screen the dot says enough.
-  const from = text.match(/^MU\/TH\/UR › /)?.[0] ?? '';
+  // The prefix the room's own notices carry, in the room's language (WEB-14): after MU/TH/UR became
+  // Diagnóstico the old one was looked for, and «Diagnóstico ›» showed in every notice.
+  const from = [t('Diagnostics › '), 'MU/TH/UR › '].find((prefix) => text.startsWith(prefix)) ?? '';
   els.toast.replaceChildren(el('i', 'toast-dot'), ...(from ? [el('span', 'toast-from', from)] : []), el('span', 'toast-text', text.slice(from.length)));
   els.toast.dataset.tone = kind;
   els.toast.classList?.toggle('note', kind === 'note');
@@ -778,10 +780,17 @@ viewerUI.review?.addEventListener('click', (event) => {
 document.addEventListener('click', (event) => { if (viewerUI.menu && !viewerUI.menu.hidden && !viewerUI.menu.contains(event.target) && !viewerUI.review?.contains(event.target)) hideViewerMenu(); });
 viewer.dialog.addEventListener('close', () => { hideViewerMenu(); setSelection(null, null); ripley.frame = null; ripley.history = []; ripleyClearErrors(); if (ripley.nav) ripley.nav.hidden = true; });
 
+// How much of a file the viewer draws (WEB-09): every line is two nodes and four listeners, and a
+// log of hundreds of thousands of lines froze the tab — the phone's first. Past the limit the
+// rest is said and left to the raw file; past the editor's own limit, no colour.
+const VIEW_MAX_LINES = 20000;
+const VIEW_COLOUR_LINES = 6000;
 function codeView(text, { line = null, lines = null, name = null } = {}) {
   const pre = el('pre', 'code');
   viewerUI.lineNodes = [];
-  const rows = text.replace(/\n$/, '').split('\n');
+  const all = text.replace(/\n$/, '').split('\n');
+  const rows = all.length > VIEW_MAX_LINES ? all.slice(0, VIEW_MAX_LINES) : all;
+  const coloured = all.length <= VIEW_COLOUR_LINES;
   // Read by what the file is. The highlighter never rewrites a line — it hands back spans over
   // the same characters — so what is on screen and what is on disk stay the same bytes, and a
   // selection sent to an agent is the file, not a rendering of it.
@@ -797,6 +806,7 @@ function codeView(text, { line = null, lines = null, name = null } = {}) {
     const ln = el('span', 'ln', String(n));
     const tx = el('span', 'tx');
     if (!content) tx.append(' ');
+    else if (!coloured) tx.append(content);
     else for (const piece of tokenize(content, family, carry)) tx.append(piece.kind ? el('span', `t-${piece.kind}`, piece.text) : piece.text);
     ln.dataset.n = n; tx.dataset.n = n;
     const marked = lines ? n >= lines.from && n <= lines.to : n === line;
@@ -834,6 +844,7 @@ function codeView(text, { line = null, lines = null, name = null } = {}) {
     viewerUI.lineNodes.push({ n, ln, tx });
     pre.append(ln, tx);
   });
+  if (rows.length < all.length) pre.append(el('span', 'ln', '…'), el('span', 'tx view-more', t('Showing the first {n} lines of {total}. Open it on its own to read the rest.', { n: VIEW_MAX_LINES.toLocaleString(), total: all.length.toLocaleString() })));
   return pre;
 }
 
@@ -3033,7 +3044,9 @@ function tickGrace() {
   }, 20000);
 }
 const graceWords = (ms) => t('{n} min', { n: Math.max(1, Math.ceil(ms / 60000)) });
-function projectDesignation() { return (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? ''; }
+// The project's name as the project says it (WEB-11): cut at «/» it was the whole path on Windows.
+// The cut stays only for a project too old to say it.
+function projectDesignation() { return state.projectName || ((state.projectRoot ?? '').split(/[\\/]/).filter(Boolean).pop() ?? ''); }
 function askOverrideKey(stage, { again = false } = {}) {
   override.stage = stage;
   override.again = again;
@@ -3197,7 +3210,7 @@ function renderEmptyStarts() {
     return;
   }
   if (state.projectEmpty === null) return;
-  const project = (state.projectRoot ?? '').split('/').filter(Boolean).pop() || t('this project');
+  const project = projectDesignation() || t('this project');
   for (const text of state.projectEmpty ? [
     t('I want to start a project: '),
     t('Before writing anything, ask me what I want to build and propose a plan in steps.'),
@@ -3469,6 +3482,8 @@ function removeEmpty() {
   els.column.querySelector('.empty')?.remove();
 }
 
+// Every clock a «working» row runs, so a switch of conversation stops them all at once.
+const thinkingClocks = new Set();
 function removeThinking(messageId) {
   document.getElementById(`working-${messageId}`)?.remove();
 }
@@ -3959,10 +3974,13 @@ function renderThinking(event) {
   const limit = Math.round(limitMs / 1000);
   let timer = null;
   let wasConnected = false;
+  const born = Date.now();
   const tick = () => {
-    // Stop once the bubble has been in the document and was removed again.
+    // Stop once the bubble has been in the document and was removed again — or never got there:
+    // a turn replayed from the record starts and ends in one pass, before its bubble is placed,
+    // and its clock ticked for as long as the page lived, one per turn of the history (WEB-05).
     if (node.isConnected) wasConnected = true;
-    else if (wasConnected && timer) { clearInterval(timer); return; }
+    else if ((wasConnected || Date.now() - born > 5000) && timer) { clearInterval(timer); thinkingClocks.delete(timer); return; }
     const seconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
     speak(seconds);
     elapsed.textContent = `${seconds}s / ${limit}s`;
@@ -3972,6 +3990,7 @@ function renderThinking(event) {
   tick();
   timer = setInterval(tick, 1000);
   timer.unref?.();
+  thinkingClocks.add(timer);
   return node;
 }
 
@@ -5466,7 +5485,7 @@ function renderPlanEvent(event) {
     const stop = iconButton(ICON_STOP, t('Stop the remaining steps of this plan'), 'stop');
     stop.addEventListener('click', async () => {
       stop.disabled = true;
-      const response = await fetch(`/api/plans/${planId}/stop`, { method: 'POST' });
+      const response = await reach(`/api/plans/${planId}/stop`, { method: 'POST' });
       if (!response.ok) toast(t('That plan is no longer running.'));
     });
     title.append(stop);
@@ -5702,10 +5721,15 @@ function renderEventNode(event) {
     case 'privacy.purged': node = renderPrivacy(event); break;
     case 'privacy.warning': if (!replaying) toast(t('Diagnostics › your message carries {n} private {term}. Agents will read it as you wrote it; their replies are guarded.', { n: event.payload.hits, term: event.payload.hits === 1 ? t('term') : t('terms') })); return;
     case 'memory.forgotten': node = renderForgotten(event); break;
-    // A new decision changes what the head of the conversation should say.
     case 'enlace.received': noteCrossRead(event.payload); return;
-    case 'memory.noted': attachMemoryHint(event); if (!replaying && (event.payload.notes ?? []).some((note) => note.kind === 'decision')) void renderSettled();
-void renderOpenQuestions(); return;
+    // A new decision changes what the head of the conversation should say, and a new note may be
+    // an open question. Live only (WEB-07): while the record replays, every note of the history
+    // asked the server again; the replay asks once, when it is done (paintConversation, boot).
+    case 'memory.noted':
+      attachMemoryHint(event);
+      if (!replaying && (event.payload.notes ?? []).some((note) => note.kind === 'decision')) void renderSettled();
+      if (!replaying) void renderOpenQuestions();
+      return;
     case 'dataset.exported': return;
     case 'agents.updated': {
       for (const agent of event.payload.agents ?? []) {
@@ -8456,7 +8480,7 @@ function setTree(open) {
   els.treeButton.setAttribute('aria-pressed', String(open));
   try { localStorage.setItem('pulse.tree', open ? 'open' : 'closed'); } catch { /* no storage */ }
   if (open && !els.treeBody.childElementCount) {
-    els.treeRoot.textContent = `/ ${(state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? ''}`;
+    els.treeRoot.textContent = `/ ${projectDesignation()}`;
     const root = el('ul');
     els.treeBody.append(root);
     void loadTreeLevel('.', root);
@@ -8726,8 +8750,13 @@ async function loadChats() {
 function phoneChatAddress(id, extra = '') {
   return id && id !== state.roomChat ? `/?en=${encodeURIComponent(id)}${extra ? `&${extra}` : ''}` : `/${extra ? `?${extra}` : ''}`;
 }
+// Which switch is the latest (WEB-10): two quick clicks fetched two states, and the one that came
+// back last was painted, whichever was asked last — the column showed one conversation while the
+// stream brought the other's.
+let chatSwitch = 0;
 async function openChat(id, { beside = null } = {}) {
   if (id === chats.active) { setChats(false); return; }
+  const mine = ++chatSwitch;
   if (state.device) { globalThis.location.href = phoneChatAddress(id); return; }
   // Leaving a conversation at work is the moment to ask once for a system notification, while
   // the click still counts as the human's: it is how they hear that it finished.
@@ -8738,6 +8767,7 @@ async function openChat(id, { beside = null } = {}) {
   const result = await response.json().catch(() => ({}));
   if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? 'that conversation could not be opened.'}`); return; }
   const payload = await fetch('/api/state').then((one) => one.json()).catch(() => null);
+  if (mine !== chatSwitch) return;   // another switch was asked since: it paints, this one does not
   if (!payload) { window.location.reload(); return; }
   // Everything slow happens before the transition starts: the screen is held still while the new
   // conversation is painted, and it has to be held for a paint, never for the network.
@@ -8846,7 +8876,7 @@ els.chatsClose?.addEventListener('click', () => setChats(false));
 els.chatsNew?.addEventListener('click', async () => {
   els.chatsNew.disabled = true;
   if (chats.list.some((chat) => chat.working)) await askForNotifications();
-  const response = await fetch('/api/chats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  const response = await reach('/api/chats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? 'the conversation was not started.'}`); els.chatsNew.disabled = false; return; }
   if (state.device && result.opened) { globalThis.location.href = phoneChatAddress(result.opened); return; }
@@ -9716,8 +9746,10 @@ state.override = initial.override ?? null;
 state.ripleyWeb = Boolean(initial.ripleyWeb);
 syncAshUI(Boolean(initial.ash?.enabled));
 void renderSettled();
+void renderOpenQuestions();
 state.ripley = Boolean(initial.ripley?.enabled);
 state.projectRoot = initial.projectRoot ?? '';
+state.projectName = initial.projectName ?? '';
 state.platform = initial.platform ?? null;
 for (const plan of initial.plans ?? []) state.plansRunning.add(plan.planId);
 updateStopAll();
@@ -9767,11 +9799,22 @@ els.connection?.closest('.bar')?.querySelector('.bar-left')?.append(els.connecti
 if (typeof ResizeObserver === 'function' && els.composer) new ResizeObserver(placeToast).observe(els.composer);
 window.addEventListener?.('resize', placeToast);
 let stream = null;
+// A stream the browser gave up on is opened again (WEB-04): a network blip is retried by the browser
+// itself, but an answer that is not 200 — the phone's bridge says 502 while the project restarts —
+// closes it for good, and the page said «reconnecting» forever. Waits grow, up to half a minute.
+let streamRetry = 0;
+let streamRetryTimer = null;
 function connectStream() {
   stream?.close?.();
+  clearTimeout(streamRetryTimer);
   stream = new EventSource(`/api/events?since=${state.lastSequence}`);
-  stream.onopen = () => { setConnection('live'); replaying = false; };
-  stream.onerror = () => setConnection('reconnecting');
+  stream.onopen = () => { setConnection('live'); replaying = false; streamRetry = 0; };
+  stream.onerror = () => {
+    setConnection('reconnecting');
+    if (stream.readyState !== EventSource.CLOSED) return;
+    streamRetry += 1;
+    streamRetryTimer = setTimeout(connectStream, Math.min(30000, 1000 * 2 ** Math.min(streamRetry, 5)));
+  };
   stream.onmessage = ({ data }) => renderEvent(JSON.parse(data));
 }
 connectStream();
@@ -9795,6 +9838,13 @@ function forgetConversation() {
   state.lastSender = null;
   state.lastSequence = 0;
   state.brakeArmed = false;
+  // Tallies that belong to the conversation too (WEB-06): kept, a conversation visited again added
+  // its costs, its cross-project reads and TOKEN SAVER's turns a second time.
+  ashSeen.clear();
+  crossReads.clear();
+  state.loginLogs.clear();
+  for (const clock of thinkingClocks) clearInterval(clock);
+  thinkingClocks.clear();
   els.column.replaceChildren();
   renderReplyQuote();
   paintMotherBadge();
@@ -9816,6 +9866,7 @@ async function paintConversation(payload) {
   renderAgents();
   renderPicker();
   renderOnboarding();
+  void renderOpenQuestions();
   scrollToEnd();
   connectStream();
 }
@@ -10837,7 +10888,9 @@ const mother = {
   os: document.querySelector('#mother-os'),
   answer: document.querySelector('#mother-answer'),
   list: document.querySelector('#mother-list'),
-  platform: detectPlatform(),
+  // The remedies are for the computer MADRE runs on, which the project says (WEB-08); the browser's
+  // own system is only the guess when it does not — a phone reading Diagnostics was given Linux.
+  platform: PLATFORMS[state.platform] ? state.platform : detectPlatform(),
   bootTimer: null,
 };
 
@@ -11479,6 +11532,17 @@ function drawFilesSettings(host) {
 // In Salas, the agent chosen on BISHOP's card is the agent the composer addresses when that
 // choice first loads or changes. A manual pick after that remains the human's until it changes.
 let bishopChoice = null;
+// A request that cannot reach the project answers as one it refused, with why (WEB-13): a fetch
+// that threw left its button disabled and its field holding what was typed, with nothing said.
+async function reach(url, init) {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    const said = { error: t('Could not reach MADRE: {error}', { error: error.message }) };
+    return { ok: false, status: 0, json: async () => said };
+  }
+}
+
 async function refreshModules() {
   try {
     const data = await fetch('/api/extensions').then((response) => response.json());
@@ -11494,7 +11558,8 @@ async function refreshModules() {
       bishopChoice = selected;
     }
   } catch (error) {
-    modules.items = [];
+    // The list that was there stays (WEB-13): emptied, a moment without network took every
+    // module's window and key off the bar until the next reload.
     toast(t('UNABLE TO LIST MODULES: {error}', { error: error.message }));
   }
   const installed = modules.items.filter((item) => item.status?.installed).length;
@@ -11734,13 +11799,14 @@ function cardSecrets(panel, item) {
     input.title = secret.note;
     const keep = async (value) => {
       input.disabled = true;
-      const response = await fetch(`/api/x/${item.id}/secret`, {
+      const response = await reach(`/api/x/${item.id}/secret`, {
         method: value === null ? 'DELETE' : 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(value === null ? { name: secret.name } : { name: secret.name, secret: value }),
       });
       const result = await response.json().catch(() => ({}));
       input.value = '';
+      input.disabled = false;
       if (!response.ok) toast(`${t('Diagnostics › ')}${result.error ?? t('{name} could not keep {label}.', { name: item.name, label: secret.label })}`);
       await refreshModules();
     };
@@ -11773,7 +11839,7 @@ function cardControls(panel, item) {
   const row = el('div', 'card-toggles');
   const save = async (control, value, field) => {
     field.disabled = true;
-    const response = await fetch(`/api/extensions/${item.id}/settings`, {
+    const response = await reach(`/api/extensions/${item.id}/settings`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: control.key, value }),
     });
     const result = await response.json().catch(() => ({}));
@@ -11857,7 +11923,7 @@ modules.file?.addEventListener('change', async () => {
 async function refreshModuleFile(item, button) {
   button.disabled = true;
   const ask = async (confirm) => {
-    const response = await fetch(`/api/extensions/${item.id}/refresh`, {
+    const response = await reach(`/api/extensions/${item.id}/refresh`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm }),
     });
     return { ok: response.ok, result: await response.json().catch(() => ({})) };
@@ -11970,7 +12036,7 @@ function paintJob(job) {
 async function updateModule(item, button) {
   button.disabled = true;
   const ask = async (confirm) => {
-    const response = await fetch(`/api/extensions/${item.id}/update`, {
+    const response = await reach(`/api/extensions/${item.id}/update`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm }),
     });
     return { ok: response.ok, status: response.status, result: await response.json().catch(() => ({})) };
@@ -12599,7 +12665,7 @@ function builtinCard(item) {
           pull.title = t('Download {model} into Ollama for {role}', { model, role });
           pull.addEventListener('click', async () => {
             pull.disabled = true;
-            const response = await fetch('/api/ollama/pull', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
+            const response = await reach('/api/ollama/pull', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model }) });
             const result = await response.json().catch(() => ({}));
             if (!response.ok) { toast(`${t('Diagnostics › ')}${result.error ?? t('could not pull')}`); pull.disabled = false; }
             else toast(t('Diagnostics › pulling {model}; progress shows in the project.', { model }));
@@ -12634,7 +12700,7 @@ function builtinCard(item) {
         go.title = step.note;
         go.addEventListener('click', async () => {
           go.disabled = true;
-          const response = await fetch(step.path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+          const response = await reach(step.path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
           const result = await response.json().catch(() => ({}));
           if (!response.ok) {
             if (result.download) window.open(result.download, '_blank', 'noopener');
@@ -12729,7 +12795,7 @@ function builtinCard(item) {
     // A module that tries itself before turning on (PLAYWRIGHT starts its server) takes a few
     // seconds; said only when it does, so a switch that flips at once does not flash a word.
     const trying = on ? null : setTimeout(() => { toggle.textContent = t('TRYING IT…'); }, 400);
-    const response = await fetch(`/api/extensions/${item.id}/install`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm: true }) });
+    const response = await reach(`/api/extensions/${item.id}/install`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm: true }) });
     clearTimeout(trying);
     const result = await response.json().catch(() => ({}));
     if (!response.ok) toast(result.error ?? t('{name} could not be switched.', { name: item.name }));
@@ -12770,7 +12836,7 @@ function moduleCard(item) {
     go.type = 'button';
     go.addEventListener('click', async () => {
       go.disabled = true;
-      const response = await fetch(`/api/extensions/${item.id}/install`, {
+      const response = await reach(`/api/extensions/${item.id}/install`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ confirm: true }),
@@ -13826,7 +13892,7 @@ async function fillCoreBoard() {
   const signed = crew.filter((agent) => sessionOf(agent) === 'signed-in');
   const spent = crew.reduce((sum, agent) => sum + (agent.tokens ?? 0), 0);
   const ever = crew.reduce((sum, agent) => sum + (agent.rawTokens ?? 0), 0);
-  board.append(brewHead(t('YOU'), (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? null));
+  board.append(brewHead(t('YOU'), projectDesignation() || null));
   const you = el('div', 'mem-kpis');
   memTile(you, { label: t('SIGNED IN'), value: `${signed.length}/${crew.length}`, sub: signed.length ? signed.map((agent) => `@${agent.id}`).join(' · ') : t('NOBODY YET') });
   memTile(you, { label: t('PROJECT WINDOW'), value: formatTokens(spent) || '0', sub: state.budget ? t('OF {budget} TOKENS · 5H', { budget: formatTokens(state.budget) }) : t('NO BUDGET SET'), meter: state.budget ? Math.min(1, spent / state.budget) : null });
@@ -14852,7 +14918,7 @@ function connectionCard(agent) {
         if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
         if (result.settings?.capabilities) { state.capabilities = result.settings.capabilities; settingsUI.data.settings.capabilities = result.settings.capabilities; renderCreateScopes(); }
         hint.textContent = why(on);
-        toast(`MU/TH/UR › @${agent.id} ${labelText.toLowerCase()} ${on ? t('on') : t('off')}. ${key === 'web' ? t('Applies to its next turn.') : t('Applies to its next CREATE.')}`);
+        toast(`${t('Diagnostics › ')}@${agent.id} ${labelText.toLowerCase()} ${on ? t('on') : t('off')}. ${key === 'web' ? t('Applies to its next turn.') : t('Applies to its next CREATE.')}`);
       } catch (error) {
         box.checked = !on;
         toast(t('That permission was not saved: {error}', { error: error.message }));
@@ -15417,7 +15483,7 @@ function nostromoTick(now) {
   drawNostromo(clock);
 }
 
-function nostromoDesignation() { return (state.projectRoot ?? '').split('/').filter(Boolean).pop() ?? ''; }
+function nostromoDesignation() { return projectDesignation(); }
 
 nostromo.button?.addEventListener('click', () => {
   if (nostromo.armed) { void openNostromo(); return; }
@@ -18426,7 +18492,8 @@ function phoneKeyboard() {
 
 // Asking for a star or a review (review-ask.js): on the Mac, and never while something is going on
 // — an agent at work, a plan running, words half written in the box.
-startReviewAsk({ busy: () => Boolean(state.device || state.running.size || state.plansRunning.size || els.input?.value?.trim()) });
+// Asked by the page, never by the half on the right of a split view, which is this same page (WEB-12).
+if (!SPLIT_CHAT) startReviewAsk({ busy: () => Boolean(state.device || state.running.size || state.plansRunning.size || els.input?.value?.trim()) });
 // The tour of 1.0 reads where the person is as the room opens, so First steps knows whether to
 // wait; on a phone, the phone's card is said the first time.
 if (!SPLIT_CHAT) roomTour();

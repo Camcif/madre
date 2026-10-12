@@ -149,7 +149,7 @@ test('chats: the panel is the files panel on the other edge, and its handle is i
   // of its own with its whole name in it; the project has nowhere else to be read.
   assert.match(css, /\.project \{ flex: 0 0 auto/);
   assert.match(css, /\.project\.chat-here \{ flex: 0 1 auto/);
-  assert.match(app, /fetch\('\/api\/chats', \{ method: 'POST'/, 'nothing starts a conversation');
+  assert.match(app, /(fetch|reach)\('\/api\/chats', \{ method: 'POST'/, 'nothing starts a conversation');
   // Deleting says what it takes and what it leaves, and asks twice.
   assert.match(app, /Its transcript goes; what the archive learned from it stays/);
   assert.match(app, /drop\.classList\.contains\('sure'\)/);

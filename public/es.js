@@ -4289,6 +4289,7 @@ export const ES = {
   'Type the project name again': 'Escribe el nombre del proyecto otra vez',
   'Type it once more to open it.': 'Escríbela una vez más para abrirlo.',
   'External image · {host}': 'Imagen externa · {host}',
+  'Showing the first {n} lines of {total}. Open it on its own to read the rest.': 'Se muestran las primeras {n} líneas de {total}. Ábrelo aparte para leer el resto.',
   'The editor saves files up to {mb} MB.': 'El editor guarda archivos de hasta {mb} MB.',
   'That could not be read.': 'No se pudo leer.',
   'The version the registry gave ({version}) is not one MADRE installs.': 'La versión que dio el registro ({version}) no es una que MADRE instale.',

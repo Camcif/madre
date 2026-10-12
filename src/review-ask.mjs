@@ -29,7 +29,10 @@ const TICK_MS = 55 * 1000;
 // Never asked twice within this long, whatever moments have come.
 const QUIET_MS = 20 * 60 * 60 * 1000;
 
-const fresh = () => ({ first: null, minutes: 0, lastTick: null, shown: {}, answer: null });
+const fresh = () => ({ first: null, minutes: 0, lastTick: null, shown: {}, answer: null, offered: null });
+// A moment handed to one page is not handed to another for this long (WEB-12 of the 1.0 review):
+// every page in view ticks — Home, each project, each half of a split view — and each one asked.
+const OFFER_HOLD_MS = 10 * 60 * 1000;
 
 export async function readAsk(root) {
   try {
@@ -40,6 +43,7 @@ export async function readAsk(root) {
     if (typeof raw?.lastTick === 'string' && Number.isFinite(Date.parse(raw.lastTick))) state.lastTick = raw.lastTick;
     if (raw?.shown && typeof raw.shown === 'object') for (const { id } of ASK_MOMENTS) if (typeof raw.shown[id] === 'string') state.shown[id] = raw.shown[id];
     if (ASK_ANSWERS.includes(raw?.answer) && raw.answer !== 'later') state.answer = raw.answer;
+    if (typeof raw?.offered?.moment === 'string' && Number.isFinite(Date.parse(raw.offered.at))) state.offered = { moment: raw.offered.moment, at: raw.offered.at };
     return state;
   } catch {
     return fresh();
@@ -79,7 +83,12 @@ async function tick(root, now, { quietSince = null } = {}) {
     await writeAsk(root, state);
   }
   const hushed = quietSince && now - Date.parse(quietSince) < QUIET_MS;
-  return { due: hushed ? null : dueMoment(state, now), minutes: state.minutes };
+  const due = hushed ? null : dueMoment(state, now);
+  if (!due) return { due: null, minutes: state.minutes };
+  if (state.offered?.moment === due && now - Date.parse(state.offered.at) < OFFER_HOLD_MS) return { due: null, minutes: state.minutes };
+  state.offered = { moment: due, at: new Date(now).toISOString() };
+  await writeAsk(root, state);
+  return { due, minutes: state.minutes };
 }
 
 // The person answered the moment they were asked at. Every moment reached by then counts as shown,

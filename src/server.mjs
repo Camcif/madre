@@ -1991,6 +1991,9 @@ export async function createPulseServer({
         return sendJson(response, 200, {
           ...(here.main ? {} : { chat: here.id }),
           projectRoot,
+          // The project's name as this system writes paths (WEB-11): the page cut it at «/», and on
+          // Windows the name was the whole path, so the key for #3 never matched.
+          projectName: basename(canonicalProjectRoot),
           platform: process.platform,
           // Behind the bridge, the page is on a phone and knows it. On the Mac it learns whether a
           // phone is paired, so it keeps its place for the phone only when there is one.
