@@ -333,8 +333,20 @@ export async function createPulseServer({
   // human message and whenever MU/TH/UR looks: a term named in one room guards them all.
   const privacy = new Privacy({ ...privacySettings(await readConfig(root)), home: homedir() });
   const refreshPrivacy = async () => { const { terms, marker, secrets, paths } = privacySettings(await readConfig(root)); privacy.set(terms, marker).setGuards({ secrets, paths }); return privacy; };
+  const memoryWasThere = await stat(join(roomDir, 'memory.sqlite')).then(() => true, () => false);
   const memory = await new RoomMemory(join(roomDir, 'memory.sqlite')).attachPrivacy(privacy).initialize(store)
     .catch((error) => { console.error(`MADRE memory unavailable, turns get the recent window only: ${error.message}`); return null; });
+  // A memory made again from nothing (its file deleted, a copy of the project's state without it)
+  // is filled from every conversation of the project, not only the one open (LOG-14 of the 1.0
+  // review): the index of the others was lost for good. The words are indexed once; a number
+  // already there is left as it is.
+  if (memory && !memoryWasThere) {
+    for (const chat of (await listChats(roomDir)).chats) {
+      if (chat.id === chatId) continue;
+      const file = chatLedger(roomDir, chat.id);
+      if (await stat(file).then((info) => info.isFile(), () => false)) memory.index(await new EventStore(file).readAll().catch(() => []));
+    }
+  }
   // Meaning-aware recall through the user's own Gemini key, when there is one;
   // and the memory as MCP tools for every agent's turn.
   // Ollama, when it is there: local embeddings and a local archivist. Probed at
@@ -1067,6 +1079,10 @@ export async function createPulseServer({
           const source = await openLedger(asked);
           const events = await source.readAll();
           const opened = new Room(roomOptions({ store: source, historicalEvents: events }));
+          // A conversation opened from disk runs nothing yet: a turn it shows as started was cut
+          // by a room that died, and is closed as one (LOG-14 of the 1.0 review). Only the
+          // conversation open at startup was reconciled, so the others «thought» forever.
+          await opened.reconcile();
           wireLocal(opened);
           await applyRoomSettings(opened, room);
           opened.restoreAttachments(events
@@ -1142,6 +1158,8 @@ export async function createPulseServer({
       store = await openLedger(id);
       historicalEvents = await store.readAll();
       room = new Room(roomOptions());
+      // Opened from disk: what it shows as started was cut by a room that died (LOG-14).
+      if (await room.reconcile()) historicalEvents = await store.readAll();
       wireLocal(room);
       await applyRoomSettings(room, leaving);
     }

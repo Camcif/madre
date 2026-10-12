@@ -19,6 +19,12 @@ export function distillDefaults(distill = {}, env = process.env) {
   };
 }
 
+// The project's memory is one, and every conversation alive at once has its archivist (2026-10-12,
+// LOG-06 of the 1.0 review): each asked for the same undistilled batch and paid a provider for it,
+// and the notes came out twice. One batch at a time per memory: whoever finds one being distilled
+// waits for it and then reads what is left.
+const distilling = new WeakMap();   // memory -> the batch being distilled
+
 export class Archivist {
   #memory;
   #settings;
@@ -81,47 +87,59 @@ export class Archivist {
     if (!this.#memory) return null;
     if (this.#running) return this.#running;
     this.#running = (async () => {
-      const batch = this.#memory.undistilled({ maxChars: this.#settings.maxChars });
-      if (!batch.entries.length) return null;
-      const invokers = this.#deps.invokers();
-      const busy = this.#deps.busyAgents();
-      const now = Date.now();
-      for (const [id, until] of this.#bench) if (until <= now) this.#bench.delete(id);
-      const benched = new Set(this.#bench.keys());
-      const candidates = this.#candidates();
-      let agent = pickDistiller(candidates, { preferred: this.#settings.agent, busy, invokers, benched });
-      if (!agent && benched.size) { this.#bench.clear(); agent = pickDistiller(candidates, { preferred: this.#settings.agent, busy, invokers }); }
-      if (!agent) return null;
-      const started = Date.now();
+      while (distilling.has(this.#memory)) await distilling.get(this.#memory).catch(() => null);
+      let release;
+      distilling.set(this.#memory, new Promise((resolve) => { release = resolve; }));
       try {
-        const local = agent.adapter === 'ollama';
-        const brief = this.#memory.briefing();
-        const prompt = distillPrompt({ entries: batch.entries, projectName: this.#deps.projectName(), existing: brief.standing, discarded: brief.discarded, json: local });
-        const result = await invokers[agent.adapter]({ executable: agent.path, projectRoot: this.#deps.projectRoot(), prompt, timeoutMs: local ? this.#deps.localTimeoutMs() : this.#deps.timeoutFor(agent.id), model: local ? null : this.#settings.model, json: local, attachments: [], lease: null, scopes: { web: false, imageGen: false }, imageStudio: null });
-        const memories = parseDistillation(result?.text, { fromSequence: batch.fromSequence, throughSequence: batch.throughSequence });
-        const added = this.#memory.addMemories(memories, { agent: agent.id, fromSequence: batch.fromSequence, throughSequence: batch.throughSequence });
-        this.#memory.markDistilled(batch.sequences);
-        this.#failures.delete(batch.fromSequence);
-        // Local tokens cost nothing and count against no provider budget; they are reported, not charged.
-        if (!local) await this.#deps.recordUsage(agent.id, result?.usage ?? null);
-        const kinds = {};
-        for (const memory of memories) kinds[memory.kind] = (kinds[memory.kind] ?? 0) + 1;
-        const report = { agent: agent.id, local, model: local ? result?.usage?.model ?? null : this.#settings.model, tokens: result?.usage?.totalTokens ?? null, added, parsed: memories.length, considered: batch.entries.length, fromSequence: batch.fromSequence, throughSequence: batch.throughSequence, remaining: batch.remaining, kinds, elapsedMs: Date.now() - started, total: this.#memory.memoryCount() };
-        await this.#deps.emit('memory.distilled', report);
-        return report;
-      } catch (error) {
-        const attempts = (this.#failures.get(batch.fromSequence) ?? 0) + 1;
-        this.#failures.set(batch.fromSequence, attempts);
-        const skipped = attempts >= 3;
-        if (skipped) { this.#memory.markDistilled(batch.sequences); this.#failures.delete(batch.fromSequence); }
-        this.#bench.set(agent.id, Date.now() + BENCH_MS);
-        const next = pickDistiller(candidates, { preferred: this.#settings.agent, busy: new Set(), invokers, benched: new Set(this.#bench.keys()) });
-        const report = { agent: agent.id, error: this.#deps.failureMessage(error), attempts, skipped, next: next?.id ?? null, fromSequence: batch.fromSequence, throughSequence: batch.throughSequence, considered: batch.entries.length, remaining: batch.remaining };
-        await this.#deps.emit('memory.distilled', report);
-        return report;
+        return await this.#distil();
+      } finally {
+        distilling.delete(this.#memory);
+        release();
       }
     })().finally(() => { this.#running = null; });
     return this.#running;
+  }
+
+  async #distil() {
+    const batch = this.#memory.undistilled({ maxChars: this.#settings.maxChars });
+    if (!batch.entries.length) return null;
+    const invokers = this.#deps.invokers();
+    const busy = this.#deps.busyAgents();
+    const now = Date.now();
+    for (const [id, until] of this.#bench) if (until <= now) this.#bench.delete(id);
+    const benched = new Set(this.#bench.keys());
+    const candidates = this.#candidates();
+    let agent = pickDistiller(candidates, { preferred: this.#settings.agent, busy, invokers, benched });
+    if (!agent && benched.size) { this.#bench.clear(); agent = pickDistiller(candidates, { preferred: this.#settings.agent, busy, invokers }); }
+    if (!agent) return null;
+    const started = Date.now();
+    try {
+      const local = agent.adapter === 'ollama';
+      const brief = this.#memory.briefing();
+      const prompt = distillPrompt({ entries: batch.entries, projectName: this.#deps.projectName(), existing: brief.standing, discarded: brief.discarded, json: local });
+      const result = await invokers[agent.adapter]({ executable: agent.path, projectRoot: this.#deps.projectRoot(), prompt, timeoutMs: local ? this.#deps.localTimeoutMs() : this.#deps.timeoutFor(agent.id), model: local ? null : this.#settings.model, json: local, attachments: [], lease: null, scopes: { web: false, imageGen: false }, imageStudio: null });
+      const memories = parseDistillation(result?.text, { fromSequence: batch.fromSequence, throughSequence: batch.throughSequence });
+      const added = this.#memory.addMemories(memories, { agent: agent.id, fromSequence: batch.fromSequence, throughSequence: batch.throughSequence });
+      this.#memory.markDistilled(batch.sequences);
+      this.#failures.delete(batch.fromSequence);
+      // Local tokens cost nothing and count against no provider budget; they are reported, not charged.
+      if (!local) await this.#deps.recordUsage(agent.id, result?.usage ?? null);
+      const kinds = {};
+      for (const memory of memories) kinds[memory.kind] = (kinds[memory.kind] ?? 0) + 1;
+      const report = { agent: agent.id, local, model: local ? result?.usage?.model ?? null : this.#settings.model, tokens: result?.usage?.totalTokens ?? null, added, parsed: memories.length, considered: batch.entries.length, fromSequence: batch.fromSequence, throughSequence: batch.throughSequence, remaining: batch.remaining, kinds, elapsedMs: Date.now() - started, total: this.#memory.memoryCount() };
+      await this.#deps.emit('memory.distilled', report);
+      return report;
+    } catch (error) {
+      const attempts = (this.#failures.get(batch.fromSequence) ?? 0) + 1;
+      this.#failures.set(batch.fromSequence, attempts);
+      const skipped = attempts >= 3;
+      if (skipped) { this.#memory.markDistilled(batch.sequences); this.#failures.delete(batch.fromSequence); }
+      this.#bench.set(agent.id, Date.now() + BENCH_MS);
+      const next = pickDistiller(candidates, { preferred: this.#settings.agent, busy: new Set(), invokers, benched: new Set(this.#bench.keys()) });
+      const report = { agent: agent.id, error: this.#deps.failureMessage(error), attempts, skipped, next: next?.id ?? null, fromSequence: batch.fromSequence, throughSequence: batch.throughSequence, considered: batch.entries.length, remaining: batch.remaining };
+      await this.#deps.emit('memory.distilled', report);
+      return report;
+    }
   }
 
   // Tests: run a distillation that is due by count without waiting for its

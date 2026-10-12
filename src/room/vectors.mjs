@@ -2,6 +2,10 @@
 // turn's critical path. A backlog drains batch by batch; a failing embedder
 // pauses and tries again later. The room does not depend on vectors.
 
+// One batch at a time per memory, as distilling (room/archivist.mjs, LOG-06): every conversation
+// alive at once has its worker, and each embedded the same pending rows and paid for them.
+const embedding = new WeakMap();   // memory -> the batch being embedded
+
 export class VectorWorker {
   #memory;
   #timer = null;
@@ -30,7 +34,11 @@ export class VectorWorker {
     let next = null;
     this.#running = (async () => {
       try {
-        const stored = await this.#memory.embedPending({ limit: 100 });
+        while (embedding.has(this.#memory)) await embedding.get(this.#memory).catch(() => null);
+        const batch = this.#memory.embedPending({ limit: 100 });
+        embedding.set(this.#memory, batch);
+        let stored;
+        try { stored = await batch; } finally { if (embedding.get(this.#memory) === batch) embedding.delete(this.#memory); }
         const left = this.#memory.pendingVectors({ limit: 1 });
         if (stored > 0 && (left.entries.length || left.memories.length)) next = 1500;
         this.#warned = false;

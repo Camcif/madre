@@ -108,3 +108,77 @@ test('logic: a note freed from an aberration stands where the human\'s verdict p
   assert.equal(memory.memories().find((one) => one.id === note.id).zone, judged, 'a note judged bad travels again');
   memory.close();
 });
+
+test('logic: two conversations alive at once distil a batch once, not twice (LOG-06)', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'madre-distil-once-'));
+  try {
+    const agents = [{ id: 'gemini', label: 'Gemini', detected: true, ready: true, adapter: 'gemini-readonly', path: '/fake/gemini', version: 'test' },
+      { id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/fake/codex', version: 'test' }];
+    let distilled = 0;
+    const invokers = {
+      'codex-readonly': async () => ({ text: 'ok answer about the webhook handler', usage: null }),
+      'gemini-readonly': async () => { distilled += 1; await new Promise((resolve) => setTimeout(resolve, 200)); return { text: '{"kind":"fact","text":"The webhook handler lives in src/webhooks.mjs.","sources":[1]}', usage: null }; },
+    };
+    const a = await new EventStore(join(root, 'events.jsonl')).initialize();
+    const b = await new EventStore(join(root, 'chats', 'x', 'events.jsonl'), { floor: () => a.lastSequence }).initialize();
+    const memory = await new RoomMemory(join(root, 'memory.sqlite')).initialize(a);
+    const roomA = new Room({ store: a, agents, projectRoot: root, invokers, memory, distill: { enabled: false, agent: 'gemini' } });
+    const roomB = new Room({ store: b, agents, projectRoot: root, invokers, memory, distill: { enabled: false, agent: 'gemini' } });
+    await roomA.send({ text: 'Where is the webhook handler?', target: 'codex' });
+    await roomA.send({ text: 'And the tests?', target: 'codex' });
+    await Promise.all([roomA.distillNow(), roomB.distillNow()]);
+    assert.equal(distilled, 1, 'the same batch was paid for twice');
+    await roomA.shutdown(); await roomB.shutdown(); memory.close();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('logic: where a conversation\'s numbering stands is read past a last line longer than the window (LOG-09)', async () => {
+  const { lastSequenceOf } = await import('../src/chats.mjs');
+  const { writeFile } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'madre-floor-'));
+  try {
+    const file = join(dir, 'events.jsonl');
+    const line = (sequence, text) => `${JSON.stringify({ id: `e${sequence}`, sequence, type: 'message.created', timestamp: '2026-10-12T00:00:00.000Z', payload: { role: 'assistant', text } })}\n`;
+    await writeFile(file, line(41, 'corto') + line(42, 'x'.repeat(200000)));
+    assert.equal(await lastSequenceOf(file), 42);
+    await writeFile(file, line(7, 'y'.repeat(150000)));
+    assert.equal(await lastSequenceOf(file), 7, 'a file of one long line');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('logic: a conversation opened from disk closes a turn cut by a room that died, and a memory made again reads every conversation (LOG-14)', async () => {
+  const { readdir, writeFile, readFile } = await import('node:fs/promises');
+  const { createChat, chatLedger } = await import('../src/chats.mjs');
+  const { createPulseServer } = await import('../src/server.mjs');
+  const state = await mkdtemp(join(tmpdir(), 'madre-reconcile-'));
+  const project = await mkdtemp(join(tmpdir(), 'madre-reconcile-project-'));
+  let server;
+  const close = () => new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+  try {
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: [], invokers: {}, testMode: true }));
+    await close();
+    const roomDir = join(state, 'rooms', (await readdir(join(state, 'rooms')))[0]);
+    const other = await createChat(roomDir, { activate: false });
+    const line = (event) => `${JSON.stringify({ timestamp: '2026-10-12T00:00:00.000Z', ...event })}\n`;
+    await writeFile(chatLedger(roomDir, other.id), line({ id: 'u', sequence: 500, type: 'message.created', payload: { messageId: 'm1', role: 'user', sender: 'you', target: 'codex', text: 'la palabra zanahoria' } }) + line({ id: 's', sequence: 501, type: 'agent.started', payload: { messageId: 'r1', agent: 'codex' } }));
+    await rm(join(roomDir, 'memory.sqlite'), { force: true });
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: [], invokers: {}, testMode: true }));
+    const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+    await fetch(`http://127.0.0.1:${port}/api/state?chat=${other.id}`);
+    const kept = await readFile(chatLedger(roomDir, other.id), 'utf8');
+    assert.match(kept, /"type":"message\.failed"[^\n]*"recovered":true/, 'the cut turn of a conversation opened later still thinks');
+    await close();
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(join(roomDir, 'memory.sqlite'));
+    const { n } = db.prepare("SELECT count(*) AS n FROM entries WHERE text LIKE '%zanahoria%'").get();
+    db.close();
+    assert.equal(n, 1, 'the memory made again did not read the other conversation');
+  } finally {
+    if (server?.listening) await close();
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
+});

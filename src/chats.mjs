@@ -194,17 +194,23 @@ export async function lastSequenceOf(file, { window = 65536 } = {}) {
     const size = (await stat(file)).size;
     if (!size) return 0;
     handle = await open(file, 'r');
-    const length = Math.min(window, size);
-    const buffer = Buffer.alloc(length);
-    await handle.read(buffer, 0, length, size - length);
-    const lines = buffer.toString('utf8').split('\n').filter(Boolean);
-    for (let i = lines.length - 1; i >= 0; i -= 1) {
-      try {
-        const event = JSON.parse(lines[i]);
-        if (Number.isInteger(event?.sequence)) return event.sequence;
-      } catch { /* a half line at the window's edge, or a torn write: keep looking back */ }
+    // The window doubles until it finds a whole event or holds the whole file (LOG-09 of the 1.0
+    // review): one window only, a last line longer than it — a long answer — read as 0, and the
+    // conversation opened on numbers another one had already used, which the archive then dropped.
+    for (let length = Math.min(window, size); ; length = Math.min(length * 2, size)) {
+      const buffer = Buffer.alloc(length);
+      await handle.read(buffer, 0, length, size - length);
+      const lines = buffer.toString('utf8').split('\n').filter(Boolean);
+      for (let i = lines.length - 1; i >= 0; i -= 1) {
+        // The first line of a window that does not start the file may be cut: it is read again whole.
+        if (i === 0 && length < size) break;
+        try {
+          const event = JSON.parse(lines[i]);
+          if (Number.isInteger(event?.sequence)) return event.sequence;
+        } catch { /* a torn write: keep looking back */ }
+      }
+      if (length >= size) return 0;
     }
-    return 0;
   } catch {
     return 0;
   } finally {
