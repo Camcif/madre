@@ -1076,3 +1076,30 @@ test('what is new is a board: twelve cards, a card opens its whole note with a w
   assert.equal(dialog.open, false);
   dialog.listeners.close[0]();
 });
+
+test('what is new opens by itself after an update, as the server says it is owed', async () => {
+  // The way it really arrives (2026-10-12): asked of the server, then shown. A helper it called after
+  // closing was deleted with the five-stop tour, and the sheet threw on the way up for everyone who
+  // updated, while the board itself, opened by hand in the test above, was fine.
+  const { NOTES } = await import('../src/whats-new.mjs');
+  const realFetch = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (url, options) => {
+    asked.push(String(url));
+    if (url === '/api/whats-new') return { ok: true, json: async () => ({ show: true, version: '1.0.0', notes: NOTES['1.0.0'], changes: { es: 'https://madre.run/cambios/', en: 'https://madre.run/en/changelog/' } }) };
+    return { ok: true, json: async () => ({}) };
+  };
+  try {
+    const dialog = await globalThis.__pulse.whatsNewIfOwed();
+    assert.ok(dialog, 'the sheet owed after an update did not open');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(dialog.open, true);
+    assert.match(dialog.textContent, /Ya tienes la 1\.0/);
+    dialog.listeners.keydown[0]({ key: 'Escape', target: {}, preventDefault() {} });
+    assert.equal(dialog.open, false);
+    dialog.listeners.close[0]();
+    assert.ok(asked.includes('/api/whats-new'));
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

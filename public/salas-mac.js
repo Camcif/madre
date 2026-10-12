@@ -50,6 +50,9 @@ const busy = new Map();       // room id → 'starting' | 'closing'
 const asking = new Set();      // room ids whose card asks before closing
 const forgetting = new Set();  // room ids whose card asks before leaving MADRE
 const failed = new Map();      // room id → what went wrong, said on its card
+// One is one: «1 conversaciones» read wrong on every new project's card.
+const conversationsCount = (n) => (n === 1 ? t('1 conversation') : t('{n} conversations', { n }));
+const memoriesCount = (n) => (n === 1 ? t('1 memory') : t('{n} memories', { n }));
 const revoking = new Set();    // link ids whose row asks before revoking
 
 // The room's looks, from this browser: the same keys the room's own page keeps (app.js, LOOKS),
@@ -281,7 +284,7 @@ function card(room) {
   }
   if (room.open && glance.census) {
     node.append(memoryStrip(glance.census));
-    const counts = [t('{n} conversations', { n: glance.chats ?? 0 }), t('{n} memories', { n: glance.census.memories })];
+    const counts = [conversationsCount(glance.chats ?? 0), memoriesCount(glance.census.memories)];
     if (glance.census.memories) counts.push(t('{n} travel', { n: glance.census.travelling }));
     node.append(el('p', 'sm-counts', counts.join(' · ')));
   }
@@ -1273,8 +1276,10 @@ ui.link.addEventListener('click', () => openLinkSheet());
 async function refresh() {
   const answer = await fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
   if (!answer) { ui.foot.textContent = t('This project did not answer. It may have closed.'); ui.bar.live.classList.add('is-off'); ui.bar.live.lastChild.textContent = t('Not answering right now'); return; }
-  if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); }
+  if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); homeTour.repaint(); }
   data = answer;
+  // A project that came up after Home stopped waiting is open: its card no longer says it did not.
+  for (const room of answer.rooms ?? []) if (room.open) failed.delete(room.id);
   ui.foot.textContent = t('Every project runs on this Mac, on its own, with its own memory.');
   // The room's corner (app.js, #colophon): the version this Home runs, and NOTICE's own line.
   if (answer.version) {
@@ -1407,7 +1412,7 @@ function macroWords() {
     path: homeWord,
     ask: askLine,
     kind: (kind) => KIND_WORDS[kind] ?? kind,
-    counts: (room) => (room.open ? [t('{n} conversations', { n: room.glance?.chats ?? 0 }), t('{n} memories', { n: room.glance?.census?.memories ?? 0 })].join(' · ') : room.lastOpened ? t('Asleep · last open {when}', { when: ago(room.lastOpened) }) : t('Asleep')),
+    counts: (room) => (room.open ? [conversationsCount(room.glance?.chats ?? 0), memoriesCount(room.glance?.census?.memories ?? 0)].join(' · ') : room.lastOpened ? t('Asleep · last open {when}', { when: ago(room.lastOpened) }) : t('Asleep')),
     enter: t('Enter the project'),
     backToRoom: t('Back to the project'),
     wake: t('Wake'),
@@ -2712,7 +2717,7 @@ function setStatus(id) {
   }
   if (id === 'release') {
     if (!versionSeen) return { line: t('Reading…') };
-    return { line: `MADRE ${versionSeen.current} · ${versionSeen.available ? t('{version} available', { version: versionSeen.latest }) : t('up to date')}`, warn: versionSeen.available ? t('{version} is on npm', { version: versionSeen.latest }) : null };
+    return { line: `MADRE ${versionSeen.current} · ${versionSeen.available ? t('{version} available', { version: versionSeen.latest }) : versionSeen.enabled === false ? t('not checked') : t('up to date')}`, warn: versionSeen.available ? t('{version} is on npm', { version: versionSeen.latest }) : null };
   }
   return { line: '' };
 }
@@ -2938,7 +2943,7 @@ function fillRelease(host) {
     drawTopbar();
     settingsSheet?.sync({ detail: true });
   }) : null;
-  sxRow(block, `MADRE ${info?.current ?? ''}`.trim(), info ? (info.available ? t('{version} available', { version: info.latest }) : t('up to date')) : t('Reading…'), check);
+  sxRow(block, `MADRE ${info?.current ?? ''}`.trim(), info ? (info.available ? t('{version} available', { version: info.latest }) : info.enabled === false ? t('not checked') : t('up to date')) : t('Reading…'), check);
   if (info?.available) {
     const notes = el('a', 'sx-btn', t('What it brings'));
     notes.href = info.release ?? 'https://madre.run';

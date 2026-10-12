@@ -611,6 +611,7 @@ export const ES = {
   'auto-report off': 'auto-reporte apagado',
   '{version} available': '{version} disponible',
   'up to date': 'al día',
+  'not checked': 'sin revisar',
   '{version} is on npm': '{version} ya está en npm',
   'Redact keys and e-mail addresses': 'Tachar llaves y correos',
   'Auto-report unknown conditions': 'Auto-reportar condiciones desconocidas',
@@ -1300,6 +1301,7 @@ export const ES = {
   "Message #{n}, sealed under Security's key in .pulse/mother.env. Only the agents read it in clear.":
     'Mensaje #{n}, sellado con la llave de Seguridad en .pulse/mother.env. Solo los agentes lo leen en claro.',
   ' · {n} messages carried': ' · {n} mensajes cargados',
+  ' · delegated': ' · delegado',
   ' · {n} older stay in the record': ' · {n} más viejos se quedan en el registro',
   ' · no prior context': ' · sin contexto previo',
   'The receiving agent gets the most recent transcript that fits its context allowance ({fit}). Adjust with PULSE_CONTEXT_MAX_CHARS.':
@@ -3886,6 +3888,8 @@ export const ES = {
   '@{agent} is working': '@{agent} está trabajando',
   '{n} agents working': '{n} agentes trabajando',
   '{n} conversations': '{n} conversaciones',
+  '1 conversation': '1 conversación',
+  '1 memory': '1 memoria',
   '{n} memories': '{n} memorias',
   '{n} travel': '{n} viajan',
   'No memories yet': 'Sin memorias todavía',

@@ -101,8 +101,10 @@ export async function markProject(roomDir, projectRoot, { now = new Date() } = {
 // the same id it had, so its conversations and its memory are there when it is entered.
 const PROJECT_MARKS = ['.git', 'package.json', 'pyproject.toml', 'requirements.txt', 'Cargo.toml', 'go.mod', 'composer.json', 'Gemfile', 'pom.xml', 'build.gradle', 'Package.swift', 'deno.json', '.pulse'];
 const NOT_PROJECTS = new Set(['node_modules', 'Library', 'Applications', 'Pictures', 'Music', 'Movies', 'Public', 'OneDrive', 'Dropbox']);
-// Where people keep their projects, looked at one level deep for suggestions.
-export const PROJECT_HOMES = ['', 'Projects', 'projects', 'Developer', 'dev', 'Dev', 'code', 'Code', 'src', 'repos', 'Repos', 'GitHub', 'git', 'work', 'Work', 'Sites', 'Documents', 'Desktop'];
+// Where people keep their projects, looked at one level deep for suggestions. MADRE speaks Spanish
+// first, and so do the folders of many who use it (a Linux in Spanish names them Documentos and
+// Escritorio).
+export const PROJECT_HOMES = ['', 'Projects', 'projects', 'Proyectos', 'proyectos', 'Developer', 'dev', 'Dev', 'code', 'Code', 'src', 'repos', 'Repos', 'GitHub', 'git', 'work', 'Work', 'Sites', 'Documents', 'Documentos', 'Desktop', 'Escritorio'];
 
 const inside = (child, parent) => child === parent || child.startsWith(parent.endsWith('/') ? parent : `${parent}/`);
 async function looksLikeProject(folder) {
@@ -250,7 +252,9 @@ export function startRoom({ projectRoot, roomDir, env = process.env, spawnImpl =
 }
 
 // Waits until the room for that id is open and answers, or the time runs out.
-export async function roomComesUp(stateRoot, id, { timeoutMs = 25000, everyMs = 300, fetchImpl = globalThis.fetch } = {}) {
+// A minute (2026-10-12): a Mac busy with other projects took over 25 s to bring one up, and Home
+// said it did not open while it was opening.
+export async function roomComesUp(stateRoot, id, { timeoutMs = 60000, everyMs = 300, fetchImpl = globalThis.fetch } = {}) {
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
     const room = (await knownRooms(stateRoot)).find((one) => one.id === id);

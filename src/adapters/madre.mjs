@@ -214,11 +214,14 @@ export function localReply(text, { requester = 'you', crew = [], delegation = fa
 // did not answer is said to have not answered. The model adds at most one comparison, and it goes
 // only if every @name in it spoke in the round and every [#n] it cites is one of theirs.
 const plain = (text) => String(text ?? '').replace(/```[\s\S]*?```/g, ' ').replace(/^#+\s*/gm, '').replace(/^\s*(?:[-*•]|\d+\.)\s+/gm, '').replace(/[*_`>]/g, '').replace(/\s+/g, ' ').trim();
+// A sentence ends at a stop followed by a space or the end. A stop inside a word is not one: cut at
+// every dot, «src/links.js:11 acepta…» lost «src/links.» and the line quoted «js:11 acepta…».
+const SENTENCE = /(?:[^.!?…]|[.!?…]+(?=\S))+[.!?…]+(?:\s+|$)/g;
 export function gist(text, max = 240) {
   const clean = plain(text);
   if (clean.length <= max) return clean;
   let out = '';
-  for (const sentence of clean.match(/[^.!?…]+[.!?…]+(\s|$)/g) ?? []) {
+  for (const sentence of clean.match(SENTENCE) ?? []) {
     if ((out + sentence).length > max) break;
     out += sentence;
   }
@@ -227,7 +230,7 @@ export function gist(text, max = 240) {
 export function roundBullets(round, { es = true } = {}) {
   return round.answers.map((answer) => (answer.sequence
     ? `- @${answer.agent} [#${answer.sequence}]: ${gist(answer.text)}`
-    : `- @${answer.agent}: ${es ? 'no respondió' : 'did not answer'}${answer.error ? ` (${answer.error})` : ''}.`)).join('\n');
+    : `- @${answer.agent}: ${es ? 'no respondió' : 'did not answer'}${answer.error ? ` (${String(answer.error).replace(/[.\s]+$/, '')})` : ''}.`)).join('\n');
 }
 export function comparisonHolds(line, round) {
   const spoke = new Set(round.answers.filter((answer) => answer.sequence).map((answer) => answer.agent));
@@ -269,7 +272,8 @@ export function madreInvoker({ memory, ollama, fetchImpl = globalThis.fetch }) {
       const es = lang(question) === 'es';
       const asked = question.match(/[«"“]([^»"”]+)[»"”]/)?.[1] ?? null;
       const bullets = roundBullets(round, { es });
-      const head = es ? `Lo que respondió el crew${asked ? ` a «${asked}»` : ''}:` : `What the crew answered${asked ? ` to "${asked}"` : ''}:`;
+      // Said to the person, so in the names the person reads (agents, not «crew»).
+      const head = es ? `Lo que respondieron los agentes${asked ? ` a «${asked}»` : ''}:` : `What the agents answered${asked ? ` to "${asked}"` : ''}:`;
       let usage = { ...NO_USAGE };
       let comparison = '';
       if (round.answers.filter((answer) => answer.sequence).length >= 2) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { madreAgent, madreInvoker, gather, actionRequest, briefingFor, localReply, roundTable, whoAmI, memoryRequest, echoRequest, MADRE_ADAPTER } from '../src/adapters/madre.mjs';
+import { madreAgent, madreInvoker, gather, gist, actionRequest, briefingFor, localReply, roundTable, whoAmI, memoryRequest, echoRequest, MADRE_ADAPTER } from '../src/adapters/madre.mjs';
 import { parseDirectives } from '../src/directives.mjs';
 import { buildConversationContext } from '../src/conversation-context.mjs';
 import { EventStore } from '../src/event-store.mjs';
@@ -228,10 +228,10 @@ test('@madre closes a round with one line per agent, from its own answer, and ke
   const say = (content) => async () => ({ ok: true, json: async () => ({ message: { content }, prompt_eval_count: 300, eval_count: 30 }) });
   const honest = madreInvoker({ memory: null, ollama: () => running, fetchImpl: say('@claude [#41] mira el almacenamiento en Safari y @codex [#43] el formato de los datos; no se contradicen.') });
   const closed = await honest({ prompt: 'p', text: question, requester: 'madre', round });
-  assert.match(closed.text, /^Lo que respondió el crew a «¿qué riesgos ves en Phobos\?»:/);
+  assert.match(closed.text, /^Lo que respondieron los agentes a «¿qué riesgos ves en Phobos\?»:/);
   assert.match(closed.text, /- @claude \[#41\]: Riesgos En Safari de iPhone, localStorage se borra tras 7 días sin uso\./, 'Claude\'s point is Claude\'s');
   assert.match(closed.text, /- @codex \[#43\]: Los montos en centavos/);
-  assert.match(closed.text, /- @opencode: no respondió \(OpenCode did not respond before the timeout \(180s\)\.\)\./, 'an agent that did not answer is not left out');
+  assert.match(closed.text, /- @opencode: no respondió \(OpenCode did not respond before the timeout \(180s\)\)\.$/m, 'an agent that did not answer is not left out');
   assert.match(closed.text, /no se contradicen\.$/);
   assert.equal(closed.usage.local, true);
   // A comparison that credits someone who did not speak, or cites a number that is not theirs, goes.
@@ -241,4 +241,15 @@ test('@madre closes a round with one line per agent, from its own answer, and ke
     assert.ok(!text.includes(lie), `kept: ${lie}`);
     assert.match(text, /- @codex \[#43\]/);
   }
+});
+
+test('the closing line of a round quotes whole sentences, even when they name a file', () => {
+  // A real answer from a round: every «.» inside src/links.js was taken for the end of a sentence,
+  // and the line quoted «js:11 acepta…» without its beginning.
+  const answer = 'Hecho (leído): src/server.js:15 hace JSON.parse(cuerpo) sin try/catch y src/links.js:11 acepta cualquier cadena como URL, sin validar esquema. Mejoraría primero eso: validar el cuerpo y exigir http/https antes de guardar, porque hoy un POST con JSON inválido revienta el handler (src/server.js:21). Coincido con @codex en que el Map (src/links.js:2) se pierde al reiniciar.';
+  const line = gist(answer);
+  assert.match(line, /^Hecho \(leído\): src\/server\.js:15 hace JSON\.parse\(cuerpo\)/);
+  assert.match(line, /src\/links\.js:11 acepta cualquier cadena como URL, sin validar esquema\.$/);
+  assert.ok(line.length <= 240);
+  assert.equal(gist('Uno. Dos! Tres? ' + 'x'.repeat(300)), 'Uno. Dos! Tres?');
 });

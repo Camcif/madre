@@ -4434,7 +4434,8 @@ function renderHandoff(event) {
   node.append(messageCount > 0
     ? t(' · {n} messages carried', { n: messageCount }) + (omittedMessages ? t(' · {n} older stay in the record', { n: omittedMessages }) : '')
     : t(' · no prior context'));
-  if (kind && kind !== 'automatic') node.append(` · ${kind}`);
+  // A step of a plan says so; the kind is a word of the record, never shown as it is written.
+  if (kind === 'delegated') node.append(t(' · delegated'));
   node.title = t('The receiving agent gets the most recent transcript that fits its context allowance ({fit}). Adjust with PULSE_CONTEXT_MAX_CHARS.', { fit: omittedMessages ? t('{n} older messages did not fit; they remain in the project log', { n: omittedMessages }) : t('everything fit') });
   state.lastSender = null;
   return node;
@@ -6370,7 +6371,7 @@ function settingsStatus(id) {
     const info = updateUI.info;
     const report = sentinelUI.settings?.autoReport ? t('auto-report on') : t('auto-report off');
     if (!info) return { line: report };
-    return { line: `MADRE ${info.current} · ${info.available ? t('{version} available', { version: info.latest }) : t('up to date')} · ${report}`, warn: info.available ? t('{version} is on npm', { version: info.latest }) : null };
+    return { line: `MADRE ${info.current} · ${info.available ? t('{version} available', { version: info.latest }) : info.enabled === false ? t('not checked') : t('up to date')} · ${report}`, warn: info.available ? t('{version} is on npm', { version: info.latest }) : null };
   }
   return { line: '' };
 }
@@ -7512,7 +7513,7 @@ function saidGaveWay(one) {
   try { seen = JSON.parse(localStorage.getItem(LAYOUT_HINTS) ?? '{}') ?? {}; } catch { /* no storage */ }
   if (seen.gaveWay) return;
   try { localStorage.setItem(LAYOUT_HINTS, JSON.stringify({ ...seen, gaveWay: true })); } catch { /* a private window hears it every time */ }
-  const what = { chats: t('Conversations'), tree: t('Files'), viewer: t('The viewer'), modules: t('MODULES'), mother: 'MU/TH/UR' }[one.surface?.key ?? one.key]
+  const what = { chats: t('Conversations'), tree: t('Files'), viewer: t('The viewer'), modules: t('MODULES'), mother: t('Diagnostics') }[one.surface?.key ?? one.key]
     ?? (one.kind === 'dock' ? t('The browser') : t('The second conversation'));
   sayWhenQuiet(() => toast(t('{what} moved to a window so the conversation stays readable. Its split button puts it back beside.', { what }), { tone: 'note' }));
 }
@@ -9401,7 +9402,7 @@ document.querySelector('#mother-button')?.addEventListener('mouseleave', endHove
 document.querySelector('#mother-button')?.addEventListener('click', endHover);
 
 // Debug surface for tests and for the curious: window.__pulse.trackHold(true, t)
-globalThis.__pulse = { toast: (...args) => toast(...args), jobProgress: (event) => jobProgress(event), nostromoCard: (index = 0) => showNostromoCard(nostromo.nodes[index]), nostromoTick: (now) => nostromoTick(now), roomAsk: (...args) => roomAsk(...args), openWhatsNew: () => openWhatsNew(), whatsNew: (version = null) => openWhatsNew(version), showWhatsNew: (...args) => showWhatsNew(...args), openModuleGuide: () => openModuleGuide(), openViewer: (...args) => openViewer(...args), openNostromo: () => openNostromo(), floatModule: (...args) => floatModule(...args), loadVersion: (...args) => loadVersion(...args), trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, moduleGlance, renderModulesDev, runSlashCommand, syncModuleComposer, syncIntentOffer, openIntentsWindow, openSettings, settingsWindow: () => settingsWindow, openCore: (...args) => openCore(...args), get core() { return core; } };
+globalThis.__pulse = { toast: (...args) => toast(...args), jobProgress: (event) => jobProgress(event), nostromoCard: (index = 0) => showNostromoCard(nostromo.nodes[index]), nostromoTick: (now) => nostromoTick(now), roomAsk: (...args) => roomAsk(...args), openWhatsNew: () => openWhatsNew(), whatsNew: (version = null) => openWhatsNew(version), showWhatsNew: (...args) => showWhatsNew(...args), whatsNewIfOwed: () => maybeShowWhatsNew(), openModuleGuide: () => openModuleGuide(), openViewer: (...args) => openViewer(...args), openNostromo: () => openNostromo(), floatModule: (...args) => floatModule(...args), loadVersion: (...args) => loadVersion(...args), trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, moduleGlance, renderModulesDev, runSlashCommand, syncModuleComposer, syncIntentOffer, openIntentsWindow, openSettings, settingsWindow: () => settingsWindow, openCore: (...args) => openCore(...args), get core() { return core; } };
 
 els.thread.addEventListener('wheel', (event) => trackHold(event.deltaY > 0), { passive: true });
 let touchY = null;
@@ -16641,7 +16642,7 @@ async function maybeShowWhatsNew() {
   let news;
   try { news = await fetch('/api/whats-new').then((response) => response.json()); } catch { return false; }
   if (!news?.show) return false;
-  return showWhatsNew(news, { after: tourIfOwed });
+  return showWhatsNew(news);
 }
 // Asked for again (AJUSTES › Version and reports): the same board, whether or not it was seen.
 // `version` looks at another version's board before it ships; with none, this version's, or the

@@ -17,6 +17,20 @@ const listen = (server) => new Promise((resolve) => server.listen(0, '127.0.0.1'
 const close = (server) => new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
 const roster = [{ id: 'codex', label: 'Codex', detected: true, ready: true, adapter: 'codex-readonly', path: '/fake', version: 'test' }];
 
+test('lobby · a project kept in ~/Proyectos is suggested too', async () => {
+  const home = await realpath(await scratch('madre-lobby-es-'));
+  const state = await realpath(await scratch('madre-lobby-es-state-'));
+  try {
+    await mkdir(join(home, 'Proyectos', 'tienda', '.git'), { recursive: true });
+    await mkdir(join(home, 'Documentos', 'tesis'), { recursive: true });
+    await writeFile(join(home, 'Documentos', 'tesis', 'package.json'), '{}');
+    assert.deepEqual((await suggestProjects({ home, stateRoot: state })).map((one) => one.name).sort(), ['tesis', 'tienda']);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+    await rm(state, { recursive: true, force: true });
+  }
+});
+
 test('lobby · folders inside the home, projects first; suggestions; associating writes where it is and nothing else', async () => {
   const home = await realpath(await scratch('madre-lobby-home-'));
   const state = await realpath(await scratch('madre-lobby-state-'));

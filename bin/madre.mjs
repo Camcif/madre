@@ -119,7 +119,7 @@ if (command === 'doctor' && (has('--catalog') || has('--conditions'))) {
   const query = option('--catalog', '') || option('--conditions', '') || '';
   const platform = PLATFORMS[process.platform] ? process.platform : 'linux';
   const list = query && !query.startsWith('--') ? searchConditions(query) : CONDITIONS;
-  console.log(`\nMU/TH/UR · KNOWN CONDITIONS · ${list.length} OF ${CONDITIONS.length} · ${PLATFORMS[platform].label.toUpperCase()} / ${PLATFORMS[platform].shell.toUpperCase()}\n`);
+  console.log(`\nDIAGNOSTICS · KNOWN CONDITIONS · ${list.length} OF ${CONDITIONS.length} · ${PLATFORMS[platform].label.toUpperCase()} / ${PLATFORMS[platform].shell.toUpperCase()}\n`);
   for (const condition of list) {
     console.log(`▌ ${condition.title}`);
     console.log(`  ${condition.id} · ${condition.severity}${condition.agent ? ` · @${condition.agent}` : ''}`);
@@ -218,17 +218,17 @@ if (command === 'doctor' && (has('--catalog') || has('--conditions'))) {
   console.log(`MADRE
 
   madre       [--port 4317] [--no-open]
-              Opens the lobby: every project on this computer, in one place.
+              Opens Home: every project on this computer, in one place.
   madre start [--project PATH] [--port 4317] [--no-open] [--setup]
               Opens the project in this folder (or PATH) directly.
               Without --port, a busy 4317 falls through to the next free port.
-  madre lobby [--port 4317] [--no-open]   (also: madre salas)
+  madre lobby [--port 4317] [--no-open]   (also: madre salas; opens Home)
   madre setup [--project PATH] [--port 4317] [--no-open]
   madre doctor [--project PATH] [--json]
 
-  (none)  Opens the lobby. From there you add projects, connect the agents
-          and enter any project. BISHOP lives there.
-  start   Opens the project room in this folder. From your home folder, the lobby.
+  (none)  Opens Home. From there you add projects, connect the agents
+          and enter any project. The Coordinator lives there.
+  start   Opens the project in this folder. From your home folder, Home.
   setup   Detects the agents on this computer, shows who has a session,
           and runs each agent's own sign-in from here.
   doctor  Prints the same diagnosis without the wizard.

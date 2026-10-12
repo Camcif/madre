@@ -219,6 +219,9 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const later = key('tour-btn quiet', t('Later'), async () => {
       await keep({ path: path(), bonjour: true, closed: true });
       node.close();
+      // The chapters can wait; the projects cannot (2026-10-12): left for later, someone coming from
+      // 0.7.2 found Home empty and nothing offered to bring them again. They come quietly.
+      if (back) void recoverProjects().then(({ found }) => { if (found.length) onProjects?.(); });
     });
     const onward = key('tour-btn primary', back ? t('Continue') : t('Start'), async () => {
       later.disabled = true; onward.disabled = true;
@@ -240,18 +243,22 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
   }
 
   // ---- 0.7.2: the projects Home cannot list, brought back one by one, the loader saying how far.
-  async function bringProjects(stage) {
-    const loader = makeLoader({ progress: 0.04, label: t('Looking for your projects of 0.7.2…') });
-    stage.replaceChildren(loader);
+  async function recoverProjects(step = () => {}) {
     const rooms = (await fetch('/api/tour/projects', { cache: 'no-store' }).then((response) => response.json()).catch(() => null))?.rooms ?? [];
     const found = [];
     const missing = [];
     for (const [index, room] of rooms.entries()) {
-      setLoader(loader, 0.08 + (0.84 * index) / Math.max(1, rooms.length), fill(t('Bringing your projects of 0.7.2 · {n} of {total}'), { n: index + 1, total: rooms.length }));
+      step(index, rooms.length);
       const answer = await fetch('/api/tour/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: room.id }) })
         .then((response) => (response.ok ? response.json() : null)).catch(() => null);
       if (answer?.found) found.push(answer.name); else missing.push(room.name);
     }
+    return { found, missing };
+  }
+  async function bringProjects(stage) {
+    const loader = makeLoader({ progress: 0.04, label: t('Looking for your projects of 0.7.2…') });
+    stage.replaceChildren(loader);
+    const { found, missing } = await recoverProjects((index, total) => setLoader(loader, 0.08 + (0.84 * index) / Math.max(1, total), fill(t('Bringing your projects of 0.7.2 · {n} of {total}'), { n: index + 1, total })));
     await finishLoader(loader, { hold: 380 });
     if (found.length) onProjects?.();
     const list = (names) => new Intl.ListFormat(language(), { type: 'conjunction' }).format(names.map((name) => `«${name}»`));
@@ -490,6 +497,8 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
 
   return {
     loaded,
+    // The page changed its language after it drew the pill: the pill says it again in the new one.
+    repaint: () => paintPill(),
     maybeBonjour,
     bonjour: showBonjour,
     openChapters,
