@@ -339,6 +339,25 @@ export async function createPulseServer({
   // Every conversation's room other than the open one (see the note above mountChat); declared
   // here because the local wiring below reaches all of them.
   const parked = new Map();   // chatId -> { room, store, off, feed }
+  // The records of the project's other conversations: the open store of one held beside, or the
+  // file of one closed (never made where none exists). And every event of the project, for what is
+  // counted across all of them (the privacy exposure).
+  async function otherLedgers() {
+    const out = [];
+    for (const chat of (await listChats(roomDir)).chats) {
+      if (chat.id === chatId) continue;
+      const held = parked.get(chat.id);
+      if (held?.store) { out.push({ store: held.store, held }); continue; }
+      const file = chatLedger(roomDir, chat.id);
+      if (await stat(file).then((info) => info.isFile(), () => false)) out.push({ store: new EventStore(file), held: null });
+    }
+    return out;
+  }
+  async function projectEvents() {
+    const all = await store.readAll();
+    for (const { store: other } of await otherLedgers()) all.push(...await other.readAll().catch(() => []));
+    return all;
+  }
   const opening = new Map();  // chatId -> the promise of its room, while it is being built
   // What the human sets belongs to the project: it reaches the conversation on screen and every
   // one alive beside it. A timeout raised from a conversation in a window used to change only the
@@ -2399,7 +2418,7 @@ export async function createPulseServer({
       }
       if (request.method === 'GET' && url.pathname === '/api/privacy') {
         await refreshPrivacy();
-        return sendJson(response, 200, { terms: privacy.terms, marker: privacy.marker, ...privacy.guards, exposure: room.privacyExposure(await store.readAll()) });
+        return sendJson(response, 200, { terms: privacy.terms, marker: privacy.marker, ...privacy.guards, exposure: room.privacyExposure(await projectEvents()) });
       }
       if (request.method === 'POST' && url.pathname === '/api/privacy') {
         const patch = await body(request).catch(() => ({}));
@@ -2413,7 +2432,7 @@ export async function createPulseServer({
         await refreshPrivacy();
         // The room records that the setting changed and what it is now, never the words.
         await room.record('privacy.updated', { terms: privacy.terms.length, marker: privacy.marker, ...privacy.guards });
-        return sendJson(response, 200, { terms: privacy.terms, marker: privacy.marker, ...privacy.guards, exposure: room.privacyExposure(await store.readAll()) });
+        return sendJson(response, 200, { terms: privacy.terms, marker: privacy.marker, ...privacy.guards, exposure: room.privacyExposure(await projectEvents()) });
       }
       if (request.method === 'POST' && url.pathname === '/api/privacy/purge') {
         const payload = await body(request).catch(() => ({}));
@@ -2423,7 +2442,18 @@ export async function createPulseServer({
         const result = await room.purgePrivate();
         // The log was rewritten in place: the broadcaster's byte offset is stale, the sequences are not.
         mainFeed.offset = (await store.tail(0)).offset;
-        return sendJson(response, 200, { purged: result, exposure: room.privacyExposure(await store.readAll()) });
+        // And every other conversation of the project too (LOG-03 of the 1.0 review): the purge
+        // cleaned only the one on screen, the others kept the words in plain text and sent them to
+        // the providers the next time they were opened, while the count said nothing was left.
+        for (const { store: other, held } of await otherLedgers()) {
+          const done = await other.rewrite((event) => {
+            const { value, hits } = privacy.redactDeep(event.payload);
+            return hits ? { ...event, payload: value } : event;
+          });
+          result.events += done.changed;
+          if (held?.feed) held.feed.offset = (await other.tail(0)).offset;
+        }
+        return sendJson(response, 200, { purged: result, exposure: room.privacyExposure(await projectEvents()) });
       }
       // The human's verdict on a reply, for the dataset: good, bad, none.
       if (request.method === 'POST' && url.pathname === '/api/messages/rate') {

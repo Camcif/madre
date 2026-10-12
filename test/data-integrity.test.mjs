@@ -135,3 +135,33 @@ test('integrity: changes that arrive at once all land — the list of conversati
     for (const dir of [room, state]) await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('integrity: the privacy purge cleans every conversation of the project and counts them all (LOG-03)', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const { createChat, chatLedger } = await import('../src/chats.mjs');
+  const { basename } = await import('node:path');
+  const state = await mkdtemp(join(tmpdir(), 'madre-purge-'));
+  const project = await mkdtemp(join(tmpdir(), 'madre-purge-project-'));
+  let server;
+  try {
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: [], invokers: {}, testMode: true }));
+    const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+    const origin = `http://127.0.0.1:${port}`;
+    const post = (path, payload) => fetch(`${origin}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify(payload) });
+    const roomDir = join(state, 'rooms', (await readdir(join(state, 'rooms')))[0]);
+    // Another conversation, closed, that said the private name.
+    const other = await createChat(roomDir, { activate: false });
+    await writeFile(chatLedger(roomDir, other.id), `${JSON.stringify({ id: 'x1', sequence: 900, type: 'message.created', timestamp: '2026-10-12T00:00:00.000Z', payload: { role: 'user', text: 'el cliente es Acme Corp' } })}\n`);
+    await post('/api/privacy', { terms: ['Acme Corp'] });
+    const before = await (await fetch(`${origin}/api/privacy`)).json();
+    assert.equal(before.exposure.events, 1, 'the other conversation was not counted');
+    const purged = await (await post('/api/privacy/purge', { designation: basename(project) })).json();
+    assert.equal(purged.purged.events, 1);
+    assert.equal(purged.exposure.events, 0);
+    const kept = await readFile(chatLedger(roomDir, other.id), 'utf8');
+    assert.ok(!kept.includes('Acme Corp'), 'the other conversation still holds the private name');
+  } finally {
+    if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
+});
