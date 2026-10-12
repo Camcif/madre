@@ -49,3 +49,27 @@ test('integrity: a request whose «ñ» arrives in two packets is read whole, an
     for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('integrity: a record cut halfway still opens, and what comes next starts on its own line (LOG-02)', async () => {
+  const { EventStore } = await import('../src/event-store.mjs');
+  const dir = await mkdtemp(join(tmpdir(), 'madre-torn-'));
+  try {
+    const file = join(dir, 'events.jsonl');
+    const good = (sequence, text) => `${JSON.stringify({ id: `e${sequence}`, sequence, type: 'message.created', timestamp: '2026-10-12T00:00:00.000Z', payload: { role: 'user', text } })}\n`;
+    // Two events, then half of a third: the process died in the middle of writing it.
+    await writeFile(file, good(1, 'hola') + good(2, 'año') + '{"id":"e3","sequence":3,"type":"mess');
+    const store = await new EventStore(file).initialize();
+    assert.equal(store.damaged, 1);
+    assert.deepEqual((await store.readAll()).map((event) => event.sequence), [1, 2]);
+    const next = await store.append('message.created', { role: 'user', text: 'sigo aquí' });
+    assert.equal(next.sequence, 3);
+    // A second reader sees both whole events and the new one; the half line is kept, stepped over.
+    const again = await new EventStore(file).initialize();
+    assert.deepEqual((await again.readAll()).map((event) => event.payload.text), ['hola', 'año', 'sigo aquí']);
+    assert.match(await readFile(file, 'utf8'), /"type":"mess\n\{/, 'the half line was removed, or the next event was glued to it');
+    const { events } = await again.tail(0);
+    assert.equal(events.length, 3);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

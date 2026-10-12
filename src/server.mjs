@@ -287,6 +287,9 @@ export async function createPulseServer({
   const openLedger = async (id) => {
     const base = await projectFloor(roomDir, { except: id });
     const opened = await new EventStore(chatLedger(roomDir, id), { floor: () => Math.max(base, retiredHigh, ...[...liveStores].map((each) => each.lastSequence)) }).initialize();
+    // A record with lines that are not events opens anyway (src/event-store.mjs); it is said here,
+    // with where the file is, and nothing in it is removed.
+    if (opened.damaged) console.error(`MADRE: ${opened.damaged} damaged line(s) in ${chatLedger(roomDir, id)} were stepped over; the file keeps them.`);
     liveStores.add(opened);
     return opened;
   };

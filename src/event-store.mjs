@@ -3,8 +3,31 @@ import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
+// A record cut halfway (2026-10-12, LOG-02 of the 1.0 review): a `kill -9`, a power cut or a full
+// disk in the middle of an append leaves half a line. Every read used to throw on it, so the
+// conversation never opened again — and the next event was written glued to the half line, lost
+// with it. Now a line that is not an event is stepped over and counted (`damaged`), never removed:
+// the file keeps it for whoever wants to look. And an append that finds the file not ending in a
+// newline writes one first, so what comes next starts on a line of its own.
+function parseLines(text) {
+  const events = [];
+  let damaged = 0;
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const event = JSON.parse(line);
+      if (event && typeof event === 'object' && Number.isFinite(event.sequence)) events.push(event);
+      else damaged += 1;
+    } catch {
+      damaged += 1;
+    }
+  }
+  return { events, damaged };
+}
+
 export class EventStore {
   #file;
+  #damaged = 0;
   #nextSequence = 1;
   #writeQueue = Promise.resolve();
   #lockDirectory;
@@ -30,6 +53,8 @@ export class EventStore {
 
   // The last sequence this ledger handed out (or the floor it opened above).
   get lastSequence() { return this.#nextSequence - 1; }
+  // How many lines the last full read stepped over because they were not events.
+  get damaged() { return this.#damaged; }
 
   async initialize() {
     await mkdir(dirname(this.#file), { recursive: true });
@@ -70,7 +95,7 @@ export class EventStore {
         const lastNewline = text.lastIndexOf('\n');
         if (lastNewline < 0) return { events: [], offset: start };
         text = text.slice(0, lastNewline + 1);
-        const events = text.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+        const { events } = parseLines(text);
         return { events, offset: start + Buffer.byteLength(text, 'utf8') };
       } finally {
         await handle.close();
@@ -82,8 +107,9 @@ export class EventStore {
 
   async #readAllUnlocked() {
     try {
-      const text = await readFile(this.#file, 'utf8');
-      return text.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+      const { events, damaged } = parseLines(await readFile(this.#file, 'utf8'));
+      this.#damaged = damaged;
+      return events;
     } catch (error) {
       if (error.code === 'ENOENT') return [];
       throw error;
@@ -182,9 +208,14 @@ export class EventStore {
           timestamp: new Date().toISOString(),
           payload,
         };
-        const handle = await open(this.#file, 'a');
+        const handle = await open(this.#file, 'a+');
         try {
-          await handle.writeFile(`${JSON.stringify(event)}\n`);
+          // A file that does not end in a newline ends in half a line: start on a new one.
+          const { size } = await handle.stat();
+          const last = Buffer.alloc(1);
+          if (size > 0) await handle.read(last, 0, 1, size - 1);
+          const lead = size > 0 && last[0] !== 0x0a ? '\n' : '';
+          await handle.writeFile(`${lead}${JSON.stringify(event)}\n`);
           await handle.sync();
         } finally {
           await handle.close();
