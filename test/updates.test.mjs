@@ -16,9 +16,15 @@ test('updates: versions compare as releases, the launch mode picks the command, 
   assert.equal(detectInstall({ script: '/Users/x/pulse/bin/madre.mjs', projectRoot: '/Users/x/pulse' }), 'source');
   assert.equal(updateCommand('npx', '@jossuealcala/madre', '0.3.2'), 'npx @jossuealcala/madre@0.3.2 start');
   assert.equal(updateCommand('project', '@jossuealcala/madre', '0.3.2'), 'npm install @jossuealcala/madre@0.3.2');
-  assert.equal(applyCommand({ install: 'npx', name: '@jossuealcala/madre', version: '0.3.2', port: 4317, projectRoot: '/Users/x/Pangea OS' }), "exec npx -y @jossuealcala/madre@0.3.2 start --no-open --port 4317 --project '/Users/x/Pangea OS'");
-  assert.match(applyCommand({ install: 'project', name: '@jossuealcala/madre', version: '0.3.2', port: 4319, projectRoot: '/p' }), /^npm install @jossuealcala\/madre@0\.3\.2 --no-fund --no-audit && exec npx --no madre start --no-open --port 4319 --project '\/p'$/);
-  assert.match(applyCommand({ install: 'global', name: '@jossuealcala/madre', version: '0.3.2', port: 4317, projectRoot: '/p' }), /^npm install -g .* && exec madre start/);
+  assert.equal(applyCommand({ install: 'npx', name: '@jossuealcala/madre', version: '0.3.2', port: 4317, projectRoot: '/Users/x/Pangea OS' }), "exec npx -y '@jossuealcala/madre@0.3.2' start --no-open --port 4317 --project '/Users/x/Pangea OS'");
+  assert.match(applyCommand({ install: 'project', name: '@jossuealcala/madre', version: '0.3.2', port: 4319, projectRoot: '/p' }), /^npm install '@jossuealcala\/madre@0\.3\.2' --no-fund --no-audit && exec npx --no 'madre' start --no-open --port 4319 --project '\/p'$/);
+  assert.match(applyCommand({ install: 'global', name: '@jossuealcala/madre', version: '0.3.2', port: 4317, projectRoot: '/p' }), /^npm install -g .* && exec 'madre' start/);
+  // A version is semver or nothing (SRV-07): one from a cache someone wrote never reaches a shell.
+  for (const version of ['9.9.9;touch${IFS}/tmp/x;#', '1.0.0 && rm -rf ~', '$(id)', '1.0', 'latest']) {
+    assert.equal(applyCommand({ install: 'npx', name: '@jossuealcala/madre', version, port: 4317, projectRoot: '/p' }), null, version);
+    assert.equal(fetchCommand({ name: '@jossuealcala/madre', version }), null, version);
+  }
+  assert.ok(applyCommand({ install: 'npx', name: '@jossuealcala/madre', version: '1.1.0-alpha.1', port: 4317, projectRoot: '/p' }), 'a pre-release is a version');
   assert.equal(applyCommand({ install: 'source', name: 'x', version: '1', port: 1, projectRoot: '/p' }), null, 'from source the human pulls');
   // The version is fetched while the room is still open; a room that closed first and found
   // nothing to start was simply gone. Only a name and a version a registry would give reach npm.
@@ -87,4 +93,20 @@ test('updates: the room fetches the new version before it closes, and stays open
   assert.match(apply.slice(fetched, closing), /return sendJson\(response, 502/, 'a failed fetch does not keep the room open');
   // And the restart leaves a witness: what the new copy printed on the way up.
   assert.match(apply, /update\.log/);
+});
+
+test('updates: a cache with something that is not a version is not believed (SRV-07)', async () => {
+  const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = await mkdtemp(join(tmpdir(), 'madre-update-cache-'));
+  try {
+    const cacheFile = join(dir, 'updates.json');
+    await writeFile(cacheFile, JSON.stringify({ name: '@jossuealcala/madre', latest: '9.9.9;touch${IFS}/tmp/x;#', checkedAt: Date.now() }));
+    const seen = await checkForUpdate({ name: '@jossuealcala/madre', current: '1.0.0', cacheFile, enabled: false });
+    assert.equal(seen.latest, null);
+    assert.equal(seen.available, false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

@@ -4291,6 +4291,7 @@ export const ES = {
   'External image · {host}': 'Imagen externa · {host}',
   'The editor saves files up to {mb} MB.': 'El editor guarda archivos de hasta {mb} MB.',
   'That could not be read.': 'No se pudo leer.',
+  'The version the registry gave ({version}) is not one MADRE installs.': 'La versión que dio el registro ({version}) no es una que MADRE instale.',
   'Unlock #3 or #4 for an agent of this project.': 'Desbloquea #3 o #4 para un agente de este proyecto.',
   'Too many wrong keys. Wait a minute and try again.': 'Demasiadas llaves equivocadas. Espera un minuto e inténtalo de nuevo.',
   'Type your current phrase to change the keys.': 'Escribe tu frase actual para cambiar las llaves.',

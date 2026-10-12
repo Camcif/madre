@@ -2541,11 +2541,14 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/updates/apply') {
         const info = await versionView();
         if (!info.available) return sendJson(response, 409, { error: `Nothing to apply: ${info.current} is the latest MADRE knows of.` });
+        if (install === 'source') return sendJson(response, 412, { error: t('This copy runs from source: pull the repository and start it again.') });
         const command = applyCommand({ install, name: PACKAGE.name, version: info.latest, port: request.socket.localPort, projectRoot: canonicalProjectRoot });
-        if (!command) return sendJson(response, 412, { error: t('This copy runs from source: pull the repository and start it again.') });
-        if (room.activeTurns().length || room.activePlans().length) return sendJson(response, 409, { error: t('Agents are still working. STOPALL or wait, then update.') });
         const fetching = fetchCommand({ name: PACKAGE.name, version: info.latest });
-        if (fetching) {
+        // Only a version semver would write reaches a shell, and the restart never runs without the
+        // download first (src/updates.mjs): an unchecked one used to skip the download and run.
+        if (!command || !fetching) return sendJson(response, 412, { error: t('The version the registry gave ({version}) is not one MADRE installs.', { version: String(info.latest).slice(0, 40) }) });
+        if (room.activeTurns().length || room.activePlans().length) return sendJson(response, 409, { error: t('Agents are still working. STOPALL or wait, then update.') });
+        {
           // npm is a .cmd on Windows and needs a shell there; every argument here is fixed or checked above.
           const fetched = await new Promise((resolve) => execFile(fetching.command, fetching.args, { cwd: root, timeout: 180000, shell: process.platform === 'win32', windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => resolve(error ? (String(stderr || error.message).split('\n').map((line) => line.trim()).find((line) => line && !/complete log|^npm (error|ERR!)(\s+code\b.*)?\s*$/i.test(line)) ?? error.message) : null)));
           if (fetched !== null) {
