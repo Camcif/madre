@@ -1,10 +1,17 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 // How #3 CONTROL and #4 AIRLOCK are unlocked, as the person chose it in AJUSTES › Permissions.
 //
-// The key is checked in the browser, as it always was; this only says which key, and for how long
-// an accepted one is not asked again. Three rules never move, whatever the file says:
+// The key is checked here, by the project, since 2026-10-12 (SRV-01 of the 1.0 review): before,
+// only the browser checked it, and two POSTs from any process on the Mac opened #4 with no key.
+// The page asks for the key and sends what was typed; `keyHolds` decides. Four rules never move,
+// whatever the file says:
 //   · #4 always asks for something — there is no «just confirm» for a mode that runs commands;
-//   · a personal phrase is never stored, only its salted SHA-256, computed in the browser;
-//   · the grace is short: #3 up to 30 minutes, #4 up to 5, and off unless chosen.
+//   · a personal phrase is never stored, only its salted SHA-256; the phrase typed to unlock is
+//     compared here and forgotten, and the fingerprint never leaves the project (`publicOverride`);
+//   · the grace is short: #3 up to 30 minutes, #4 up to 5, and off unless chosen;
+//   · the project name stops a slip, not a program: any process can read a folder's name. The
+//     phrase is the key a program on the Mac cannot know.
 export const OVERRIDE_KEYS = Object.freeze({
   3: Object.freeze(['designation', 'phrase', 'confirm']),
   4: Object.freeze(['designation-airlock', 'phrase-airlock', 'designation']),
@@ -51,4 +58,43 @@ export function mergeOverride(current = {}, patch = {}) {
     phrase: 'phrase' in patch ? patch.phrase : base.phrase,
   };
   return overrideSettings(next);
+}
+
+// What the pages are told: which key, the grace, and whether a phrase exists — never its
+// fingerprint, which a program could otherwise read and try words against at leisure.
+export function publicOverride(settings) {
+  const { keys, grace, phrase } = overrideSettings(settings);
+  return { keys, grace, phrase: phrase ? { set: true } : null };
+}
+
+// The fingerprint of a phrase: the same words however they were spaced or capitalised.
+export function phraseHash(salt, phrase) {
+  const words = String(phrase ?? '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+  return createHash('sha256').update(`${salt}:${words}`).digest('hex');
+}
+const same = (a, b) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+// Whether what was typed opens this mode with the key chosen for it. `words` holds what was typed,
+// once, or twice for a key that #4 asks for twice; `designation` is the project's folder name.
+export function keyHolds(stored, { mode, words = [], designation = '' } = {}) {
+  if (mode !== 3 && mode !== 4) return false;
+  const settings = overrideSettings(stored);
+  const typed = (Array.isArray(words) ? words : []).map((word) => (typeof word === 'string' ? word.trim() : ''));
+  const isProject = (word) => Boolean(word) && Boolean(designation) && word.toLowerCase() === String(designation).toLowerCase();
+  const isPhrase = (word) => Boolean(word) && Boolean(settings.phrase) && same(phraseHash(settings.phrase.salt, word), settings.phrase.hash);
+  switch (settings.keys[mode]) {
+    case 'confirm': return mode === 3;
+    case 'designation': return isProject(typed[0]);
+    case 'phrase': return isPhrase(typed[0]);
+    case 'designation-airlock': return isProject(typed[0]) && isProject(typed[1]);
+    case 'phrase-airlock': return isPhrase(typed[0]) && isPhrase(typed[1]);
+    default: return false;
+  }
+}
+
+// Whether a change to these settings must show the phrase first: while a phrase guards a mode, a
+// program that could change the key could also take the phrase away.
+export function changeNeedsPhrase(stored) {
+  const settings = overrideSettings(stored);
+  return Boolean(settings.phrase) && [3, 4].some((mode) => settings.keys[mode].startsWith('phrase'));
 }

@@ -10,6 +10,7 @@
 // installing code somebody wrote, forgetting memories and editing files. The room checks the
 // parts a path cannot say — which module, which mode was asked — on its own side as well.
 
+import { normalizeMode } from '../capabilities.mjs';
 import { t } from '../i18n.mjs';
 
 // Every file the room's page loads: one missing here and app.js cannot import it, so the whole page
@@ -64,8 +65,10 @@ const PERMISSIONS_ON_THE_MAC = 'Permissions are changed on the Mac.';
 // The only bodies the bridge reads before passing them on.
 export const inspects = (method, pathname) => method === 'POST' && (pathname === '/api/messages' || pathname === '/api/settings');
 
-// A mode written in the message is the mode, as on the Mac: «#3» at a word's edge.
+// A mode written in the message is the mode, as on the Mac: «#3» at a word's edge — in what the
+// person wrote, not in the answer they quote above it (the page's «↩ @agent: “…”» line).
 const MODE_TOKEN = /(^|\s)#([0-4])(?=\s|$)/;
+export const writtenMode = (text) => (typeof text === 'string' ? Number(text.replace(/^↩ [^\n]*\n/, '').match(MODE_TOKEN)?.[2] ?? -1) : -1);
 
 export function phonePolicy({ method = 'GET', pathname = '/', body = null } = {}) {
   const verb = String(method).toUpperCase();
@@ -77,8 +80,9 @@ export function phonePolicy({ method = 'GET', pathname = '/', body = null } = {}
   if (!acts) return { allow: false, status: 403, error: t(ON_THE_MAC) };
   if (pathname === '/api/settings' && body && (body.scopes !== undefined || body.override !== undefined)) return { allow: false, status: 403, error: t(PERMISSIONS_ON_THE_MAC) };
   if (verb === 'POST' && pathname === '/api/messages') {
-    const asked = Number.isInteger(body?.mode) ? body.mode : 1;
-    const written = typeof body?.text === 'string' ? Number(body.text.match(MODE_TOKEN)?.[2] ?? -1) : -1;
+    // Read as the room reads it (src/capabilities.mjs): «"4"» is #4 there, so it is #4 here (TEL-01).
+    const asked = normalizeMode(body?.mode, body?.create === true ? 2 : 1);
+    const written = writtenMode(body?.text);
     if (Math.max(asked, written) > PHONE_MAX_MODE) return { allow: false, status: 403, error: t(MODE_ON_THE_MAC) };
   }
   return { allow: true };

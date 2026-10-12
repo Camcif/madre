@@ -2,7 +2,7 @@
 // is taken before, the diff is read after, writes into forbidden zones are
 // restored on the spot, and the checkpoint stays for UNDO. One holder at a time.
 
-import { createCheckpoint, diffCheckpoint, restoreCheckpoint } from '../checkpoint.mjs';
+import { createCheckpoint, diffCheckpoint, restoreCheckpoint, settleControls } from '../checkpoint.mjs';
 import { guardForbidden } from './guard.mjs';
 
 export class ControlDesk {
@@ -83,6 +83,10 @@ export class ControlDesk {
   // What really changed, with forbidden zones already restored. In a #2 turn every change to
   // a file that existed before (modified, deleted, renamed) is restored too: CREATE adds, only.
   async settle(run) {
+    // What the turn wrote into a repository's own settings, hooks or attributes goes back first,
+    // before git runs again (src/checkpoint.mjs). Not after #4: there the agent runs commands
+    // already, and configuring a remote it was asked to configure is its work.
+    const controls = run.mode === 4 ? [] : await settleControls(run.checkpoint);
     const diff = await diffCheckpoint(this.#projectRoot, run.checkpoint);
     const additive = run.mode === 2;
     // The draft folder MADRE itself hands the agent lives under `.pulse/out/`, and `.pulse/` is a
@@ -100,7 +104,7 @@ export class ControlDesk {
       reverted = [...restored.restored, ...restored.removed];
     }
     const kept = diff.files.filter((file) => !toRevert.has(file.path));
-    const changes = { checkpointId: run.checkpoint.id, agent: run.agent, messageId: run.messageId, mode: run.mode ?? 3, files: kept, stat: diff.stat, forbiddenReverted: reverted.filter((path) => diff.forbidden.includes(path) && !mine(path)), existingReverted: additive ? reverted.filter((path) => !diff.forbidden.includes(path)) : [] };
+    const changes = { checkpointId: run.checkpoint.id, agent: run.agent, messageId: run.messageId, mode: run.mode ?? 3, files: kept, stat: diff.stat, forbiddenReverted: [...controls, ...reverted.filter((path) => diff.forbidden.includes(path) && !mine(path))], existingReverted: additive ? reverted.filter((path) => !diff.forbidden.includes(path)) : [] };
     const count = changes.files.length;
     const notes = [
       changes.forbiddenReverted.length ? `${changes.forbiddenReverted.length} write(s) into forbidden zones were reverted.` : null,

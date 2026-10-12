@@ -866,6 +866,8 @@ test('RIPLEY: off by default, files stay source; on, HTML and SVG render through
     assert.match(headed, /postMessage/);
     const svg = await fetch(`${base}/preview/project/logo.svg`);
     assert.match(svg.headers.get('content-type'), /^image\/svg\+xml/);
+    // An SVG opened on its own runs nothing: sealed, with no origin of its own (SRV-02).
+    assert.match(svg.headers.get('content-security-policy') ?? '', /^sandbox; default-src 'none'/);
     // Assets a page links relatively are served on the same route, without a page policy.
     const js = await fetch(`${base}/preview/project/app.js`);
     assert.equal(js.status, 200);

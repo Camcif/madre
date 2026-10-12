@@ -12,6 +12,8 @@
 //     the same word the room asks for before CONTROL. Typing a folder name is a small ceremony;
 //     restoring a deleted key is not.
 
+import { realpath } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { isForbidden } from './checkpoint.mjs';
 
 export const OPERATIONS = ['copy', 'move', 'new-file', 'new-folder'];
@@ -22,6 +24,27 @@ export const CREATIONS = ['new-file', 'new-folder'];
 // protected path is how a protected path gets overwritten.
 export function needsDesignation(...paths) {
   return paths.filter(Boolean).some((path) => isForbidden(String(path).replace(/^\.\//, '')));
+}
+
+// The same question asked of where a path really lands (2026-10-12, SRV-05 of the 1.0 review): the
+// words of a path are not its place. `src/../.git/config`, a link named `gitlink` that points at
+// `.git`, `.ENV` on a disk that does not tell it from `.env` — each wrote into a guarded zone with
+// no designation, because only the words were read. A path that does not exist yet is judged by
+// the real folder it would land in.
+export async function needsDesignationOnDisk(root, ...paths) {
+  if (needsDesignation(...paths)) return true;
+  const top = await realpath(root).catch(() => null);
+  if (!top) return false;
+  for (const path of paths.filter(Boolean)) {
+    const wanted = resolve(top, String(path).replace(/^\/+/, ''));
+    const real = await realpath(wanted).catch(async () => {
+      const folder = await realpath(dirname(wanted)).catch(() => null);
+      return folder ? join(folder, basename(wanted)) : null;
+    });
+    if (!real || (real !== top && !real.startsWith(top + sep))) continue;   // outside: the fence refuses it elsewhere
+    if (needsDesignation(relative(top, real).split(sep).join('/'))) return true;
+  }
+  return false;
 }
 
 // What the room will say about an operation before doing any of it.

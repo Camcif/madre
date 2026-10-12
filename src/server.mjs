@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access, stat } from 'node:fs/promises';
 import { openSync, rmSync } from 'node:fs';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { probePort, framable } from './ports.mjs';
 import { ControlDesk } from './room/control.mjs';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -54,7 +54,7 @@ import { QuotaMonitor } from './quota-monitor.mjs';
 import { defaultQuotaSources } from './quota-sources.mjs';
 import { Room } from './room.mjs';
 import { applyConfigToEnv, loadConfig } from './config.mjs';
-import { mergeOverride, overrideSettings } from './override.mjs';
+import { changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
 import { applyKey, keyPlanFor } from './credentials.mjs';
@@ -74,11 +74,11 @@ import { spawn } from 'node:child_process';
 import { totalmem } from 'node:os';
 import { discoverModels } from './models.mjs';
 import { observable } from './modules/intents-observe.mjs';
-import { setImageModule } from './capabilities.mjs';
+import { normalizeMode, setImageModule } from './capabilities.mjs';
 import { resolveGeminiKey } from './image-studio.mjs';
 import { commandByName, listCommands, parseCommand } from './commands.mjs';
 import { listDirectory, searchFiles, readServable, storeAttachment, resolveInside, createEmptyFile, writeEdited, MAX_ATTACHMENT_BYTES } from './files.mjs';
-import { planFileOp, freeCopyPath, needsDesignation, CREATIONS } from './file-ops.mjs';
+import { planFileOp, freeCopyPath, needsDesignationOnDisk, CREATIONS } from './file-ops.mjs';
 import { ServerSentinel } from './server-sentinel.mjs';
 import { Eyecat } from './eyecat-watch.mjs';
 import { economy } from './room/economy.mjs';
@@ -90,7 +90,7 @@ import { bridgeAnswers, hostBridge } from './bridge/host.mjs';
 import { BRIDGE_PORT } from './bridge/server.mjs';
 import { createInvite, forgetDevice, forgetNetwork, readStore, setEnabled, storeView, trustNetwork } from './bridge/devices.mjs';
 import { currentNetwork, lanAddresses } from './bridge/network.mjs';
-import { PHONE_MAX_MODE } from './bridge/policy.mjs';
+import { PHONE_MAX_MODE, writtenMode } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
 import { askRoom, associateProject, ensureSalasProject, forgetProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
@@ -136,6 +136,17 @@ export function agentTimeoutsFromEnv(env = process.env, agentIds = ['codex', 'cl
 // The id of a room lives beside the rest of what Salas knows of rooms (src/salas.mjs); it is still
 // read from here by everything that always did.
 export { projectRoomId };
+
+// What the pages of a project and of Home are sent with (2026-10-12, SRV-04 and WEB-01 of the 1.0
+// review). Only this same page may frame them — the split view frames `/?pane=split` — so another
+// page cannot lay them under its own buttons and borrow a click on RUN or STOP ALL. And images come
+// only from here: a picture in an answer that pointed elsewhere was fetched the moment it was
+// drawn, with whatever its address carried, and never counted as something that left the Mac.
+const PAGE_GUARDS = {
+  'x-frame-options': 'SAMEORIGIN',
+  'content-security-policy': "frame-ancestors 'self'; img-src 'self' data: blob:",
+  'x-content-type-options': 'nosniff',
+};
 
 export async function createPulseServer({
   projectRoot,
@@ -401,6 +412,27 @@ export async function createPulseServer({
   let memorySettings = await memoryConfig();
   // Which key unlocks #3 and #4, and for how long an accepted one holds. See src/override.mjs.
   let overrideConfig = overrideSettings((await readConfig(root)).override);
+  // The passes the key gives (2026-10-12). The page asks for the key, the project checks it and
+  // hands back a pass for that agent and that mode; a message at #3 or #4 goes only with one. Without
+  // a remembered permission a pass opens one message; with one, any until it runs out. STOP ALL and
+  // a restart take them all back. Wrong keys are counted: a program trying words is slowed down.
+  const passes = new Map();          // token -> { agent, mode, until, once }
+  const keyMisses = [];              // when the last wrong keys were typed
+  const PASS_ONCE_MS = 30 * 60 * 1000;
+  function issuePass(agent, mode) {
+    const minutes = overrideConfig.grace[mode] ?? 0;
+    const token = randomBytes(24).toString('hex');
+    const pass = { agent, mode, until: Date.now() + (minutes ? minutes * 60000 : PASS_ONCE_MS), once: !minutes };
+    passes.set(token, pass);
+    return { token, until: new Date(pass.until).toISOString(), once: pass.once };
+  }
+  function spendPass(token, agent, mode) {
+    const pass = typeof token === 'string' ? passes.get(token) : null;
+    if (!pass || pass.agent !== agent || pass.mode < mode) return false;
+    if (pass.until < Date.now()) { passes.delete(token); return false; }
+    if (pass.once) passes.delete(token);
+    return true;
+  }
   let listening = null;
   const listeningPort = () => listening?.address?.()?.port ?? Number(process.env.PULSE_PORT ?? 4317);
   // One CONTROL desk for the whole project, shared by every conversation alive at once: a single
@@ -478,7 +510,7 @@ export async function createPulseServer({
       memory: memorySettingsView(),
       updates: { check: updatesEnabled(), envWins: process.env.PULSE_UPDATE_CHECK !== undefined },
       privacy: { terms: privacy.terms, marker: privacy.marker, envWins: privacySettings({}, process.env).envWins, ...privacy.guards },
-      override: overrideConfig,
+      override: publicOverride(overrideConfig),
     };
   }
   // What MU/TH/UR shows under MEMORY: the live values, who could distil, and what embeds today.
@@ -1330,7 +1362,7 @@ export async function createPulseServer({
     try {
       if (request.method === 'GET' && url.pathname === '/') {
         const html = await readFile(join(publicDirectory, 'index.html'));
-        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...PAGE_GUARDS });
         return response.end(html);
       }
       if (request.method === 'GET' && ['/app.js', '/nostromo-engine.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js', '/review-ask.js', '/loader.js', '/tour.js', '/tour-chapters.js', '/touch.js'].includes(url.pathname)) {
@@ -1491,7 +1523,7 @@ export async function createPulseServer({
       }
       if (request.method === 'GET' && url.pathname === '/salas') {
         const html = await readFile(join(publicDirectory, 'salas-mac.html'));
-        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
+        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', ...PAGE_GUARDS });
         return response.end(html);
       }
       if (request.method === 'GET' && (url.pathname === '/salas-mac.js' || url.pathname === '/salas-mac.css' || url.pathname === '/macroverso.js')) {
@@ -1941,7 +1973,7 @@ export async function createPulseServer({
           ripleyWeb: Boolean((await readConfig(root)).modules?.ripley?.web),
           ripley: { enabled: await ripleyOn() },
           softTokenBudget,
-          override: overrideConfig,
+          override: publicOverride(overrideConfig),
           timeouts: Object.fromEntries(agents.map((agent) => [agent.id, room.timeoutFor(agent.id)])),
           delegation: { enabled: room.settings().delegation, maxPlanSteps: room.settings().maxPlanSteps },
           plans: room.activePlans(),
@@ -2006,6 +2038,7 @@ export async function createPulseServer({
         }
         const plan = planFileOp(payload);
         if (!plan.ok) return sendJson(response, 400, { error: t(plan.error) });
+        if (!plan.guarded) plan.guarded = await needsDesignationOnDisk(canonicalProjectRoot, plan.from, plan.to);
         if (plan.guarded && !designationOk(payload.designation)) {
           return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.'), guarded: true });
         }
@@ -2062,7 +2095,7 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/files') {
         const payload = await body(request).catch(() => ({}));
         const relative = String(payload.path ?? '').trim().replace(/^\/+/, '');
-        if (relative && needsDesignation(relative) && !designationOk(payload.designation)) {
+        if (relative && await needsDesignationOnDisk(canonicalProjectRoot, relative) && !designationOk(payload.designation)) {
           return sendJson(response, 403, { error: t('This file is one the project guards. Type the project name to save it.'), guarded: true });
         }
         const result = await createEmptyFile(canonicalProjectRoot, relative);
@@ -2074,7 +2107,7 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         const relative = String(payload.path ?? '').replace(/^\/+/, '');
         if (!relative) return sendJson(response, 400, { error: t('Nothing to save.') });
-        if (needsDesignation(relative) && !designationOk(payload.designation)) {
+        if (await needsDesignationOnDisk(canonicalProjectRoot, relative) && !designationOk(payload.designation)) {
           return sendJson(response, 403, { error: t('This file is one the project guards. Type the project name to save it.'), guarded: true });
         }
         const result = await writeEdited(canonicalProjectRoot, relative, payload.content, { mtimeMs: payload.mtimeMs, force: payload.force === true });
@@ -2108,6 +2141,13 @@ export async function createPulseServer({
           'content-disposition': `inline; filename="${encodeURIComponent(basename(file.path))}"`,
         };
         if (isPage) headers['content-security-policy'] = `sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline' ${origin}; style-src 'unsafe-inline' ${origin}; img-src ${origin} data: blob:; font-src ${origin} data:; media-src ${origin} data: blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'`;
+        // Everything else is sealed too (SRV-02, 2026-10-12): an SVG or an XML file carries scripts,
+        // and opened on its own — a link in an answer, a frame the project's server navigates — it
+        // ran with the project's origin and reached its API. Sealed, it is drawn and runs nothing.
+        // A PDF keeps the browser's own viewer, which a sealed document cannot open; the scripts and
+        // styles a page links are left as they were (opened on their own they are text, and a
+        // worker the page starts would be shut by a policy meant for documents).
+        else if (!/^(application\/pdf|text\/css|(text|application)\/javascript)\b/i.test(file.contentType ?? '')) headers['content-security-policy'] = `sandbox; default-src 'none'; img-src ${origin} data:; style-src 'unsafe-inline'; media-src ${origin} data: blob:`;
         response.writeHead(200, headers);
         return response.end(bodyOut);
       }
@@ -2124,14 +2164,40 @@ export async function createPulseServer({
         const record = await here.room.registerAttachment(await storeAttachment(attachmentsRoot, { name, bytes }));
         return sendJson(response, 201, { attachment: { id: record.id, name: record.name, fileName: record.fileName, size: record.size, contentType: record.contentType, url: `/api/files?root=attachments&path=${encodeURIComponent(record.fileName)}` } });
       }
+      // The key for #3 and #4, checked here (src/override.mjs): what was typed, once or twice, and a
+      // pass back for that agent and mode. Never from a phone: #3 and #4 are opened on the Mac.
+      if (request.method === 'POST' && url.pathname === '/api/override/arm') {
+        if (viaPhone) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
+        const payload = await body(request).catch(() => ({}));
+        const mode = Number(payload.mode);
+        const agent = String(payload.agent ?? '');
+        if ((mode !== 3 && mode !== 4) || !agents.some((one) => one.id === agent)) return sendJson(response, 400, { error: t('Unlock #3 or #4 for an agent of this project.') });
+        const now = Date.now();
+        while (keyMisses.length && keyMisses[0] < now - 60000) keyMisses.shift();
+        if (keyMisses.length >= 8) return sendJson(response, 429, { error: t('Too many wrong keys. Wait a minute and try again.') });
+        if (!keyHolds(overrideConfig, { mode, words: payload.words, designation: basename(canonicalProjectRoot) })) {
+          keyMisses.push(now);
+          return sendJson(response, 403, { error: t('That is not it. Try again, or cancel.'), denied: true });
+        }
+        return sendJson(response, 200, issuePass(agent, mode));
+      }
       if (request.method === 'GET' && url.pathname === '/api/settings') {
         await refreshPrivacy();
-        return sendJson(response, 200, { settings: effectiveSettings(), config: await readConfig(root), sessions, sessionsAt, loggingIn, agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })) });
+        const stored = await readConfig(root);
+        if (stored.override) stored.override = publicOverride(stored.override);
+        return sendJson(response, 200, { settings: effectiveSettings(), config: stored, sessions, sessionsAt, loggingIn, agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })) });
       }
       if (request.method === 'POST' && url.pathname === '/api/settings') {
         const patch = await body(request);
         // Permissions and the key that opens #3 and #4 are changed on the Mac.
         if (viaPhone && (patch?.scopes !== undefined || patch?.override !== undefined)) return sendJson(response, 403, { error: t('Permissions are changed on the Mac.') });
+        if (patch?.override && typeof patch.override === 'object') {
+          const proof = patch.override.proof;
+          delete patch.override.proof;
+          if (changeNeedsPhrase(overrideConfig) && !(typeof proof === 'string' && proof.trim() && phraseHash(overrideConfig.phrase.salt, proof) === overrideConfig.phrase.hash)) {
+            return sendJson(response, 403, { error: t('Type your current phrase to change the keys.'), needsPhrase: true });
+          }
+        }
         return sendJson(response, 200, { settings: await applySettings(patch) });
       }
       // NOSTROMO: the archive is behind the project designation, like CONTROL.
@@ -2799,6 +2865,7 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/stop-all') {
         // Every conversation at work, not only the one on screen: the brake is the room's, not the chat's.
         const result = await room.stopAll();
+        passes.clear();
         for (const held of parked.values()) {
           const more = await held.room.stopAll().catch(() => ({ plans: 0, turns: 0 }));
           result.plans += more.plans ?? 0;
@@ -2949,8 +3016,9 @@ export async function createPulseServer({
         // A phone asks up to #2. The bridge already said so; the room says it again, and records
         // where the message came from. Only the bridge's word counts for that, never the body's.
         if (viaPhone) {
-          const written = typeof payload.text === 'string' ? Number(payload.text.match(/(^|\s)#([0-4])(?=\s|$)/)?.[2] ?? -1) : -1;
-          if (Math.max(Number.isInteger(payload.mode) ? payload.mode : 1, written) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
+          const written = writtenMode(payload.text);
+          // Read the way the room reads it: «"4"» is #4 there, so it is #4 here (TEL-01).
+          if (Math.max(normalizeMode(payload.mode, payload.create === true ? 2 : 1), written) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
           payload.via = phoneKind;
         } else delete payload.via;
         // `?chat=` sends into a conversation held open beside the one on screen. TURNS counts it
@@ -2962,6 +3030,9 @@ export async function createPulseServer({
         // hears "no" with a reason instead of a silent log line.
         const gate = await room.modeCheck(payload);
         if (!gate.ok) return sendJson(response, gate.status ?? 403, { error: gate.error, mode: gate.mode, maxMode: gate.maxMode });
+        // #3 and #4 go with the pass their key gave, for this agent (above).
+        if (gate.mode >= 3 && !spendPass(payload.key, gate.agent, gate.mode)) return sendJson(response, 403, { error: t('#{n} needs its key. Unlock it again and send.', { n: gate.mode }), mode: gate.mode, needsKey: true });
+        delete payload.key;
         const turns = await turnsPolicy();
         if (turns.enabled) {
           if (room.turnsRunning() >= turns.turnsPerChat) return sendJson(response, 429, { error: t('This conversation already has {n} turns running, and TURNS allows {max} at a time. Wait for one to finish, open another conversation, or raise it in Diagnostics → TURNS.', { n: room.turnsRunning(), max: turns.turnsPerChat }) });

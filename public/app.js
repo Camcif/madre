@@ -560,8 +560,10 @@ function appendTextWithPaths(text, into) {
   if (last < text.length) into.append(text.slice(last));
 }
 
+// A picture of the project is drawn; one from elsewhere is not fetched until someone asks (WEB-01):
+// fetched while drawing, its address left the Mac with whatever it carried, and no one pressed it.
 function imageSource(src) {
-  if (/^https?:\/\//i.test(src)) return src;
+  if (/^https?:\/\//i.test(src)) return null;
   const rel = projectRelative(src);
   return rel ? `/api/files?path=${encodeURIComponent(rel)}` : null;
 }
@@ -586,6 +588,15 @@ function renderInline(text, into) {
         img.src = src; img.alt = alt; img.loading = 'lazy';
         img.addEventListener('click', () => openViewer({ url: src, label: alt || match[5] }));
         into.append(img);
+      } else if (SAFE_URL.test(match[5])) {
+        let host = match[5];
+        try { host = new URL(match[5]).host; } catch { /* the address as written */ }
+        const away = el('a', 'image-away', t('External image · {host}', { host }));
+        away.href = match[5];
+        away.target = '_blank';
+        away.rel = 'noopener noreferrer';
+        away.title = alt || match[5];
+        into.append(away);
       } else into.append(el('code', null, match[5]));
     }
     else if (match[8]) {
@@ -2964,6 +2975,7 @@ const override = {
   stage: 'designation',   // designation · phrase · confirm; #4 asks for the same key a second time
   again: false,           // the second time, for #4
   key: 'designation',     // the key chosen in AJUSTES › Permissions for this mode
+  words: [],              // what was typed, once or twice, sent to the project to be checked
 };
 // The key for #3 and #4 is an alert of the room, said plainly: what the mode lets the agent do in
 // one sentence, what keeps it safe in a quieter one, and the field says what to type.
@@ -2977,12 +2989,12 @@ const OVERRIDE_KEY_WORDS = {
 };
 const OVERRIDE_DEFAULT = { keys: { 3: 'designation', 4: 'designation-airlock' }, grace: { 3: 0, 4: 0 }, phrase: null };
 const overrideConfig = () => state.override ?? OVERRIDE_DEFAULT;
+// The project checks the key (src/override.mjs): the page asks for the one chosen in Permissions.
 function overrideKeyFor(mode) {
   const key = overrideConfig().keys?.[mode] ?? OVERRIDE_DEFAULT.keys[mode];
-  // A phrase this browser cannot check (no Web Crypto) falls back to the designation.
-  return key.startsWith('phrase') && (!overrideConfig().phrase || !globalThis.crypto?.subtle) ? OVERRIDE_DEFAULT.keys[mode] : key;
+  return key.startsWith('phrase') && !overrideConfig().phrase ? OVERRIDE_DEFAULT.keys[mode] : key;
 }
-// A personal phrase is compared by its salted SHA-256: neither the room nor its file ever holds it.
+// A personal phrase is kept as its salted SHA-256, made here when it is saved.
 async function overridePhraseHash(salt, phrase) {
   const words = String(phrase).normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${words}`));
@@ -2991,6 +3003,10 @@ async function overridePhraseHash(salt, phrase) {
 // An accepted key holds for the minutes chosen in AJUSTES, for that mode and that agent, in this
 // page only: a reload, STOPALL or the chip's × closes it.
 const overrideGrace = new Map();
+// The pass the project gave for each mode and agent once its key was accepted: a message at #3 or
+// #4 goes with it, and the project spends it (one message, or any while a permission is remembered).
+const overridePasses = new Map();
+const overridePass = (mode, agent) => overridePasses.get(`${mode}:${agent}`) ?? null;
 function overrideGraceLeft(mode, agent) {
   const until = overrideGrace.get(`${mode}:${agent}`) ?? 0;
   if (until > Date.now()) return until - Date.now();
@@ -3000,7 +3016,7 @@ function overrideGraceLeft(mode, agent) {
 function closeOverrideGrace(mode = null, agent = null) {
   for (const key of [...overrideGrace.keys()]) {
     const [m, a] = key.split(':');
-    if ((mode === null || Number(m) === mode) && (agent === null || a === agent)) overrideGrace.delete(key);
+    if ((mode === null || Number(m) === mode) && (agent === null || a === agent)) { overrideGrace.delete(key); overridePasses.delete(key); }
   }
   if (typeof renderPicker === 'function') renderPicker();
 }
@@ -3021,6 +3037,7 @@ function projectDesignation() { return (state.projectRoot ?? '').split('/').filt
 function askOverrideKey(stage, { again = false } = {}) {
   override.stage = stage;
   override.again = again;
+  if (!again) override.words = [];
   override.input.hidden = stage === 'confirm';
   override.input.type = stage === 'phrase' ? 'password' : 'text';
   override.input.value = '';
@@ -3079,31 +3096,43 @@ override.form?.addEventListener('submit', async (event) => {
     override.frame.classList.remove('shake'); void override.frame.offsetWidth; override.frame.classList.add('shake');
     override.input.select();
   };
-  if (override.stage === 'designation' || override.stage === 'phrase' || override.stage === 'confirm') {
-    if (override.stage === 'designation' && (!typed || typed.toLowerCase() !== projectDesignation().toLowerCase())) { deny(); return; }
-    if (override.stage === 'phrase') {
-      const phrase = overrideConfig().phrase;
-      if (!typed || !phrase || await overridePhraseHash(phrase.salt, typed) !== phrase.hash) { deny(); return; }
-    }
-    if (override.mode === 4 && override.key.endsWith('-airlock') && !override.again) {
-      // The second key is the same one, typed again: #4 is never opened by one key alone, and
-      // there is no other word to learn.
-      askOverrideKey(override.stage, { again: true });
-      override.reply.textContent = t('Accepted. Type it once more to open it.');
-      override.reply.className = 'key-reply';
-      override.input.focus();
-      return;
-    }
+  // A slip in the project's name is told at once; whether the key opens the mode, the project says.
+  if (override.stage === 'designation' && (!typed || typed.toLowerCase() !== projectDesignation().toLowerCase())) { deny(); return; }
+  if (override.stage === 'phrase' && !typed) { deny(); return; }
+  if (override.stage !== 'confirm') override.words.push(typed);
+  if (override.mode === 4 && override.key.endsWith('-airlock') && !override.again) {
+    // The second key is the same one, typed again: #4 is never opened by one key alone, and
+    // there is no other word to learn.
+    askOverrideKey(override.stage, { again: true });
+    override.reply.textContent = t('Type it once more to open it.');
+    override.reply.className = 'key-reply';
+    override.input.focus();
+    return;
+  }
+  override.arm.disabled = true;
+  let answer;
+  try {
+    const response = await fetch('/api/override/arm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent: override.agent, mode: override.mode, words: override.words }) });
+    answer = { ok: response.ok, ...(await response.json().catch(() => ({}))) };
+  } catch (error) {
+    answer = { ok: false, error: t('Could not reach MADRE: {error}', { error: error.message }) };
+  }
+  override.arm.disabled = false;
+  if (!answer.ok) {
+    askOverrideKey(override.key.startsWith('phrase') ? 'phrase' : override.key === 'confirm' ? 'confirm' : 'designation');
+    deny(answer.error ? resay(answer.error) : undefined);
+    return;
   }
   override.reply.textContent = override.mode === 4 ? t('Open for @{agent}.', { agent: override.agent }) : t('Unlocked for @{agent}.', { agent: override.agent });
   override.reply.className = 'key-reply granted';
-  const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900 };
+  const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900, pass: answer.token };
   override.then = null;
   override.cancelled = null;
   void grantOverride(granted);
 });
 // Arms the mode for that agent: after the key, or straight away inside the grace of an earlier one.
-async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0 }) {
+async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0, pass = null }) {
+  if (pass) overridePasses.set(`${mode}:${agent}`, pass);
   if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
   if (override.dialog?.open) override.dialog.close();
   if (raise) {
@@ -4223,8 +4252,9 @@ async function sendPermission({ agent, mode, quoted }) {
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text, target: agent, model: state.chosenModel[agent] ?? null, effort: state.chosenEffort[agent] ?? null, attachments: [], create: mode === 2, mode, ash: state.ashInstalled && state.ash }),
+      body: JSON.stringify({ text, target: agent, model: state.chosenModel[agent] ?? null, effort: state.chosenEffort[agent] ?? null, attachments: [], create: mode === 2, mode, ash: state.ashInstalled && state.ash, key: mode >= 3 ? overridePass(mode, agent) : undefined }),
     });
+    if (mode >= 3 && !overrideGraceLeft(mode, agent)) overridePasses.delete(`${mode}:${agent}`);
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
       toast(`${t('Diagnostics › ')}${result.error ?? t('The project rejected the message.')}`);
@@ -10680,13 +10710,14 @@ els.composer.addEventListener('submit', async (event) => {
   let target = els.target.value;
   let draft = false;
   const quoting = state.replyTo;
-  if (quoting && !text.startsWith('/')) outgoing = `${quoteHead(quoting)}${outgoing}`;
   // "#2" written in the message is the same as choosing it in the chip — and so are #3 and #4,
   // which in the chip open the override instead of arming themselves. A mode that asks for two
   // keys in the menu must not be free to anyone who can type it: the token is taken out of the
   // message, the rest goes back in the field, and the override decides. The ceiling is the
-  // server's word either way; this is the ceremony in front of it.
-  const modeToken = outgoing.match(/(^|\s)#([0-4])(?=\s|$)/);
+  // server's word either way; this is the ceremony in front of it. Read in what the human wrote,
+  // never in the answer quoted above it (WEB-03): a «#2» an agent said is not a mode anyone chose,
+  // and a quoted «#3» opened the key and, once armed, opened it again.
+  const modeToken = text.match(/(^|\s)#([0-4])(?=\s|$)/);
   if (modeToken) {
     const wanted = Number(modeToken[2]);
     outgoing = outgoing.replace(/(^|\s)#[0-4](?=\s|$)/, '$1').replace(/\s{2,}/g, ' ').trim();
@@ -10720,6 +10751,7 @@ els.composer.addEventListener('submit', async (event) => {
     }
     setMode(wanted);
   }
+  if (quoting && !text.startsWith('/')) outgoing = `${quoteHead(quoting)}${outgoing}`;
   if (text.startsWith('/')) {
     els.input.disabled = true;
     const result = await runSlashCommand(text).catch((error) => { toast(t('The command failed: {error}', { error: error.message })); return { handled: true }; });
@@ -10756,10 +10788,19 @@ els.composer.addEventListener('submit', async (event) => {
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: once?.effort ?? state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash, draft: draft || undefined }),
+      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: once?.effort ?? state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash, draft: draft || undefined, key: state.mode >= 3 ? overridePass(state.mode, addressed) : undefined }),
     });
+    const sentMode = state.mode;
+    if (sentMode >= 3 && !overrideGraceLeft(sentMode, addressed)) overridePasses.delete(`${sentMode}:${addressed}`);
     if (!response.ok) {
       const result = await response.json().catch(() => ({ error: t('Request failed ({status}).', { status: response.status }) }));
+      // The pass ran out (the project restarted, or the permission it held ended): the key is
+      // asked again, and the message goes once it is in.
+      if (result.needsKey && sentMode >= 3 && addressed) {
+        closeOverrideGrace(sentMode, addressed);
+        openOverride(addressed, { mode: sentMode, then: () => els.composer.requestSubmit() });
+        return;
+      }
       toast(`${t('Diagnostics › ')}${result.error ? resay(result.error) : t('The project rejected the message.')}`);
       if (state.mode >= 3 && [403, 409, 412].includes(response.status)) setMode(1);
     } else {
@@ -15089,9 +15130,13 @@ function overrideKeyHint(mode, key) {
   if (key === 'designation-airlock') return t('The folder name of the project ({name}), typed twice.', { name: projectDesignation() });
   return mode === 4 ? t('The folder name of the project ({name}), with no second key.', { name: projectDesignation() }) : t('The folder name of the project ({name}).', { name: projectDesignation() });
 }
+// While a phrase guards a mode, a change to the keys shows it first (the project checks it): a
+// program that could change the key could also take the phrase away.
+let overrideProof = null;
 async function saveOverride(patch, confirmation) {
-  try { await saveSettingNow({ override: patch }); if (confirmation) toast(`${t('Diagnostics › ')}${confirmation}`, { tone: 'done' }); }
-  catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); }
+  const proof = overrideProof?.isConnected ? overrideProof.value : '';
+  try { await saveSettingNow({ override: proof ? { ...patch, proof } : patch }); if (confirmation) toast(`${t('Diagnostics › ')}${confirmation}`, { tone: 'done' }); }
+  catch (error) { toast(t('It could not be saved: {error}', { error: error.message })); if (overrideProof?.isConnected) overrideProof.focus(); return; }
   await loadSettings();
 }
 function drawPermissions(host, data) {
@@ -15103,6 +15148,14 @@ function drawPermissions(host, data) {
   const config = data.settings.override ?? OVERRIDE_DEFAULT;
   const canHash = Boolean(globalThis.crypto?.subtle);
   const keys = sxBlock(host, t('The key of each mode'), t('What you type to unlock #3 EDIT and #4 FULL ACCESS. It is asked for each message, unless a remembered permission below still holds.'), { className: 'perm-keys' });
+  overrideProof = null;
+  if (config.phrase && [3, 4].some((mode) => config.keys[mode].startsWith('phrase'))) {
+    overrideProof = el('input', 'sx-input');
+    overrideProof.type = 'password';
+    overrideProof.autocomplete = 'current-password';
+    overrideProof.setAttribute('aria-label', t('Your current phrase'));
+    sxRow(keys, t('Your current phrase'), t('Your phrase guards a mode: to change anything here, type it first.'), overrideProof, { stack: true });
+  }
   for (const mode of [3, 4]) {
     const current = config.keys[mode];
     sxRow(keys, `#${mode} ${MODES[mode].label}`, overrideKeyHint(mode, current), sxSeg((mode === 3 ? ['designation', 'phrase', 'confirm'] : ['designation-airlock', 'phrase-airlock', 'designation']).map((key) => ({
@@ -15113,7 +15166,7 @@ function drawPermissions(host, data) {
   }
   sxFoot(keys, t('#4 always asks for something: it runs commands, and what leaves the machine does not come back.'));
 
-  const phrase = sxBlock(host, t('Your phrase'), t('Only its fingerprint is kept (a salted SHA-256, made in this browser). MADRE cannot read it back, and it is never sent anywhere.'));
+  const phrase = sxBlock(host, t('Your phrase'), t('Only its fingerprint is kept (a salted SHA-256). When you type it to unlock, this Mac checks it and forgets it; it never leaves the Mac.'));
   const field = el('input', 'sx-input');
   field.type = 'password';
   field.autocomplete = 'new-password';

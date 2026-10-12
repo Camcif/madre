@@ -1425,6 +1425,8 @@ dialog.override[open] { display: grid; place-items: center; }
 .bubble .file-tile.image { padding: 0; border: 0; background: transparent; }
 .bubble img.inline { max-width: 100%; max-height: 420px; border-radius: 12px; display: block; margin: 6px 0; cursor: zoom-in; }
 .bubble a.file-link { color: var(--agent, var(--phosphor)); text-decoration: none; border-bottom: 1px dashed currentColor; font-family: var(--mono); font-size: .92em; cursor: pointer; }
+/* A picture from elsewhere waits as a link: it is fetched only when someone opens it. */
+.bubble a.image-away { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: .88em; text-decoration: none; background: color-mix(in srgb, currentColor 10%, transparent); }
 dialog.viewer { border: 0; padding: 0; width: min(1100px, 96vw); max-width: 96vw; height: min(88vh, 900px); background: var(--panel); color: var(--text); border-radius: 16px; box-shadow: var(--shadow); }
 /* With the browser docked the conversation lives in half a screen, and a bar built for a wide one
    piles its pieces on top of each other.

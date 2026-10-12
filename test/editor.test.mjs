@@ -150,6 +150,6 @@ test('the Finder carries a key for a new file, and «review it with» stands in 
   const [app, page, server] = await Promise.all(['public/app.js', 'public/index.html', 'src/server.mjs'].map((file) => read(joinPath(import.meta.dirname, '..', file), 'utf8')));
   assert.match(page, /<button id="tree-new" class="surface-gear tree-new"/);
   assert.match(app, /document\.querySelector\('#tree-new'\)\?\.addEventListener\('click'/);
-  assert.match(server, /if \(request\.method === 'POST' && url\.pathname === '\/api\/files'\) \{[\s\S]{0,400}needsDesignation\(relative\)/);
+  assert.match(server, /if \(request\.method === 'POST' && url\.pathname === '\/api\/files'\) \{[\s\S]{0,400}needsDesignationOnDisk\(canonicalProjectRoot, relative\)/);
   assert.match(app, /if \(!menuNode\.hasAttribute\('popover'\)\) \{ menuNode\.setAttribute\('popover', 'manual'\); document\.body\.append\(menuNode\); \}/);
 });

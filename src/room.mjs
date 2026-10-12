@@ -38,6 +38,7 @@ import { basename as baseName, join as joinPath } from 'node:path';
 import { declaredTypeFor } from './files.mjs';
 import { isModuleFile, sdkPaths } from './modules/index.mjs';
 import { validateAshReply } from './modules/ash-policy.mjs';
+import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { parseChoice, withoutChoice } from './choices.mjs';
 import { parseRunRequest, withoutRunRequest, whyText, expandHome } from './runs.mjs';
 import { imageStudioFor } from './image-studio.mjs';
@@ -714,13 +715,14 @@ export class Room {
     const parsed = parseMessage(text ?? '', target);
     const wanted = normalizeMode(mode, create === true ? 2 : 1);
     if (!parsed.target) return { ok: true, mode: wanted };
-    const scopes = this.scopesFor(parsed.target);
+    const agent = parsed.target;
+    const scopes = this.scopesFor(agent);
     if (wanted >= 3) {
       // #3 CONTROL and #4 AIRLOCK: the ceiling must allow it, and there is one holder at a time.
       // A project without git still checkpoints, in MADRE's shadow repository.
       if (scopes.maxMode < wanted) return { ok: false, status: 403, mode: wanted, maxMode: scopes.maxMode, error: `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label}; raise its max mode to #${wanted} in Settings › Permissions to arm ${MODES[wanted].label}.` };
       if (this.#controlDesk.holder) return { ok: false, status: 409, mode: wanted, maxMode: scopes.maxMode, error: `@${this.#controlDesk.holder.agent} already holds ${MODES[this.#controlDesk.holder.mode ?? 3].label} of this project; one holder at a time. STOPALL revokes it.` };
-      return { ok: true, mode: wanted, maxMode: scopes.maxMode };
+      return { ok: true, mode: wanted, maxMode: scopes.maxMode, agent };
     }
     // #2 above the agent's ceiling still goes out: the room answers read-only
     // and says why (lease.refused), the way CREATE has always behaved.
@@ -1009,6 +1011,9 @@ export class Room {
     // the first await — so a concurrent module toggle cannot change the turn after that click.
     const ashRequested = ash === true;
     const ashActive = ashRequested && this.#ashEnabled;
+    // A message that came from a phone never goes above #2, whatever reached this far (TEL-01): the
+    // bridge and the route say so first; the room says it last, for any road added later.
+    if (via && requestedMode > PHONE_MAX_MODE) throw new Error('#3 EDIT and #4 FULL ACCESS are opened from the Mac.');
     const gate = await this.modeCheck({ target, text, mode: requestedMode });
     if (!gate.ok) throw new Error(gate.error);
     create = requestedMode === 2;

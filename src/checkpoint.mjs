@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { access, mkdir, mkdtemp, readdir, rm, rmdir, stat, unlink } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, readdir, rm, rmdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -17,12 +17,14 @@ export const CHECKPOINT_REF = 'refs/madre/checkpoints';
 
 // Paths no agent touches even in CONTROL. Enforced after the turn: whatever
 // changed here is restored from the checkpoint and reported.
+// Read without regard to case (2026-10-12, SRV-05): on a Mac the disk does not tell `.ENV` from
+// `.env`, so `.ENV` was the same file under a name no rule caught.
 export const FORBIDDEN = [
-  /^\.git(\/|$)/,
-  /^\.pulse(\/|$)/,
-  /(^|\/)\.env(\.|$)/,
-  /(^|\/)\.madre(\/|$)/,
-  /(^|\/)\.claude\/settings\.local\.json$/,
+  /^\.git(\/|$)/i,
+  /^\.pulse(\/|$)/i,
+  /(^|\/)\.env(\.|$)/i,
+  /(^|\/)\.madre(\/|$)/i,
+  /(^|\/)\.claude\/settings\.local\.json$/i,
 ];
 export const isForbidden = (path) => FORBIDDEN.some((pattern) => pattern.test(path));
 
@@ -58,9 +60,59 @@ async function gitArgs(root, via) {
   return dir ? ['--git-dir', dir, '--work-tree', root] : [];
 }
 
+// How MADRE runs git in a project (2026-10-12, CKP-01 of the 1.0 review): never running anything the
+// repository's own settings name. `.git` stays writable while an agent works — the CLIs need it —
+// and git status never shows what changes inside it, so a `core.fsmonitor` written into
+// `.git/config` during a #3 turn ran, with MADRE's rights and outside the agent's sandbox, the
+// next time MADRE photographed the project. Hooks, external diffs and text conversions are named
+// the same way; none of them is needed to take or compare a photograph.
+const SAFE = ['-c', 'core.quotepath=off', '-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null', '-c', 'diff.external='];
 async function git(root, args, { env = {}, via } = {}) {
-  const { stdout } = await execFileAsync('git', ['-c', 'core.quotepath=off', ...(await gitArgs(root, via)), ...args], { cwd: root, env: { ...process.env, GIT_PAGER: 'cat', ...env }, maxBuffer: 16 * 1024 * 1024 });
+  const { stdout } = await execFileAsync('git', [...SAFE, ...(await gitArgs(root, via)), ...args], { cwd: root, env: { ...process.env, GIT_PAGER: 'cat', ...env }, maxBuffer: 16 * 1024 * 1024 });
   return stdout;
+}
+
+// What a repository runs on its own: its settings, its hooks and its attributes (which name the
+// filters the settings define). Photographed before a turn that may write, put back after it before
+// git runs again — a write into `.git` is a write into a forbidden zone like any other.
+const CONTROLS = ['config', 'info/attributes'];
+async function gitDirOf(root, via) {
+  if (via) return via;
+  const dotgit = join(root, '.git');
+  const info = await stat(dotgit).catch(() => null);
+  if (info?.isDirectory()) return dotgit;
+  if (info?.isFile()) {
+    const pointer = (await readFile(dotgit, 'utf8').catch(() => '')).match(/^gitdir:\s*(.+)$/m)?.[1]?.trim();
+    return pointer ? resolve(root, pointer) : null;
+  }
+  return null;
+}
+async function photographControls(root, via, label) {
+  const gitDir = await gitDirOf(root, via);
+  if (!gitDir) return null;
+  const files = {};
+  for (const name of CONTROLS) files[name] = await readFile(join(gitDir, name)).catch(() => null);
+  for (const name of await readdir(join(gitDir, 'hooks')).catch(() => [])) files[`hooks/${name}`] = await readFile(join(gitDir, 'hooks', name)).catch(() => null);
+  return { gitDir, label, files };
+}
+// Puts back what changed and answers what it put back, as the project would name it.
+async function restoreControls(shot) {
+  if (!shot) return [];
+  const back = [];
+  const now = {};
+  for (const name of CONTROLS) now[name] = await readFile(join(shot.gitDir, name)).catch(() => null);
+  for (const name of await readdir(join(shot.gitDir, 'hooks')).catch(() => [])) now[`hooks/${name}`] = await readFile(join(shot.gitDir, 'hooks', name)).catch(() => null);
+  for (const name of new Set([...Object.keys(shot.files), ...Object.keys(now)])) {
+    const was = shot.files[name] ?? null;
+    const is = now[name] ?? null;
+    if (was === null && is === null) continue;
+    if (was && is && was.equals(is)) continue;
+    const path = join(shot.gitDir, name);
+    if (was === null) await rm(path, { force: true, recursive: true }).catch(() => {});
+    else { await mkdir(dirname(path), { recursive: true }); await writeFile(path, was); }
+    back.push(`${shot.label}${name}`);
+  }
+  return back;
 }
 
 // A tree object of the working tree as it is right now: tracked and untracked
@@ -82,7 +134,7 @@ export async function worktreeTree(root, { exclude = [], via } = {}) {
     if (files.length) {
       // --remove: a file that vanished since the listing is dropped instead of aborting the photograph.
       const index_ = (list) => new Promise((resolvePromise, reject) => {
-        const child = execFile('git', ['-c', 'core.quotepath=off', ...extra, 'update-index', '--add', '--remove', '-z', '--stdin'], { cwd: root, env: { ...process.env, GIT_PAGER: 'cat', ...env }, maxBuffer: 64 * 1024 * 1024 }, (error) => (error ? reject(error) : resolvePromise()));
+        const child = execFile('git', [...SAFE, ...extra, 'update-index', '--add', '--remove', '-z', '--stdin'], { cwd: root, env: { ...process.env, GIT_PAGER: 'cat', ...env }, maxBuffer: 64 * 1024 * 1024 }, (error) => (error ? reject(error) : resolvePromise()));
         child.stdin.end(list.join('\0') + '\0');
       });
       try { await index_(files); } catch {
@@ -135,7 +187,19 @@ export async function createCheckpoint(root, { id, label = 'MADRE checkpoint' } 
   for (const dir of dirs) {
     try { nested.push({ dir, ...(await checkpointOne(join(root, dir), { id, label })) }); } catch { /* a broken nested repo is left alone */ }
   }
-  return { id, ...outer, nested, exclude: dirs, createdAt: new Date().toISOString() };
+  const controls = [await photographControls(root, outer.via, outer.via ? 'MADRE · ' : '.git/')];
+  for (const part of nested) controls.push(await photographControls(join(root, part.dir), part.via, `${part.dir}/.git/`));
+  return { id, ...outer, nested, exclude: dirs, controls: controls.filter(Boolean), createdAt: new Date().toISOString() };
+}
+
+// After a turn that could write, before git runs again: the repositories' own settings, hooks and
+// attributes as they were. Once per checkpoint; answers what was put back.
+export async function settleControls(checkpoint) {
+  if (!checkpoint || checkpoint.controlsSettled) return [];
+  checkpoint.controlsSettled = true;
+  const back = [];
+  for (const shot of checkpoint.controls ?? []) back.push(...await restoreControls(shot));
+  return back;
 }
 
 // What changed since the checkpoint: name-status per file and git's --stat.
@@ -143,7 +207,7 @@ async function diffOne(root, before, prefix = '', exclude = []) {
   const via = before.via;
   const after = await worktreeTree(root, { exclude, via });
   if (after === before.tree) return { files: [], stat: '' };
-  const nameStatus = await git(root, ['diff', '--name-status', '-M', before.tree, after], { via });
+  const nameStatus = await git(root, ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-M', before.tree, after], { via });
   const listed = nameStatus.split('\n').filter(Boolean).map((line) => {
     const [status, ...rest] = line.split('\t');
     const path = prefix + rest.at(-1);
@@ -159,7 +223,7 @@ async function diffOne(root, before, prefix = '', exclude = []) {
   }
   if (!files.length) return { files: [], stat: '' };
   const only = files.length < listed.length ? ['--', ...files.flatMap((file) => [file.path.slice(prefix.length), ...(file.from ? [file.from.slice(prefix.length)] : [])])] : [];
-  const stat = (await git(root, ['diff', '--stat=100', before.tree, after, ...only], { via })).trim();
+  const stat = (await git(root, ['diff', '--no-ext-diff', '--no-textconv', '--stat=100', before.tree, after, ...only], { via })).trim();
   return { files, stat: prefix && stat ? stat.split('\n').map((line) => (line.startsWith(' ') ? ` ${prefix}${line.trimStart()}` : line)).join('\n') : stat };
 }
 
