@@ -264,20 +264,8 @@ body {
    the one that shrinks — it has a panel of its own where its whole name is written. */
 .project { flex: 0 0 auto; max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
 .project.chat-here { flex: 0 1 auto; min-width: 3ch; max-width: none; }
-.update-command { display: flex; align-items: center; gap: 10px; margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); }
-.update-command code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: 11.5px; color: var(--text); }
-.update-command button { font: inherit; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; border: 1px solid var(--line); background: transparent; color: var(--text-2); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
-.mother-section.update .update-command { border: 1px solid var(--ph-dim); border-radius: 0; background: var(--ph-faint); margin: 8px 0 10px; }
-.mother-section.update .update-command code { color: var(--ph); font-size: 11px; letter-spacing: .04em; }
-.mother-section.update .update-command button { border-color: var(--ph-dim); color: var(--ph); border-radius: 0; }
 .mother-section.update .update-link { color: var(--ph); }
 .update-link { display: inline-block; margin: 2px 0 8px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--phosphor); }
-.train-card { margin-top: 8px; }
-.train-head { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-2); }
-.train-steps { margin: 6px 0 0; padding-left: 18px; }
-.train-steps li { margin: 6px 0; }
-.train-steps li.note { list-style: none; margin-left: -18px; }
-.train-step-label { font-family: var(--mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
 .project::before { content: "/ "; }
 /* 3px of ring on each side plus air between them: anything under 10px and the neighbours clip
    each other's arc. The padding is the same 3px, so the row's box contains the rings it draws —
@@ -303,7 +291,7 @@ body {
    arc came out flattened where the next one cut into it — the "cut bubbles" on screen. And the
    unused part of the arc was drawn in --line-2, a full-strength grey that outweighed the colour
    it was supposed to frame, so every agent read as a grey circle with a tint inside.
-   
+
    Now the track is a whisper and the used arc is the only thing with weight. */
 .avatar.ring::before {
   content: ""; position: absolute; inset: -3px; border-radius: 50%;
@@ -323,7 +311,7 @@ body {
    the page. Measured: at 17% over #f4f5f2 the brightest agents came out at 1.06:1 and 1.03:1 —
    the disc was not faint, it was absent. Raising the percentage does not fix it either, because
    mixing a bright yellow into white stays white (40% only reached 1.17:1).
-   
+
    So on light the disc keeps its tint and gains an edge and a glyph in the agent's colour taken
    DOWN instead of up. One colour, two directions, and every agent reads at its own hue. */
 :root:not([data-theme="dark"]) .avatar:not(.gradient):not(.offline):not(.detected),
@@ -427,23 +415,8 @@ code { font-family: var(--mono); font-size: .9em; color: var(--phosphor); backgr
 .who .spent { flex: none; margin-left: auto; padding: 0; border: 0; background: none; font-family: var(--mono); font-size: 10px; letter-spacing: .04em; color: var(--text-3); white-space: nowrap; }
 .who .spent.ash { color: var(--brew); }
 .stamp .uncharged { color: var(--brew); }
-.ash-observed { margin-top: 12px; }
 .economy-headline { font-family: var(--mono); font-size: clamp(38px, 5vw, 56px); line-height: 1.1; letter-spacing: -.01em; color: var(--ph); margin: 2px 0 12px; }
-/* The panel is a screen, not a column. Sections pair up once there is room for two, and the
-   ones that carry a table or a full-width strip keep the whole width to themselves. */
-#economy-body { display: grid; grid-template-columns: 1fr; gap: 0 56px; align-content: start; }
-@container console (min-width: 1060px) { #economy-body { grid-template-columns: 1fr 1fr; gap: 16px; } #economy-body > .wide, #economy-body > .economy-strip { grid-column: 1 / -1; } }
-.economy .card-block { display: grid; gap: 10px; align-content: start; }
-.economy .card-block {
-  margin: 0; padding: 20px 22px 22px;
-  border: 1px solid var(--ph-faint); border-radius: 12px;
-  background: color-mix(in srgb, var(--ph) 3%, transparent);
-}
-.economy .card-block:first-of-type { margin: 0; }
-.economy .card-head { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
 .card-icon { width: 12px; height: 12px; opacity: .85; }
-/* The unit, said once per card instead of stamped on every row. */
-.economy .unit-note { margin: -2px 0 6px; font-family: var(--mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ph-dim); }
 
 /* The room in six figures, read across before anything is read down. */
 .economy-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 0 0 4px; padding: 0; border: 0; }
@@ -462,17 +435,6 @@ code { font-family: var(--mono); font-size: .9em; color: var(--phosphor); backgr
 .economy-table tbody th { text-align: left; font-weight: 600; letter-spacing: .14em; color: var(--ph-dim); }
 .economy-table td { color: var(--ph); }
 .economy-table tbody tr:last-child th, .economy-table tbody tr:last-child td { border-bottom: 0; }
-.economy .card-block h5 { margin: 0; font-size: 10px; font-weight: 400; letter-spacing: .28em; color: var(--ph-dim); }
-.economy .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 230px)); justify-content: start; gap: 24px 40px; }
-.economy .metric { display: grid; gap: 6px; align-content: start; min-width: 0; }
-.economy .metric b { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1.1; color: var(--ph); }
-.economy .metric span { font-family: var(--mono); font-size: 9px; line-height: 1.5; letter-spacing: .18em; color: var(--ph-dim); }
-/* Prose is read, so it gets a measure and a size: a 60-character column, sentence case, never the
-   full width of a panel at heading scale. */
-.economy .note { margin: 8px 0 0; max-width: 640px; font-size: 11px; line-height: 1.85; letter-spacing: .06em; color: var(--ph-dim); text-shadow: none; }
-.economy .ash-block { grid-template-columns: 120px minmax(80px, 560px) auto; gap: 16px; }
-.economy .ash-block b, .economy .ash-block span { font-size: 10px; }
-.economy .ash-block i { height: 7px; }
 
 /* One agent, two bars, one scale: the shorter bar is the shorter answer. */
 .ash-compare { display: grid; gap: 20px; }
@@ -489,7 +451,6 @@ code { font-family: var(--mono); font-size: .9em; color: var(--phosphor); backgr
 .ash-verdict.noise { color: var(--ph-dim); }
 .ash-waiting { margin: 0; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--ph-dim); text-shadow: none; }
 @container console (max-width: 650px) { .ash-bar { grid-template-columns: 1fr; } .ash-bar i { display: none; } }
-.ash-observed h5 { margin: 0 0 6px; }
 .row.thinking .elapsed.late { color: var(--warn); }
 .row.thinking i { width: 7px; height: 7px; border-radius: 50%; background: var(--agent, var(--text-2)); animation: bounce 1.2s infinite; opacity: .5; }
 .row.thinking i:nth-child(2) { animation-delay: calc(180ms * var(--motion-scale)); } .row.thinking i:nth-child(3) { animation-delay: calc(360ms * var(--motion-scale)); }
@@ -497,7 +458,7 @@ code { font-family: var(--mono); font-size: .9em; color: var(--phosphor); backgr
 
 /* system lines: handoffs, sentinel, failures — MOTHER speaks in small caps */
 /* A line of the room talking about itself. Three things keep it orderly:
-   
+
    · a measure. Running the full column turns one sentence into a ragged staircase, and these are
      read at a glance or not at all.
    · balanced wrapping, so two lines come out the same length instead of a long one and a word.
@@ -780,14 +741,6 @@ pre.core-egress-log { margin: 0; max-height: 34vh; overflow: auto; padding: 10px
 @media (max-width: 720px) { .nostromo-head { gap: 6px 10px; } .nostromo-legend { display: none; } .nostromo-card { right: 16px; left: 16px; width: auto; } }
 .system.memory.forgotten { color: var(--terror); }
 .system.memory.privacy { color: var(--warn); }
-/* The list of terms is the subject of this form, so it gets the whole width instead of a cell
-   beside the marker, where it was three lines wide and unreadable. */
-.privacy-form { grid-template-columns: 1fr minmax(160px, 260px); }
-.privacy-form > label:first-child { grid-column: 1 / -1; }
-.privacy-form textarea { min-height: 76px; resize: vertical; line-height: 1.5; }
-.privacy-form .toggle { align-items: flex-start; line-height: 1.5; text-transform: none; letter-spacing: .1em; }
-.privacy-form .toggle input { margin: 2px 0 0; flex: none; }
-@container console (max-width: 650px) { .privacy-form { grid-template-columns: 1fr; } }
 .system.mother-alert { display: grid; gap: 6px; justify-items: center; max-width: min(720px, 92%); padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--terror) 60%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--terror) 7%, transparent); color: var(--terror); text-shadow: none; }
 .system.mother-alert .head b { color: var(--terror); font-weight: 700; }
 .system.mother-alert .clear { color: var(--text); text-shadow: none; text-transform: none; letter-spacing: 0; font-size: 12px; }
@@ -888,8 +841,6 @@ textarea::placeholder { color: var(--text-3); }
    below, never over the box or the send button. */
 .colophon { display: block; margin-top: 12px; margin-bottom: 14px; text-align: center; font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em; color: var(--brew); opacity: .68; user-select: none; transition: opacity calc(200ms * var(--motion-scale)); }
 .colophon:hover { opacity: 1; }
-.colophon-back { pointer-events: auto; color: inherit; text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
-.colophon-back:hover { color: var(--brew); opacity: 1; }
 @media (max-width: 720px) { .colophon { display: none; } }
 
 /* toast */
@@ -997,7 +948,7 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .mother-section { margin-top: 34px; }
 .mother-section h3:not(:first-child) { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--ph-faint); }
 .mother-section h3.toggle:not(:first-child) { margin-top: 40px; }
-:is(.settings, .memory-panel) .room-form, .settings .conn-grid, .settings .mother-grid { margin-bottom: 8px; }
+.settings .conn-grid, .settings .mother-grid { margin-bottom: 8px; }
 .mother-section h3::before { content: "▌ "; color: var(--ph); }
 /* A folding block carries its own glyph, so the generic bar would be a second mark saying the
    same thing. And the rule above it goes with it: a line and an icon are two ways of announcing
@@ -1031,22 +982,6 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .fold-badge.urgent { border-color: var(--danger); background: var(--danger); color: #fff; }
 .fold-body { padding-top: 2px; }
 .mother-section .note.lead { color: rgba(210, 255, 190, .9); letter-spacing: .12em; line-height: 1.7; }
-
-/* Inside MU/TH/UR everything is phosphor. A command in the panel was drawn in the page's own
-   text colour, which on this ground is all but invisible. */
-.mother-section .update-command { border-color: var(--ph-dim); border-radius: 0; background: var(--ph-faint); }
-.mother-section .update-command code { color: var(--ph); }
-.mother-section .update-command button { border-color: var(--ph-dim); color: var(--ph-dim); }
-.mother-section .update-command button:hover { color: var(--ph); border-color: var(--ph); }
-
-/* The steps were numbered by the browser, at the panel's own size, which made them shout. They
-   are a quiet index in the margin now, like everything else here. */
-.mother-section .train-steps { list-style: none; padding-left: 26px; counter-reset: step; }
-.mother-section .train-steps > li { counter-increment: step; position: relative; margin: 14px 0; }
-.mother-section .train-steps > li::before { content: counter(step); position: absolute; left: -26px; top: 1px; width: 18px; text-align: right; font-family: var(--mono); font-size: 9px; letter-spacing: .1em; color: var(--ph-dim); opacity: .8; }
-.mother-section .train-steps > li.note { counter-increment: none; margin-left: 0; }
-.mother-section .train-steps > li.note::before { content: none; }
-.mother-section .train-step-label { color: var(--ph-dim); }
 .mother-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); }
 .mother-card { border: 1px solid var(--ph-dim); padding: 14px 16px; background: rgba(2, 6, 2, .6); display: grid; gap: 8px; align-content: start; }
 .mother-card.hit { border-color: var(--ph); box-shadow: inset 0 0 0 1px var(--ph-faint); }
@@ -1169,16 +1104,12 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .stop-all:disabled { cursor: default; }
 .stop-all.armed { opacity: 1; cursor: pointer; border-color: var(--terror); background: color-mix(in srgb, var(--terror) 12%, transparent); color: var(--terror); text-shadow: none; animation: blink 1.4s infinite; }
 .stop-all.armed:hover { background: var(--terror); color: #fff; text-shadow: none; animation: none; }
-.stop-all-glyph { width: 8px; height: 8px; background: currentColor; }
 /* The version alert: an amber hairline, a soft fill, no glow. It should read as information, not alarm. */
 .update-pill { opacity: 1; cursor: pointer; border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 9%, transparent); color: var(--warn); text-shadow: none; transition: background-color calc(220ms * var(--motion-scale)) ease, border-color calc(220ms * var(--motion-scale)) ease, color calc(220ms * var(--motion-scale)) ease, transform calc(160ms * var(--motion-scale)) ease; }
 .update-pill:hover { background: color-mix(in srgb, var(--warn) 16%, transparent); border-color: color-mix(in srgb, var(--warn) 70%, transparent); }
 .update-pill:active { transform: scale(.98); }
 .update-pill:focus-visible { outline: 2px solid color-mix(in srgb, var(--warn) 60%, transparent); outline-offset: 2px; }
 .update-pill .update-glyph { border-radius: 50%; opacity: .9; }
-.update-restart { display: inline-flex; align-items: center; height: 30px; padding: 0 14px; margin: 4px 0 10px; border: 1px solid var(--ph); background: color-mix(in srgb, var(--ph) 12%, transparent); color: var(--ph); font: inherit; font-size: 10px; letter-spacing: .18em; cursor: pointer; transition: background-color calc(220ms * var(--motion-scale)) ease, color calc(220ms * var(--motion-scale)) ease, opacity calc(220ms * var(--motion-scale)) ease; }
-.update-restart:hover { background: color-mix(in srgb, var(--ph) 22%, transparent); }
-.update-restart:disabled { opacity: .55; cursor: default; }
 .system.alert { color: var(--terror); text-shadow: none; letter-spacing: .14em; animation: terror-in 1.4s steps(3, end) 1; }
 .system.alert b { color: var(--terror); }
 .system.alert .cmd { display: inline-block; margin-left: 8px; padding: 1px 8px; border: 1px solid var(--terror); letter-spacing: .2em; }
@@ -1202,21 +1133,16 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .conn-card .vendor { font-size: 9.5px; letter-spacing: .16em; color: var(--ph-dim); }
 .conn-card .meta { font-size: 11px; line-height: 1.6; color: rgba(210, 255, 190, .8); text-shadow: none; }
 .conn-card .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.conn-card button, :is(.settings, .memory-panel) .room-form button { border: 1px solid var(--ph-dim); background: transparent; color: var(--ph); font: inherit; font-size: 9.5px; letter-spacing: .16em; padding: 6px 10px; cursor: pointer; }
-.conn-card button.primary, :is(.settings, .memory-panel) .room-form button.primary { background: var(--ph); color: #041004; text-shadow: none; border-color: var(--ph); }
-.conn-card button:disabled, :is(.settings, .memory-panel) .room-form button:disabled { opacity: .4; cursor: default; }
-.conn-card label, :is(.settings, .memory-panel) .room-form label { display: grid; gap: 4px; font-size: 9.5px; letter-spacing: .16em; color: var(--ph-dim); }
+.conn-card button { border: 1px solid var(--ph-dim); background: transparent; color: var(--ph); font: inherit; font-size: 9.5px; letter-spacing: .16em; padding: 6px 10px; cursor: pointer; }
+.conn-card button.primary { background: var(--ph); color: #041004; text-shadow: none; border-color: var(--ph); }
+.conn-card button:disabled { opacity: .4; cursor: default; }
+.conn-card label { display: grid; gap: 4px; font-size: 9.5px; letter-spacing: .16em; color: var(--ph-dim); }
 /* A textarea is a field like any other here. It was left out of this rule, so what you typed
    into it was drawn in the page's own colour: invisible on this ground. */
-.conn-card input, .conn-card select, :is(.settings, .memory-panel) .room-form input, :is(.settings, .memory-panel) .room-form select, :is(.settings, .memory-panel) .room-form textarea { border: 1px solid var(--ph-dim); background: #000; color: var(--ph); font: inherit; font-size: 12px; padding: 6px 8px; letter-spacing: .04em; min-width: 0; }
-:is(.settings, .memory-panel) .room-form textarea::placeholder { color: var(--ph-dim); }
-.conn-card input:focus, :is(.settings, .memory-panel) .room-form input:focus, :is(.settings, .memory-panel) .room-form textarea:focus { outline: 1px solid var(--ph); }
+.conn-card input, .conn-card select { border: 1px solid var(--ph-dim); background: #000; color: var(--ph); font: inherit; font-size: 12px; padding: 6px 8px; letter-spacing: .04em; min-width: 0; }
+.conn-card input:focus { outline: 1px solid var(--ph); }
 .conn-card .login-log { max-height: 140px; overflow-y: auto; border: 1px solid var(--ph-faint); background: #000; padding: 8px 10px; font-size: 11px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .conn-card .login-log a { color: var(--ph); }
-:is(.settings, .memory-panel) .room-form { border: 1px solid var(--ph-dim); padding: 14px 16px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); align-items: end; }
-:is(.settings, .memory-panel) .room-form .full { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-:is(.settings, .memory-panel) .room-form .toggle { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .16em; color: var(--ph); cursor: pointer; }
-:is(.settings, .memory-panel) .room-form .toggle input { width: auto; accent-color: var(--brew); }
 :is(.settings, .memory-panel) .note { font-size: 10px; letter-spacing: .1em; color: var(--ph-dim); }
 .system.login { color: var(--phosphor); }
 .system.login.failed { color: var(--danger); }
@@ -1369,20 +1295,13 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 /* Only an open override is laid out; a closed <dialog> must stay display:none. */
 dialog.override[open] { display: grid; place-items: center; }
 .override-frame { width: min(680px, 92vw); height: auto; min-height: 0; padding: 26px 30px 22px; border: 1px solid var(--ph-dim); box-shadow: 0 0 0 1px var(--ph-faint), 0 24px 60px rgba(0, 0, 0, .5); animation: mother-on .4s ease; }
-.override-query { grid-template-columns: auto 1fr auto; }
 /* The override is narrower than MU/TH/UR's own screen, and the title takes most of a row: beside it
    the subtitle was squeezed into a column a word wide. It reads as one line under the title. */
 .override .mother-head { grid-template-columns: 1fr auto; row-gap: 8px; }
 .override .mother-head .mother-title { grid-column: 1; grid-row: 1; }
 .override .mother-head .mother-close { grid-column: 2; grid-row: 1; align-self: center; }
 .override .mother-head .mother-sub { grid-column: 1 / -1; grid-row: 2; line-height: 1.5; }
-.override-query .k { font-size: 11px; letter-spacing: .22em; color: var(--ph-dim); }
-.override-query input { text-transform: none; letter-spacing: .12em; min-width: 0; }
 /* On a phone the label, the field and ARM did not fit one row and ARM left the screen. */
-@media (max-width: 560px) {
-  .override-query { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
-  .override-query .k { grid-column: 1 / -1; }
-}
 .override-reply { min-height: 22px; letter-spacing: .14em; }
 .override-reply.denied { color: #ff7b72; text-shadow: 0 0 3px rgba(255, 123, 114, .25); animation: terror-in .8s steps(3, end) 1; }
 .override-reply.granted { color: var(--ph); text-shadow: 0 0 3px rgba(155, 255, 102, .25); }
@@ -1430,12 +1349,12 @@ dialog.override[open] { display: grid; place-items: center; }
 dialog.viewer { border: 0; padding: 0; width: min(1100px, 96vw); max-width: 96vw; height: min(88vh, 900px); background: var(--panel); color: var(--text); border-radius: 16px; box-shadow: var(--shadow); }
 /* With the browser docked the conversation lives in half a screen, and a bar built for a wide one
    piles its pieces on top of each other.
-   
+
    The breakpoints are the BAR'S OWN WIDTH, not the window's. That distinction is the whole fix:
    the window stays 2000px wide while the column shrinks to 500, so every @media rule written
    against the viewport sat there never firing while the pieces overlapped. A container query asks
    the element how much room IT has, which is the only question that was ever relevant.
-   
+
    And a flex child with min-width:auto refuses to shrink below its content and pushes its
    neighbour out of the row instead. That is what put MADRE on top of the agent dots. */
 .bar { container-type: inline-size; container-name: bar; }
@@ -1459,7 +1378,7 @@ dialog.viewer { border: 0; padding: 0; width: min(1100px, 96vw); max-width: 96vw
 /* The order of loss. Nothing disappears: everything that had a word keeps its glyph, so the bar
    stops being a row of labels and becomes a row of buttons. What a glyph cannot carry — the name
    of the project, the name of the room — is what falls last.
-   
+
    The crew is the exception that needs markup: five spheres cannot be compacted by CSS into one
    button, so there are two elements and the container query picks which one is on screen. */
 .bar-icon { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: auto; padding: 0 8px 0 6px; height: 28px; padding: 0; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); cursor: pointer; }
@@ -1496,7 +1415,6 @@ dialog.viewer { border: 0; padding: 0; width: min(1100px, 96vw); max-width: 96vw
   .mother-button .bar-glyph { display: block; width: 17px; height: 17px; }
   .mother-button .modules-count, .mother-button .mother-count { font-size: 9px; }
   .stop-all { width: 30px; height: 28px; padding: 0; gap: 0; font-size: 0; justify-content: center; }
-  .stop-all .stop-all-glyph { font-size: 12px; }
   /* Squircles with their count on the corner, the way a phone shows it. The count used to be
      pulled out with position:absolute and escape 16-23px past the edge into an 18px gap; it now
      overhangs by 7px and the bar keeps 14px between buttons, so it sits on its own icon's corner
@@ -1566,7 +1484,6 @@ dialog.viewer { border: 0; padding: 0; width: min(1100px, 96vw); max-width: 96vw
 /* The browser is its own window on the rail, beside the conversations. */
 
 .browser-head { flex-wrap: nowrap; }
-.browser-head .viewer-address { flex: 1; max-width: none; }
 .browser-tabs { display: flex; align-items: stretch; gap: 4px; padding: 10px 12px; border-top: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
 .browser-tab { display: inline-flex; align-items: center; gap: 8px; max-width: 220px; padding: 6px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: transparent; color: var(--text-3); font-family: var(--mono); font-size: 11px; cursor: pointer; }
 .browser-tab .tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1764,9 +1681,6 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 
 .who .badge.ash { color: var(--phosphor); border-color: color-mix(in srgb, var(--phosphor) 50%, transparent); }
 .who .badge.ash.skipped { color: var(--text-3); border-color: var(--line-2); }
-.ash-was { margin-top: 10px; border-top: 1px dashed var(--line-2); padding-top: 8px; }
-.ash-was summary { color: var(--text-3); font-family: var(--mono); font-size: 10px; cursor: pointer; }
-.ash-was pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; font: inherit; color: var(--text-2); }
 .create-scopes { display: inline-flex; gap: 4px; margin-left: 4px; }
 .create-scopes .cap { font-size: 8.5px; padding: 1px 5px; }
 .create-scopes .cap.on { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
@@ -1946,12 +1860,6 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .settled-note .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settled-note:hover { background: color-mix(in srgb, var(--text-3) 14%, transparent); color: var(--text); }
 
-/* Where to go on the server on screen: the host is printed, the path is typed. */
-.viewer-address { display: flex; align-items: center; gap: 0; min-width: 0; flex: 1; max-width: 520px; border: 1px solid var(--line-2); border-radius: 999px; padding: 0 4px 0 11px; background: color-mix(in srgb, var(--text-3) 6%, transparent); }
-.viewer-address .host { flex: none; font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: var(--text-3); }
-.viewer-address input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-family: var(--mono); font-size: 11.5px; padding: 6px 8px; }
-.viewer-address input::placeholder { color: var(--text-3); }
-
 /* Which server is on screen. A label, not a field: the panel opens what the SERVERS list offers
    and nothing else, so there is nothing here to type. */
 .browser-where { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 11px; letter-spacing: .04em; color: var(--text-2); padding: 0 4px; }
@@ -2093,8 +2001,6 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .bishop-plan .bishop-order[data-status="done"] .choice-tag, .bishop-plan .bishop-link[data-status="signed"] .choice-tag { color: var(--phosphor); border-color: color-mix(in srgb, var(--phosphor) 45%, transparent); }
 .bishop-plan .bishop-order[data-status="failed"] .choice-tag { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .bishop-proposal > .bishop-act { margin-top: 10px; }
-.bishop-answer .bishop-answer-text { padding: 10px 14px 4px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
-.bishop-answer .choice-foot { margin: 6px 14px 12px; }
 .link-reads { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); }
 .bubble-foot .link-reads { font-size: .68em; }
 /* Its own line in the foot: the bubble breaks words anywhere, and squeezed into the row beside the
@@ -2168,8 +2074,6 @@ dialog.intents-window { width: 760px; height: 640px; }
 /* ---------- project files panel: lives in the free space right of the thread ---------- */
 .tree-button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px; border-radius: 6px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); cursor: pointer; padding: 0; }
 .tree-button svg { width: 16px; height: 16px; }
-.theme-button svg { display: none; }
-.theme-button[data-theme="auto"] .t-auto, .theme-button[data-theme="light"] .t-light, .theme-button[data-theme="dark"] .t-dark { display: block; }
 .tree-button:hover { color: var(--phosphor); border-color: var(--phosphor); box-shadow: var(--ring-soft); }
 /* The conversations of this project, on the other side of the canvas from the files: the same
    panel, so there is one shape to learn, and never both edges at once on a narrow screen. */
@@ -2198,20 +2102,6 @@ dialog.intents-window { width: 760px; height: 640px; }
 .chats-button { position: relative; }
 .chats-button.working::after, .chats-button.unread::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--phosphor); box-shadow: 0 0 6px var(--phosphor); }
 .chats-button.working::after { animation: klaxon 1.2s ease-in-out infinite; }
-/* TURNS in MU/TH/UR: a table of settings, one per row — the name, a line on what it does, and
-   its control lined up on the right, so the three read down one column instead of wrapping. */
-.turns-table { display: grid; margin: 10px 0 6px; border-top: 1px solid var(--ph-faint, var(--line-2)); }
-.turns-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 12px 0; border-bottom: 1px solid var(--ph-faint, var(--line-2)); }
-.turns-row.off { opacity: .5; }
-.turns-words { display: grid; gap: 4px; min-width: 0; }
-.turns-words b { font-size: 10.5px; font-weight: 600; letter-spacing: .18em; color: var(--ph, var(--text)); }
-.turns-words span { font-size: 10px; letter-spacing: .06em; text-transform: none; color: var(--ph-dim, var(--text-2)); }
-.turns-switch span { min-width: 28px; font-size: 10px; letter-spacing: .16em; }
-.turns-stepper { display: inline-grid; grid-template-columns: 30px 38px 30px; align-items: stretch; border: 1px solid var(--ph-dim, var(--line-2)); }
-.mother-section.sentinel .turns-stepper button { border: 0; padding: 0; height: 28px; font-size: 14px; letter-spacing: 0; }
-.mother-section.sentinel .turns-stepper button:disabled { opacity: .3; cursor: default; background: transparent; }
-.turns-stepper output { display: grid; place-items: center; border-inline: 1px solid var(--ph-dim, var(--line-2)); font-size: 13px; color: var(--ph, var(--text)); }
-.turns-rule { margin-top: 10px; }
 .project.chat-here { flex: 0 1 auto; max-width: 340px; color: var(--text-2); }
 .chats-foot { padding: 10px 14px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em; color: var(--text-3); }
 /* Its handle sits in the canvas, under the bar, where the conversation it opens begins. */
@@ -2379,19 +2269,11 @@ dialog.intents-window { width: 760px; height: 640px; }
 :root[data-scheme="light"] .crew-label { text-shadow: none; animation: none; }
 
 /* MU/TH/UR: the sentinel section. */
-.mother-section.sentinel .sentinel-controls, .mother-section.update .sentinel-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 6px 0 12px; }
 .mother-section.sentinel .toggle, .mother-section.update .toggle { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .16em; color: var(--ph-dim); cursor: pointer; }
 .mother-section.sentinel .toggle input, .mother-section.update .toggle input { accent-color: var(--brew); margin: 0; flex: none; }
-/* The row starts where the text above it starts, so the column reads straight down. */
-.mother-section.sentinel .sentinel-controls, .mother-section.update .sentinel-controls { margin-left: 0; padding-left: 0; }
 .mother-section.sentinel .toggle input:disabled + * , .mother-section.sentinel .toggle:has(input:disabled) { opacity: .6; cursor: default; }
 .mother-section.sentinel button, .mother-section.update button { border: 1px solid var(--ph-dim); background: transparent; color: var(--ph); font: inherit; font-size: 9.5px; letter-spacing: .16em; padding: 6px 10px; cursor: pointer; }
 .mother-section.sentinel button:hover, .mother-section.update button:hover { background: var(--ph-faint); }
-.mother-section.sentinel .sentinel-report.sent { opacity: .65; }
-:is(.settings, .memory-panel) .memory-form .toggle { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; font-size: 9.5px; letter-spacing: .14em; color: var(--ph-dim); cursor: pointer; text-transform: uppercase; }
-:is(.settings, .memory-panel) .memory-form .toggle input { accent-color: var(--brew); width: auto; }
-:is(.settings, .memory-panel) .memory-form .full .note { margin-right: 12px; }
-:is(.settings, .memory-panel) .memory-form .dataset-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--ph-faint); }
 .module-card .ollama-status { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 10px; letter-spacing: .1em; }
 .module-card .ollama-status dt { color: var(--ph-dim); } .module-card .ollama-status dd { margin: 0; color: rgba(210, 255, 190, .85); overflow-wrap: anywhere; }
 .module-card .actions .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: .14em; color: var(--ph-dim); cursor: pointer; }
@@ -2399,9 +2281,9 @@ dialog.intents-window { width: 760px; height: 640px; }
 .mother-section.sentinel .note, .mother-section.update .note { margin: 0 0 10px; font-size: 10px; letter-spacing: .12em; line-height: 1.7; color: var(--ph-dim); }
 
 /* Motion of controls: every colour change eases over 220 ms. Nothing snaps. */
-.mother-button, .tree-button, .chats-button, .stop-all, .mother-close, .mother-section button, .seg-option, .mode-chip, .model-chip, .bubble-actions .act, .update-command button, .codeblock .copy { transition: background-color calc(220ms * var(--motion-scale)) ease, color calc(220ms * var(--motion-scale)) ease, border-color calc(220ms * var(--motion-scale)) ease, box-shadow calc(220ms * var(--motion-scale)) ease, opacity calc(220ms * var(--motion-scale)) ease, transform calc(160ms * var(--motion-scale)) ease; }
-.mother-button:active, .tree-button:active, .mother-close:active, .mother-section button:active, .update-command button:active { transform: scale(.98); }
-@media (prefers-reduced-motion: reduce) { .mother-button, .tree-button, .chats-button, .stop-all, .mother-close, .mother-section button, .seg-option, .mode-chip, .model-chip, .bubble-actions .act, .update-command button, .update-pill, .update-restart { transition: none; } }
+.mother-button, .tree-button, .chats-button, .stop-all, .mother-close, .mother-section button, .seg-option, .mode-chip, .model-chip, .bubble-actions .act, .codeblock .copy { transition: background-color calc(220ms * var(--motion-scale)) ease, color calc(220ms * var(--motion-scale)) ease, border-color calc(220ms * var(--motion-scale)) ease, box-shadow calc(220ms * var(--motion-scale)) ease, opacity calc(220ms * var(--motion-scale)) ease, transform calc(160ms * var(--motion-scale)) ease; }
+.mother-button:active, .tree-button:active, .mother-close:active, .mother-section button:active { transform: scale(.98); }
+@media (prefers-reduced-motion: reduce) { .mother-button, .tree-button, .chats-button, .stop-all, .mother-close, .mother-section button, .seg-option, .mode-chip, .model-chip, .bubble-actions .act, .update-pill { transition: none; } }
 
 /* ================= icons: one hand for the bar and the conversations =================
    Every control in the bar carries a drawing in the same idiom — 20×20, round ends, one stroke —
@@ -2499,26 +2381,11 @@ dialog.intents-window { width: 760px; height: 640px; }
   :is(.bar > *, .chats-button, .chats .tree-close, .chats-new-button, .chats-body .chat) svg,
   .chats-body .chat-glyph, .bar > *:active, .chats-body .chat:active { transform: none !important; }
 }
-
-/* Developer card in MODULES and the four-step tour */
-.dev-card { display: grid; grid-template-columns: 64px 1fr; gap: 18px; align-items: start; padding: 18px 20px; }
-.dev-glyph { font-family: var(--mono); font-size: 26px; font-weight: 700; letter-spacing: .08em; color: var(--ph); text-shadow: 0 0 3px rgba(155, 255, 102, .18); line-height: 1; padding-top: 4px; }
-.dev-body h4 { margin: 0 0 8px; font-size: 13px; letter-spacing: .18em; color: var(--ph); }
-.dev-body p { margin: 0 0 10px; font-size: 11.5px; line-height: 1.65; letter-spacing: .04em; color: var(--ph-dim); text-transform: none; }
-.dev-where { margin: 0 0 12px; font-size: 10.5px; letter-spacing: .04em; color: var(--ph-dim); }
-.dev-where code { color: var(--ph); background: var(--ph-faint); padding: 2px 6px; }
-.dev-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
-.dev-row a.mother-close { text-decoration: none; display: inline-flex; align-items: center; }
-.dev-fail { color: var(--warn); } .dev-fail code { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); padding: 1px 5px; }
 .tour-button { min-width: 30px; padding: 6px 0; text-align: center; font-weight: 700; }
 
 /* DEV modules and proposals */
 .module-card .dev-tag { font-family: var(--mono); font-size: 8.5px; letter-spacing: .18em; color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent); padding: 2px 7px; margin-left: 8px; align-self: center; }
 .module-card .note { font-size: 9.5px; letter-spacing: .1em; color: var(--ph-dim); text-transform: none; }
-.dev-yours { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
-.dev-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--ph-dim); padding: 4px 8px; font-size: 10px; letter-spacing: .08em; color: var(--ph); text-transform: none; }
-.dev-chip .act-link, .module-proposed .act-link { border: 0; background: transparent; color: var(--phosphor); font: inherit; font-size: inherit; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; }
-.dev-chip .act-link { color: var(--warn); }
 .system.module-proposed { color: var(--text-3); } .system.module-proposed .who { color: var(--agent, var(--text-2)); }
 
 /* The local model saying whether it has been measured against this project, and the one button
@@ -2595,8 +2462,6 @@ dialog.intents-window { width: 760px; height: 640px; }
 .conn-card .key-row button:hover:not(:disabled) { background: var(--ph-dim); color: #041004; }
 .conn-card .key-link:hover { color: var(--ph); }
 .conn-card .key-said.bad { color: var(--terror); }
-.bridge-card.bridge-warn { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 6%, transparent); }
-.bridge-card.bridge-warn b { color: var(--warn); }
 
 /* A module card, floor by floor: what it is, what it does, what it touches, how it is doing, and
    then the switch. Everything inside a card wears the panel's phosphor, never the page's palette,
@@ -2733,23 +2598,12 @@ dialog.intents-window { width: 760px; height: 640px; }
    command above it still reads as the command. */
 .slash-menu .item.starter .key { color: var(--text-3); font-size: 11px; }
 .slash-menu .item.starter .what { color: var(--text-2); }
-.dev-card .dev-ask { margin: 0; font-size: 12px; line-height: 1.7; color: var(--ph-dim); }
-.dev-card .dev-ask code { font-family: var(--mono); font-size: 11.5px; color: var(--brew); }
 
 /* EXPAND ALL, taken out of the bar. The bar is a row of destinations — CONNECTIONS, MEMORY,
    NOSTROMO — and this is not one: it acts on the canvas underneath it. A frame made it a rival
    of those buttons, so it has none: it speaks like the ▸ OPEN of each fold, dim, at the same right
    edge, over the column of carets it moves all at once. */
 .fold-all-row { display: flex; justify-content: flex-end; margin: 14px 0 6px; }
-.fold-all {
-  display: inline-flex; align-items: center; gap: 7px;
-  border: 0; border-radius: 0; background: transparent; color: var(--ph-dim);
-  font-family: var(--mono); font-size: 9px; letter-spacing: .18em; padding: 4px 0; cursor: pointer;
-}
-.fold-all:hover, .fold-all:focus-visible { color: var(--ph); }
-.fold-all:focus-visible { outline: 1px solid var(--ph-dim); outline-offset: 3px; }
-.fold-all .pixel-icon { width: 9px; height: 9px; display: block; color: currentColor; }
-.fold-all .pixel-icon svg { width: 100%; height: 100%; shape-rendering: crispEdges; display: block; }
 
 /* ---------- MEMORY · the dashboard ----------
    The same phosphor as the rest of MU/TH/UR: hairline frames, one green, the brighter ink only
@@ -2864,18 +2718,6 @@ dialog.intents-window { width: 760px; height: 640px; }
 .exams .exam.failed .exam-bullet .mem-meter > i { background: var(--warn); }
 .exam-bullet span { font-size: 9px; letter-spacing: .14em; color: var(--ph-dim); }
 .exams .exam .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
-/* The two folds under the dashboard: same frame as everywhere else in MU/TH/UR. */
-.memory-panel > .fold { border-top: 1px solid var(--ph-faint); padding-top: 22px; }
-.memory-panel .memory-form .train-card { border-top: 1px solid var(--ph-faint); padding-top: 12px; }
-.memory-panel .train-head { color: var(--ph); }
-.memory-panel .train-step-label { color: var(--ph-dim); }
-.memory-panel .update-command { border: 1px solid var(--ph-faint); border-radius: 0; background: rgba(0, 0, 0, .4); }
-.memory-panel .update-command code { color: var(--ph); }
-.memory-panel .update-command button { border-color: var(--ph-dim); color: var(--ph); background: transparent; border-radius: 0; }
-/* A command is one long line that scrolls inside its own box; it must never widen the screen. */
-.memory-panel .memory-form .train-card { display: block; min-width: 0; }
-.memory-panel .train-steps, .memory-panel .train-steps li, .memory-panel .update-command { min-width: 0; }
 
 /* ---------- What's new ----------
    A board after an update: a window in the room's own material with the version you now have, a
@@ -3158,7 +3000,6 @@ dialog.whats-new::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: bl
 .module-card > .actions { margin-top: auto; padding-top: 12px; padding-bottom: 14px; }
 .mother-grid { align-items: stretch; }
 
-
 /* ================= the panels beside the conversation =================
    Conversations on the left, files on the right. While there is room they are docked: the column
    glides out of their way (the rails above) and nothing is covered. When there is not — both open
@@ -3263,7 +3104,6 @@ dialog.whats-new::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: bl
 .x-close:not(.x-only):hover .x-icon, .x-close:not(.x-only):focus-visible .x-icon { color: var(--danger); }
 .x-icon { transition: transform var(--motion, calc(200ms * var(--motion-scale))) var(--ease-out, ease), color var(--motion, calc(200ms * var(--motion-scale))) var(--ease-out, ease); }
 @media (prefers-reduced-motion: reduce) { .x-icon, .x-icon path { transition: none; } .x-close:hover .x-icon { transform: none; } }
-
 
 /* ================= the panels as windows =================
    Either panel can leave its edge and float over the conversation as a window of its own, by the
@@ -3494,7 +3334,6 @@ dialog.surface.no-intro .mother-frame { animation: none; }
 .ed-opt:hover, .ed-nav:hover, .ed-x:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
 .ed-opt[aria-pressed="true"] { color: var(--phosphor); border-color: color-mix(in srgb, var(--phosphor) 40%, transparent); }
 .ed-count { min-width: 64px; text-align: right; font-family: var(--mono); font-size: 10px; color: var(--text-3); white-space: nowrap; }
-
 
 /* The page: numbers, the line you are on, the drawing, and the textarea on top of it. */
 .ed-main { position: relative; display: grid; grid-template-columns: var(--ed-gutter) minmax(0, 1fr); min-height: 0; overflow: hidden; }
@@ -3747,7 +3586,6 @@ dialog.viewer pre.code .ln { cursor: pointer; user-select: none; }
 .core-role-words { display: grid; gap: 3px; }
 .core-role-words b { font-size: 9.5px; font-weight: 400; letter-spacing: .18em; color: rgba(210, 255, 190, .9); }
 .core-role-words .detail { text-transform: none; letter-spacing: .06em; font-size: 9.5px; }
-.core-settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 10px 18px; }
 .core-field { display: grid; gap: 6px; min-width: 0; font-size: 10px; letter-spacing: .14em; color: var(--ph-dim); }
 .core-field select { width: 100%; min-width: 0; text-overflow: ellipsis; border: 1px solid var(--ph-dim); background: #000; color: var(--ph); font: inherit; font-size: 10.5px; letter-spacing: .06em; padding: 6px 8px; }
 /* The console's own buttons wrap before they run off the edge, so the window's cluster — last in
@@ -4548,7 +4386,6 @@ dialog.custom-window::backdrop { display: none; }
 :root[data-wallpaper] .picker :is(.model-chip, .effort-chip) { color: var(--text); }
 :root[data-wallpaper] .picker .pick-label { text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 80%, transparent); }
 
-
 /* ---------- Chips you can read ----------
    The small pills the room writes in — who answered and in which mode, ASH, the model, what a reply
    cost, the label after the crew's spheres, the brake in an alert — were 9 to 10 px of grey on a
@@ -5060,7 +4897,6 @@ dialog.custom-window::backdrop { display: none; }
 }
 :root.carrying-window :is(.tree.window, dialog.surface.window, .conv-window, .browser-dock.window):not(.lifted) { transition: none; }
 
-
 /* Jarrito and Canela, the two pictures that took the drawn tiles' places, tuned like the others. */
 :is(:root:not([data-scheme="light"]), .look-preview[data-scheme="dark"])[data-wp-style="mesh"] {
   --wp-jarrito: radial-gradient(75% 65% at 12% 8%, rgb(28 24 64 / min(.95, calc(.9 * var(--veil-k, 1)))), transparent 72%), radial-gradient(65% 75% at 92% 28%, rgb(64 22 46 / min(.95, calc(.9 * var(--veil-k, 1)))), transparent 72%), radial-gradient(85% 65% at 42% 102%, rgb(20 30 60 / min(.95, calc(.9 * var(--veil-k, 1)))), transparent 74%), linear-gradient(rgb(10 8 18 / min(.9, calc(.56 * var(--veil-k, 1)))), rgb(10 8 18 / min(.9, calc(.56 * var(--veil-k, 1))))), url("/assets/wallpapers/jarrito.webp?v=3") 50% 50% / cover no-repeat, #120e1c;
@@ -5094,18 +4930,11 @@ dialog.custom-window::backdrop { display: none; }
 }
 .reload-curtain.arrived { animation: none; }
 @keyframes curtain-in { from { background-color: transparent; -webkit-backdrop-filter: blur(0) saturate(1); backdrop-filter: blur(0) saturate(1); } }
-.reload-curtain .brand-logo { display: block; height: 42px; width: auto; overflow: visible; translate: var(--mark-shift, 91px) 0; transition: translate calc(620ms * var(--motion-scale)) cubic-bezier(.3, 0, .1, 1); animation: curtain-logo-in 700ms cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes curtain-logo-in { from { opacity: 0; filter: blur(4px); } }
-/* Going: the pulse is traced, the dot runs at its tip, the name waits. */
-.reload-curtain .brand-logo .word { opacity: 0 !important; animation: none !important; transition: opacity calc(520ms * var(--motion-scale)) ease calc(120ms * var(--motion-scale)); }
-.reload-curtain:not(.arrived) .brand-logo .beat { stroke-dasharray: 100; stroke-dashoffset: 100; animation: beat-draw 1s cubic-bezier(.45, 0, .25, 1) .2s forwards !important; }
-.reload-curtain:not(.arrived) .brand-logo .beat-dot { opacity: 1; transform-box: view-box; animation: dot-run 1s cubic-bezier(.45, 0, .25, 1) .2s both !important; }
 @keyframes dot-run { from { transform: translateX(-59px); } to { transform: none; } }
 /* Arriving: the pulse already traced, the dot at its end; the name appears once the room is ready. */
 .reload-curtain.arrived .brand-logo { animation: none; }
 .reload-curtain.arrived .brand-logo :is(.beat, .beat-dot) { animation: none !important; stroke-dashoffset: 0; opacity: 1; }
-.reload-curtain.revealed .brand-logo { translate: 0 0; }
-.reload-curtain.revealed .brand-logo .word { opacity: 1 !important; }
 .reload-curtain.leaving { animation: curtain-out 760ms var(--ease-glide) forwards; pointer-events: none; }
 @keyframes curtain-out { to { background-color: transparent; -webkit-backdrop-filter: blur(0) saturate(1); backdrop-filter: blur(0) saturate(1); } }
 .reload-curtain.leaving .brand-logo { animation: curtain-logo-out 520ms ease forwards; }
@@ -5123,7 +4952,6 @@ dialog.custom-window::backdrop { display: none; }
   .bar > .tree-button { width: 34px; height: 34px; border-radius: 11px; display: inline-grid; place-items: center; padding: 0; }
   .bar > .tree-button svg { width: 18px; height: 18px; }
 }
-
 
 /* ==========================================================================================
    THE COMPOSER: the crew in one sphere, the options under the box
@@ -5369,7 +5197,6 @@ dialog.custom-window::backdrop { display: none; }
 :root[data-scheme="light"][data-wallpaper] #messages .thread-inner > :is(.system:not(.mother-alert)),
 :root[data-scheme="light"][data-wallpaper] #messages .thread-inner > * :is(.who, .col > .stamp, .col > .memory-hint .lead),
 :root[data-scheme="light"][data-wallpaper] #messages .thread-inner > :is(.settled) :is(.settled-lead, .settled-note) { background-color: rgba(255, 255, 255, .78); }
-
 
 /* ==========================================================================================
    SOLID BAR AND BOX; A PRESS THAT NEITHER MOVES NOR RESIZES
@@ -6346,7 +6173,6 @@ select.sx-input { width: auto; max-width: 100%; padding-right: 8px; cursor: poin
 .mods-name { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
 .mods-dev { padding: 1px 6px; border-radius: 6px; font-size: 10.5px; font-weight: 550; background: color-mix(in srgb, #f2c94c 18%, transparent); color: #d9a90f; }
 .mods-line { font-size: 12.5px; font-weight: var(--read-weight, 300); line-height: 1.4; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.mods-glance { margin-top: 6px; padding: 7px 9px; border-radius: 9px; font-size: 12px; line-height: 1.35; color: var(--text); background: color-mix(in srgb, var(--text) 4.5%, transparent); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .mods-tile.make { background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 14%, transparent); }
 .mods-tile.make:hover { background: color-mix(in srgb, var(--text) 3%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--phosphor) 45%, transparent); }
 .mods-warn { justify-self: start; height: 30px; padding: 0 12px; border: 0; border-radius: 9px; background: color-mix(in srgb, #f2c94c 16%, transparent); color: #d9a90f; font-family: var(--read); font-size: 12.5px; cursor: pointer; }
@@ -7017,7 +6843,6 @@ dialog.room-ask:not(.console) .room-ask-choice.danger:hover { background: var(--
 .key-reply { min-height: 18px; margin: 0; font-family: var(--read); font-size: 12.5px; color: color-mix(in srgb, var(--text) 62%, transparent); }
 .key-reply.denied { color: var(--danger); }
 .key-reply.granted { color: var(--phosphor); font-weight: 600; }
-.key-foot { margin: 4px 0 0; font-family: var(--read); font-size: 11.5px; line-height: 1.45; color: color-mix(in srgb, var(--text) 50%, transparent); }
 .key-card.shake { animation: override-shake .35s ease; }
 @media (prefers-reduced-motion: reduce) { .key-card.shake { animation: none; } }
 /* The key, quieter: one sentence of what it allows, a smaller one of what keeps it safe, the
@@ -7432,7 +7257,6 @@ dialog.room-ask:not(.console) .room-ask-code { width: 100%; margin: 2px 0 0; pad
 .bubble-foot > .bubble-actions { order: 2; margin: 0 -6px 0 auto !important; }
 .bubble-foot > .stamp { order: 1 !important; } .bubble-foot > .bubble-actions { order: 2 !important; } .bubble-foot > :not(.stamp):not(.bubble-actions) { order: 0 !important; }
 
-
 /* ==========================================================================================
    FIRST STEPS — a pill in the bar counts what is done, with a ring that fills; the card under it
    says each step in one line and has a key that takes you there. A step done keeps its title,
@@ -7524,7 +7348,6 @@ dialog.room-ask:not(.console) .room-ask-code { width: 100%; margin: 2px 0 0; pad
 
 /* 1 · Labels lie flat on the picture. */
 :root[data-wallpaper]:not([data-wallpaper="default"]) #messages .thread-inner > * :is(.who, .col > .stamp) { background-color: var(--d1-fill) !important; box-shadow: none !important; }
-
 
 /* ==========================================================================================
    THE PHONE (docs/MOBILE.md) — the card that pairs one with a code, the pill that offers to pick
@@ -8196,7 +8019,6 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
 #messages .system.lease.missing .actions button:is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 26%, transparent) !important; outline: 0; }
 #messages .system.lease.missing .actions button.standing:is(:hover, :focus-visible) { color: var(--text); background: color-mix(in srgb, var(--text) 14%, transparent) !important; }
 #messages .system.lease.missing .actions button:disabled { opacity: .5; cursor: default; }
-
 
 /* ==========================================================================================
    ROUND OF 10 OCT, EVENING

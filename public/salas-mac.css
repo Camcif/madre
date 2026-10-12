@@ -121,13 +121,11 @@ body.salas-mac {
 .sm-main { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 14px 40px 56px; }
 .sm-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 24px; margin: 26px 0 26px; }
 .sm-hero h1 { margin: 0; font-size: clamp(40px, 5vw, 60px); font-weight: 700; letter-spacing: -.025em; line-height: 1.02; }
-.sm-sub { margin: 10px 0 0; font-size: 15px; color: var(--text-2); }
 /* The hero's tools stand on a raised bar, as the room's keys stand on its bar: the search and the
    rail sink into it (the room's .settings-search and .sx-seg), the key that adds stands up. */
 .sm-tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 6px; border-radius: 14px; background: var(--surface, var(--panel)); }
 .sm-tools .sm-search { flex: 0 1 260px; min-width: 180px; }
 .sm-tools .sm-search input::-webkit-search-cancel-button { cursor: pointer; }
-
 
 /* THE BENTO: twelve columns, rows of 118 px that grow when a tile needs more. A tile stands on the
    lobby as the room's conversation stands on its wallpaper (styles.css, THE CANVAS IN PLANES): a
@@ -203,8 +201,6 @@ body.salas-mac {
 .sm-btn.primary { background: var(--s-acc); color: var(--s-acc-ink); }
 .sm-btn.danger { color: var(--danger, var(--terror)); }
 .sm-ask { flex-basis: 100%; font-size: 12.5px; color: var(--text-2); }
-.sm-doing { font-size: 13px; color: var(--text-2); }
-.sm-doing::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -2px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--s-acc) 30%, transparent); border-top-color: var(--s-acc); animation: sm-turn .8s linear infinite; }
 @keyframes sm-turn { to { transform: rotate(360deg); } }
 .sm-error { margin: 0; font-size: 13px; color: var(--terror); }
 /* «Ask BISHOP about this one»: BISHOP's own mark, a key of its own at the end of the row. */
@@ -326,13 +322,12 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
   .sm-bishop-head { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sm-card, .sm-btn, .sm-ask-bishop { transition: none; }
-  .is-working .sm-state .dot, .sm-doing::before { animation: none; }
+  .sm-card, .sm-btn { transition: none; }
+  .is-working .sm-state .dot { animation: none; }
 }
 
 /* The room of SALAS (phase 3d): the door to the others, said on its card. */
 .sm-chip.salas { background: color-mix(in srgb, var(--s-acc) 18%, transparent); color: color-mix(in srgb, var(--s-acc) 75%, var(--text)); }
-.sm-card.is-salas { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--s-acc) 45%, var(--line)); }
 
 /* LINKS (docs/MACROVERSO.md, phase 3c): the contracts between rooms, and the sheet that signs one. */
 .sm-link-list { display: grid; gap: 10px; }

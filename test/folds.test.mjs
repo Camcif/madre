@@ -51,8 +51,6 @@ test('mother: the checkbox lines up with the words above it', async () => {
   assert.ok(box, 'the checkbox has no styling of its own');
   assert.match(box[1], /margin: 0/, 'the checkbox keeps the browser margin that pushed it out of line');
   assert.match(box[1], /flex: none/, 'the checkbox can still be squeezed out of shape');
-  const row = css.match(/\.mother-section\.sentinel \.sentinel-controls, \.mother-section\.update \.sentinel-controls \{[^}]*margin-left: 0/);
-  assert.ok(row, 'the row that holds it is still indented');
 });
 
 test('mother: the list starts where the trouble is, and a search never comes back empty-handed for no reason', async () => {
@@ -70,27 +68,9 @@ test('mother: the list starts where the trouble is, and a search never comes bac
   for (const key of ["t('Download the log')", "t('Dismiss all {n}'", "t('Show the {n} dismissed'"]) assert.ok(paint.includes(key), `${key} is gone`);
 });
 
-test('mother: a command in the panel can be read, and the steps do not shout', async () => {
+test('mother: the commands and numbered steps of the old panels are gone with them (Lote 4 of the 1.0 review)', async () => {
   const css = await read('styles.css');
-
-  // The panel is phosphor on black. A command drawn in the page's own text colour was all but
-  // invisible there, which is how it shipped.
-  const code = css.match(/\.mother-section \.update-command code \{([^}]*)\}/);
-  assert.ok(code, 'commands in the panel have no colour of their own');
-  assert.match(code[1], /color: var\(--ph\)/);
-
-  // The browser numbered the steps at the panel's own size, which made them shout. They are an
-  // index in the margin now.
-  const steps = css.match(/\.mother-section \.train-steps \{([^}]*)\}/);
-  assert.ok(steps, 'the steps are still numbered by the browser');
-  assert.match(steps[1], /list-style: none/);
-  const marker = css.match(/\.mother-section \.train-steps > li::before \{([^}]*)\}/);
-  assert.ok(marker, 'the steps lost their numbers entirely');
-  assert.match(marker[1], /content: counter\(step\)/);
-  const size = Number(marker[1].match(/font-size: ([\d.]+)px/)?.[1]);
-  assert.ok(size && size <= 10, `a step number at ${size}px is still shouting`);
-  // The closing note is not a step and is not numbered as one.
-  assert.match(css, /\.mother-section \.train-steps > li\.note::before \{ content: none; \}/);
+  for (const gone of ['.update-command', '.train-steps', '.train-card', '.sentinel-controls', '.room-form', '.memory-form']) assert.ok(!css.includes(gone), `${gone} is still styled with nothing to style`);
 });
 
 test('mother: a badge says something the header does not, or it is not there', async () => {
@@ -117,9 +97,8 @@ test('mother: the panel reads as a terminal, and nothing in it is drawn in the p
   // Every field in these forms is drawn in phosphor on black. A textarea was left out of that
   // rule, so what you typed into it was invisible; nothing may be left out again.
   // MEMORY has its own panel, and its fields are drawn by the very same rule.
-  const fields = css.match(/\.conn-card input, \.conn-card select, :is\(\.settings, \.memory-panel\) \.room-form input([^{]*)\{([^}]*)\}/);
+  const fields = css.match(/\.conn-card input, \.conn-card select([^{]*)\{([^}]*)\}/);
   assert.ok(fields, 'the fields no longer share one rule');
-  assert.match(fields[1], /textarea/, 'a textarea is not drawn like the other fields');
   assert.match(fields[2], /color: var\(--ph\)/);
 });
 
@@ -164,7 +143,7 @@ test('mother: nothing inside a connection card is drawn in the page palette', as
 
   // A select in a card was never in the rule that draws the fields, so the provider dropdown was
   // a browser default among terminal controls.
-  const fields = css.match(/\.conn-card input, \.conn-card select, [^{]*\{([^}]*)\}/);
+  const fields = css.match(/\.conn-card input, \.conn-card select[^{]*\{([^}]*)\}/);
   assert.ok(fields, 'a select inside a card is still left out of the rule that draws the fields');
   assert.match(fields[1], /background: #000/);
 
