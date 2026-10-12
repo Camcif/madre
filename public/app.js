@@ -9601,69 +9601,127 @@ state.phones = initial.phones ?? 0;
 state.roomChat = initial.chats?.active ?? null;
 document.documentElement.classList.toggle('via-phone', Boolean(state.device));
 { const back = document.querySelector('#salas-link'); if (back) back.hidden = !state.device; }
-if (state.device) {
-  phoneSheets();
-  phoneKeyboard();
-  // Nothing floats over the conversation on a phone, where a thumb scrolling past it would press
-  // it: the conversations of this room are a key in the bar, beside the way back to the rooms. It
-  // wears the bar's keys, and it does not travel.
-  {
-    const key = els.chatsButton;
-    const left = document.querySelector('.shell > .bar > .bar-left');
-    if (key && left) { key.style.translate = ''; key.classList.add('mother-button'); key.hidden = false; left.after(key); }
-  }
-  // A phone starts on the conversation: panels this browser left open come back closed.
-  for (const one of panelSides) if (one.node() && !one.node().hidden) one.close();
-  if (document.querySelector('#browser') && !document.querySelector('#browser').hidden) browserHide();
-  // NOSTROMO is a chart on a phone: its help speaks of fingers, not of a wheel.
-  { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('DRAG TO MOVE · PINCH TO ZOOM · TOUCH A MEMORY · DO NOT TOUCH THE CORE'); }
-  // Files and servers are on the Mac: on the phone they are there to be seen and switched, and say so.
-  for (const panel of [document.querySelector('#tree'), document.querySelector('#browser')]) {
-    if (!panel || panel.querySelector('.phone-desk-note')) continue;
-    const note = el('p', 'phone-desk-note', t('This looks better on the Mac. From here you can look around and switch things on or off.'));
-    const head = panel.querySelector('header');
-    if (head) head.after(note); else panel.prepend(note);
-  }
-  // The page took over the scroll: the strip under the box and the bar measure themselves again.
-  window.dispatchEvent?.(new Event('resize'));
-}
-stepsPaint();
-els.project.textContent = initial.projectRoot.split('/').filter(Boolean).at(-1) || initial.projectRoot;
-els.project.title = initial.projectRoot;
-// Which conversation this page is looking at, beside the project it belongs to — but only once
-// there is more than one, because a name for the only thing there is is noise.
-if (initial.chats?.chats?.length > 1) {
-  const here = initial.chats.chats.find((chat) => chat.id === initial.chats.active);
-  if (here) {
-    const mark = el('span', 'project chat-here', chatTitle(here.title));
-    mark.title = t("Conversation · {n} messages. The project's memory is shared by all of them.", { n: here.messages });
-    els.project.after(mark);
-  }
-}
 chats.list = namedChats(initial.chats?.chats) ?? [];
 // The half on the right is looking at its own conversation, whichever one the left has open.
 chats.active = SPLIT_CHAT ?? VIEW_CHAT ?? initial.chats?.active ?? null;
-paintTitle();
-// The split, as it was left: only while that conversation still exists and is not the open one.
-try {
-  const remembered = SPLIT_CHAT ? null : localStorage.getItem('pulse.split');
-  if (remembered && remembered !== chats.active && chats.list.some((chat) => chat.id === remembered)) openSplit(remembered);
-  else if (remembered) rememberSplit();
-} catch { /* no storage */ }
-// MADRE started since this tab last saw it: the logo draws itself again. A reload of the same
-// running room keeps it still (the class was set in the page's head before the first frame).
-try {
-  const seen = sessionStorage.getItem('madre.boot');
-  if (initial.boot && seen !== initial.boot) {
-    sessionStorage.setItem('madre.boot', initial.boot);
-    if (seen) {
-      const logo = document.querySelector('.brand-logo');
-      document.documentElement.classList.remove('logo-still');
-      // A fresh copy restarts its drawing: the same node would keep its finished animation.
-      logo?.replaceWith(logo.cloneNode(true));
+// The room is painted once every name in this file exists (REVISION-1.0 §3.4, Lote 5): it ran
+// here, in the middle, after the state arrived — and whatever it reached that is declared further
+// down was not there yet (CAP_VERBS and roomTourKept were lost that way). What was read above
+// stays above, so every line below still finds it; the painting waits for the end of the file.
+function boot() {
+  if (state.device) {
+    phoneSheets();
+    phoneKeyboard();
+    // Nothing floats over the conversation on a phone, where a thumb scrolling past it would press
+    // it: the conversations of this room are a key in the bar, beside the way back to the rooms. It
+    // wears the bar's keys, and it does not travel.
+    {
+      const key = els.chatsButton;
+      const left = document.querySelector('.shell > .bar > .bar-left');
+      if (key && left) { key.style.translate = ''; key.classList.add('mother-button'); key.hidden = false; left.after(key); }
+    }
+    // A phone starts on the conversation: panels this browser left open come back closed.
+    for (const one of panelSides) if (one.node() && !one.node().hidden) one.close();
+    if (document.querySelector('#browser') && !document.querySelector('#browser').hidden) browserHide();
+    // NOSTROMO is a chart on a phone: its help speaks of fingers, not of a wheel.
+    { const help = document.querySelector('.nostromo-help'); if (help) help.textContent = t('DRAG TO MOVE · PINCH TO ZOOM · TOUCH A MEMORY · DO NOT TOUCH THE CORE'); }
+    // Files and servers are on the Mac: on the phone they are there to be seen and switched, and say so.
+    for (const panel of [document.querySelector('#tree'), document.querySelector('#browser')]) {
+      if (!panel || panel.querySelector('.phone-desk-note')) continue;
+      const note = el('p', 'phone-desk-note', t('This looks better on the Mac. From here you can look around and switch things on or off.'));
+      const head = panel.querySelector('header');
+      if (head) head.after(note); else panel.prepend(note);
+    }
+    // The page took over the scroll: the strip under the box and the bar measure themselves again.
+    window.dispatchEvent?.(new Event('resize'));
+  }
+  stepsPaint();
+  els.project.textContent = initial.projectRoot.split('/').filter(Boolean).at(-1) || initial.projectRoot;
+  els.project.title = initial.projectRoot;
+  // Which conversation this page is looking at, beside the project it belongs to — but only once
+  // there is more than one, because a name for the only thing there is is noise.
+  if (initial.chats?.chats?.length > 1) {
+    const here = initial.chats.chats.find((chat) => chat.id === initial.chats.active);
+    if (here) {
+      const mark = el('span', 'project chat-here', chatTitle(here.title));
+      mark.title = t("Conversation · {n} messages. The project's memory is shared by all of them.", { n: here.messages });
+      els.project.after(mark);
     }
   }
-} catch { /* no storage: it draws on every load, as before */ }
+  paintTitle();
+  // The split, as it was left: only while that conversation still exists and is not the open one.
+  try {
+    const remembered = SPLIT_CHAT ? null : localStorage.getItem('pulse.split');
+    if (remembered && remembered !== chats.active && chats.list.some((chat) => chat.id === remembered)) openSplit(remembered);
+    else if (remembered) rememberSplit();
+  } catch { /* no storage */ }
+  // MADRE started since this tab last saw it: the logo draws itself again. A reload of the same
+  // running room keeps it still (the class was set in the page's head before the first frame).
+  try {
+    const seen = sessionStorage.getItem('madre.boot');
+    if (initial.boot && seen !== initial.boot) {
+      sessionStorage.setItem('madre.boot', initial.boot);
+      if (seen) {
+        const logo = document.querySelector('.brand-logo');
+        document.documentElement.classList.remove('logo-still');
+        // A fresh copy restarts its drawing: the same node would keep its finished animation.
+        logo?.replaceWith(logo.cloneNode(true));
+      }
+    }
+  } catch { /* no storage: it draws on every load, as before */ }
+  (() => {
+    const curtain = document.getElementById('reload-curtain');
+    if (!curtain) return;
+    // The curtain clears in place, and the bar answers with one pulse: the logo's dot and the live
+    // light beside it.
+    const lift = () => {
+      curtain.classList.add('leaving');
+      setTimeout(() => {
+        curtain.remove();
+        document.documentElement.classList.add('just-arrived');
+        setTimeout(() => document.documentElement.classList.remove('just-arrived'), 1400);
+      }, 760);
+    };
+    // The room is drawn under the curtain: the bar fills, holds a moment, and the curtain clears.
+    arrivalCreep?.();
+    void finishLoader(curtain.querySelector('.madre-loader')).then(lift);
+  })();
+
+  // The windows, as they were left, within the same limit.
+  try {
+    const kept = SPLIT_CHAT ? [] : JSON.parse(localStorage.getItem('pulse.convWindows') ?? '[]') ?? [];
+    for (const one of kept) {
+      if (one?.id && one.id !== chats.active && one.id !== split.chat && chats.list.some((chat) => chat.id === one.id) && besideCount() < MAX_BESIDE) {
+        openConvWindow(one.id, { box: one, animate: false });
+      }
+    }
+    rememberConvWindows();
+  } catch { /* no storage */ }
+  if (els.treeRoot) els.treeRoot.textContent = `/ ${initial.projectRoot.split('/').filter(Boolean).at(-1) ?? ''}`;
+  syncAshUI(Boolean(initial.ash?.enabled));
+  void renderSettled();
+  void renderOpenQuestions();
+  updateStopAll();
+  if (typeof setInterval === 'function') { const ticker = setInterval(refreshBudgetWindow, 60000); ticker.unref?.(); }
+  renderAgents();
+  renderPicker();
+  renderOnboarding();
+  // What the composer will accept. A module's commands live on the server, so the page has to ask:
+  // this call had slipped inside the branch that ends a live installation, and until one happened
+  // `/git` and every module command answered «unknown» in a room that had them enabled all along.
+  void refreshCommands();
+  for (const event of initial.events) renderEvent(event);
+  setLoader(arrival, 0.9);
+  scrollToEnd();
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(themeMode); renderAgents(); renderPicker(); });
+
+  // The live light sits on the conversation it is live for, at the end of the path in the bar.
+  els.connection?.closest('.bar')?.querySelector('.bar-left')?.append(els.connection);
+  if (typeof ResizeObserver === 'function' && els.composer) new ResizeObserver(placeToast).observe(els.composer);
+  window.addEventListener?.('resize', placeToast);
+  connectStream();
+}
+
 // RELOAD, with grace (2026-10-10): the room softens behind a curtain of its own ground, and in the
 // middle MADRE's loader (loader.js) — the pulse beating, the bar starting to fill. The page goes
 // with the share it reached; the new one puts the same curtain back before its first frame at that
@@ -9694,50 +9752,17 @@ function waitCurtain({ label = '', progress = 0.04 } = {}) {
 }
 // The crew's column closes when the press lands anywhere else.
 document.addEventListener?.('click', (event) => { if (!els.picker?.contains?.(event.target)) els.picker?.classList?.remove('open'); });
-(() => {
-  const curtain = document.getElementById('reload-curtain');
-  if (!curtain) return;
-  // The curtain clears in place, and the bar answers with one pulse: the logo's dot and the live
-  // light beside it.
-  const lift = () => {
-    curtain.classList.add('leaving');
-    setTimeout(() => {
-      curtain.remove();
-      document.documentElement.classList.add('just-arrived');
-      setTimeout(() => document.documentElement.classList.remove('just-arrived'), 1400);
-    }, 760);
-  };
-  // The room is drawn under the curtain: the bar fills, holds a moment, and the curtain clears.
-  arrivalCreep?.();
-  void finishLoader(curtain.querySelector('.madre-loader')).then(lift);
-})();
-
-// The windows, as they were left, within the same limit.
-try {
-  const kept = SPLIT_CHAT ? [] : JSON.parse(localStorage.getItem('pulse.convWindows') ?? '[]') ?? [];
-  for (const one of kept) {
-    if (one?.id && one.id !== chats.active && one.id !== split.chat && chats.list.some((chat) => chat.id === one.id) && besideCount() < MAX_BESIDE) {
-      openConvWindow(one.id, { box: one, animate: false });
-    }
-  }
-  rememberConvWindows();
-} catch { /* no storage */ }
-if (els.treeRoot) els.treeRoot.textContent = `/ ${initial.projectRoot.split('/').filter(Boolean).at(-1) ?? ''}`;
 state.budget = Number.isFinite(initial.softTokenBudget) && initial.softTokenBudget > 0 ? initial.softTokenBudget : null;
 state.timeouts = initial.timeouts ?? {};
 state.sessions = initial.sessions ?? {};
 state.capabilities = initial.capabilities ?? {};
 state.override = initial.override ?? null;
 state.ripleyWeb = Boolean(initial.ripleyWeb);
-syncAshUI(Boolean(initial.ash?.enabled));
-void renderSettled();
-void renderOpenQuestions();
 state.ripley = Boolean(initial.ripley?.enabled);
 state.projectRoot = initial.projectRoot ?? '';
 state.projectName = initial.projectName ?? '';
 state.platform = initial.platform ?? null;
 for (const plan of initial.plans ?? []) state.plansRunning.add(plan.planId);
-updateStopAll();
 for (const agent of initial.agents) {
   const window = initial.budgetWindow?.[agent.id];
   state.agents.set(agent.id, { ...agent, tokens: window?.tokens ?? 0, rawTokens: window?.rawTokens ?? 0, windowMs: window?.windowMs ?? null, rollsOverAt: window?.rollsOverAt ?? null, officialPercent: null, officialResetAt: null, officialWindows: null });
@@ -9754,20 +9779,7 @@ async function refreshBudgetWindow() {
     renderAgents();
   } catch { /* offline; the stream will tell */ }
 }
-if (typeof setInterval === 'function') { const ticker = setInterval(refreshBudgetWindow, 60000); ticker.unref?.(); }
 if (!els.target.options.length) els.target.add(new Option(t('No agent ready'), ''));
-renderAgents();
-renderPicker();
-renderOnboarding();
-// What the composer will accept. A module's commands live on the server, so the page has to ask:
-// this call had slipped inside the branch that ends a live installation, and until one happened
-// `/git` and every module command answered «unknown» in a room that had them enabled all along.
-void refreshCommands();
-for (const event of initial.events) renderEvent(event);
-setLoader(arrival, 0.9);
-scrollToEnd();
-matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(themeMode); renderAgents(); renderPicker(); });
-
 /* ---------- live stream ---------- */
 
 function setConnection(value) {
@@ -9779,10 +9791,6 @@ function setConnection(value) {
   els.connection.dataset.said = said.charAt(0).toUpperCase() + said.slice(1);
   els.connection.setAttribute('aria-label', t(value));
 }
-// The live light sits on the conversation it is live for, at the end of the path in the bar.
-els.connection?.closest('.bar')?.querySelector('.bar-left')?.append(els.connection);
-if (typeof ResizeObserver === 'function' && els.composer) new ResizeObserver(placeToast).observe(els.composer);
-window.addEventListener?.('resize', placeToast);
 let stream = null;
 // A stream the browser gave up on is opened again (WEB-04): a network blip is retried by the browser
 // itself, but an answer that is not 200 — the phone's bridge says 502 while the project restarts —
@@ -9802,7 +9810,6 @@ function connectStream() {
   };
   stream.onmessage = ({ data }) => renderEvent(JSON.parse(data));
 }
-connectStream();
 
 // Everything the thread on screen knows that belongs to ONE conversation. Switching used to
 // reload the page, which is the brute way to be sure none of this was left over — and it cost a
@@ -18314,6 +18321,8 @@ function phoneKeyboard() {
   settle();
 }
 
+// Every name above exists now: the room is painted (boot, beside the state it reads).
+boot();
 // Asking for a star or a review (review-ask.js): on the Mac, and never while something is going on
 // — an agent at work, a plan running, words half written in the box.
 // Asked by the page, never by the half on the right of a split view, which is this same page (WEB-12).
