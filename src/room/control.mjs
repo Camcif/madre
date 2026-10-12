@@ -16,8 +16,12 @@ export class ControlDesk {
   #writers = new Set();
   #waiting = [];
 
-  constructor({ projectRoot }) {
+  #guardRecord;
+
+  // `guardRecord`: where the locks of a turn are written down, outside the project (room/guard.mjs).
+  constructor({ projectRoot, guardRecord = null }) {
     this.#projectRoot = projectRoot;
+    this.#guardRecord = guardRecord;
   }
   get holder() { return this.#holder; }
   // Who is writing now, for the line that says why a turn is waiting.
@@ -68,7 +72,7 @@ export class ControlDesk {
     checkpoint.agent = agent.id;
     this.#checkpoints.set(checkpoint.id, checkpoint);
     // Prevention first: .env files and MADRE's folders are read-only for the length of the turn.
-    const guard = await guardForbidden(this.#projectRoot);
+    const guard = await guardForbidden(this.#projectRoot, { record: this.#guardRecord });
     const run = { agent: agent.id, messageId, checkpoint, since: new Date().toISOString(), guard, mode, scratchDir: null };
     this.#writers.delete(pen);
     this.#writers.add(run);

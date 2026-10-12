@@ -90,6 +90,7 @@ import { maturity } from './maturity.mjs';
 import { memoryDashboard } from './memory-dashboard.mjs';
 import { verdictFor } from './verdict.mjs';
 import { refuseForeign } from './request-guard.mjs';
+import { restoreGuard } from './room/guard.mjs';
 import { bridgeAnswers, hostBridge } from './bridge/host.mjs';
 import { BRIDGE_PORT } from './bridge/server.mjs';
 import { createInvite, forgetDevice, forgetNetwork, readStore, setEnabled, storeView, trustNetwork } from './bridge/devices.mjs';
@@ -231,11 +232,19 @@ export async function createPulseServer({
   const openMark = join(roomDir, 'open.json');
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
   const held = await readFile(openMark, 'utf8').then((raw) => JSON.parse(raw)).catch(() => null);
-  if (held && Number.isInteger(held.pid) && held.pid !== process.pid && alive(held.pid)) {
+  // A live process is not enough (2026-10-12, LOG-13): after a restart of the Mac the number of the
+  // room that died is often some other program's, and the project said «already open» for good. It
+  // is taken only if that room also answers on its port.
+  const answers = async (port) => Number.isInteger(port) && await fetch(`http://127.0.0.1:${port}/api/version`, { signal: AbortSignal.timeout(1500) }).then((response) => response.ok, () => false);
+  if (held && Number.isInteger(held.pid) && held.pid !== process.pid && alive(held.pid) && await answers(held.port)) {
     const error = new Error(`MADRE is already open for this project at http://127.0.0.1:${held.port} (process ${held.pid}). Close that room first, or open another conversation inside it.`);
     error.code = 'ROOM_IN_USE';
     throw error;
   }
+  // The room is this one's now. A room that died in the middle of a turn left the project's .env
+  // files and MADRE's folders read-only (room/guard.mjs): they get their modes back first.
+  const unlocked = await restoreGuard(join(roomDir, 'guard.json')).catch(() => []);
+  if (unlocked.length) console.error(`MADRE: a room that closed mid-turn had left ${unlocked.length} protected path(s) read-only; they are writable again.`);
   // The mark also says which project and which MADRE, for the bridge's list of rooms on the phone.
   let openPort = null;
   // Where the project is, too (src/salas.mjs): a room that is closed can be opened again from Salas.
@@ -469,7 +478,7 @@ export async function createPulseServer({
   const listeningPort = () => listening?.address?.()?.port ?? Number(process.env.PULSE_PORT ?? 4317);
   // One CONTROL desk for the whole project, shared by every conversation alive at once: a single
   // holder of the working tree whichever chat asked, and an UNDO that works from any of them.
-  const controlDesk = new ControlDesk({ projectRoot });
+  const controlDesk = new ControlDesk({ projectRoot, guardRecord: join(roomDir, 'guard.json') });
   // The open conversation's record unless another is named: a conversation held open beside it
   // builds its room the same way, over its own record.
   const roomOptions = (own = {}) => ({
@@ -3160,7 +3169,8 @@ export async function startPulse({ port, projectRoot, openBrowser, openPath = ''
   const detected = agents.filter((agent) => agent.detected).map((agent) => agent.label).join(', ') || 'none';
   console.log(`\nMADRE is ready\n\n  ${url}${openPath}\n  Project: ${projectRoot}\n  Ready: ${ready}\n  Detected: ${detected}\n`);
   if (openBrowser) openUrl(`${url}${openPath}`);
-  for (const signal of ['SIGINT', 'SIGTERM']) {
+  // SIGHUP too: closing the Terminal the room was started in is a way of closing it.
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.once(signal, () => server.close(() => process.exit(0)));
   }
   // Salas asked this room to close: the same as a signal.

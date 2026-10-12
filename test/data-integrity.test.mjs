@@ -185,3 +185,35 @@ test('integrity: the memory waits its turn when another process is writing it (L
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('integrity: what a room that died mid-turn left read-only gets its mode back, and a dead room does not hold the project (LOG-13)', async () => {
+  const { chmod, stat: statOf, readdir } = await import('node:fs/promises');
+  const { guardForbidden, restoreGuard } = await import('../src/room/guard.mjs');
+  const project = await mkdtemp(join(tmpdir(), 'madre-guard-'));
+  const state = await mkdtemp(join(tmpdir(), 'madre-guard-state-'));
+  let server;
+  try {
+    await writeFile(join(project, '.env'), 'KEY=1\n');
+    await chmod(join(project, '.env'), 0o644);
+    const record = join(state, 'guard.json');
+    // A turn locks, and the room dies before it unlocks: only the record is left.
+    const guard = await guardForbidden(project, { record });
+    assert.ok(guard.locked.includes('.env'));
+    assert.equal((await statOf(join(project, '.env'))).mode & 0o777, 0o444);
+    assert.deepEqual(await restoreGuard(record), [join(project, '.env')]);
+    assert.equal((await statOf(join(project, '.env'))).mode & 0o777, 0o644);
+    assert.deepEqual(await restoreGuard(record), [], 'restored twice');
+    // A room marked open by a process that is alive but is not a room (this test's own parent).
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: [], invokers: {}, testMode: true }));
+    await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    server = null;
+    const roomDir = join(state, 'rooms', (await readdir(join(state, 'rooms')))[0]);
+    await writeFile(join(roomDir, 'open.json'), JSON.stringify({ pid: process.ppid, port: 9, at: new Date().toISOString() }));
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: [], invokers: {}, testMode: true }));
+    assert.ok(server, 'a process that does not answer as a room still held the project');
+  } finally {
+    if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    await chmod(join(project, '.env'), 0o644).catch(() => {});
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
+});
