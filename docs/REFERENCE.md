@@ -213,7 +213,7 @@ Cada módulo es un archivo. Los tuyos van en `~/.pulse/modules/` (todos los proy
 
 En un proyecto, la tecla junto a la casa **cambia de proyecto**: su indicador dice quién te espera (un número), quién trabaja (late) y quién terminó mientras estabas en otro (verde). Abre un panel con los demás proyectos abiertos; un clic lleva ahí y ⌘-clic abre otra pestaña. Lo lee de `GET /api/salas/open`: las salas abiertas, cada una con su resumen y sin el censo; solo esta Mac.
 
-**El Mapa de proyectos**, desde Inicio en una pantalla de 900 px o más: tus proyectos en el espacio abierto, y cada uno es un Mapa de memoria dibujado por el mismo motor que el de su proyecto (`public/nostromo-engine.js`). Arrastra el espacio para moverlo, rueda para acercarte, **Recentrar** para volver a casa. Clic o ← → para volar a uno: el proyecto elegido es el único vivo, con su magma y sus pulsos; arrástralo para girarlo, toca una memoria para leerla en la ficha, Esc para soltarla y otra vez Esc para volver. De lejos cada proyecto se lee de su propio proceso sin las palabras de sus memorias (`GET /api/salas/universe?id=`); solo el elegido las pide (`&full=1`), y nunca desde el teléfono.
+**El Mapa de proyectos**, desde Inicio en una pantalla de 900 px o más: tus proyectos en el espacio abierto, y cada uno es un Mapa de memoria dibujado por el mismo motor que el de su proyecto (`public/nostromo-engine.js`). Arrastra el espacio para moverlo, rueda para acercarte, **Recentrar** para volver a casa. Clic o ← → para volar a uno: el proyecto elegido es el único vivo, con su magma y sus pulsos; arrástralo para girarlo, toca una memoria para leerla en la ficha, Esc para soltarla y otra vez Esc para volver. De lejos cada proyecto se lee de su propio proceso sin las palabras de sus memorias (`GET /api/salas/universe?id=`); solo el elegido las pide (`&full=1`).
 
 **Conexiones.** Una conexión es un contrato entre dos proyectos que firmas en Inicio (**Conectar proyectos**, o arrastrando un proyecto sobre otro en el Mapa de proyectos): quién lee de quién (o los dos), qué tipos cruzan y hasta cuándo. Cruzan solo notas destiladas que viajan a los turnos (bodega y puente), limpias por el guardia de privacidad del proyecto que entrega; nunca el registro, archivos, llaves, enfermería ni esclusa; y solo de lectura. En el proyecto que puede leer, cada turno lleva el servidor MCP `pulse-enlaces` (`enlace_rooms`, `enlace_search`); sin contrato no existe. Firmar y revocar dejan una línea en los dos proyectos; cada lectura queda contada (`enlace.read` en el que entrega, `enlace.received` en el que lee) y se ve en Inicio y como pulsos en la conexión del Mapa de proyectos.
 
@@ -223,19 +223,19 @@ En un proyecto, la tecla junto a la casa **cambia de proyecto**: su indicador di
 
 | Ruta | Qué | Quién |
 |---|---|---|
-| `POST /api/salas/enlaces` · `POST /api/salas/enlaces/revoke` | Firmar y revocar. Dos proyectos se conectan una sola vez: mientras haya una conexión vigente entre ellos, en cualquier dirección, firmar otra responde 409 | La página de Inicio, nunca el teléfono |
-| `POST /api/salas/forget` | Quitar un proyecto de MADRE: lo cierra si está abierto, revoca sus conexiones y aparta su `project.json` como `project.forgotten.json`. Nunca el del Coordinador | La página de Inicio con su `Origin`, nunca un proceso ni el teléfono |
-| `GET /api/tour` · `POST /api/tour` | El recorrido de 1.0: si se debe el bonjour, si la persona viene de 0.7.2, capítulos leídos, dónde iba, pistas vistas. Se guarda en `~/.pulse/tour.json`, uno por persona, no uno por puerto | Las páginas de esta Mac; el teléfono nunca recibe el bonjour |
+| `POST /api/salas/enlaces` · `POST /api/salas/enlaces/revoke` | Firmar y revocar. Dos proyectos se conectan una sola vez: mientras haya una conexión vigente entre ellos, en cualquier dirección, firmar otra responde 409 | La página de Inicio |
+| `POST /api/salas/forget` | Quitar un proyecto de MADRE: lo cierra si está abierto, revoca sus conexiones y aparta su `project.json` como `project.forgotten.json`. Nunca el del Coordinador | La página de Inicio con su `Origin`, nunca un proceso |
+| `GET /api/tour` · `POST /api/tour` | El recorrido de 1.0: si se debe el bonjour, si la persona viene de 0.7.2, capítulos leídos, dónde iba, pistas vistas. Se guarda en `~/.pulse/tour.json`, uno por persona, no uno por puerto | Las páginas de esta Mac |
 | `GET /api/tour/projects` · `POST /api/tour/projects` | Los proyectos de 0.7.2 que Inicio no puede listar (sin `project.json`) y traer uno: se busca su carpeta por nombre en las carpetas de siempre y se confirma por el hash de su id. Los quitados a propósito no vuelven | Las páginas de esta Mac |
-| `POST /api/override/arm` | La llave de #3 y #4, comprobada por el proyecto (`src/override.mjs`): lo que se escribió, una o dos veces, y un pase para ese agente y ese modo. Un mensaje a #3 o #4 va solo con su pase; sin permiso recordado abre un mensaje, con él, los que quepan en sus minutos. STOP ALL y un reinicio los retiran. Ocho llaves equivocadas en un minuto responden 429. La huella de la frase nunca sale por `GET /api/settings` ni `/api/state` | Las páginas de esta Mac; nunca el teléfono |
+| `POST /api/override/arm` | La llave de #3 y #4, comprobada por el proyecto (`src/override.mjs`): lo que se escribió, una o dos veces, y un pase para ese agente y ese modo. Un mensaje a #3 o #4 va solo con su pase; sin permiso recordado abre un mensaje, con él, los que quepan en sus minutos. STOP ALL y un reinicio los retiran. Ocho llaves equivocadas en un minuto responden 429. La huella de la frase nunca sale por `GET /api/settings` ni `/api/state` | Las páginas de esta Mac |
 | `GET /api/enlace/memories` | Lo que este proyecto entrega por un contrato: solo `travels()` y los tipos del contrato, redactado; 404 si el contrato no sirve a quien pide, 423 sellado, 429 sobre el tope | Otro proceso de MADRE con la llave del canal (`~/.pulse/credentials/enlaces.json`), sin `Origin` |
 | `POST /api/enlace/ask` | Lo que este proyecto pide a otro; solo para un turno que corre aquí (409 si no); registra `enlace.received` con agente y turno | El servidor `pulse-enlaces` de un turno, con la llave |
-| `POST /api/salas/enlaces/recall` | Marcar o quitar «Incluir siempre» de una conexión | La página de Inicio, nunca un proceso ni el teléfono |
+| `POST /api/salas/enlaces/recall` | Marcar o quitar «Incluir siempre» de una conexión | La página de Inicio, nunca un proceso |
 | `POST /api/enlace/notice` | La línea de Diagnóstico al firmar o revocar | El proyecto que sirve Inicio, con la llave |
 
-Los contratos viven en `~/.pulse/config.json` bajo `enlaces` y los cruces en `enlaces.jsonl` junto al registro de cada proyecto. Todo esto es de la Mac: el teléfono no conecta ni lee conexiones.
+Los contratos viven en `~/.pulse/config.json` bajo `enlaces` y los cruces en `enlaces.jsonl` junto al registro de cada proyecto.
 
-Cada proyecto recuerda dónde está su carpeta (`project.json`, junto a su registro); un proyecto abierto por última vez con una MADRE anterior aparece cuando se vuelve a abrir. Inicio es de la Mac: el teléfono tiene el suyo.
+Cada proyecto recuerda dónde está su carpeta (`project.json`, junto a su registro); un proyecto abierto por última vez con una MADRE anterior aparece cuando se vuelve a abrir.
 
 **El proyecto del Coordinador.** `madre salas` abre un proyecto que vive en una carpeta de MADRE (`~/.pulse/salas`, creada la primera vez): la puerta de entrada cuando no estás en ningún proyecto, y también lo que abre `madre` a secas desde tu carpeta personal. Es un proyecto como los demás —su conversación, su memoria, sus modos— y en Inicio va primero, con su marca. Su barra lleva la tecla **Mapa de proyectos**. Nunca entrega notas por una conexión, y es el único que puede recibir permiso para dar órdenes a otro (la hoja de firma lo pide con el nombre de ese proyecto).
 
@@ -262,7 +262,7 @@ Cada proyecto recuerda dónde está su carpeta (`project.json`, junto a su regis
 
 | Ruta | Qué | Quién |
 |---|---|---|
-| `POST /api/x/bishop/send` · `skip` · `propose` · `stop` · `link` | Enviar, saltar, llevar una propuesta a su proyecto, detener una orden en curso, firmar una conexión propuesta; el servidor actúa sobre lo que registró, nunca sobre lo que dice la página | La página del proyecto del Coordinador, nunca el teléfono |
+| `POST /api/x/bishop/send` · `skip` · `propose` · `stop` · `link` | Enviar, saltar, llevar una propuesta a su proyecto, detener una orden en curso, firmar una conexión propuesta; el servidor actúa sobre lo que registró, nunca sobre lo que dice la página | La página del proyecto del Coordinador |
 | `POST /api/x/bishop/order` · `proposal` · `halt` | Una orden, una propuesta `#3`/`#4` o un alto que llegan al proyecto al que van; el proyecto revisa llave, contrato, origen, modo, agente, ocupación y tope | El proyecto del Coordinador, con la llave del canal |
 | `POST /api/x/bishop/result` · `consult` | La respuesta a una orden, y una pregunta de `/bishop` | El proyecto que obedeció o que preguntó, con la llave |
 | `POST /api/x/bishop/answer` | La respuesta a `/bishop`, como `bishop.answer` | El proyecto del Coordinador, con la llave |
@@ -271,31 +271,9 @@ Los planes viven en `bishop-plans.json` junto al registro del proyecto del Coord
 
 ---
 
-## MADRE EN TU TELÉFONO · AVANCE
-
-Tus proyectos siguen en tu Mac; el teléfono es otra ventana a ellos, por tu Wi-Fi. El plan completo vive en `docs/MOBILE.md`.
-
-1. En la barra, **MADRE en tu teléfono** (el ícono del teléfono). La primera vez pregunta si la red es de confianza: el teléfono llega a la Mac por `http` en tu red, así que solo se ofrece en la de tu casa u oficina.
-2. Escanea el QR con la cámara. El código sirve una vez y durante diez minutos. El teléfono abre **Inicio**: todos los proyectos abiertos en tu Mac, quién trabaja en cada uno y *Seguir donde ibas* con tu conversación, tu lugar y tu borrador. Agrégalo a la pantalla de inicio para abrirlo como una app.
-
-| Desde el teléfono | |
-|---|---|
-| Leer, buscar, abrir archivos en el visor | Sí |
-| Escribir en `#0`, `#1` y `#2` · responder elecciones · correr lo que un agente propuso | Sí |
-| `STOPALL` en un proyecto, o **Detener todo** en todos desde Inicio | Sí, siempre |
-| Ajustes (salvo permisos) · encender o apagar los módulos de MADRE | Sí |
-| Archivos y servidores | Para ver; se trabajan mejor en la Mac |
-| `#3 EDITAR`, `#4 ACCESO TOTAL`, permisos, llaves, instalar módulos de terceros, olvidar memorias, emparejar otro teléfono | En la Mac |
-
-- **Continuidad.** Lo que dejas en la caja, la conversación y el mensaje donde ibas viajan de un lado al otro. En la Mac aparece *Continuar · proyecto* en la barra; en el teléfono, arriba de Inicio.
-- **Quién lo dijo.** Lo que se escribe desde el teléfono queda en el registro con su origen («desde tu iPhone»).
-- **Teléfonos y redes** en Ajustes › Privacidad › Teléfonos: cada uno con *Olvidar*, y un interruptor que apaga el acceso de todos.
-- **La red** se reconoce por la dirección de hardware de su router. Si MADRE no puede leerla, la red es desconocida y el teléfono no se ofrece ahí.
-
 ## LO QUE SALE DE LA MÁQUINA
 
-- **Nada por sí solo.** MADRE no tiene nube, cuenta ni backend. No guarda credenciales de proveedores; su única llave propia es la de tus teléfonos emparejados, que vive solo en `~/.pulse/credentials/`.
-- **El teléfono entra, no sale nada.** Con un teléfono emparejado, MADRE en tu teléfono escucha en tu Wi-Fi (puerto 4316) solo mientras la Mac está en una red que marcaste de confianza. Acepta únicamente direcciones privadas, el nombre de esta Mac y un teléfono con su llave. Es tráfico de tu red local; nada viaja a internet.
+- **Nada por sí solo.** MADRE no tiene nube, cuenta ni backend. No guarda credenciales de proveedores.
 - **Lo que un agente lee, viaja a su proveedor.** Codex a OpenAI, Claude Code a Anthropic, Gemini CLI a Google, OpenCode a quien tenga configurado. Si `OPENAI_BASE_URL` o `ANTHROPIC_BASE_URL` cambia ese destino, MADRE enseña solo el hostname y bloquea el turno antes de armar el briefing; un gateway verificado se autoriza por agente con `PULSE_ALLOW_CUSTOM_AGENT_ENDPOINTS`. Aplican la cuenta, los límites y los términos del destino efectivo. `@madre` y el archivista con Ollama no salen de la máquina.
 - **Dos envíos propios, ambos bajo tu interruptor.** El sentinel, apagado por defecto, envía reportes redactados al colector del proyecto. El canal de liberación, encendido por defecto, pregunta a npm por la última versión: viaja el nombre del paquete, nada más, la misma petición que hace `npx`. `PULSE_UPDATE_CHECK=0` lo apaga.
 - **Escritura.** En `#1` nadie escribe. En `#2` solo se añade: lo que existía se restaura al terminar el turno. En `#3` todo el proyecto salvo las zonas prohibidas, con punto de restauración y `DESHACER`. En un proyecto sin git, MADRE guarda sus fotografías en un repositorio sombra fuera del proyecto. Un comando que pide un agente lo corres tú, con punto de restauración antes y `DESHACER` después.

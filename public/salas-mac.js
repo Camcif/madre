@@ -837,7 +837,7 @@ const intoAProject = () => {
 const homeTour = startTour({
   page: 'home',
   pillSlot: $('sm-tour-pill'),
-  soon: () => (data?.phonePreview ? [] : ['phone']),
+  hidden: () => (data?.phonePreview ? [] : ['phone']),
   ready: () => Boolean(data) && !wizard && !sheet,
   welcome: { needed: () => !projectsInOrder().all.length || !agentsReady(), open: (then) => { welcomed = true; openWizard({ then }); } },
   onProjects: () => void refresh(),

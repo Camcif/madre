@@ -189,8 +189,8 @@ test('tour · the chapters the page tells are the ones the server keeps, in both
     assert.equal(chapter.points.es.length, chapter.points.en.length, `${chapter.id} says more in one language`);
     if (!['gestures'].includes(chapter.id)) assert.equal(chapter.points.es.length, 3, `${chapter.id} is not three sentences`);
     for (const where of chapter.where) assert.ok(['home', 'room'].includes(where));
-    // A chapter that may be coming soon says so in both languages, three sentences too.
-    if (chapter.soon) { assert.ok(chapter.soon.lead.es && chapter.soon.lead.en); assert.equal(chapter.soon.points.es.length, 3); assert.equal(chapter.soon.points.en.length, 3); }
+    // Nothing is told as «coming soon»: what is not offered is not told (the phone, 2026-10-12).
+    assert.equal(chapter.soon, undefined, `${chapter.id} still tells what is coming`);
   }
   for (const [group, rows] of GESTURES) {
     assert.ok(group.es && group.en);

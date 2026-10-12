@@ -75,8 +75,8 @@ const SCENES = {
 // `onChange` hears the kept state each time it is known or changes (null if it could not be read).
 // `phone`: none of it here (a phone, or the right half of a split window); `device`: this page is a
 // phone, which gets one card the first time instead of the bonjour.
-// `soon`: the chapters whose thing is not offered on this Mac yet; they tell what is coming instead.
-export function startTour({ page, go = {}, ready = () => true, phone = false, device = false, pillSlot = null, welcome = null, onProjects = null, onChange = null, soon = () => [] } = {}) {
+// `hidden`: the chapters whose thing is not offered on this copy; they are not told at all.
+export function startTour({ page, go = {}, ready = () => true, phone = false, device = false, pillSlot = null, welcome = null, onProjects = null, onChange = null, hidden = () => [] } = {}) {
   let info = null;
   let state = null;
   let windowNode = null;
@@ -98,7 +98,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     return state;
   };
   const path = () => state?.path ?? (info?.returning ? 'back' : 'new');
-  const chapters = () => (ORDER[path()] ?? ORDER.new).map((id) => CHAPTERS.find((chapter) => chapter.id === id)).filter(Boolean);
+  const chapters = () => (ORDER[path()] ?? ORDER.new).filter((id) => !hidden().includes(id)).map((id) => CHAPTERS.find((chapter) => chapter.id === id)).filter(Boolean);
   const busyWith = () => Boolean(windowNode?.open || sheetNode?.open || document.querySelector('dialog.tour-bonjour[open]'));
 
   // ---- One tab at a time. The tab that shows the bonjour or the chapters holds the tour and says
@@ -318,9 +318,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     document.body.append(windowNode);
   }
   function show(shown) {
-    // A chapter whose thing is not here yet tells what is coming instead, and takes nobody there.
-    const coming = shown.soon && soon().includes(shown.id);
-    const chapter = coming ? { ...shown, ...shown.soon, where: [], keys: [] } : shown;
+    const chapter = shown;
     current = shown;
     const back = path() === 'back';
     windowNode.querySelector('.tour-head .wn-eyebrow').textContent = back ? t('The tour of MADRE 1.0') : t('Getting to know MADRE');
@@ -352,9 +350,9 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
       scene.append(table);
     } else scene.innerHTML = SCENES[chapter.id]?.() ?? ''; // trusted: our own markup
     const words = el('div', 'tour-words');
-    words.append(el('span', 'tour-step', coming ? `${fill(t('{n} of {total}'), { n: index + 1, total: list.length })} · ${t('Coming soon')}` : fill(t('{n} of {total}'), { n: index + 1, total: list.length })), el('h3', null, say(chapter.title)));
+    words.append(el('span', 'tour-step', fill(t('{n} of {total}'), { n: index + 1, total: list.length })), el('h3', null, say(chapter.title)));
     // Whoever came from 0.7.2 reads first what is new or different here.
-    if (back && chapter.news && !coming) {
+    if (back && chapter.news) {
       const news = el('p', `tour-news ${chapter.news.kind}`);
       const said = el('span');
       said.innerHTML = say(chapter.news); // trusted: our own copy
@@ -375,7 +373,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
       words.append(keys);
     }
     const acts = el('div', 'tour-acts');
-    const here = !coming && typeof go[chapter.id] === 'function';
+    const here = typeof go[chapter.id] === 'function';
     if (here) {
       acts.append(key('tour-btn', t('Take me there'), () => {
         void keep({ at: chapter.id, closed: true });

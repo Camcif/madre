@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access, stat } from 'node:fs/promises';
-import { openSync, rmSync } from 'node:fs';
+import { existsSync, openSync, rmSync } from 'node:fs';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { probePort, framable } from './ports.mjs';
 import { ControlDesk } from './room/control.mjs';
@@ -29,6 +29,10 @@ import { language as roomLanguage, setLanguage as setRoomLanguage, t } from './i
 // One per start of this process: a restart is a new one, a reload of the page is not.
 const BOOT_ID = `${process.pid}-${Date.now().toString(36)}`;
 const PACKAGE = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8').catch(() => '{}'));
+// The phone is not in the public MADRE until it is stable (2026-10-12): it is offered only on a copy
+// run from its source, where the repository's `.git` sits beside `src/`. What npm installs never
+// carries a `.git` (`files` in package.json), so there no setting and no variable opens it.
+const FROM_SOURCE = existsSync(new URL('../.git', import.meta.url));
 let crashHandlersInstalled = false;
 
 // RIPLEY's bridge, injected into every page it renders: reports the page's path
@@ -231,11 +235,12 @@ export async function createPulseServer({
   let openPort = null;
   // Where the project is, too (src/salas.mjs): a room that is closed can be opened again from Salas.
   const markOpen = async (port) => { openPort = port; await mkdir(roomDir, { recursive: true }).catch(() => {}); await writeFile(openMark, JSON.stringify({ pid: process.pid, port, at: new Date().toISOString(), project: basename(canonicalProjectRoot), version: PACKAGE.version ?? null })).catch(() => {}); await markProject(roomDir, canonicalProjectRoot).catch(() => {}); };
-  // The phone (docs/MOBILE.md) is a preview in MADRE 1.0 (2026-10-11): Safari in HTTPS-only mode
-  // refuses the bridge's http, and the relay that fixes it is not open to everyone yet. It is offered
-  // only on a Mac that turned it on — `phone.preview` in config.json, or PULSE_PHONE=1 — and
-  // everywhere else the page says «Coming soon» and the bridge never opens.
-  const phonePreview = async () => process.env.PULSE_PHONE === '1' || (await readConfig(root).catch(() => ({}))).phone?.preview === true;
+  // The phone (docs/MOBILE.md) is not offered in MADRE 1.0 (2026-10-11, hidden 2026-10-12): Safari
+  // in HTTPS-only mode refuses the bridge's http, and the relay that fixes it is not built. Only a
+  // copy run from source (FROM_SOURCE, above) on a Mac that turned it on — `phone.preview` in
+  // config.json, or PULSE_PHONE=1 — has it. Everywhere else nothing says it exists: no key on the
+  // bar, no place in Settings, no chapter in the tour, and the bridge never opens.
+  const phonePreview = async () => FROM_SOURCE && (process.env.PULSE_PHONE === '1' || (await readConfig(root).catch(() => ({}))).phone?.preview === true);
   // This room offers to host the bridge once it is open; see bridge/host.mjs.
   const phone = hostBridge({ root, publicDirectory, allowed: phonePreview });
   async function phoneView() {
@@ -1447,7 +1452,7 @@ export async function createPulseServer({
         if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
         if (!(await phonePreview())) {
           if (request.method === 'GET' && url.pathname === '/api/phone') return sendJson(response, 200, { preview: false });
-          return sendJson(response, 404, { error: t('MADRE on your phone is coming soon.') });
+          return sendJson(response, 404, { error: t('Not found.') });
         }
         if (request.method === 'GET' && url.pathname === '/api/phone') return sendJson(response, 200, { preview: true, ...(await phoneView()) });
         const payload = request.method === 'POST' ? await body(request).catch(() => ({})) : {};
@@ -1948,7 +1953,7 @@ export async function createPulseServer({
           // The room of Salas knows it is: true only there, false in every other room.
           salas: salasRoom,
           room: basename(roomDir),
-          phones: viaPhone ? undefined : (await readStore(root).catch(() => ({ devices: [] }))).devices.length,
+          phones: viaPhone ? undefined : await phonePreview() ? (await readStore(root).catch(() => ({ devices: [] }))).devices.length : 0,
           // Which MADRE this is. The page prints it in the corner: the one fact a bug report
           // always needs and nobody ever remembers to ask for.
           version: PACKAGE.version,

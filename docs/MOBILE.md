@@ -282,6 +282,49 @@ patrones, reescritos sin dependencias:
 | **D-M08** | ¿El teléfono sale en MADRE 1.0? Safari con su advertencia de conexiones no seguras está en modo solo HTTPS y rechaza el `http` del puente. | 1.0 | **RESUELTA · 2026-10-11** · No: queda como vista previa. En una Mac sin `phone.preview` en `config.json` (o `PULSE_PHONE=1`) el puente no abre, `/api/phone` no empareja, la tecla no está en la barra, y Ajustes y el recorrido dicen «Próximamente». La Mac del dueño la tiene encendida. |
 | **D-M07** | ¿Mantener la Mac despierta mientras un agente trabaja y hay un teléfono conectado? Lanza un proceso del sistema; revisar `docs/WINDOWS.md` antes. | Fase 2 | **ABIERTA** |
 
+## Anexo · Lo que se dirá al público cuando se publique
+
+El 2026-10-12 el teléfono se ocultó de la versión pública: solo se ofrece en una copia que corre desde el código fuente, con `.git` al lado de `src/` (`FROM_SOURCE` en `src/server.mjs`), y con `phone.preview` o `PULSE_PHONE=1`. Lo que el paquete de npm lleva no lo menciona. Estos textos salieron del CHANGELOG de 1.0 y de `docs/REFERENCE.md` y esperan aquí a que el teléfono sea estable.
+
+#### Tu Mac en tu teléfono (avance)
+
+- **Tus salas, en el teléfono, por tu Wi-Fi.** Una tecla nueva en la barra, **Teléfono**, muestra un QR. Lo escaneas con la cámara y listo: sin cuenta, sin contraseña, sin nada que teclear. El código sirve una vez y durante diez minutos. La primera vez, MADRE pregunta si la red es de confianza, porque el teléfono llega a la Mac por tu red local; solo se ofrece en la de tu casa u oficina.
+- **Salas: todas a la vez.** El teléfono abre en una lista de todas las salas abiertas en tu Mac, con lo último que se dijo y quién está trabajando. La que **te espera** sube arriba, en tu acento, con lo que espera dicho en una línea («@claude te pregunta…», «@codex quiere correr npm test», «@gemini pide #2 CREATE»), y al tocarla abre justo esa conversación. Un toque abre la sala con su conversación en vivo; *Detener todo*, con un segundo toque para confirmar, frena a todos los agentes de todas las salas. Se agrega a la pantalla de inicio como una app.
+- **Continuidad, como Handoff.** Lo que dejaste en la caja, la conversación y el mensaje donde ibas pasan de un lado al otro: en el teléfono, *Seguir donde ibas* arriba de Salas; en la Mac, *Continuar · proyecto* en la barra. Lo que escribes desde el teléfono queda en el registro con su origen.
+- **Desde el teléfono se conversa como en la Mac, hasta #2.** Preguntas con modelo y esfuerzo, `/image`, `/module` e Intenciones; respondes lo que un agente pregunta, apruebas lo que quiere correr, deshaces y detienes. También cambias los ajustes (apariencia, sala, memoria, privacidad) y enciendes o apagas los módulos de MADRE. Archivos y servidores se ven y avisan que se trabajan mejor en la Mac. #3 CONTROL, #4 AIRLOCK, los permisos, las llaves y lo que instala código se quedan en la Mac; la sala lo verifica por su lado aunque el puente ya lo haya filtrado.
+- **Hecho para el pulgar.** En el teléfono no hay ventanas: Ajustes, MU/TH/UR, Módulos, conversaciones y el visor suben como hojas redondeadas, una a la vez, con su asa arriba; se cierran deslizando hacia abajo, tocando fuera o con su ×. Abrir una hoja ya no enfoca la búsqueda ni levanta el teclado. La página entera hace scroll para que Safari esconda sus barras, los campos tienen 16 px para que tocar uno no acerque la pantalla, la caja de texto tiene más aire y sube con el teclado, y tu fondo de pantalla y tu acento se ven al cambiarlos.
+- **NOSTROMO en el teléfono es un mapa.** MOTHER al centro, cada memoria un punto del color de su tipo en el sector de su tipo, y las redes trazadas entre ellas. Mientras más se apoya la sala en una memoria, más cerca de MOTHER está. Un dedo lo mueve, dos lo acercan, y tocar un punto ilumina sus enlaces, lo desliza a la vista y sube su ficha desde abajo, como en un mapa; Recentrar regresa al mapa completo. Solo se dibuja cuando algo cambia, así que leerlo no gasta el teléfono. Olvidar una memoria sigue siendo de la Mac, y su botón ya no aparece en el teléfono.
+- **Nada se sale de la pantalla ni flota encima de la conversación.** Las respuestas ya no se cortan a la derecha: la línea de arriba de cada burbuja conserva quién habló y cede lo demás, y los tokens quedan abajo, donde ya estaban. Los chips de modo, modelo y esfuerzo caben en una fila sin deslizarse de lado. La barra pasa a «•••» lo que no cabe, también en Safari, donde «‹ Salas» se cortaba y Ajustes quedaba pegado al borde. Las conversaciones son una tecla en la barra, junto a «‹ Salas», en vez de un botón flotando sobre los mensajes. Con el teclado abierto, la barra se queda arriba y la caja justo encima del teclado, también en una hoja. Un toque hace solo lo que tocó: sin destello gris, sin acercar con doble toque y sin que la sala se mueva detrás de una hoja abierta.
+- **Cómo está hecho.** Las salas siguen escuchando solo en tu Mac. Un puente, que vive dentro de la primera sala que lo toma, es lo único que el teléfono alcanza: acepta direcciones privadas, el nombre de esta Mac y un teléfono con su llave. De cada teléfono se guarda una huella, nunca su llave, y la llave del puente vive solo en `~/.pulse/credentials/`. Los teléfonos y las redes se olvidan en Ajustes › Privacidad › Teléfonos.
+
+#### MADRE EN TU TELÉFONO · AVANCE
+
+Tus proyectos siguen en tu Mac; el teléfono es otra ventana a ellos, por tu Wi-Fi. El plan completo vive en `docs/MOBILE.md`.
+
+1. En la barra, **MADRE en tu teléfono** (el ícono del teléfono). La primera vez pregunta si la red es de confianza: el teléfono llega a la Mac por `http` en tu red, así que solo se ofrece en la de tu casa u oficina.
+2. Escanea el QR con la cámara. El código sirve una vez y durante diez minutos. El teléfono abre **Inicio**: todos los proyectos abiertos en tu Mac, quién trabaja en cada uno y *Seguir donde ibas* con tu conversación, tu lugar y tu borrador. Agrégalo a la pantalla de inicio para abrirlo como una app.
+
+| Desde el teléfono | |
+|---|---|
+| Leer, buscar, abrir archivos en el visor | Sí |
+| Escribir en `#0`, `#1` y `#2` · responder elecciones · correr lo que un agente propuso | Sí |
+| `STOPALL` en un proyecto, o **Detener todo** en todos desde Inicio | Sí, siempre |
+| Ajustes (salvo permisos) · encender o apagar los módulos de MADRE | Sí |
+| Archivos y servidores | Para ver; se trabajan mejor en la Mac |
+| `#3 EDITAR`, `#4 ACCESO TOTAL`, permisos, llaves, instalar módulos de terceros, olvidar memorias, emparejar otro teléfono | En la Mac |
+
+- **Continuidad.** Lo que dejas en la caja, la conversación y el mensaje donde ibas viajan de un lado al otro. En la Mac aparece *Continuar · proyecto* en la barra; en el teléfono, arriba de Inicio.
+- **Quién lo dijo.** Lo que se escribe desde el teléfono queda en el registro con su origen («desde tu iPhone»).
+- **Teléfonos y redes** en Ajustes › Privacidad › Teléfonos: cada uno con *Olvidar*, y un interruptor que apaga el acceso de todos.
+- **La red** se reconoce por la dirección de hardware de su router. Si MADRE no puede leerla, la red es desconocida y el teléfono no se ofrece ahí.
+
+- **El teléfono entra, no sale nada.** Con un teléfono emparejado, MADRE en tu teléfono escucha en tu Wi-Fi (puerto 4316) solo mientras la Mac está en una red que marcaste de confianza. Acepta únicamente direcciones privadas, el nombre de esta Mac y un teléfono con su llave. Es tráfico de tu red local; nada viaja a internet.
+
+#### Otras líneas del CHANGELOG de 1.0
+
+- **En el teléfono**, cada sala de Salas lleva la misma franja de sus memorias por tipo y cuántas guarda.
+- **En un teléfono la barra cabe**: los íconos que no caben pasan, desde el final de tu orden, a una tecla «Más» (•••) que abre una tarjeta con ellos; Ajustes y el logo siempre quedan a la vista. Mientras la acomodas, la barra se desliza de lado para alcanzar todos sus íconos.
+
 ## 9 · Bitácora
 
 - `2026-10-11` · Probado en Safari de iOS 26: con «Advertencia de conexión no segura» el modo solo HTTPS bloquea el puente (`Failed to navigate to an HTTP URL with HTTPS-only mode enabled`). D-M04, D-M05 y D-M08 resueltas: el teléfono sale de la 1.0 como «Próximamente» y el relevo se construye solo para las Macs del dueño. Arreglos de Safari: módulos que el puente no dejaba pasar, burbujas cortadas por una pista de grid, franja bajo la hora, `:hover` pegado al tocar, la barra de la Mac mientras carga.
@@ -332,3 +375,4 @@ patrones, reescritos sin dependencias:
   de tamaño fijo en pantalla y proporcionales entre sí, un dedo mueve, dos acercan, se dibuja solo
   cuando cambia algo. La ficha sube desde abajo y no ofrece olvidar (D-M03). El núcleo de la memoria ya
   no enfoca su consola al abrirse en el teléfono.
+- `2026-10-12` · El teléfono se oculta de la versión pública hasta que sea estable: solo una copia corrida desde el código fuente (con `.git`) y con `phone.preview` o `PULSE_PHONE=1` lo ofrece. Sin «Próximamente»: donde no se ofrece, ni la barra, ni Ajustes, ni el recorrido lo nombran. Sus textos para el público esperan en el anexo de arriba.

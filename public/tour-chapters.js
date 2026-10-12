@@ -266,22 +266,7 @@ export const CHAPTERS = [
     },
     keys: [[{ es: 'Ordenar la barra en el teléfono', en: 'Order the bar on the phone' }, { es: 'mantener 0,5 s', en: 'hold 0.5 s' }]],
     where: ['room'],
-    // MADRE 1.0 keeps the phone a preview (src/server.mjs, phonePreview): on a Mac without it, this.
-    soon: {
-      lead: { es: 'Próximamente: MADRE en tu teléfono.', en: 'Coming soon: MADRE on your phone.' },
-      points: {
-        es: [
-          'Vas a seguir tus proyectos y hablar con tus agentes desde el teléfono.',
-          'Lo que empieces en uno lo vas a seguir en el otro.',
-          'Cuando llegue, te lo contamos en Novedades.',
-        ],
-        en: [
-          'You will follow your projects and talk to your agents from your phone.',
-          'What you start on one you will carry on on the other.',
-          'When it arrives, What\'s new will tell you.',
-        ],
-      },
-    },
+    // Told only where the phone is offered (src/server.mjs, phonePreview); hidden everywhere else.
   },
   {
     id: 'gestures',

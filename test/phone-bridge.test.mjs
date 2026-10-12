@@ -240,6 +240,15 @@ test('phone · the room: pairing is the Mac\'s, a phone asks up to #2, and what 
     assert.equal((await fetch(`${base}/api/agents/codex/key`, { method: 'POST', headers: phone, body: JSON.stringify({ key: 'sk-x' }) })).status, 403, 'a key was taken through the bridge');
     assert.equal((await fetch(`${base}/api/settings`, { method: 'POST', headers: phone, body: JSON.stringify({ override: { grace: { 3: 30 } } }) })).status, 403, 'a phone changed the key of #3');
     assert.equal((await fetch(`${base}/api/settings`, { method: 'POST', headers: phone, body: JSON.stringify({ room: { delegation: true } }) })).status, 200);
+    // Not in the public MADRE (2026-10-12): only a copy run from source can offer it at all — what
+    // npm installs has no .git — and the pages hide it where it is not offered, «coming soon» included.
+    const [serverCode, appCode, homeCode, pkg] = await Promise.all(['src/server.mjs', 'public/app.js', 'public/salas-mac.js', 'package.json'].map((file) => readFile(join(import.meta.dirname, '..', file), 'utf8')));
+    assert.match(serverCode, /const FROM_SOURCE = existsSync\(new URL\('\.\.\/\.git', import\.meta\.url\)\);/);
+    assert.match(serverCode, /const phonePreview = async \(\) => FROM_SOURCE && \(/);
+    assert.ok(!JSON.parse(pkg).files.some((entry) => entry.includes('.git')), 'the package would carry a .git');
+    assert.match(appCode, /hidden: \(\) => \(state\.phonePreview \? \[\] : \['phone'\]\)/);
+    assert.match(homeCode, /hidden: \(\) => \(data\?\.phonePreview \? \[\] : \['phone'\]\)/);
+    assert.match(appCode, /function drawPhones\(host\) \{\n  if \(state\.device\) return;\n  if \(!state\.phonePreview\) return;/);
     // A preview in MADRE 1.0: until this Mac turns it on, nothing about the phone is offered, no
     // code is made, and the page is told so.
     assert.deepEqual(await fetch(`${base}/api/phone`).then((answer) => answer.json()), { preview: false });
