@@ -5,16 +5,11 @@ import { join } from 'node:path';
 
 const read = (file) => readFile(join(import.meta.dirname, '..', file), 'utf8');
 
-test('first contact: the tour has five stops, each on the part of the room it talks about', async () => {
-  const app = await read('public/app.js');
-  const block = app.slice(app.indexOf('const TOUR_STEPS = ['), app.indexOf('const tour = {'));
-  const targets = [...block.matchAll(/^ {4}target: '([^']+)',$/gm)].map((one) => one[1]);
-  assert.deepEqual(targets, ['#composer', '#mother-button', '#chats-button', '#bar', '#modules-button']);
-  // The keys a stop teaches are said beside it; the platform's own key opens Settings.
-  assert.match(block, /\[`\$\{MOD_KEY\} ,`, t\('Opens Settings\.'\)\]/);
-  assert.match(app, /row\.append\(el\('kbd', 'tour-key', key\), el\('span', 'what', what\)\);/);
-  // One message goes to one agent: the crew works together through a plan, and the tour says so.
-  assert.ok(!/two @|both answer/i.test(block), 'the tour promises that two @ make two agents answer');
+test('first contact: the five-stop tour of 0.7 is gone; the welcome of 1.0 (public/tour.js) is the only one', async () => {
+  const [app, page] = await Promise.all([read('public/app.js'), read('public/index.html')]);
+  assert.ok(!app.includes('TOUR_STEPS') && !/function startTour\(\)/.test(app), 'the old tour still has code');
+  assert.ok(!page.includes('id="tour"'), 'the old tour still has its dialog');
+  assert.match(app, /import \{ startTour as startWelcome \} from '\.\/tour\.js';/);
 });
 
 test('first steps: offered once to a first visit, ticked by doing, never by a «done» key', async () => {

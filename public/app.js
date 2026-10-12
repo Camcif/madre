@@ -9401,7 +9401,7 @@ document.querySelector('#mother-button')?.addEventListener('mouseleave', endHove
 document.querySelector('#mother-button')?.addEventListener('click', endHover);
 
 // Debug surface for tests and for the curious: window.__pulse.trackHold(true, t)
-globalThis.__pulse = { toast: (...args) => toast(...args), jobProgress: (event) => jobProgress(event), nostromoCard: (index = 0) => showNostromoCard(nostromo.nodes[index]), nostromoTick: (now) => nostromoTick(now), roomAsk: (...args) => roomAsk(...args), startTour: () => startTour(), openWhatsNew: () => openWhatsNew(), whatsNew: (version = null) => openWhatsNew(version), showWhatsNew: (...args) => showWhatsNew(...args), openModuleGuide: () => openModuleGuide(), openViewer: (...args) => openViewer(...args), openNostromo: () => openNostromo(), floatModule: (...args) => floatModule(...args), loadVersion: (...args) => loadVersion(...args), trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, moduleGlance, renderModulesDev, runSlashCommand, syncModuleComposer, syncIntentOffer, openIntentsWindow, openSettings, settingsWindow: () => settingsWindow, openCore: (...args) => openCore(...args), get core() { return core; } };
+globalThis.__pulse = { toast: (...args) => toast(...args), jobProgress: (event) => jobProgress(event), nostromoCard: (index = 0) => showNostromoCard(nostromo.nodes[index]), nostromoTick: (now) => nostromoTick(now), roomAsk: (...args) => roomAsk(...args), openWhatsNew: () => openWhatsNew(), whatsNew: (version = null) => openWhatsNew(version), showWhatsNew: (...args) => showWhatsNew(...args), openModuleGuide: () => openModuleGuide(), openViewer: (...args) => openViewer(...args), openNostromo: () => openNostromo(), floatModule: (...args) => floatModule(...args), loadVersion: (...args) => loadVersion(...args), trackHold, armExpendable, disarmExpendable, beginHover, endHover, state, moduleCard, moduleGlance, renderModulesDev, runSlashCommand, syncModuleComposer, syncIntentOffer, openIntentsWindow, openSettings, settingsWindow: () => settingsWindow, openCore: (...args) => openCore(...args), get core() { return core; } };
 
 els.thread.addEventListener('wheel', (event) => trackHold(event.deltaY > 0), { passive: true });
 let touchY = null;
@@ -16492,150 +16492,6 @@ async function forgetFromCard(card, button) {
 }
 
 
-/* ---------- First contact: the five-stop tour. Once on the first visit, again from ? in MU/TH/UR. ---------- */
-
-// First contact: five stops on the room itself. Each one lights the part of the screen it talks
-// about and leaves the rest in the dark, so a person learns where things are and not only what
-// they are called. A stop may carry a short list of keys and what each does: what to press, said
-// once, beside where it is pressed. If a stop's part of the screen is not there to light (the
-// bridge is up, the window is narrow), the card says its piece in the middle instead.
-const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform ?? '') ? '⌘' : 'Ctrl';
-const TOUR_STEPS = [
-  {
-    target: '#composer',
-    title: t('Ask any of your agents'),
-    text: t('The AI agents already on this computer work here together. Write in the box and ask; every reply says who answered, in which mode and what it cost.'),
-    keys: [
-      ['@', t('Who you are talking to. @claude goes straight to Claude.')],
-      ['#1', t('The mode: how far the message may go. It starts at #1, which only reads; #3 and #4 ask for your key.')],
-      ['/', t('Commands, like /module to make a module of your own.')],
-    ],
-  },
-  {
-    target: '#mother-button',
-    title: t('Diagnostics, the console'),
-    text: t('When something fails, the remedy is here: write a symptom, an agent or a word and it says what is going on and how to fix it. What it already noticed in this project carries its mark.'),
-    keys: [
-      ['NOSTROMO', t('The map of what the project remembers, and why.')],
-      ['?', t('This tour again, whenever you want it.')],
-    ],
-  },
-  {
-    target: '#chats-button',
-    title: t('Several conversations at once'),
-    text: t('Each conversation has its own thread and its own box. Open another one beside this, in the right half or as a window: up to three at once, all of them working.'),
-  },
-  {
-    target: '#bar',
-    title: t('Gestures and the way around'),
-    text: t('The project is arranged the way you like it, and a few gestures get you around it.'),
-    keys: [
-      [t('Right-click'), t('On the bar: choose which keys are on it and in which order.')],
-      [t('Click the box'), t('The windows step aside so the conversation is in sight.')],
-      [t('Drag'), t('A window by its header; its edges and corners resize it.')],
-      [`${MOD_KEY} ,`, t('Opens Settings.')],
-      ['Esc', t('Closes the menu that is open.')],
-    ],
-  },
-  {
-    target: '#modules-button',
-    title: t('Modules, optional powers'),
-    text: t('Add what this project needs: GitHub, Git, images, previews of what you build, a local model, a browser, or a module of your own in a single file. Nothing is installed until you press it.'),
-    note: t('Your first steps wait in the bar, and tick themselves as you go. Type STOPALL at any time to halt every agent.'),
-  },
-];
-const tour = {
-  dialog: document.querySelector('#tour'), spot: document.querySelector('#tour-spot'), card: document.querySelector('#tour-card'),
-  count: document.querySelector('#tour-count'), title: document.querySelector('#tour-title'), text: document.querySelector('#tour-text'), note: document.querySelector('#tour-note'),
-  back: document.querySelector('#tour-back'), next: document.querySelector('#tour-next'), skip: document.querySelector('#tour-skip'), index: 0,
-};
-// The part of the screen a stop is about, if it is there to be seen.
-function tourTarget(step) {
-  const node = step.target ? document.querySelector(step.target) : null;
-  if (!node) return null;
-  const box = node.getBoundingClientRect();
-  return box.width > 0 && box.height > 0 ? box : null;
-}
-// Light the target and set the card beside it: under it when there is room, over it when there
-// is not, never off the edge of the window.
-function placeTour() {
-  const step = TOUR_STEPS[tour.index];
-  if (!step || !tour.dialog?.open) return;
-  const box = tourTarget(step);
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const card = tour.card.getBoundingClientRect();
-  const margin = 16;
-  if (!box) {
-    tour.spot.classList.add('none');
-    tour.card.style.left = `${Math.max(margin, (vw - card.width) / 2)}px`;
-    tour.card.style.top = `${Math.max(margin, (vh - card.height) / 2)}px`;
-    return;
-  }
-  const pad = 8;
-  tour.spot.classList.remove('none');
-  Object.assign(tour.spot.style, { left: `${box.left - pad}px`, top: `${box.top - pad}px`, width: `${box.width + pad * 2}px`, height: `${box.height + pad * 2}px` });
-  // Under it, over it, or beside it: the first that leaves the lit part uncovered. Only when none
-  // fits does the card sit over the edge of it, and then from above, where it covers least.
-  const gap = pad + 14;
-  const clampX = (x) => Math.min(vw - card.width - margin, Math.max(margin, x));
-  const clampY = (y) => Math.min(vh - card.height - margin, Math.max(margin, y));
-  const centredX = clampX(box.left + box.width / 2 - card.width / 2);
-  const centredY = clampY(box.top + box.height / 2 - card.height / 2);
-  const places = [
-    { fits: box.bottom + gap + card.height <= vh - margin, left: centredX, top: box.bottom + gap },
-    { fits: box.top - gap - card.height >= margin, left: centredX, top: box.top - gap - card.height },
-    { fits: box.right + gap + card.width <= vw - margin, left: box.right + gap, top: centredY },
-    { fits: box.left - gap - card.width >= margin, left: box.left - gap - card.width, top: centredY },
-  ];
-  // Where it already is, if that still leaves the lit part uncovered and fits the window: a card
-  // that slid on every step put «Next» somewhere else each time, and a quick second click fell on
-  // nothing.
-  const lit = { left: box.left - gap, top: box.top - gap, right: box.right + gap, bottom: box.bottom + gap };
-  const stays = tour.card.style.left && card.left >= margin && card.top >= margin && card.right <= vw - margin && card.bottom <= vh - margin
-    && (card.right <= lit.left || card.left >= lit.right || card.bottom <= lit.top || card.top >= lit.bottom);
-  if (stays) return;
-  const place = places.find((one) => one.fits) ?? { left: centredX, top: Math.max(margin, box.top - gap - card.height) };
-  tour.card.style.left = `${place.left}px`;
-  tour.card.style.top = `${place.top}px`;
-}
-function renderTour() {
-  const step = TOUR_STEPS[tour.index];
-  tour.count.textContent = t('{n} of {total}', { n: tour.index + 1, total: TOUR_STEPS.length });
-  tour.title.textContent = step.title;
-  tour.text.textContent = step.text;
-  tour.note.hidden = !step.note;
-  tour.note.textContent = step.note ?? '';
-  tour.list ??= document.querySelector('#tour-keys');
-  tour.list.replaceChildren();
-  tour.list.hidden = !step.keys;
-  for (const [key, what] of step.keys ?? []) {
-    const row = el('li');
-    row.append(el('kbd', 'tour-key', key), el('span', 'what', what));
-    tour.list.append(row);
-  }
-  tour.skip.textContent = t('Skip');
-  tour.back.textContent = t('Back');
-  tour.back.hidden = tour.index === 0;
-  tour.next.textContent = tour.index === TOUR_STEPS.length - 1 ? t('Start') : t('Next');
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(placeTour); else placeTour();
-}
-function endTour() {
-  try { localStorage.setItem('pulse.tour', 'seen'); } catch { /* no storage */ }
-  if (tour.dialog?.open) tour.dialog.close();
-}
-function startTour() {
-  if (!tour.dialog || typeof tour.dialog.showModal !== 'function') return;
-  tour.index = 0;
-  if (!tour.dialog.open) tour.dialog.showModal();
-  renderTour();
-  tour.next.focus({ preventScroll: true });
-}
-tour.next?.addEventListener('click', () => { if (tour.index >= TOUR_STEPS.length - 1) { endTour(); return; } tour.index += 1; renderTour(); });
-tour.back?.addEventListener('click', () => { tour.index = Math.max(0, tour.index - 1); renderTour(); });
-tour.skip?.addEventListener('click', endTour);
-tour.dialog?.addEventListener('close', () => { try { localStorage.setItem('pulse.tour', 'seen'); } catch { /* no storage */ } });
-window.addEventListener?.('resize', () => { if (tour.dialog?.open) placeTour(); });
 document.querySelector('#tour-button')?.addEventListener('click', () => { document.querySelector('#mother')?.close?.(); stepsResume(); roomTour().openChapters(); });
 function maybeStartTour() {
   // The half on the right of a split window is the same room; the left half already did this.
@@ -16652,7 +16508,9 @@ function maybeStartTour() {
       if (!shown) setTimeout(() => { if (switcher.key && !document.querySelector('dialog[open]')) void roomTour().hint('switch', switcher.key, { title: t('Switch project'), text: t('It takes you to another open project. Its light tells you when one needs you or finishes while you are here.') }); }, 2400);
       return;
     }
-    void maybeShowWhatsNew().then((shown) => { if (!shown) tourIfOwed(); });
+    // The welcome could not be read: the news of this version, if any (the five-stop tour that
+    // stood here before 1.0 is gone with it — WEB-15 of the 1.0 review).
+    void maybeShowWhatsNew();
   });
 }
 // The welcome and its chapters in a project: what «Take me there» does here, and when the bonjour
@@ -16681,11 +16539,6 @@ function roomTour() {
     },
   });
   return roomTourKept;
-}
-function tourIfOwed() {
-  let seen = 'seen';
-  try { seen = localStorage.getItem('pulse.tour'); } catch { seen = 'seen'; }
-  if (seen !== 'seen') setTimeout(startTour, 900);
 }
 
 /* ---------- First touch: what a button is for, the first time it is pressed ---------- */

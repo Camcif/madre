@@ -1482,36 +1482,8 @@ export const ES = {
     'Un proyecto puede tener muchas conversaciones y una sola memoria. Empieza otra para un tema nuevo: todas alimentan el mismo archivo y cualquier agente recuerda lo que se dijo en las demás.',
   'Got it': 'Entendido',
   // Primer contacto: el recorrido sobre la sala, en cinco paradas.
-  'Ask any of your agents': 'Pregúntale a cualquiera de tus agentes',
-  'The AI agents already on this computer work here together. Write in the box and ask; every reply says who answered, in which mode and what it cost.':
-    'Los agentes de IA que ya tienes en esta computadora trabajan aquí juntos. Escribe en la caja y pregunta; cada respuesta dice quién contestó, en qué modo y cuánto costó.',
-  'Who you are talking to. @claude goes straight to Claude.': 'A quién le hablas. @claude va directo a Claude.',
-  'The mode: how far the message may go. It starts at #1, which only reads; #3 and #4 ask for your key.':
-    'El modo: hasta dónde puede llegar el mensaje. Empieza en #1, que solo lee; #3 y #4 te piden tu llave.',
-  'Commands, like /module to make a module of your own.': 'Comandos, como /module para crear un módulo tuyo.',
-  'Diagnostics, the console': 'Diagnóstico, la consola',
-  'When something fails, the remedy is here: write a symptom, an agent or a word and it says what is going on and how to fix it. What it already noticed in this project carries its mark.':
-    'Cuando algo falla, aquí está el remedio: escribe un síntoma, un agente o una palabra y te dice qué pasa y cómo arreglarlo. Lo que ya detectó en este proyecto lleva su marca.',
-  'The map of what the project remembers, and why.': 'El mapa de lo que recuerda el proyecto, y por qué.',
-  'This tour again, whenever you want it.': 'Este recorrido otra vez, cuando quieras.',
-  'Several conversations at once': 'Varias conversaciones a la vez',
-  'Each conversation has its own thread and its own box. Open another one beside this, in the right half or as a window: up to three at once, all of them working.':
-    'Cada conversación tiene su propio hilo y su propia caja. Abre otra junto a esta, en la mitad derecha o como ventana: hasta tres a la vez, y todas siguen trabajando.',
-  'Gestures and the way around': 'Gestos y cómo moverte',
-  'The project is arranged the way you like it, and a few gestures get you around it.': 'El proyecto se acomoda a tu gusto, y unos cuantos gestos te llevan por él.',
   'Right-click': 'Clic derecho',
-  'On the bar: choose which keys are on it and in which order.': 'En la barra: eliges qué botones lleva y en qué orden.',
-  'Click the box': 'Clic en la caja',
-  'The windows step aside so the conversation is in sight.': 'Las ventanas se hacen a un lado para que veas la conversación.',
   'Drag': 'Arrastrar',
-  'A window by its header; its edges and corners resize it.': 'Una ventana por su encabezado; sus bordes y esquinas cambian su tamaño.',
-  'Opens Settings.': 'Abre Ajustes.',
-  'Closes the menu that is open.': 'Cierra el menú que esté abierto.',
-  'Modules, optional powers': 'Módulos, poderes opcionales',
-  'Add what this project needs: GitHub, Git, images, previews of what you build, a local model, a browser, or a module of your own in a single file. Nothing is installed until you press it.':
-    'Agrega lo que este proyecto necesite: GitHub, Git, imágenes, vistas previas de lo que construyes, un modelo local, un navegador, o un módulo tuyo en un solo archivo. Nada se instala hasta que tú lo pidas.',
-  'Your first steps wait in the bar, and tick themselves as you go. Type STOPALL at any time to halt every agent.':
-    'Tus primeros pasos te esperan en la barra y se marcan solos conforme avanzas. Escribe STOPALL en cualquier momento para frenar a todos los agentes.',
   // Primeros pasos: la lista que se marca sola.
   'First steps': 'Primeros pasos',
   'First steps · {done} of {total} done': 'Primeros pasos · {done} de {total} hechos',
@@ -1599,7 +1571,6 @@ export const ES = {
   'Operating system': 'Sistema operativo',
   'Attach': 'Adjuntar',
   'Agent usage': 'Uso del agente',
-  'MADRE tour': 'Recorrido por MADRE',
   'Memory map · memory research': 'Mapa de memoria · investigación de memoria',
   'Memory kinds': 'Clases de memoria',
   'YELLOW DWARF · DECISION': 'ENANA AMARILLA · DECISIÓN',
