@@ -36,10 +36,10 @@ import { isOnline, makePalette, renderReport } from '../src/setup.mjs';
 import { CONDITIONS, PLATFORMS, detectPlatform, diagnose, fixesFor, searchConditions } from '../public/troubleshooting.js';
 import { EXTENSIONS, extensionById, gitToplevel, listExtensions } from '../src/extensions.mjs';
 import { parseArgs } from '../src/cli-args.mjs';
-import { parseDirectives, stripDirectives } from '../src/directives.mjs';
+import { parseDirectives } from '../src/directives.mjs';
 import { discoverModels, isValidModelName, parseCodexDefaultModel, parseCodexModelCache } from '../src/models.mjs';
 import { contentTypeFor, isImage, listDirectory, readServable, resolveInside, resolveReferences, scoreFile, searchFiles, storeAttachment } from '../src/files.mjs';
-import { CAPABILITIES, abilityLine, agentsWith, capabilitySummary, resolveScopes } from '../src/capabilities.mjs';
+import { CAPABILITIES, abilityLine, capabilitySummary, resolveScopes } from '../src/capabilities.mjs';
 import { createLease, diffSnapshots, leaseInstructions, snapshot } from '../src/lease.mjs';
 import { diagnoseGeminiStderr, escapeGeminiMentions, geminiLeasePolicy } from '../src/adapters/gemini.mjs';
 import { leaseConfig, openCodeConfig } from '../src/adapters/opencode.mjs';
@@ -1410,7 +1410,6 @@ test('parses delegation directives from an agent reply', () => {
   const capped = parseDirectives('```pulse\n@a: 1\n@b: 2\n@c: 3\n```', { self: 'x', available: ['a', 'b', 'c'], maxSteps: 2 });
   assert.equal(capped.steps.length, 2);
   assert.match(capped.ignored[0].reason, /capped at 2/);
-  assert.equal(stripDirectives(text), 'Here is my take.');
 });
 
 test('an orchestrating agent puts the others to work in order, then closes; delegates cannot delegate', async () => {
@@ -1870,7 +1869,6 @@ test('capabilities: verified matrix, routing helper', () => {
   assert.equal(capabilitySummary('claude').imageGen, false);
   assert.equal(capabilitySummary('gemini').imageGen, false);
   assert.ok(Object.values(CAPABILITIES).every((caps) => caps.read && caps.imageIn && caps.write));
-  assert.deepEqual(agentsWith('imageGen', ['codex', 'claude', 'gemini', 'opencode']), ['codex']);
   assert.equal(capabilitySummary('unknown').write, false);
   assert.match(capabilitySummary('codex').detail.imageIn.how, /-i <file>/);
 });
@@ -2775,7 +2773,7 @@ test('standing lease: an agent opted in creates files on every turn, and a creat
 });
 
 // ---------- real limits: Codex rollouts, Claude usage endpoint, expired windows ----------
-import { interpretWindow, readClaudeUsage, readCodexRateLimits, windowLabel } from '../src/quota-sources.mjs';
+import { interpretWindow, readClaudeUsage, readCodexRateLimits } from '../src/quota-sources.mjs';
 
 test('readCodexRateLimits takes the newest populated rate_limits and empties a window whose reset has passed', async () => {
   const home = await mkdtemp(join(tmpdir(), 'pulse-codex-home-'));
@@ -2797,8 +2795,6 @@ test('readCodexRateLimits takes the newest populated rate_limits and empties a w
     assert.equal(report.usedPercent, 79, 'the ring shows the worst live window');
     assert.equal(report.observedAt, '2026-09-16T21:20:48Z');
     assert.equal(await readCodexRateLimits({ home: join(home, 'nope'), now }), null);
-    assert.equal(windowLabel(300), '5h');
-    assert.equal(windowLabel(10080), '7d');
     assert.deepEqual(interpretWindow({ usedPercent: 50, resetAt: new Date(now + 1000).toISOString() }, now).stale, false);
   } finally {
     await rm(home, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });

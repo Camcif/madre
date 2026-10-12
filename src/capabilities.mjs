@@ -72,10 +72,6 @@ export function capabilitySummary(agentId) {
 }
 
 // Agents that have a capability, for routing hints in the delegation help.
-export function agentsWith(capability, agentIds) {
-  return agentIds.filter((id) => Boolean(capabilityOf(id)[capability]));
-}
-
 // Permission modes, chosen per message in the composer and capped per agent
 // in Settings › Permissions. The human's mode is the ceiling of any plan it starts.
 //   #0 GHOST     off the record: nothing enters the log or anyone's context

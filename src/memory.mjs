@@ -10,7 +10,7 @@
 //             match meaning and not only words. Filled in the background.
 // GHOST events never reach the ledger, so they never reach here either.
 
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { messageEntry } from './conversation-context.mjs';
 import { cosine, toBlob, fromBlob } from './embeddings.mjs';

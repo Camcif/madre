@@ -151,11 +151,3 @@ export function defaultQuotaSources({ env = process.env } = {}) {
   return sources;
 }
 
-// Human-readable window label for the room: "5h" / "7d" / "300m".
-export function windowLabel(minutes) {
-  if (!Number.isFinite(Number(minutes))) return 'window';
-  const m = Number(minutes);
-  if (m % 1440 === 0) return `${m / 1440}d`;
-  if (m % 60 === 0) return `${m / 60}h`;
-  return `${m}m`;
-}

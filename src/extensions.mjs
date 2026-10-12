@@ -6,8 +6,6 @@ export { gitToplevel, findOnPath } from './modules/helpers.mjs';
 // server and the tests have always used, now answered by one file per module.
 export const EXTENSIONS = MODULES;
 export const AHP = moduleById('ahp');
-export const IMAGE_STUDIO = moduleById('image-studio');
-export const GIT_PULSE = moduleById('git-pulse');
 export const ASH = moduleById('ash');
 export const RIPLEY = moduleById('ripley');
 export const OLLAMA = moduleById('ollama');

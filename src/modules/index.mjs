@@ -4,7 +4,7 @@
 // (defineModule is applied here), a module already built with defineModule, or a function
 // receiving { defineModule } and returning either. Agents cannot write those folders: .madre/
 // is a forbidden zone, and ~/.pulse lives outside every project.
-import { readdir, readFile, writeFile, mkdir, unlink, mkdtemp, rm, access } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, unlink, mkdtemp, rm } from 'node:fs/promises';
 import { translate } from '../i18n.mjs';
 import { join, basename, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';

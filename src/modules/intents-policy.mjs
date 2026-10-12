@@ -23,10 +23,9 @@
 import { EFFORTS } from '../models.mjs';
 import { archiveQuestion } from '../../public/routing.js';
 
-// The three tiers a rule may speak in, lightest first. They name rungs both ladders share, so a
-// rule never proposes an extreme: `minimal`, `xhigh` and `max` are reached only by measurement or
-// by the human choosing them.
-export const TIERS = ['light', 'standard', 'deep'];
+// The three tiers a rule may speak in, lightest first (light, standard, deep). They name rungs both
+// ladders share, so a rule never proposes an extreme: `minimal`, `xhigh` and `max` are reached only
+// by measurement or by the human choosing them.
 export const TIER_EFFORT = { light: 'low', standard: 'medium', deep: 'high' };
 
 // What each kind of request asks of a model before anything else is known about it. `archive` is
@@ -41,7 +40,6 @@ export const INTENT_TIER = {
   diagnose: 'deep',
   design: 'deep',
 };
-export const INTENTS = ['archive', ...Object.keys(INTENT_TIER)];
 
 export const effortLadder = (agentId) => EFFORTS[agentId] ?? null;
 

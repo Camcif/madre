@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, realpath, writeFile, mkdir, rm, cp, rename, access, stat } from 'node:fs/promises';
+import { readFile, realpath, writeFile, mkdir, cp, rename, access, stat } from 'node:fs/promises';
 import { existsSync, openSync, rmSync } from 'node:fs';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { probePort, framable } from './ports.mjs';
@@ -57,13 +57,12 @@ export function injectRipleyBridge(body) {
 import { QuotaMonitor } from './quota-monitor.mjs';
 import { defaultQuotaSources } from './quota-sources.mjs';
 import { Room } from './room.mjs';
-import { applyConfigToEnv, loadConfig } from './config.mjs';
 import { changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
 import { applyKey, keyPlanFor } from './credentials.mjs';
 import { forgetSecret, summary as vaultSummary, writeSecret } from './vault.mjs';
-import { loadConfig as readConfig, updateConfig } from './config.mjs';
+import { applyConfigToEnv, loadConfig as readConfig, updateConfig } from './config.mjs';
 import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
 import { checkForUpdate, detectInstall, updateCommand, releaseUrl, applyCommand, fetchCommand } from './updates.mjs';
 import { bootWhatsNew, markSeen, newestNotes, notesFor, whatsNew } from './whats-new.mjs';
@@ -73,7 +72,7 @@ import { CHAPTERS, HINTS, TOUR_VERSION, cameBefore, changeTour, readTour, recove
 // Where a person reads the module contract, in the language the room is speaking.
 const SDK_PAGE = { es: 'https://madre.run/sdk/', en: 'https://madre.run/en/sdk/' };
 import { moduleUpdate } from './modules/updates.mjs';
-import { adoptStrays, chatIndex, chatLedger, createChat, deleteChat, isChatId, listChats, openChat as openChatIndex, projectFloor, renameChat, touchChat, MAIN_CHAT } from './chats.mjs';
+import { adoptStrays, chatIndex, chatLedger, createChat, deleteChat, isChatId, listChats, openChat as openChatIndex, projectFloor, renameChat, touchChat } from './chats.mjs';
 import { spawn } from 'node:child_process';
 import { totalmem } from 'node:os';
 import { discoverModels } from './models.mjs';
@@ -198,7 +197,7 @@ export async function createPulseServer({
   // an update has news to show them, or this is a first install with nothing to catch up on.
   const novelty = await bootWhatsNew({ root, version: PACKAGE.version }).catch(() => ({ returning: false }));
   // ~/.pulse/config.json fills in whatever the environment did not set.
-  applyConfigToEnv(await loadConfig(root));
+  applyConfigToEnv(await readConfig(root));
   // What language the screens speak. The prompt the agents read is not one of them, and the
   // environment wins over the file, as it does for every other setting here.
   setRoomLanguage(process.env.PULSE_LANGUAGE ?? (await readConfig(root)).language);
@@ -3154,21 +3153,20 @@ export async function createPulseServer({
     // off() also ends the streams of pages watching a conversation held open beside.
     for (const held of parked.values()) held.off();
     parked.clear();
-    let result;
     shutdown.then(() => {
       void broadcastPending().then(() => chatWrites).then(() => {
         unsubscribe();
         unsubscribeSentinel();
         unsubscribeEyecat();
         unsubscribeLive();
-    unsubscribeGhost();
+        unsubscribeGhost();
         for (const client of clients.keys()) client.end();
         clients.clear();
         // The memory file closes last, once nothing else writes to it; WAL and shm go with it.
         try { memory?.close(); } catch { /* already closed */ }
         void outbound.drain();
         releaseOpen();
-        result = nativeClose(callback);
+        nativeClose(callback);
         server.closeIdleConnections?.();
       });
     });

@@ -132,7 +132,6 @@ export function declareDestinations(moduleId, reaches = []) {
   }
 }
 export function clearDeclaredDestinations() { declaredById.clear(); }
-export const declaredDestinations = () => [...declaredById.values()];
 
 // Which declaration a URL belongs to. An address nobody declared is said to be exactly that.
 export function classify(rawUrl, { reportHost = null } = {}) {

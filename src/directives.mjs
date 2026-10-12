@@ -66,8 +66,3 @@ export function parseDirectives(text, { self, available = [], maxSteps = 4 } = {
   }
   return { steps, closing, ignored };
 }
-
-// The reply text without the plan block, for readers who only want the prose.
-export function stripDirectives(text) {
-  return String(text ?? '').replace(/```pulse\s*\n[\s\S]*?```/gi, '').trim();
-}

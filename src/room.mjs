@@ -16,7 +16,6 @@ import { coldNotes, coldReading } from './cold.mjs';
 import { questionsFor } from './asking.mjs';
 import { coverageExam, consistencyExam, matchExam, exchanges, MATCH_SAMPLE, saysFor } from './exam.mjs';
 import { MADRE_ADAPTER, MADRE_AGENT_ID } from './adapters/madre.mjs';
-import { verdictFor } from './verdict.mjs';
 import { ControlDesk } from './room/control.mjs';
 import { RunDesk } from './room/runs.mjs';
 import { Attachments } from './room/attachments.mjs';
