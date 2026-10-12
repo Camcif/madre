@@ -5955,7 +5955,7 @@ function saveTune(name, value) {
     if (value === TUNES[name].value) localStorage.removeItem(TUNES[name].key);
     else localStorage.setItem(TUNES[name].key, String(value));
   } catch { /* the choice lasts as long as the page */ }
-  applyTune(name, value);
+  applyTune(name, value);  pushLooks();
 }
 const LOOK_WORDS = {
   accent: { madre: () => t('Madre green'), mountain: () => t('Mountain green'), caribbean: () => t('Caribbean blue'), phantom: () => t('Phantom purple'), malbec: () => t('Malbec red'), dijon: () => t('Dijon yellow'), pacific: () => t('Pacific blue'), love: () => t('Love pink'), sierra: () => t('Sierra blue'), pitahaya: () => 'Pitahaya', papaya: () => 'Papaya', agave: () => 'Agave', dinamo: () => t('Dynamo black'), marina: () => t('Marina blue'), pulso: () => t('Pulse green'), leal: () => t('Loyal orange'), dulce: () => t('Sweet yellow') },
@@ -5987,6 +5987,53 @@ window.addEventListener?.('storage', (event) => {
   for (const [name, tune] of Object.entries(TUNES)) if (event.key === tune.key) applyTune(name, event.newValue === null ? tune.value : Number(event.newValue));
 });
 
+// The looks are the person's, not this page's (src/looks.mjs, 2026-10-12): Home and every project
+// are different origins, so what this browser kept here no other page saw, and a dark Home opened
+// light projects. The browser's copy paints first; ~/.pulse/looks.json is read when the page opens
+// and whenever it comes back into view, and written when a choice changes. Home does the same
+// (salas-mac.js, pullLooks): the two are twins, because a new shared file would not reach the
+// phone's bridge.
+const SHARED_LOOKS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text'];
+let booted = false;
+let looksPush = 0;
+function pushLooks() {
+  if (SPLIT_CHAT) return;
+  clearTimeout(looksPush);
+  looksPush = setTimeout(() => {
+    const patch = {};
+    try { for (const key of SHARED_LOOKS) patch[key] = localStorage.getItem(key); } catch { return; }
+    void fetch('/api/looks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => null);
+  }, 250);
+}
+async function pullLooks() {
+  let answer = null;
+  try { answer = await fetch('/api/looks', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)); } catch { return; }
+  if (!answer?.looks) return;
+  try {
+    // Nothing kept yet: the first page that has a choice of its own hands it to the others.
+    if (!answer.saved) { if (SHARED_LOOKS.some((key) => localStorage.getItem(key) !== null)) pushLooks(); return; }
+    let changed = false;
+    for (const key of SHARED_LOOKS) {
+      const value = answer.looks[key] ?? null;
+      if (localStorage.getItem(key) === value) continue;
+      if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value);
+      changed = true;
+    }
+    if (changed) reapplyLooks();
+  } catch { /* no storage: this page keeps the look it has */ }
+}
+function reapplyLooks() {
+  let mode = 'auto';
+  try { mode = localStorage.getItem('pulse.theme') ?? 'auto'; } catch { /* no storage */ }
+  themeMode = ['auto', 'light', 'dark'].includes(mode) ? mode : 'auto';
+  applyTheme(themeMode);
+  for (const name of Object.keys(LOOKS)) applyLook(name, readLook(name));
+  for (const name of Object.keys(TUNES)) applyTune(name, readTune(name));
+  if (booted) { renderAgents(); renderPicker(); syncSettingsCards(); }
+}
+void pullLooks();
+document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') void pullLooks(); });
+
 const customButton = document.querySelector('#custom-button');
 const customWindow = { node: document.querySelector('#custom'), body: document.querySelector('#custom-body'), box: null, ready: false, draft: null };
 try { customWindow.box = JSON.parse(localStorage.getItem('pulse.customWindow') ?? 'null'); } catch { /* no storage */ }
@@ -5995,7 +6042,7 @@ function saveLook(name, value) {
     if (value === LOOKS[name].values[0]) localStorage.removeItem(LOOKS[name].key);
     else localStorage.setItem(LOOKS[name].key, value);
   } catch { /* the choice lasts as long as the page */ }
-  applyLook(name, value);
+  applyLook(name, value);  pushLooks();
 }
 // What is picked on the sheet is a draft: the preview wears it, the room does not, until ACCEPT.
 // Closing the window drops it. The language is part of the draft too, and accepting a new one
@@ -6017,6 +6064,7 @@ function applyLooksNow() {
   if (draft.theme && draft.theme !== themeMode) {
     themeMode = draft.theme;
     try { localStorage.setItem('pulse.theme', themeMode); } catch { /* the choice lasts as long as the page */ }
+    pushLooks();
     applyTheme(themeMode);
     renderAgents();
     renderPicker();
@@ -6032,6 +6080,7 @@ function acceptCustom() {
   if (draft.theme && draft.theme !== themeMode) {
     themeMode = draft.theme;
     try { localStorage.setItem('pulse.theme', themeMode); } catch { /* the choice lasts as long as the page */ }
+    pushLooks();
     applyTheme(themeMode);
     renderAgents();
     renderPicker();
@@ -9734,6 +9783,7 @@ function boot() {
   if (typeof ResizeObserver === 'function' && els.composer) new ResizeObserver(placeToast).observe(els.composer);
   window.addEventListener?.('resize', placeToast);
   connectStream();
+  booted = true;
 }
 
 // RELOAD, with grace (2026-10-10): the room softens behind a curtain of its own ground, and in the
@@ -17544,6 +17594,14 @@ function barLayout() {
 // padding: Safari counts that as no overflow at all, and AJUSTES ended up against the edge.
 function barSpills(bar) {
   if (bar.scrollWidth > bar.clientWidth + 1) return true;
+  // The bar may fit while its left end does not (2026-10-12): the left end gives way before the
+  // keys do, and the project's name, which never shrinks, was cut to «/ a». A name cut short is a
+  // spill too, so keys go into «More» until the name reads whole.
+  // Measured by where the name ends, not by the left end's scroll width: the live light's label
+  // hangs past it on hover and would read as a spill that never ends.
+  const left = bar.querySelector?.(':scope > .bar-left');
+  const name = left?.querySelector?.('#project');
+  if (left && name?.getClientRects?.().length && name.getBoundingClientRect().right > left.getBoundingClientRect().right + 0.5) return true;
   if (typeof getComputedStyle !== 'function') return false;
   const end = bar.getBoundingClientRect().right - (parseFloat(getComputedStyle(bar).paddingRight) || 0);
   for (const node of bar.children ?? []) {

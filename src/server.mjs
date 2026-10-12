@@ -97,6 +97,7 @@ import { currentNetwork, lanAddresses } from './bridge/network.mjs';
 import { PHONE_MAX_MODE, writtenMode } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
+import { changeLooks, readLooks } from './looks.mjs';
 import { askRoom, associateProject, ensureSalasProject, forgetProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
 import { parseWork, recentWork, WORK_SYSTEM, workPrompt } from './lobby-work.mjs';
 import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, recallContract, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
@@ -2441,6 +2442,13 @@ export async function createPulseServer({
       // PRIVACY: the terms live in config.json only; the ledger records counts, never words.
       // Which language MADRE speaks. The page keeps its own copy so the first paint needs no
       // round trip; this is the durable one, shared by every browser on this machine.
+      // The looks every page shares (src/looks.mjs): Home and each project are different origins,
+      // so the browser alone kept a choice for one page only.
+      if (request.method === 'GET' && url.pathname === '/api/looks') return sendJson(response, 200, await readLooks(root));
+      if (request.method === 'POST' && url.pathname === '/api/looks') {
+        const answer = await changeLooks(root, await body(request).catch(() => null));
+        return sendJson(response, answer.error ? 400 : 200, answer);
+      }
       if (request.method === 'POST' && url.pathname === '/api/language') {
         const payload = await body(request).catch(() => ({}));
         const language = payload.language === 'en' ? 'en' : 'es';

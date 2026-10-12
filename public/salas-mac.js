@@ -144,6 +144,7 @@ function saveLooks({ theme, accent, wallpaper, style, bubbles, text }) {
   } catch { /* the choice lasts as long as the page */ }
   applyLooks();
   settingsSheet?.paintLooks();
+  pushLooks();
 }
 function saveHome(name, value) {
   const spec = HOME_LOOKS[name];
@@ -156,9 +157,42 @@ function saveHome(name, value) {
 // the hand (app.js, saveTune).
 function saveTune(name, value) {
   try { if (value === TUNES[name].value) localStorage.removeItem(TUNES[name].key); else localStorage.setItem(TUNES[name].key, String(value)); } catch { /* the choice lasts as long as the page */ }
-  applyLooks();
+  applyLooks();  pushLooks();
 }
 window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', applyLooks);
+// The looks are the person's, not Home's (src/looks.mjs, 2026-10-12): every project is another
+// origin, so what this browser kept here no project saw. ~/.pulse/looks.json is read when Home
+// opens and whenever it comes back into view, and written when a choice changes. The twin of
+// app.js's pullLooks; Home's own card choices (HOME_LOOKS) stay here.
+const SHARED_LOOKS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text'];
+let looksPush = 0;
+function pushLooks() {
+  clearTimeout(looksPush);
+  looksPush = setTimeout(() => {
+    const patch = {};
+    try { for (const key of SHARED_LOOKS) patch[key] = localStorage.getItem(key); } catch { return; }
+    void fetch('/api/looks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => null);
+  }, 250);
+}
+async function pullLooks() {
+  let answer = null;
+  try { answer = await fetch('/api/looks', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)); } catch { return; }
+  if (!answer?.looks) return;
+  try {
+    // Nothing kept yet: the first page that has a choice of its own hands it to the others.
+    if (!answer.saved) { if (SHARED_LOOKS.some((key) => localStorage.getItem(key) !== null)) pushLooks(); return; }
+    let changed = false;
+    for (const key of SHARED_LOOKS) {
+      const value = answer.looks[key] ?? null;
+      if (localStorage.getItem(key) === value) continue;
+      if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value);
+      changed = true;
+    }
+    if (changed) { applyLooks(); settingsSheet?.paintLooks(); }
+  } catch { /* no storage: Home keeps the look it has */ }
+}
+void pullLooks();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void pullLooks(); });
 window.addEventListener('storage', (event) => { if (LOOK_KEYS.includes(event.key)) { applyLooks(); settingsSheet?.paintLooks(); } });
 
 const el = (tag, className, text) => {
