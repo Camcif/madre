@@ -6,6 +6,8 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 1.0.1 · Sin publicar
 
+- **El README abre con el logo oficial de MADRE** y la frase de 1.0, en lugar del banner con la firma «MU/TH/UR 6000 · INTERFACE 2037».
+
 ## 1.0.0 · 2026-10-12
 
 <p align="center"><a href="https://github.com/jossuealcacao-exe/madre/blob/main/docs/media/1.0/madre-1-0.mp4"><img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/media/1.0/madre-1-0-video.webp" alt="Ver MADRE 1.0 en 90 segundos" width="100%"></a></p>

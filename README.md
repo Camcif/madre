@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://madre.run"><img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/madre-banner.svg" alt="MADRE · MU/TH/UR 6000 · INTERFACE 2037" width="100%"></a>
+  <a href="https://madre.run"><img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/madre-banner.png" alt="MADRE · Todas tus IAs en un mismo chat · Codex, Claude Code, Gemini CLI y OpenCode" width="100%"></a>
 </p>
 
 <p align="center">
@@ -9,10 +9,6 @@
   <img alt="dependencies" src="https://img.shields.io/badge/dependencias-0-9bff66?style=flat-square&labelColor=050605">
   <img alt="license" src="https://img.shields.io/badge/licencia-Apache--2.0-9bff66?style=flat-square&labelColor=050605">
 </p>
-
-```
-MU/TH/UR 6000 · INTERFACE 2037 · MADRE IS READY
-```
 
 <br>
 
