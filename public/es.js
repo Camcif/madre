@@ -4213,6 +4213,7 @@ export const ES = {
   'Images': 'Imágenes',
   'Continuity': 'Continuidad',
   'That is not a change to the tour.': 'Eso no es un cambio del recorrido.',
+  'On an iPhone, if Safari does not open it or says the connection is not secure: in Settings › Apps › Safari, under Privacy & Security, turn off the warning for not secure connections. For now MADRE reaches your phone over your Wi-Fi without https.': 'En iPhone, si Safari no lo abre o dice que la conexión no es segura: en Ajustes › Apps › Safari, en Privacidad y seguridad, apaga la advertencia de conexión no segura. Por ahora MADRE llega a tu teléfono por tu Wi-Fi sin https.',
   // El recorrido de 1.0 (public/tour.js).
   'The tour is open in another tab': 'El recorrido está abierto en otra pestaña',
   'It goes on there. If you closed that tab, go on here.': 'Sigue allá. Si cerraste esa pestaña, síguelo aquí.',

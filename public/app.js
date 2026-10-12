@@ -18079,6 +18079,9 @@ function phoneDraw({ busy = false, error = null } = {}) {
     link.title = t('The address in the code');
     body.append(link);
     say(t('If your Mac asks whether to allow incoming connections, choose Allow.'), 'phone-say phone-quiet');
+    // Safari on an iPhone with its warning for not secure connections on is in HTTPS-only mode and
+    // refuses http: the bridge is http over the Wi-Fi for now (docs/MOBILE.md, phase 1).
+    say(t('On an iPhone, if Safari does not open it or says the connection is not secure: in Settings › Apps › Safari, under Privacy & Security, turn off the warning for not secure connections. For now MADRE reaches your phone over your Wi-Fi without https.'), 'phone-say phone-quiet');
   } else {
     say(t('The code expired.'));
     body.append(sxButton(t('Make another code'), () => void phoneInvite(), { tone: 'primary' }));
