@@ -9542,6 +9542,10 @@ adoptLanguage(initial.language);
 // Behind the bridge this page is on a phone (docs/MOBILE.md): it says so, offers the way back to
 // the list of rooms, and leaves the Mac's keys to the Mac.
 state.device = initial.device ?? null;
+// MADRE on your phone is a preview in 1.0 (src/server.mjs, phonePreview): on a Mac that has not
+// turned it on, its key is not on the bar and its place in Settings says «Coming soon».
+state.phonePreview = Boolean(initial.phonePreview);
+if (!state.phonePreview && !state.device) document.querySelector('#phone-button')?.remove();
 // The room of SALAS (docs/MACROVERSO.md, phase 3d): the one whose project is MADRE's own folder,
 // where the super agent lives and the Macroverso is a key of the bar.
 state.salas = Boolean(initial.salas);
@@ -16569,6 +16573,7 @@ function roomTour() {
     phone: Boolean(state.device || SPLIT_CHAT),
     device: Boolean(state.device) && !SPLIT_CHAT,
     pillSlot: SPLIT_CHAT ? null : document.querySelector('#tour-pill-slot'),
+    soon: () => (state.phonePreview ? [] : ['phone']),
     ready: () => [...state.agents.values()].some((agent) => agent.ready) && !state.running.size && !state.plansRunning.size,
     onChange: (kept) => { welcomeKept = kept; stepsPaint(); },
     go: {
@@ -18104,6 +18109,12 @@ window.addEventListener?.('resize', () => { if (phoneUI.card && !phoneUI.card.hi
 // AJUSTES › Privacy › Phones: which phones may reach this Mac, on which networks.
 function drawPhones(host) {
   if (state.device) return;
+  if (!state.phonePreview) {
+    const soon = sxBlock(host, t('Phones'), null);
+    state.settingsTargets.phones = soon;
+    sxRow(soon, t('MADRE on your phone'), t('Follow your projects and talk to your agents from your phone.'), el('span', 'sx-soon', t('Coming soon')));
+    return;
+  }
   const block = sxBlock(host, t('Phones'), t('The phones that can reach your projects over your Wi-Fi. Their keys live only on this Mac: of each phone it keeps a fingerprint, never the key.'));
   state.settingsTargets.phones = block;
   const paint = (view) => {

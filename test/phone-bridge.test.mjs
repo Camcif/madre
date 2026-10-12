@@ -10,6 +10,7 @@ import { phonePolicy, PHONE_MAX_MODE } from '../src/bridge/policy.mjs';
 import { createBridge, ownHosts, parseCookies, roomsOnThisMac } from '../src/bridge/server.mjs';
 import { readHandoff, writeHandoff } from '../src/bridge/handoff.mjs';
 import { createPulseServer } from '../src/server.mjs';
+import { updateConfig } from '../src/config.mjs';
 
 const publicDirectory = join(import.meta.dirname, '..', 'public');
 const scratch = (prefix) => mkdtemp(join(tmpdir(), prefix));
@@ -239,7 +240,15 @@ test('phone · the room: pairing is the Mac\'s, a phone asks up to #2, and what 
     assert.equal((await fetch(`${base}/api/agents/codex/key`, { method: 'POST', headers: phone, body: JSON.stringify({ key: 'sk-x' }) })).status, 403, 'a key was taken through the bridge');
     assert.equal((await fetch(`${base}/api/settings`, { method: 'POST', headers: phone, body: JSON.stringify({ override: { grace: { 3: 30 } } }) })).status, 403, 'a phone changed the key of #3');
     assert.equal((await fetch(`${base}/api/settings`, { method: 'POST', headers: phone, body: JSON.stringify({ room: { delegation: true } }) })).status, 200);
+    // A preview in MADRE 1.0: until this Mac turns it on, nothing about the phone is offered, no
+    // code is made, and the page is told so.
+    assert.deepEqual(await fetch(`${base}/api/phone`).then((answer) => answer.json()), { preview: false });
+    assert.equal((await fetch(`${base}/api/phone/invite`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: '{}' })).status, 404, 'a code was made with the phone off');
+    assert.equal((await fetch(`${base}/api/state`).then((answer) => answer.json())).phonePreview, false);
+    await updateConfig(root, { phone: { preview: true } });
+    assert.equal((await fetch(`${base}/api/state`).then((answer) => answer.json())).phonePreview, true);
     const mac = await fetch(`${base}/api/phone`).then((answer) => answer.json());
+    assert.equal(mac.preview, true);
     assert.equal(typeof mac.available, 'boolean');
     assert.ok(Array.isArray(mac.devices));
 

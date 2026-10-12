@@ -11,7 +11,8 @@ import { readStore } from './devices.mjs';
 import { currentNetwork } from './network.mjs';
 import { BRIDGE_PORT, createBridge } from './server.mjs';
 
-export function hostBridge({ root, publicDirectory, port = BRIDGE_PORT, every = 15_000, network = currentNetwork, listenHost = '0.0.0.0', log = (line) => console.error(line) }) {
+// `allowed`: whether this Mac offers the phone at all (MADRE 1.0 keeps it a preview, src/server.mjs).
+export function hostBridge({ root, publicDirectory, port = BRIDGE_PORT, every = 15_000, network = currentNetwork, listenHost = '0.0.0.0', allowed = async () => true, log = (line) => console.error(line) }) {
   let server = null;
   let running = null;
   let timer = null;
@@ -34,7 +35,7 @@ export function hostBridge({ root, publicDirectory, port = BRIDGE_PORT, every = 
     const store = await readStore(root);
     const now = Date.now();
     const waiting = store.invites.some((one) => !one.redeemedAt && one.expiresAt > now);
-    const wanted = store.enabled && (store.devices.length > 0 || waiting);
+    const wanted = (await allowed()) && store.enabled && (store.devices.length > 0 || waiting);
     const here = wanted ? await network().catch(() => null) : null;
     const trusted = Boolean(here && store.networks.some((one) => one.id === here.id));
     last = { network: here, trusted, wanted };

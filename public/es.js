@@ -4215,6 +4215,9 @@ export const ES = {
   'That is not a change to the tour.': 'Eso no es un cambio del recorrido.',
   'On an iPhone, if Safari does not open it or says the connection is not secure: in Settings › Apps › Safari, under Privacy & Security, turn off the warning for not secure connections. For now MADRE reaches your phone over your Wi-Fi without https.': 'En iPhone, si Safari no lo abre o dice que la conexión no es segura: en Ajustes › Apps › Safari, en Privacidad y seguridad, apaga la advertencia de conexión no segura. Por ahora MADRE llega a tu teléfono por tu Wi-Fi sin https.',
   // El recorrido de 1.0 (public/tour.js).
+  'MADRE on your phone is coming soon.': 'MADRE en tu teléfono llega pronto.',
+  'Follow your projects and talk to your agents from your phone.': 'Sigue tus proyectos y habla con tus agentes desde el teléfono.',
+  'Coming soon': 'Próximamente',
   'The tour is open in another tab': 'El recorrido está abierto en otra pestaña',
   'It goes on there. If you closed that tab, go on here.': 'Sigue allá. Si cerraste esa pestaña, síguelo aquí.',
   'Go on here': 'Seguir aquí',

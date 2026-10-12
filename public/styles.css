@@ -8540,3 +8540,4 @@ dialog.tour-bonjour::backdrop { background: transparent; }
   .ts-search em { width: 54%; }
 }
 .tour-pill-slot:not([hidden]) { display: inline-flex; align-items: center; }
+.sx-soon { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-2); background: color-mix(in srgb, var(--text) 8%, transparent); }

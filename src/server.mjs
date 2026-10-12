@@ -220,8 +220,13 @@ export async function createPulseServer({
   let openPort = null;
   // Where the project is, too (src/salas.mjs): a room that is closed can be opened again from Salas.
   const markOpen = async (port) => { openPort = port; await mkdir(roomDir, { recursive: true }).catch(() => {}); await writeFile(openMark, JSON.stringify({ pid: process.pid, port, at: new Date().toISOString(), project: basename(canonicalProjectRoot), version: PACKAGE.version ?? null })).catch(() => {}); await markProject(roomDir, canonicalProjectRoot).catch(() => {}); };
-  // The phone (docs/MOBILE.md): this room offers to host the bridge once it is open; see bridge/host.mjs.
-  const phone = hostBridge({ root, publicDirectory });
+  // The phone (docs/MOBILE.md) is a preview in MADRE 1.0 (2026-10-11): Safari in HTTPS-only mode
+  // refuses the bridge's http, and the relay that fixes it is not open to everyone yet. It is offered
+  // only on a Mac that turned it on — `phone.preview` in config.json, or PULSE_PHONE=1 — and
+  // everywhere else the page says «Coming soon» and the bridge never opens.
+  const phonePreview = async () => process.env.PULSE_PHONE === '1' || (await readConfig(root).catch(() => ({}))).phone?.preview === true;
+  // This room offers to host the bridge once it is open; see bridge/host.mjs.
+  const phone = hostBridge({ root, publicDirectory, allowed: phonePreview });
   async function phoneView() {
     const store = await readStore(root);
     const here = await currentNetwork().catch(() => null);
@@ -1408,7 +1413,11 @@ export async function createPulseServer({
       // reaches them.
       if (url.pathname === '/api/phone' || url.pathname.startsWith('/api/phone/')) {
         if (viaPhone) return sendJson(response, 403, { error: t('This is done on the Mac.') });
-        if (request.method === 'GET' && url.pathname === '/api/phone') return sendJson(response, 200, await phoneView());
+        if (!(await phonePreview())) {
+          if (request.method === 'GET' && url.pathname === '/api/phone') return sendJson(response, 200, { preview: false });
+          return sendJson(response, 404, { error: t('MADRE on your phone is coming soon.') });
+        }
+        if (request.method === 'GET' && url.pathname === '/api/phone') return sendJson(response, 200, { preview: true, ...(await phoneView()) });
         const payload = request.method === 'POST' ? await body(request).catch(() => ({})) : {};
         if (request.method === 'POST' && url.pathname === '/api/phone/trust') {
           const here = await currentNetwork().catch(() => null);
@@ -1503,7 +1512,7 @@ export async function createPulseServer({
         // the room of Salas, whether or not that room exists yet (phase 3d).
         const salas = salasRoomId(root);
         const enlaces = await Promise.all(activeContracts(await readConfig(root), { salas }).map(async (contract) => ({ ...contract, traffic: await linkTraffic(servingRooms(contract).map((id) => join(root, 'rooms', id)), contract) })));
-        return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null, salas, enlaces });
+        return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null, salas, enlaces, phonePreview: await phonePreview() });
       }
       // The open rooms, each in one line (its glance: who works, who waits, its last conversation;
       // never its census or the links), for the room's switcher (2026-10-10), asked every few
@@ -1902,6 +1911,8 @@ export async function createPulseServer({
           // Behind the bridge, the page is on a phone and knows it. On the Mac it learns whether a
           // phone is paired, so it keeps its place for the phone only when there is one.
           device: viaPhone ? { kind: phoneKind } : null,
+          // Whether this Mac offers the phone (a preview in 1.0); behind the bridge, it does.
+          phonePreview: viaPhone ? true : await phonePreview(),
           // The room of Salas knows it is: true only there, false in every other room.
           salas: salasRoom,
           room: basename(roomDir),

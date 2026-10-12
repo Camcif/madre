@@ -276,12 +276,15 @@ patrones, reescritos sin dependencias:
 | **D-M01** | La regla decía que MADRE no guarda credenciales propias (`src/credentials.mjs:3-6`). Emparejar exige al menos una llave propia. Se enmienda: MADRE no guarda credenciales de proveedores; la llave de sus teléfonos vive solo en `~/.pulse/credentials/`, solo para el dueño, y de cada teléfono se guarda la huella, nunca el token (`AGENTS.md`). En Windows `0o600` no protege nada (WIN-014): la función no se ofrece allí hasta que ese id se cierre. | Fase 1 | **RESUELTA · 2026-10-07** |
 | **D-M02** | La fase 1 sale como avance, limitada a las redes que la persona marca como de confianza. | Fase 1 | **RESUELTA · 2026-10-07** |
 | **D-M03** | La política de la sección 4. El 2026-10-07, ya con el teléfono en la mano, se abrieron Ajustes (salvo permisos), los módulos de MADRE, conceder un modo hasta #2 y DESHACER. #3 desde el teléfono pide la frase, que se comprueba con `crypto.subtle`; en la fase 1 (`http`) el navegador no lo ofrece, así que #3 desde el teléfono llega con la fase 2. | Fase 1 | **RESUELTA · 2026-10-07** |
-| **D-M04** | Costos y límites del relevo: plan de Cloudflare, tope por buzón, caducidad. | Fase 2 | **ABIERTA** |
-| **D-M05** | ¿`app.madre.run` como subdominio del sitio actual, o proyecto aparte en Cloudflare? | Fase 2 | **ABIERTA** |
+| **D-M04** | Costos y límites del relevo: plan de Cloudflare, tope por buzón, caducidad. | Fase 2 | **RESUELTA · 2026-10-11** · Por ahora solo para las Macs del dueño, en su cuenta. El modelo para el público (gratis con tope, de pago fuera de casa o un relevo propio por persona) se decide cuando haya más usuarios. Referencia: una hora de teléfono activo cuesta unos 450 GB-s y unas 125 peticiones de Durable Object (unos 0.006 USD en plan de pago); un buzón sin teléfono hiberna y no cuesta. |
+| **D-M05** | ¿`app.madre.run` como subdominio del sitio actual, o proyecto aparte en Cloudflare? | Fase 2 | **RESUELTA · 2026-10-11** · Un Worker propio, `madre-relay`, en una carpeta del repo de la landing, que sirve `app.madre.run` con la app y el relevo en el mismo dominio. La landing no se toca. |
 | **D-M06** | Número de versión de cada fase. | Cierre de cada fase | **ABIERTA** |
+| **D-M08** | ¿El teléfono sale en MADRE 1.0? Safari con su advertencia de conexiones no seguras está en modo solo HTTPS y rechaza el `http` del puente. | 1.0 | **RESUELTA · 2026-10-11** · No: queda como vista previa. En una Mac sin `phone.preview` en `config.json` (o `PULSE_PHONE=1`) el puente no abre, `/api/phone` no empareja, la tecla no está en la barra, y Ajustes y el recorrido dicen «Próximamente». La Mac del dueño la tiene encendida. |
 | **D-M07** | ¿Mantener la Mac despierta mientras un agente trabaja y hay un teléfono conectado? Lanza un proceso del sistema; revisar `docs/WINDOWS.md` antes. | Fase 2 | **ABIERTA** |
 
 ## 9 · Bitácora
+
+- `2026-10-11` · Probado en Safari de iOS 26: con «Advertencia de conexión no segura» el modo solo HTTPS bloquea el puente (`Failed to navigate to an HTTP URL with HTTPS-only mode enabled`). D-M04, D-M05 y D-M08 resueltas: el teléfono sale de la 1.0 como «Próximamente» y el relevo se construye solo para las Macs del dueño. Arreglos de Safari: módulos que el puente no dejaba pasar, burbujas cortadas por una pista de grid, franja bajo la hora, `:hover` pegado al tocar, la barra de la Mac mientras carga.
 
 - `2026-10-07` · Plan escrito. Revisión de Apex OS para reutilizar patrones. Fases 1 y 2 sin
   empezar.
