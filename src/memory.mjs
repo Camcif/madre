@@ -623,9 +623,13 @@ export class RoomMemory {
     if (!row) return null;
     this.#db.exec('BEGIN');
     try {
-      this.#db.prepare(`UPDATE memories SET refuted_by = NULL, zone = '${HOLD}' WHERE refuted_by = ?`).run(row.id);
+      // What it took out stands again by the rule, the human's verdict included (LOG-10 of the
+      // 1.0 review): written straight to HOLD, a note the human had marked bad travelled again.
+      const freed = this.#db.prepare('SELECT id FROM memories WHERE refuted_by = ?').all(row.id).map((one) => one.id);
+      this.#db.prepare('UPDATE memories SET refuted_by = NULL WHERE refuted_by = ?').run(row.id);
       this.#db.prepare('DELETE FROM memories WHERE id = ?').run(row.id);
       this.#db.prepare('DELETE FROM memory_vectors WHERE id = ?').run(row.id);
+      this.#restand(freed);
       this.#db.exec('COMMIT');
       return { id: row.id, text: row.text, restored: row.contradicts ?? null };
     } catch (error) {
@@ -679,8 +683,11 @@ export class RoomMemory {
       this.#db.prepare('DELETE FROM recalls WHERE memory_id = ?').run(id);
       // A note quarantined by this one comes back: with the aberration gone there is nothing
       // holding it out of circulation, and a memory must never be lost to a pointer at nothing.
-      this.#db.prepare(`UPDATE memories SET refuted_by = NULL, zone = '${HOLD}' WHERE refuted_by = ?`).run(id);
+      // Where it stands is decided by the rule, the human's verdict included (LOG-10).
+      const freed = this.#db.prepare('SELECT id FROM memories WHERE refuted_by = ?').all(id).map((one) => one.id);
+      this.#db.prepare('UPDATE memories SET refuted_by = NULL WHERE refuted_by = ?').run(id);
       this.#db.prepare('DELETE FROM memories WHERE id = ?').run(id);
+      this.#restand(freed);
       this.#db.exec('COMMIT');
     } catch (error) { this.#db.exec('ROLLBACK'); throw error; }
     return row;

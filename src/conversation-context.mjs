@@ -41,12 +41,15 @@ export function buildConversationContext(events, { excludeMessageId, maxChars = 
     for (let i = from; i < messages.length; i += 1) used += messages[i].sender.length + messages[i].role.length + messages[i].text.length + 4;
     return used;
   };
-  let start = 0;
+  // -1 is «no anchor held»: an anchor on the very first message is index 0, and `!start` read it
+  // as none, so the window was cut early and the human's first request was the first to go
+  // (LOG-15 of the 1.0 review).
+  let start = -1;
   if (Number.isInteger(anchor)) {
     const held = messages.findIndex((message) => message.sequence >= anchor);
     if (held >= 0 && weigh(held) <= budget) start = held;
   }
-  if (!start || weigh(start) > budget) {
+  if (start < 0 || weigh(start) > budget) {
     // Let go of a chunk and then hold: back off until the window sits well under its budget, so
     // there is room for many turns of new words before it has to move again.
     start = messages.length;

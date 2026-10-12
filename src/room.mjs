@@ -11,7 +11,7 @@ import { UsageSentinel } from './usage-sentinel.mjs';
 import { BLOCK_SOURCES, buildPrompt, promptParts, sparedChars } from './room/prompt.mjs';
 import { turnCost, observedRate } from './room/economy.mjs';
 import { contextFor } from './room/context.mjs';
-import { VERDICTS } from './memory.mjs';
+import { VERDICTS, travels } from './memory.mjs';
 import { coldNotes, coldReading } from './cold.mjs';
 import { questionsFor } from './asking.mjs';
 import { coverageExam, consistencyExam, matchExam, exchanges, MATCH_SAMPLE, saysFor } from './exam.mjs';
@@ -82,7 +82,9 @@ export const looksLikeCreation = (text) => !NOT_YET.test(String(text ?? '')) && 
 // a strip that says "decided" cannot carry something the room has since established is false.
 export function settledDecisions(notes = [], { limit = 3 } = {}) {
   return notes
-    .filter((note) => note && !note.refutedBy)
+    // Only what still travels: a note the human judged bad, or one set aside, is not «decided»
+    // (LOG-10 of the 1.0 review; `travels` is the archive's own rule, verdicts included).
+    .filter((note) => note && !note.refutedBy && travels(note))
     .slice(0, limit)
     .map((note) => ({ id: note.id, text: note.text, created: note.created, agent: note.agent, fromSequence: note.fromSequence }));
 }
@@ -99,7 +101,7 @@ export function settledDecisions(notes = [], { limit = 3 } = {}) {
 export function openQuestions(notes = [], { dismissed = [], limit = 3 } = {}) {
   const skip = new Set(dismissed ?? []);
   return notes
-    .filter((note) => note && note.kind === 'question' && !note.refutedBy && !skip.has(`open:${note.id}`))
+    .filter((note) => note && note.kind === 'question' && !note.refutedBy && travels(note) && !skip.has(`open:${note.id}`))
     .sort((a, b) => (Number(b.recalled ?? 0) - Number(a.recalled ?? 0)) || (b.id - a.id))
     .slice(0, limit)
     .map((note) => ({ id: note.id, text: note.text, carried: Number(note.recalled ?? 0) }));
@@ -128,6 +130,7 @@ export class Room {
   #escalation;             // room/escalation: plan steps waiting for the human
   #ghost = new GhostLedger();
   #liveListeners = new Set();
+  #quotaSaid = new Map();     // agent + source -> the last reading written to the record
   #memoryServer;           // MCP descriptor handed to every turn so the agent can query the memory itself
   #mother = null;          // MotherChannel: her coded words to the crew
   #shuttingDown = false;
@@ -285,7 +288,12 @@ export class Room {
     const scopes = this.scopesFor(step.agent);
     const enabled = Object.fromEntries(SCOPES.map((scope) => [scope, scopes[scope].enabled && scopes[scope].wired]));
     const lease = await this.#projectLease({ leaseId: randomUUID(), messageId: parentMessageId });
-    lease.scopes = decision.decision === 'plan' ? Object.fromEntries(SCOPES.map((scope) => [scope, true])) : enabled;
+    // The turn reads its scopes from the ceiling, as every lease does (#runTurn); a lease granted
+    // here had none, so every scope arrived off — no images — while the room had announced them on
+    // (LOG-05 of the 1.0 review). What the human granted is the ceiling; the agent's own switches
+    // still decide below it.
+    lease.scopeCeiling = { write: true, imageGen: true, web: true };
+    lease.scopes = enabled;
     await this.#emit('lease.granted', {
       escalated: decision.decision,
       leaseId: lease.leaseId,
@@ -754,7 +762,17 @@ export class Room {
       observedAt: observedAt ?? undefined,
       official: true,
     };
-    await this.#emit('quota.updated', report);
+    // Written to the record only when it says something new (LOG-12 of the 1.0 review): the poll
+    // asks every minute, and an unchanged reading still became a durable event — some 1,440 a day
+    // per project, each spending a number of the project's count and making every write read a
+    // longer file. An unchanged one goes to whoever is watching, and nowhere else.
+    const said = JSON.stringify([Math.round(report.usedPercent * 10), report.resetAt ?? null, Boolean(report.stale), report.windows ?? null]);
+    const key = `${agent}\n${source}`;
+    if (this.#quotaSaid.get(key) === said) this.#say('quota.updated', report);
+    else {
+      this.#quotaSaid.set(key, said);
+      await this.#emit('quota.updated', report);
+    }
     return this.reportLimit(report);
   }
 

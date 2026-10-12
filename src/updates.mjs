@@ -10,12 +10,33 @@ import { dirname } from 'node:path';
 export const REGISTRY = 'https://registry.npmjs.org';
 export const UPDATE_TTL_MS = 24 * 60 * 60 * 1000;
 
-const parse = (version) => String(version ?? '').trim().replace(/^v/, '').split(/[.+-]/).slice(0, 3).map((part) => Number.parseInt(part, 10) || 0);
+// A version read as semver reads it: three numbers, then the pre-release, if any; build metadata
+// (after +) never counts.
+const parse = (version) => {
+  const text = String(version ?? '').trim().replace(/^v/, '').split('+')[0];
+  const dash = text.indexOf('-');
+  const core = (dash >= 0 ? text.slice(0, dash) : text).split('.').slice(0, 3).map((part) => Number.parseInt(part, 10) || 0);
+  while (core.length < 3) core.push(0);
+  return { core, pre: dash >= 0 ? text.slice(dash + 1).split('.').filter(Boolean) : [] };
+};
 
-// -1 when a < b, 0 when equal, 1 when a > b. Pre-release tags are ignored: a room compares releases.
+// -1 when a < b, 0 when equal, 1 when a > b, with semver's precedence for pre-releases (2026-10-12,
+// LOG-16): `1.1.0-alpha.1` comes before `1.1.0`, and `alpha.2` after `alpha.1`. They were read as
+// equal, so whoever ran an alpha was never told the release was out — and the Windows port (1.1)
+// ships its alphas and betas this way.
 export function compareVersions(a, b) {
   const [x, y] = [parse(a), parse(b)];
-  for (let i = 0; i < 3; i += 1) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+  for (let i = 0; i < 3; i += 1) if (x.core[i] !== y.core[i]) return x.core[i] < y.core[i] ? -1 : 1;
+  if (!x.pre.length || !y.pre.length) return x.pre.length === y.pre.length ? 0 : x.pre.length ? -1 : 1;
+  for (let i = 0; i < Math.max(x.pre.length, y.pre.length); i += 1) {
+    const [p, q] = [x.pre[i], y.pre[i]];
+    if (p === undefined || q === undefined) return p === undefined ? -1 : 1;
+    if (p === q) continue;
+    const [pn, qn] = [/^\d+$/.test(p), /^\d+$/.test(q)];
+    if (pn && qn) return Number(p) < Number(q) ? -1 : 1;
+    if (pn !== qn) return pn ? -1 : 1;
+    return p < q ? -1 : 1;
+  }
   return 0;
 }
 

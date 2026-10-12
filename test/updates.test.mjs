@@ -9,7 +9,12 @@ test('updates: versions compare as releases, the launch mode picks the command, 
   assert.equal(compareVersions('0.3.0', '0.3.1'), -1);
   assert.equal(compareVersions('0.3.10', '0.3.9'), 1);
   assert.equal(compareVersions('v1.0.0', '1.0.0'), 0);
-  assert.equal(compareVersions('0.3.1-beta.1', '0.3.1'), 0, 'pre-release tags do not count');
+  // Pre-releases go before their release, in semver's order (LOG-16): an alpha is told the release.
+  assert.equal(compareVersions('0.3.1-beta.1', '0.3.1'), -1);
+  assert.equal(compareVersions('1.1.0-alpha.2', '1.1.0-alpha.10'), -1);
+  assert.equal(compareVersions('1.1.0-alpha.9', '1.1.0-beta.1'), -1);
+  assert.equal(compareVersions('1.1.0-rc.1', '1.1.0-rc.1'), 0);
+  assert.equal(compareVersions('1.0.0+build.7', '1.0.0'), 0, 'build metadata does not count');
   assert.equal(detectInstall({ script: '/Users/x/.npm/_npx/abc/node_modules/@jossuealcala/madre/bin/madre.mjs', projectRoot: '/Users/x/amethyst' }), 'npx');
   assert.equal(detectInstall({ script: '/Users/x/amethyst/node_modules/@jossuealcala/madre/bin/madre.mjs', projectRoot: '/Users/x/amethyst' }), 'project');
   assert.equal(detectInstall({ script: '/opt/homebrew/lib/node_modules/@jossuealcala/madre/bin/madre.mjs', projectRoot: '/Users/x/amethyst' }), 'global');

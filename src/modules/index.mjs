@@ -212,7 +212,15 @@ export function moduleCommands() {
 // that forgets to declare, or declares wrongly, cannot widen its own permission by doing so: a
 // server whose every tool sends is dropped whole.
 export async function toolsForTurn(ctx, turn) {
-  const lists = await Promise.all(MODULES.filter((module) => module.toolsForTurn).map((module) => module.toolsForTurn(ctx, turn)));
+  // Each module on its own (LOG-17 of the 1.0 review): one that threw took every module's tools
+  // out of the turn with it, Playwright and GitHub and the links included.
+  const offering = MODULES.filter((module) => module.toolsForTurn);
+  const settled = await Promise.allSettled(offering.map(async (module) => module.toolsForTurn(ctx, turn)));
+  const lists = settled.map((outcome, index) => {
+    if (outcome.status === 'fulfilled') return outcome.value ?? [];
+    console.error(`MADRE module ${offering[index].id ?? '?'} handed no tools: ${outcome.reason?.message ?? outcome.reason}`);
+    return [];
+  });
   const airlock = Number(turn?.mode) === 4;
   const servers = [];
   for (const server of lists.flat()) {
