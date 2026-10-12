@@ -324,7 +324,9 @@ test('enlaces · the module file is the MCP server when it is run: it answers to
   child.stdin.end();
   const code = await done;
   assert.equal(code, 0, `the server did not end cleanly: ${err}`);
-  const replies = out.trim().split('\n').map((line) => JSON.parse(line));
+  // The server answers calls as they finish, not as they came (CI of 1.0.0 saw 4 before 3): JSON-RPC
+  // pairs them by id, and so does this.
+  const replies = out.trim().split('\n').map((line) => JSON.parse(line)).sort((a, b) => a.id - b.id);
   assert.deepEqual(replies.map((reply) => reply.id), [1, 2, 3, 4]);
   assert.equal(replies[0].result.serverInfo.name, SERVER_NAME);
   assert.deepEqual(replies[1].result.tools.map((tool) => tool.name), ENLACE_TOOLS);

@@ -47,7 +47,8 @@ test('split: a conversation held beside the open one has its own state, stream a
   const base = `http://127.0.0.1:${server.address().port}`;
   const post = (path, payload = {}) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   const get = (path) => fetch(`${base}${path}`).then((response) => response.json());
-  const until = async (check, what) => { for (let i = 0; i < 300; i += 1) { if (await check()) return; await new Promise((resolve) => setTimeout(resolve, 10)); } assert.fail(`never happened: ${what}`); };
+  // Up to ten seconds: three were not enough for the macOS machines of CI (1.0.0).
+  const until = async (check, what) => { for (let i = 0; i < 1000; i += 1) { if (await check()) return; await new Promise((resolve) => setTimeout(resolve, 10)); } assert.fail(`never happened: ${what}`); };
   const said = (events, text) => events.some((event) => event.type === 'message.created' && event.payload?.text === text);
   const streams = [];
   try {
