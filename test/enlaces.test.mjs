@@ -157,11 +157,14 @@ test('enlaces · the room of Salas never serves, orders need it at one end, and 
   const signed = await signContract(state, raw, { salas, designation: '  GUMBALL ' });
   assert.equal(signed.orders.allowed, true);
   // Without orders no designation is asked; a room this Mac does not know says so with its code.
-  assert.equal((await signContract(state, { rooms: { a, b: salas }, direction: 'a→b', kinds: ['fact'] }, { salas })).orders.allowed, false);
+  const noOrders = await signContract(state, { rooms: { a, b: salas }, direction: 'a→b', kinds: ['fact'] }, { salas });
+  assert.equal(noOrders.orders.allowed, false);
   await assert.rejects(signContract(state, { rooms: { a, b: 'nowhere-0123456789abcdef' }, direction: 'a→b', kinds: ['fact'] }, { salas }), { code: 'UNKNOWN_ROOM' });
   await assert.rejects(signContract(state, { rooms: { a: salas, b }, direction: 'both', kinds: ['fact'] }, { salas }), /never serves/);
   // The rooms may be handed in as `knownRooms` lists them, names included, or as bare ids (3b).
   const rooms = [{ id: a, name: 'Phobos' }, { id: salas, name: 'salas' }];
+  // Two projects are connected once (2026-10-11): the pair is freed before it is signed again.
+  await revokeContract(state, noOrders.id);
   await assert.rejects(signContract(state, { rooms: { a: salas, b: a }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true } }, { salas, rooms, designation: 'gumball' }), { code: 'DESIGNATION' });
   assert.equal((await signContract(state, { rooms: { a: salas, b: a }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true } }, { salas, rooms, designation: 'PHOBOS' })).rooms.b, a);
   assert.equal((await signContract(state, { rooms: { a, b }, direction: 'both', kinds: ['fact'] }, { salas, rooms: [a, b] })).direction, 'both');
@@ -444,19 +447,23 @@ test('enlaces · the room that serves holds every lock, and hands over only what
     assert.equal(new URL(calls[0].url).searchParams.get('limit'), '20', 'the asking side already holds to the ceiling');
     assert.ok(!calls[0].url.includes(key), 'the key travelled in the URL');
 
-    // Expired: a link that lapses while the rooms are open is gone the moment it does.
+    // Expired: a link that lapses while the rooms are open is gone the moment it does. (The pair
+    // is connected once, so the fresh one is revoked first.)
+    await revokeContract(state, fresh.id);
     const brief = await signContract(state, { rooms: { a: idA, b: idB }, direction: 'both', kinds: ['fact'], expires: new Date(Date.now() + 250).toISOString() });
     assert.equal((await ask({ contract: brief.id, asking: idB })).status, 200);
     await new Promise((resolve) => setTimeout(resolve, 400));
     assert.equal((await ask({ contract: brief.id, asking: idB })).status, 404, 'an expired link still served');
 
-    // Sealed by CODE000: the archive answers nobody, links included.
+    // Sealed by CODE000: the archive answers nobody, links included. (A link in force for it: the
+    // brief one lapsed, so the pair is free again.)
+    const standing = await signContract(state, { rooms: { a: idB, b: idA }, direction: 'both', kinds: ['decision'] });
     const zero = await json('POST', portA, '/api/mother/code000', { designation: basename(projectA), strikes: 9 });
     assert.equal(zero.status, 200);
-    const sealed = await ask({ contract: fresh.id, asking: idB });
+    const sealed = await ask({ contract: standing.id, asking: idB });
     assert.equal(sealed.status, 423);
     assert.match((await sealed.json()).error, /CODE000\. THE ARCHIVE IS SEALED/);
-    assert.deepEqual(await askEnlace({ port: portA, contract: fresh, asking: idB, key }), { refused: (await (await ask({ contract: fresh.id, asking: idB })).json()).error, status: 423 });
+    assert.deepEqual(await askEnlace({ port: portA, contract: standing, asking: idB, key }), { refused: (await (await ask({ contract: standing.id, asking: idB })).json()).error, status: 423 });
   } finally {
     await close(b.server);
     await close(a.server);

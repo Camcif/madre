@@ -17,7 +17,7 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { appendFile, chmod, link, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { loadConfig, updateConfig } from './config.mjs';
+import { withConfig } from './config.mjs';
 import { RECALLED_ZONES, STANDING_KINDS } from './memory.mjs';
 import { knownRooms } from './salas.mjs';
 
@@ -228,18 +228,48 @@ export async function signContract(stateRoot, raw, { now = new Date(), rooms = n
     const name = String(known.get(ordered).name ?? ordered);
     if (typeof designation !== 'string' || designation.trim().toLowerCase() !== name.toLowerCase()) fail('UNABLE TO COMPUTE. UNABLE TO CLARIFY.', 'DESIGNATION');
   }
-  await updateConfig(stateRoot, { enlaces: { [contract.id]: contract } });
+  // Two projects are connected once (2026-10-11): while one connection between them is in force,
+  // whichever way it goes, no other is signed. Checked and written in one step (2026-10-12): checked
+  // before the lock, two signatures at once both passed and both stood.
+  const pair = [contract.rooms.a, contract.rooms.b].sort().join('\n');
+  await withConfig(stateRoot, (config) => {
+    if (activeContracts(config, { now, salas }).some((one) => [one.rooms.a, one.rooms.b].sort().join('\n') === pair)) fail('These two are already connected. To change it, revoke it in Connections and make a new one.', 'ALREADY');
+    config.enlaces = config.enlaces && typeof config.enlaces === 'object' && !Array.isArray(config.enlaces) ? config.enlaces : {};
+    config.enlaces[contract.id] = contract;
+    return config;
+  });
   return contract;
 }
 
 // Revoking stamps the moment and keeps the contract: a link that was revoked is a fact of the
 // record, and the id never comes back (a new signature gets a new nonce).
+// Only an id that is one: `__proto__` and its kind wrote junk into the shared file (INI-06).
 export async function revokeContract(stateRoot, id, { now = new Date() } = {}) {
-  const current = (await loadConfig(stateRoot)).enlaces?.[id];
-  if (!current || typeof current !== 'object') return null;
-  const revoked = { ...current, id, revoked: current.revoked ?? new Date(now).toISOString() };
-  await updateConfig(stateRoot, { enlaces: { [id]: revoked } });
+  if (typeof id !== 'string' || !ID.test(id)) return null;
+  let revoked = null;
+  await withConfig(stateRoot, (config) => {
+    const current = config.enlaces && Object.hasOwn(config.enlaces, id) ? config.enlaces[id] : null;
+    if (!current || typeof current !== 'object') return null;
+    revoked = { ...current, id, revoked: current.revoked ?? new Date(now).toISOString() };
+    config.enlaces[id] = revoked;
+    return config;
+  });
   return revoked;
+}
+
+// «Include always» on a link, ticked or cleared: only that field, and only on a link still in
+// force, read and written in one step — written from a copy read before, it crossed a revocation
+// and put the revoked link back in force (INI-02).
+export async function recallContract(stateRoot, id, recall, { now = new Date(), salas = null } = {}) {
+  if (typeof id !== 'string' || !ID.test(id)) return null;
+  let changed = null;
+  await withConfig(stateRoot, (config) => {
+    if (!activeContracts(config, { now, salas }).some((one) => one.id === id)) return null;
+    config.enlaces[id] = { ...config.enlaces[id], recall: recall === true };
+    changed = activeContracts(config, { now, salas }).find((one) => one.id === id) ?? null;
+    return config;
+  });
+  return changed;
 }
 
 /* ---------- the key of the channel ---------- */

@@ -99,7 +99,7 @@ import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
 import { askRoom, associateProject, ensureSalasProject, forgetProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
 import { parseWork, recentWork, WORK_SYSTEM, workPrompt } from './lobby-work.mjs';
-import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
+import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, recallContract, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(sourceDirectory, '..', 'public');
@@ -1852,13 +1852,7 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         const rooms = await knownRooms(root);
         for (const id of [payload.a, payload.b]) if (!rooms.some((one) => one.id === id)) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
-        // Two projects are connected once (2026-10-11): while one connection between them is in
-        // force, whichever way it goes, no other is signed — the wizard in Home says the same.
-        // To change it, it is revoked and signed again.
-        const pair = [String(payload.a), String(payload.b)].sort().join('\n');
-        if (activeContracts(await readConfig(root), { salas: salasRoomId(root) }).some((one) => [one.rooms.a, one.rooms.b].sort().join('\n') === pair)) {
-          return sendJson(response, 409, { error: t('These two are already connected. To change it, revoke it in Connections and make a new one.') });
-        }
+        // Two projects are connected once: signContract checks it under the lock (src/enlaces.mjs).
         let contract;
         try {
           // BISHOP signs only from the room's own process (no Origin: never a page), and the contract
@@ -1867,6 +1861,7 @@ export async function createPulseServer({
           contract = await signContract(root, { rooms: { a: payload.a, b: payload.b }, direction: payload.direction, kinds: payload.kinds, expires: payload.expires ?? null, orders: payload.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, signed, recall: payload.recall === true && !signed }, { rooms, salas: salasRoomId(root), designation: payload.designation ?? null });
         } catch (error) {
           if (error.code === 'DESIGNATION') return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
+          if (error.code === 'ALREADY') return sendJson(response, 409, { error: t(error.message) });
           return sendJson(response, error.code === 'UNKNOWN_ROOM' ? 404 : 422, { error: t(error.message) });
         }
         await tellRooms('enlace.signed', contract, rooms);
@@ -1879,11 +1874,9 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         if (request.headers.origin === undefined) return sendJson(response, 403, { error: t('This is changed by you, from Home.') });
         if (typeof payload.recall !== 'boolean') return sendJson(response, 422, { error: t('recall is on or off.') });
-        const id = String(payload.id ?? '');
-        const contract = activeContracts(await readConfig(root), { salas: salasRoomId(root) }).find((one) => one.id === id);
+        const contract = await recallContract(root, String(payload.id ?? ''), payload.recall, { salas: salasRoomId(root) });
         if (!contract) return sendJson(response, 404, { error: NO_SUCH_LINK });
-        await updateConfig(root, { enlaces: { [id]: { ...contract, recall: payload.recall } } });
-        return sendJson(response, 200, { contract: { ...contract, recall: payload.recall } });
+        return sendJson(response, 200, { contract });
       }
       if (request.method === 'POST' && url.pathname === '/api/salas/enlaces/revoke') {
         const payload = await body(request).catch(() => ({}));

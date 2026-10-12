@@ -12,8 +12,9 @@
 // another port has been asked already. Nothing here touches the network; the two links are opened
 // by the person, in their browser.
 
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { oneAtATime, writeWhole } from './json-file.mjs';
 
 const FILE = 'review-ask.json';
 const DAY = 24 * 60 * 60 * 1000;
@@ -46,11 +47,7 @@ export async function readAsk(root) {
 }
 
 async function writeAsk(root, state) {
-  await mkdir(root, { recursive: true });
-  const file = join(root, FILE);
-  const draft = `${file}.${process.pid}.tmp`;
-  await writeFile(draft, `${JSON.stringify(state, null, 2)}\n`);
-  await rename(draft, file);
+  await writeWhole(join(root, FILE), `${JSON.stringify(state, null, 2)}\n`);
 }
 
 // The moment that is due now, or null: the latest one reached and not shown yet, unless the person
@@ -67,7 +64,11 @@ export function dueMoment(state, now = Date.now()) {
 // minute. Answers which moment is due, if any.
 // `quietSince`: a moment that asks for quiet — the day of the bonjour (src/tour.mjs) — keeps every
 // ask away for QUIET_MS after it, as an ask itself would. The minutes still count.
-export async function tickAsk(root, now = Date.now(), { quietSince = null } = {}) {
+// One change at a time (src/json-file.mjs): every page in view ticks, from every project.
+export function tickAsk(root, now = Date.now(), options = {}) {
+  return oneAtATime(join(root, FILE), () => tick(root, now, options));
+}
+async function tick(root, now, { quietSince = null } = {}) {
   const state = await readAsk(root);
   const at = new Date(now).toISOString();
   if (!state.first) state.first = at;
@@ -83,7 +84,10 @@ export async function tickAsk(root, now = Date.now(), { quietSince = null } = {}
 
 // The person answered the moment they were asked at. Every moment reached by then counts as shown,
 // so an earlier one never comes after a later one; any answer but «not now» ends the asking.
-export async function answerAsk(root, { moment, answer }, now = Date.now()) {
+export function answerAsk(root, said, now = Date.now()) {
+  return oneAtATime(join(root, FILE), () => recordAnswer(root, said, now));
+}
+async function recordAnswer(root, { moment, answer }, now) {
   if (!ASK_ANSWERS.includes(answer)) return { error: 'answer' };
   if (!ASK_MOMENTS.some(({ id }) => id === moment)) return { error: 'moment' };
   const state = await readAsk(root);

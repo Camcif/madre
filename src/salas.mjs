@@ -11,9 +11,10 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { closeSync, openSync, realpathSync } from 'node:fs';
-import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, stat } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { oneAtATime, writeWhole } from './json-file.mjs';
 
 const MADRE_BIN = fileURLToPath(new URL('../bin/madre.mjs', import.meta.url));
 
@@ -89,9 +90,7 @@ export function projectRootFor({ command, named = true, project, cwd, home, stat
 export async function markProject(roomDir, projectRoot, { now = new Date() } = {}) {
   await mkdir(roomDir, { recursive: true });
   const file = join(roomDir, 'project.json');
-  const draft = `${file}.${process.pid}.tmp`;
-  await writeFile(draft, `${JSON.stringify({ root: projectRoot, name: basename(projectRoot), lastOpened: now.toISOString() })}\n`);
-  await rename(draft, file);
+  await oneAtATime(file, () => writeWhole(file, `${JSON.stringify({ root: projectRoot, name: basename(projectRoot), lastOpened: now.toISOString() })}\n`));
 }
 
 // ---- The lobby: adding projects (2026-10-10). A browser cannot hand MADRE the path of a folder,
@@ -178,10 +177,11 @@ export async function associateProject({ root, home, stateRoot, now = new Date()
   const roomDir = join(stateRoot, 'rooms', id);
   await mkdir(roomDir, { recursive: true });
   const file = join(roomDir, 'project.json');
-  const before = await readJson(file);
-  const draft = `${file}.${process.pid}.tmp`;
-  await writeFile(draft, `${JSON.stringify({ root: folder, name: basename(folder), lastOpened: before?.lastOpened ?? null, added: before?.added ?? now.toISOString() })}\n`);
-  await rename(draft, file);
+  const before = await oneAtATime(file, async () => {
+    const was = await readJson(file);
+    await writeWhole(file, `${JSON.stringify({ root: folder, name: basename(folder), lastOpened: was?.lastOpened ?? null, added: was?.added ?? now.toISOString() })}\n`);
+    return was;
+  });
   return { id, name: basename(folder), root: folder, already: Boolean(before) };
 }
 

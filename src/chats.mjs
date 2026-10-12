@@ -15,9 +15,10 @@
 //
 // Nothing here starts a room or reads a ledger. It keeps the list.
 
-import { readFile, writeFile, mkdir, rm, readdir, open, stat } from 'node:fs/promises';
+import { readFile, mkdir, rm, readdir, open, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { oneAtATime, writeWhole } from './json-file.mjs';
 
 export const MAIN_CHAT = 'main';
 export const CHAT_TITLE_MAX = 80;
@@ -38,11 +39,14 @@ async function readIndex(roomDir) {
   return null;
 }
 
+// Written whole, one change at a time (src/json-file.mjs): a rename, a new conversation and a
+// message arriving read and wrote the list at once, and the last one wrote over the others
+// (LOG-11 of the 1.0 review); and a write cut halfway left a list nobody could read.
 async function writeIndex(roomDir, index) {
-  await mkdir(roomDir, { recursive: true }).catch(() => {});
-  await writeFile(join(roomDir, FILE), JSON.stringify(index, null, 2));
+  await writeWhole(join(roomDir, FILE), JSON.stringify(index, null, 2));
   return index;
 }
+const indexTurn = (roomDir, work) => oneAtATime(join(roomDir, FILE), work);
 
 // The list, with the first conversation always in it. A room that predates conversations reads
 // as one conversation, which is what it was.
@@ -83,7 +87,10 @@ export async function listChats(roomDir) {
   return { active: index.active, chats };
 }
 
-export async function createChat(roomDir, { title = null, now = new Date().toISOString(), activate = true } = {}) {
+export function createChat(roomDir, ...rest) {
+  return indexTurn(roomDir, () => createChatNow(roomDir, ...rest));
+}
+async function createChatNow(roomDir, { title = null, now = new Date().toISOString(), activate = true } = {}) {
   const index = await chatIndex(roomDir);
   const id = randomUUID().replace(/-/g, '').slice(0, 16);
   index.chats[id] = { title: title ? String(title).slice(0, CHAT_TITLE_MAX) : null, createdAt: now, updatedAt: now, messages: 0, preview: null };
@@ -94,7 +101,10 @@ export async function createChat(roomDir, { title = null, now = new Date().toISO
   return shape(id, index.chats[id], index.active);
 }
 
-export async function openChat(roomDir, id) {
+export function openChat(roomDir, ...rest) {
+  return indexTurn(roomDir, () => openChatNow(roomDir, ...rest));
+}
+async function openChatNow(roomDir, id) {
   const index = await chatIndex(roomDir);
   if (!index.chats[id]) return null;
   index.active = id;
@@ -102,7 +112,10 @@ export async function openChat(roomDir, id) {
   return shape(id, index.chats[id], index.active);
 }
 
-export async function renameChat(roomDir, id, title) {
+export function renameChat(roomDir, ...rest) {
+  return indexTurn(roomDir, () => renameChatNow(roomDir, ...rest));
+}
+async function renameChatNow(roomDir, id, title) {
   const index = await chatIndex(roomDir);
   if (!index.chats[id]) return null;
   const named = String(title ?? '').trim().slice(0, CHAT_TITLE_MAX);
@@ -114,7 +127,10 @@ export async function renameChat(roomDir, id, title) {
 // Deleting a conversation takes its transcript and nothing else: whatever the archivist distilled
 // from it is the project's memory, not the conversation's, and it stays. The last conversation
 // cannot be deleted — a room always has somewhere to talk.
-export async function deleteChat(roomDir, id) {
+export function deleteChat(roomDir, ...rest) {
+  return indexTurn(roomDir, () => deleteChatNow(roomDir, ...rest));
+}
+async function deleteChatNow(roomDir, id) {
   const index = await chatIndex(roomDir);
   if (!index.chats[id]) return null;
   if (Object.keys(index.chats).length < 2) return { error: 'A room always has one conversation. Start another before deleting this one.' };
@@ -129,7 +145,10 @@ export async function deleteChat(roomDir, id) {
 // What the list shows about a conversation, kept as it happens rather than by reading every
 // ledger to draw a sidebar. A conversation with no name of its own takes the first thing the
 // human said in it, which is what they will look for.
-export async function touchChat(roomDir, id, { text = null, now = new Date().toISOString(), counts = true } = {}) {
+export function touchChat(roomDir, ...rest) {
+  return indexTurn(roomDir, () => touchChatNow(roomDir, ...rest));
+}
+async function touchChatNow(roomDir, id, { text = null, now = new Date().toISOString(), counts = true } = {}) {
   const index = await chatIndex(roomDir);
   const entry = index.chats[id];
   if (!entry) return null;
@@ -148,7 +167,10 @@ export async function touchChat(roomDir, id, { text = null, now = new Date().toI
 
 // Conversations whose folder is on disk but which no index knows about: a room copied by hand, or
 // an index lost. They are listed rather than ignored, because a transcript is not disposable.
-export async function adoptStrays(roomDir) {
+export function adoptStrays(roomDir, ...rest) {
+  return indexTurn(roomDir, () => adoptStraysNow(roomDir, ...rest));
+}
+async function adoptStraysNow(roomDir) {
   let folders = [];
   try { folders = await readdir(join(roomDir, 'chats')); } catch { return { adopted: [] }; }
   const index = await chatIndex(roomDir);

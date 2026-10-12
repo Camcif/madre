@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -56,9 +56,40 @@ async function locked(root, work) {
   }
 }
 
+// What a change starts from. A file that is there but is not JSON used to be read as empty, and the
+// change written over it kept only itself: every other setting was gone, with nothing said
+// (2026-10-12, review of 1.0). Now a copy of it is kept beside it first, and that is said.
+async function readForChange(root) {
+  const file = configPath(root);
+  let text;
+  try { text = await readFile(file, 'utf8'); } catch (error) { if (error.code === 'ENOENT') return {}; throw error; }
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  } catch { /* kept below */ }
+  const kept = `${file}.damaged-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  await copyFile(file, kept).catch(() => {});
+  console.error(`MADRE: ${file} could not be read; a copy was kept at ${kept} before saving over it.`);
+  return {};
+}
+
+// A change that reads what is there and decides from it, all under the lock: checked and written
+// in one step, so two changes at once cannot both pass a check that only one of them should
+// (two signatures of the same pair, a revocation and a recall crossing). `change` gets a copy and
+// returns what to save, or nothing to leave the file as it is.
+export async function withConfig(root, change) {
+  return locked(root, async () => {
+    const current = await readForChange(root);
+    const next = await change(structuredClone(current));
+    if (!next || typeof next !== 'object') return current;
+    await saveConfig(root, next);
+    return next;
+  });
+}
+
 export async function updateConfig(root, patch) {
   return locked(root, async () => {
-    const current = await loadConfig(root);
+    const current = await readForChange(root);
     const next = { ...current, ...patch };
     for (const [key, value] of Object.entries(patch)) {
       if (value && typeof value === 'object' && !Array.isArray(value)) next[key] = { ...(current[key] ?? {}), ...value };

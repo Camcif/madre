@@ -14,9 +14,10 @@
 // not that project, and a project MADRE was told to forget is never brought back.
 
 import { createReadStream } from 'node:fs';
-import { mkdir, readdir, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
+import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { oneAtATime, writeWhole } from './json-file.mjs';
 import { PROJECT_HOMES, associateProject, projectRoomId, salasRoomId } from './salas.mjs';
 
 export const TOUR_VERSION = '1.0';
@@ -53,17 +54,18 @@ export async function readTour(stateRoot) {
 }
 
 async function writeTour(stateRoot, state) {
-  await mkdir(stateRoot, { recursive: true });
-  const file = tourFile(stateRoot);
-  const draft = `${file}.${process.pid}.tmp`;
-  await writeFile(draft, `${JSON.stringify(state, null, 2)}\n`);
-  await rename(draft, file);
+  await writeWhole(tourFile(stateRoot), `${JSON.stringify(state, null, 2)}\n`);
   return state;
 }
 
 // One change at a time, from the page: the path taken at the bonjour, a chapter read, where the
 // person is, closed to go on later, finished, a hint seen, or everything again from the start.
-export async function changeTour(stateRoot, change, now = new Date()) {
+// One change at a time (src/json-file.mjs): every tab says it holds the tour every few seconds,
+// through whichever project it is on, and a chapter read in between was lost to it.
+export function changeTour(stateRoot, change, now = new Date()) {
+  return oneAtATime(tourFile(stateRoot), () => applyChange(stateRoot, change, now));
+}
+async function applyChange(stateRoot, change, now) {
   if (!change || typeof change !== 'object') return { error: 'change' };
   if (change.reset === true) return writeTour(stateRoot, fresh());
   const state = await readTour(stateRoot);

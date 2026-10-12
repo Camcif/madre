@@ -73,3 +73,65 @@ test('integrity: a record cut halfway still opens, and what comes next starts on
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('integrity: a pair is signed once even when asked at once, and a revoked link stays revoked (INI-01, INI-02)', async () => {
+  const { signContract, revokeContract, recallContract, activeContracts } = await import('../src/enlaces.mjs');
+  const { loadConfig } = await import('../src/config.mjs');
+  const state = await mkdtemp(join(tmpdir(), 'madre-links-'));
+  try {
+    const rooms = ['alpha-0123456789abcdef', 'beta-0123456789abcdef'];
+    const raw = { rooms: { a: rooms[0], b: rooms[1] }, direction: 'a→b', kinds: ['decision'], expires: null, orders: { allowed: false, maxMode: 0, perHour: 6 } };
+    const tries = await Promise.allSettled([0, 1, 2, 3].map(() => signContract(state, raw, { rooms })));
+    assert.equal(tries.filter((one) => one.status === 'fulfilled').length, 1, 'the same pair was signed twice at once');
+    assert.ok(tries.filter((one) => one.status === 'rejected').every((one) => one.reason.code === 'ALREADY'));
+    const [contract] = activeContracts(await loadConfig(state));
+    // A revocation and a recall at the same moment: the link ends revoked, every time.
+    for (let round = 0; round < 10; round += 1) {
+      const [again] = activeContracts(await loadConfig(state));
+      const id = again?.id ?? contract.id;
+      await Promise.all([revokeContract(state, id), recallContract(state, id, true)]);
+      assert.equal(activeContracts(await loadConfig(state)).length, 0, 'a revoked link came back in force');
+      if (round < 9) await signContract(state, raw, { rooms });
+    }
+    // An id that is not one writes nothing.
+    assert.equal(await revokeContract(state, '__proto__'), null);
+    assert.ok(!Object.hasOwn((await loadConfig(state)).enlaces, '__proto__'));
+  } finally {
+    await rm(state, { recursive: true, force: true });
+  }
+});
+
+test('integrity: a settings file that cannot be read is kept aside before anything is saved over it', async () => {
+  const { updateConfig, loadConfig } = await import('../src/config.mjs');
+  const { readdir } = await import('node:fs/promises');
+  const state = await mkdtemp(join(tmpdir(), 'madre-config-'));
+  try {
+    await writeFile(join(state, 'config.json'), '{"language":"es","scopes":{"codex":{"maxMode":3}},');
+    await updateConfig(state, { theme: 'dark' });
+    const kept = (await readdir(state)).filter((name) => name.startsWith('config.json.damaged-'));
+    assert.equal(kept.length, 1, 'the damaged settings were not kept');
+    assert.match(await readFile(join(state, kept[0]), 'utf8'), /"maxMode":3/);
+    assert.equal((await loadConfig(state)).theme, 'dark');
+  } finally {
+    await rm(state, { recursive: true, force: true });
+  }
+});
+
+test('integrity: changes that arrive at once all land — the list of conversations, the tour (LOG-11, TOUR-01)', async () => {
+  const { createChat, renameChat, touchChat, listChats } = await import('../src/chats.mjs');
+  const { changeTour, readTour, CHAPTERS } = await import('../src/tour.mjs');
+  const room = await mkdtemp(join(tmpdir(), 'madre-index-'));
+  const state = await mkdtemp(join(tmpdir(), 'madre-tour-race-'));
+  try {
+    const chat = await createChat(room, { title: 'antes' });
+    await Promise.all([renameChat(room, chat.id, 'después'), ...Array.from({ length: 10 }, () => touchChat(room, chat.id, { text: 'hola' }))]);
+    const seen = (await listChats(room)).chats.find((one) => one.id === chat.id);
+    assert.equal(seen.title, 'después', 'the rename was lost to the messages');
+    assert.equal(seen.messages, 10, 'a message was lost to another');
+    const results = await Promise.allSettled(CHAPTERS.flatMap((id) => [changeTour(state, { chapter: id }), changeTour(state, { hold: 'tab-aaaaaa' })]));
+    assert.ok(results.every((one) => one.status === 'fulfilled'), 'a change to the tour failed');
+    assert.equal((await readTour(state)).done.length, CHAPTERS.length, 'a chapter read was lost');
+  } finally {
+    for (const dir of [room, state]) await rm(dir, { recursive: true, force: true });
+  }
+});
