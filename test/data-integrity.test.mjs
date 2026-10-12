@@ -165,3 +165,23 @@ test('integrity: the privacy purge cleans every conversation of the project and 
     for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('integrity: the memory waits its turn when another process is writing it (LOG-08)', async () => {
+  const { spawn } = await import('node:child_process');
+  const { RoomMemory } = await import('../src/memory.mjs');
+  const dir = await mkdtemp(join(tmpdir(), 'madre-busy-'));
+  try {
+    const file = join(dir, 'memory.sqlite');
+    const memory = await new RoomMemory(file).initialize();
+    // Another process holds the file for a moment, as the memory server of a turn does.
+    const holder = spawn(process.execPath, ['-e', `const { DatabaseSync } = require('node:sqlite'); const db = new DatabaseSync(${JSON.stringify(file)}); db.exec('BEGIN IMMEDIATE'); console.log('held'); setTimeout(() => { db.exec('COMMIT'); db.close(); }, 400);`], { stdio: ['ignore', 'pipe', 'inherit'] });
+    await new Promise((resolve) => holder.stdout.once('data', resolve));
+    const started = Date.now();
+    memory.index([{ id: 'e1', sequence: 1, type: 'message.created', timestamp: '2026-10-12T00:00:00.000Z', payload: { role: 'user', sender: 'you', target: 'codex', messageId: 'm1', text: 'espera tu turno' } }]);
+    assert.ok(Date.now() - started >= 200, 'it did not wait, or the other process never held it');
+    await new Promise((resolve) => holder.once('close', resolve));
+    memory.close();
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

@@ -196,6 +196,11 @@ export class RoomMemory {
 
   #open() {
     this.#db = new this.#Database(this.#file);
+    // Another process writes this file too — the memory server an agent's turn starts, `madre
+    // dataset` — and SQLite answered «database is locked» at once, so a note, an index line or a
+    // verdict was lost (LOG-08 of the 1.0 review). It waits its turn a few seconds instead. A
+    // pragma, because the `timeout` option of node:sqlite is newer than the Node 22.5 MADRE needs.
+    this.#db.exec('PRAGMA busy_timeout = 5000');
     if (this.#file !== ':memory:') this.#db.exec('PRAGMA journal_mode = WAL');
     this.#createSchema();
     this.#meta = this.#db.prepare('SELECT value FROM meta WHERE key = ?');
