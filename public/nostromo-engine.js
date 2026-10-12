@@ -1165,7 +1165,6 @@ export function createNostromo(nostromo) {
     const pulse = (at) => (phase >= at ? Math.exp(-(phase - at) * 14) : 0);
     return { phase, beat: pulse(0) + 0.55 * pulse(0.22) };
   }
-  function coreRadius() { return Math.max(46, Math.min(nostromo.size.w, nostromo.size.h) * 0.085) / Math.max(0.35, nostromo.cam?.scale ?? 1) * 0.9; }
 
   function dwarfSprite(node, radius, burn, pixels, frame) {
     if (typeof ImageData !== 'function') return null;

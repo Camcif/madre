@@ -230,10 +230,6 @@ export const ES = {
     'VISTA PREVIA solo alcanza esta computadora · enciende la web en MÓDULOS para abrir una dirección fuera de ella',
   'SEE SPENDING': 'VER EL CONSUMO',
   'SPENDING': 'CONSUMO',
-  'MADRE · WHAT THIS PROJECT SPENT AND WHAT IT NEVER SPENT': 'MADRE · LO QUE ESTE PROYECTO GASTÓ Y LO QUE NUNCA GASTÓ',
-  'MEASURED FROM WHAT THE CLIs CHARGED · A SAVING NOBODY MEASURED IS NEVER SHOWN':
-    'MEDIDO SOBRE LO QUE COBRARON LOS CLIs · UN AHORRO QUE NADIE MIDIÓ NO SE MUESTRA NUNCA',
-  'Token spending': 'Consumo de tokens',
   'NOT CHARGED IN FULL': 'SIN COBRO COMPLETO',
   'CACHE WRITTEN': 'CACHÉ ESCRITA',
   'FROM THE CACHE': 'DE LA CACHÉ',
@@ -308,9 +304,6 @@ export const ES = {
   'Troubleshooting · Diagnostics': 'Diagnóstico',
   'Project files panel': 'Los archivos del proyecto',
   'Conversations in this project': 'Las conversaciones de este proyecto',
-  'Theme · auto (follows the system)': 'Tema · automático (sigue al sistema)',
-  'Theme · light': 'Tema · claro',
-  'Theme · dark': 'Tema · oscuro',
 
   // ── EL PUENTE: primer contacto ────────────────────────────────────────────
   'CONNECT YOUR AGENTS': 'CONECTA TUS AGENTES',
@@ -2518,8 +2511,6 @@ export const ES = {
     'Diagnóstico › el centinela registró {what}. Abre Diagnóstico para reportarlo.',
   'a crash': 'un crash',
   'an unknown condition': 'una condición desconocida',
-  'Theme · {mode}': 'Tema · {mode}',
-  'auto, following the system': 'automático, siguiendo al sistema',
   'light': 'claro',
   'dark': 'oscuro',
   'could not list: {error}': 'no se pudo listar: {error}',

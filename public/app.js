@@ -286,7 +286,6 @@ const modules = {
   list: document.querySelector('#modules-list'),
   add: document.querySelector('#modules-add'),
   file: document.querySelector('#modules-file'),
-  note: document.querySelector('#modules-note'),
   items: [],
   installing: null,
   logs: new Map(),   // id -> array of lines
@@ -2482,11 +2481,11 @@ function renderPicker() {
     (els.pickOptions ?? els.picker).append(text);
   }
   updateCrewLabel();
-  if (typeof renderCreateScopes === 'function') renderCreateScopes();
-  if (typeof renderHighlight === 'function') renderHighlight();
+  renderCreateScopes();
+  renderHighlight();
   // Another agent, model or rung changes what Intenciones would say; asking again is cheap and
   // answers nothing new when nothing changed.
-  if (typeof scheduleIntentOffer === 'function') scheduleIntentOffer();
+  scheduleIntentOffer();
 }
 
 /* ---------- model menu: which model answers this request ---------- */
@@ -2913,11 +2912,11 @@ function setMode(n, { wink = false, typed = false } = {}) {
   els.composer.classList.toggle('control', mode >= 3);
   els.composer.classList.toggle('airlock', mode === 4);
   for (const n of [0, 1, 2, 3, 4]) els.composer.classList.toggle(`m${n}`, mode === n);
-  if (typeof renderCreateScopes === 'function') renderCreateScopes();
-  if (typeof updateCrewLabel === 'function') { updateCrewLabel(); updatePlaceholder(); }
-  if (typeof renderPicker === 'function') renderPicker();
-  if (typeof autosize === 'function') autosize();
-  if (wink && typeof winkField === 'function') winkField(mode >= 3 ? 'control' : mode === 0 ? 'ghost' : 'ash');
+  renderCreateScopes();
+  updateCrewLabel(); updatePlaceholder();
+  renderPicker();
+  autosize();
+  if (wink) winkField(mode >= 3 ? 'control' : mode === 0 ? 'ghost' : 'ash');
 }
 // After a message goes out the mode falls back to the target's default: #2 for a standing lease, else #1.
 // A leading @agent chose the agent for that message only: the picker goes back to the one it had.
@@ -3029,7 +3028,7 @@ function closeOverrideGrace(mode = null, agent = null) {
     const [m, a] = key.split(':');
     if ((mode === null || Number(m) === mode) && (agent === null || a === agent)) { overrideGrace.delete(key); overridePasses.delete(key); }
   }
-  if (typeof renderPicker === 'function') renderPicker();
+  renderPicker();
 }
 // The chip counts down only while a grace is open; with none, nothing ticks.
 let graceTick = null;
@@ -3226,8 +3225,8 @@ function renderEmptyStarts() {
     chip.addEventListener('click', () => {
       els.input.value = text;
       els.input.focus();
-      if (typeof autosize === 'function') autosize();
-      if (typeof renderHighlight === 'function') renderHighlight();
+      autosize();
+      renderHighlight();
     });
     box.append(chip);
   }
@@ -4709,7 +4708,7 @@ function renderModeRequest(event) {
   const timer = setInterval(tick, 1000);
   timer.unref?.();
   modeRequests.set(requestId, { node, timer, actions });
-  if (!replaying) { toast(t('Diagnostics › @{agent} asks #{mode} {label} for step {step}. The plan waits for you.', { agent, mode, label: MODES[mode].label, step })); if (typeof armBrake === 'function') { /* no brake: waiting is safe */ } }
+  if (!replaying) { toast(t('Diagnostics › @{agent} asks #{mode} {label} for step {step}. The plan waits for you.', { agent, mode, label: MODES[mode].label, step })); }
   state.lastSender = null;
   return node;
 }
@@ -5863,7 +5862,6 @@ function followTurn(event, node, stickToBottom) {
 
 /* ---------- theme: auto (system) → light → dark ---------- */
 
-const themeButton = document.querySelector('#theme-button');
 function applyTheme(mode) {
   const rootElement = document.documentElement ?? { dataset: {} };
   if (mode === 'auto') delete rootElement.dataset.theme;
@@ -5885,22 +5883,10 @@ function applyTheme(mode) {
   for (const node of document.querySelectorAll?.('[data-tint]') ?? []) node.style.setProperty('--agent', agentColor(node.dataset.tint));
   for (const node of document.querySelectorAll?.('[data-tint-from]') ?? []) node.style.setProperty('--from', agentColor(node.dataset.tintFrom));
   for (const node of document.querySelectorAll?.('[data-tint-to]') ?? []) node.style.setProperty('--to', agentColor(node.dataset.tintTo));
-  if (themeButton) {
-    themeButton.dataset.theme = mode;
-    themeButton.title = mode === 'auto' ? t('Theme · auto (follows the system)') : mode === 'light' ? t('Theme · light') : t('Theme · dark');
-  }
 }
 let themeMode = 'auto';
 try { themeMode = localStorage.getItem('pulse.theme') ?? 'auto'; } catch { /* no storage */ }
 applyTheme(['auto', 'light', 'dark'].includes(themeMode) ? themeMode : 'auto');
-themeButton?.addEventListener('click', () => {
-  themeMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
-  try { localStorage.setItem('pulse.theme', themeMode); } catch { /* no storage */ }
-  applyTheme(themeMode);
-  renderAgents();
-  renderPicker();
-  toast(t('Theme · {mode}', { mode: themeMode === 'auto' ? t('auto, following the system') : t(themeMode) }), { tone: 'note' });
-});
 // The half on the right has no bar of its own: it follows the theme and the language the left
 // half chooses, the moment they are chosen.
 if (SPLIT_CHAT) {
@@ -7388,7 +7374,6 @@ const SPLIT_RIGHT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2
 const PANEL_MIN = 260;
 const PANEL_MAX = 560;
 const COLUMN_MIN = 560;
-const SPLIT_MIN = 380;
 const RAIL = 20;
 const PANEL_GAP = 24;
 const shellBox = document.querySelector('.shell');
@@ -12062,26 +12047,6 @@ async function updateModule(item, button) {
   await refreshModules();
 }
 
-// The economy, at the size it deserves. The card in MODULES is the glance; this is the reading.
-//
-// Order is the argument: what the room never paid for comes first, because it is the only figure
-// here that is money, then what Ash has been seen to do to the answers, then where the tokens
-// that WERE paid for went. Nothing in this panel is a number the room did not measure or cannot
-// name as an estimate.
-const economyPanel = {
-  dialog: document.querySelector('#economy'),
-  close: document.querySelector('#economy-close'),
-  body: document.querySelector('#economy-body'),
-};
-
-function openEconomy() {
-  if (!economyPanel.dialog || economyPanel.dialog.open) return;
-  economyPanel.dialog.showModal();
-  void renderEconomy();
-}
-
-economyPanel.close?.addEventListener('click', () => economyPanel.dialog.close());
-
 // A card's heading, with the glyph that says which card it is before the words are read.
 function cardHead(icon, title) {
   const head = el('h5', 'card-head');
@@ -12089,7 +12054,13 @@ function cardHead(icon, title) {
   return head;
 }
 
-async function renderEconomy(box = economyPanel.body) {
+// The economy, at the size it deserves. The card in MODULES is the glance; this is the reading.
+//
+// Order is the argument: what the room never paid for comes first, because it is the only figure
+// here that is money, then what Ash has been seen to do to the answers, then where the tokens
+// that WERE paid for went. Nothing in this panel is a number the room did not measure or cannot
+// name as an estimate.
+async function renderEconomy(box) {
   if (!box) return;
   const count = (value) => (Number.isFinite(value) ? value.toLocaleString() : '—');
   const pct = (value) => (Number.isFinite(value) ? `${Math.round(value * 100)}%` : '—');
@@ -16701,7 +16672,7 @@ function roomTour() {
       project: () => { if (switcher.key) switchOpen(); },
       talk: () => els.input?.focus(),
       modes: () => openSettingsOn('permissions'),
-      coordinator: () => { if (state.salas) { els.input?.focus(); return; } els.input.value = '/bishop '; els.input.focus(); if (typeof autosize === 'function') autosize(); },
+      coordinator: () => { if (state.salas) { els.input?.focus(); return; } els.input.value = '/bishop '; els.input.focus(); autosize(); },
       maps: () => void openNostromo(),
       settings: () => openSettings(true),
       modules: () => { openModules(); void refreshModules().then(() => renderModules()); },

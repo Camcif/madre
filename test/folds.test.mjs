@@ -307,7 +307,8 @@ test('modules: a press inside a dialog is never the desktop, the button brings a
   assert.match(app, /carryWindowBy\(head, node, \{ box: \(\) => modulesWindow\.box, place: placeModules, done: rememberModulesBox \}\);/);
   assert.match(app, /windowEdgesFor\(node, \{ box: \(\) => modulesWindow\.box, place: placeModules, done: rememberModulesBox, minW: 320, minH: 300 \}\);/);
   // Ash's economy is its window's own content, and its card's button opens that window.
-  assert.match(app, /async function renderEconomy\(box = economyPanel\.body\)/);
+  // (The old SPENDING dialog that nothing opened is gone: the economy draws only into a box it is given.)
+  assert.match(app, /async function renderEconomy\(box\) \{\n  if \(!box\) return;/);
   assert.match(app, /if \(item\.id === 'ash'\) \{\n    const block = sxBlock\(host, t\('Spending'\)[\s\S]{0,260}void renderEconomy\(app\);/);
   assert.match(app, /open\.addEventListener\('click', \(\) => floatModule\('ash'\)\);/);
   // A window carried keeps its own colour.
