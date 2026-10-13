@@ -571,8 +571,30 @@ body.sm-in-macro { overflow: hidden; }
 
 /* Agents, in the wizard's first step: the mark, its name and its state, and the one action it needs. */
 .sm-agents { display: grid; gap: 0; padding: 2px 14px; border-radius: 14px; background: var(--surface, var(--panel-2)); box-shadow: var(--key-rest, inset 0 0 0 1px var(--line)); }
-.sm-agent { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.sm-agent { display: grid; border-top: 1px solid var(--line); }
 .sm-agent:first-child { border-top: 0; }
+/* One card per agent (2026-10-13), as the project's AJUSTES › Agents draws them: folded to a line
+   with its mark, its maker, a chip with its state and a chevron; open, what it needs. */
+.sm-agents.cards { gap: 10px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.sm-agents.cards > .sm-agent { border-top: 0; border-radius: 14px; background: var(--surface, var(--panel)); box-shadow: var(--raise, var(--key-rest)); }
+.sm-agent-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; border-radius: inherit; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sm-agents:not(.cards) .sm-agent-head { padding: 11px 0; }
+.sm-agent-head:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 60%, transparent); outline-offset: -2px; }
+.sm-agent-chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; background: color-mix(in srgb, var(--text) 6%, transparent); font-size: 12px; font-weight: 550; color: var(--text); white-space: nowrap; }
+.sm-chevron { width: 8px; height: 8px; margin: 0 4px 0 2px; border-right: 1.6px solid var(--text-3); border-bottom: 1.6px solid var(--text-3); transform: rotate(45deg) translate(-2px, -2px); transition: transform calc(180ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-agent.open .sm-chevron { transform: rotate(-135deg) translate(-2px, -2px); }
+.sm-agent:not(.open) > .sm-agent-body { display: none; }
+.sm-agent-body { display: grid; gap: 10px; padding: 0 14px 14px 60px; }
+.sm-agents:not(.cards) .sm-agent-body { padding: 0 0 12px 46px; }
+.sm-agent-facts { display: grid; gap: 3px; }
+.sm-agent-facts code { padding: 0; background: none; box-shadow: none; font-family: var(--mono); font-size: 11px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-oc { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; box-shadow: var(--key-track); }
+.sm-oc-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.sm-oc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--line); }
+.sm-oc-title + .sm-oc-row { border-top: 0; }
+.sm-oc-controls { display: inline-flex; align-items: center; gap: 10px; flex: none; }
+.sm-oc-shown { font-size: 12px; color: var(--text-2); }
+.sm-oc-add select { flex: 0 1 150px; }
 .sm-agent-words { display: grid; gap: 2px; min-width: 0; }
 .sm-agent-words b { font-size: 14.5px; font-weight: 600; }
 .sm-agent-words small { font-size: 12.5px; }
@@ -580,10 +602,9 @@ body.sm-in-macro { overflow: hidden; }
 .sm-agent-line a { color: var(--s-acc); }
 /* Which account it asks for, said where the decision is made. */
 .sm-agent-note { font-size: 12px !important; color: var(--text-3); }
-.sm-agent-acts { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.sm-agent-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Everything a connection needs that does not fit on the row: the page a sign-in opened, the
    code it is waiting for, the key form. Home used to send you to a project for all of it. */
-.sm-agent-more { grid-column: 1 / -1; display: grid; gap: 8px; padding: 2px 0 6px 46px; }
 .sm-agent-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .sm-agent-code { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1 1 240px; }
 .sm-agent-code input, .sm-agent-key-form input, .sm-agent-key-form select { height: 32px; min-width: 0; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 13px; box-shadow: var(--key-track); outline: 0; }
@@ -809,3 +830,49 @@ button.sm-pill { border: 0; cursor: pointer; }
 :is(.lw-lead, .lw-note, .lw-review li, .lw-caution, .lw-allows li, .lw-already-says) b { font-weight: 650; color: var(--text); }
 
 #sm-map svg { cursor: zoom-in; }
+
+/* HOME, ARRANGED BY ITS PERSON (salas-mac.js, applyLayout · 2026-10-13): any tile at 4, 6, 8 or 12
+   columns, above or below the projects, or off Home; widgets beside them, fed by real readings. */
+.c-6 { grid-column: span 6; } .c-12 { grid-column: 1 / -1; }
+.sm-tile.sm-off { display: none !important; }
+.sm-bento.sm-empty { display: none; }
+@media (max-width: 920px) { .sm-bento > .c-6, .sm-bento > .c-12 { grid-column: 1 / -1; } }
+.custom-seg.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sm-menu-head { display: block; padding: 8px 12px 4px; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.sm-menu-item.checked { color: var(--s-acc); }
+.sm-menu-item.checked::after { content: '✓'; margin-left: auto; padding-left: 12px; font-weight: 700; }
+.sm-menu-item:disabled { opacity: .4; cursor: default; }
+
+dialog.sm-sheet.sm-add-sheet { --sm-sheet-w: 560px; }
+.sm-add-sheet .sm-sheet-body { display: grid; gap: 12px; }
+.sm-add-list { display: grid; gap: 8px; }
+.sm-add-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border-radius: 12px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); }
+.sm-add-words { display: grid; gap: 2px; min-width: 0; }
+.sm-add-words b { font-size: 14px; font-weight: 600; }
+.sm-add-words small { font-size: 12.5px; color: var(--text-2); }
+.sm-add-words .sm-add-need { color: var(--text-3); }
+.sm-add-words .sm-add-need:empty { display: none; }
+
+.sm-widget { gap: 12px; }
+.sm-w-body { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.sm-w-metric { display: grid; gap: 4px; }
+.sm-w-label { font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.sm-w-big { font-size: 22px; font-weight: 650; letter-spacing: -.01em; color: var(--text); font-variant-numeric: tabular-nums; }
+.sm-w-body small { font-size: 12px; color: var(--text-2); }
+.sm-meter { display: block; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 9%, transparent); overflow: hidden; }
+.sm-meter i { display: block; height: 100%; border-radius: inherit; background: var(--s-acc); transition: width calc(400ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-meter.warm i { background: #e3a326; }
+.sm-meter.hot i { background: #e5533d; }
+.sm-w-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 13px; }
+.sm-w-row b { font-family: var(--mono); font-size: 12.5px; }
+.sm-w-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.sm-w-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--session-ok, #3f9b3a); }
+.sm-w-row.bad .sm-w-dot { background: var(--session-bad, #d9493a); }
+.sm-w-project { display: grid; gap: 5px; }
+.sm-w-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.sm-w-line b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 600; }
+.sm-w-line small { margin-left: auto; font-variant-numeric: tabular-nums; }
+.sm-w-stage { font-size: 10.5px; font-weight: 650; letter-spacing: .06em; color: var(--text-3); white-space: nowrap; }
+.sm-w-says { margin: 0; font-size: 12.5px; color: var(--text-2); }
+.sm-w-foot { color: var(--text-3) !important; }
+.sm-w-foot.mono { font-family: var(--mono); font-size: 11px !important; overflow-wrap: anywhere; }

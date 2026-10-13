@@ -78,7 +78,7 @@ const TUNES = {
 const HOME_LOOKS = {
   cards: { key: 'pulse.home.cards', values: ['full', 'compact'], words: { full: () => t('With their last conversation'), compact: () => t('Name and state only') } },
   text: { key: 'pulse.home.text', values: ['comfortable', 'larger', 'smaller'], words: { comfortable: () => t('Comfortable'), larger: () => t('Larger'), smaller: () => t('Smaller') } },
-  order: { key: 'pulse.home.order', values: ['attention', 'name', 'recent'], words: { attention: () => t('Attention'), name: () => t('Name'), recent: () => t('Recent') } },
+  order: { key: 'pulse.home.order', values: ['attention', 'name', 'recent', 'mine'], words: { attention: () => t('Attention'), name: () => t('Name'), recent: () => t('Recent'), mine: () => t('Yours') } },
 };
 const LOOK_KEYS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text', ...Object.values(HOME_LOOKS).map((one) => one.key)];
 function readLooks() {
@@ -356,6 +356,22 @@ function card(room) {
 const ORDER = { waiting: 0, working: 1, calm: 2, quiet: 3, outdated: 4 };
 // The projects in the order the lobby shows them: the open ones by what needs the person, then
 // the asleep ones, the last opened first. BISHOP's own room is not a project.
+const PROJECT_ORDER_KEY = 'pulse.home.projects';
+function projectOrder() {
+  try { const list = JSON.parse(localStorage.getItem(PROJECT_ORDER_KEY) ?? '[]'); return Array.isArray(list) ? list.filter((id) => typeof id === 'string') : []; } catch { return []; }
+}
+// A project moved by hand: the whole order as it is on screen now, with that one moved, becomes
+// «Yours» — so moving one never shuffles the others.
+function moveProject(id, where) {
+  const list = projectsInOrder().all.map((room) => room.id);
+  const at = list.indexOf(id);
+  if (at < 0) return;
+  list.splice(at, 1);
+  const to = where === 'first' ? 0 : where === 'last' ? list.length : Math.max(0, Math.min(list.length, at + where));
+  list.splice(to, 0, id);
+  try { localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(list)); } catch { /* the order lasts as long as the page */ }
+  saveHome('order', 'mine');
+}
 function projectsInOrder() {
   const projects = data.rooms.filter((room) => room.id !== data.salas);
   const open = projects.filter((room) => room.open)
@@ -365,9 +381,14 @@ function projectsInOrder() {
   // last thing that happened in each, open or asleep.
   const order = readLooks().home.order;
   const touched = (room) => Math.max(Date.parse(room.glance?.chat?.at ?? 0) || 0, Date.parse(room.lastOpened ?? room.added ?? 0) || 0);
+  // «Yours» (2026-10-13): the order the person made with right-click › Move; a project they never
+  // placed comes after, in the order of what needs them.
+  const mine = order === 'mine' ? projectOrder() : [];
+  const placed = (room) => { const at = mine.indexOf(room.id); return at < 0 ? Number.MAX_SAFE_INTEGER : at; };
   const all = order === 'name' ? [...projects].sort((a, b) => a.name.localeCompare(b.name, language))
     : order === 'recent' ? [...projects].sort((a, b) => touched(b) - touched(a))
-      : [...open, ...asleep];
+      : order === 'mine' ? [...open, ...asleep].map((room, index) => [room, index]).sort(([a, i], [b, j]) => placed(a) - placed(b) || i - j).map(([room]) => room)
+        : [...open, ...asleep];
   return { all, open, asleep };
 }
 function draw() {
@@ -925,6 +946,316 @@ if (typeof ResizeObserver === 'function') {
     }).observe(host);
   }
 }
+
+// HOME, ARRANGED BY ITS PERSON (2026-10-13). Every tile of Home — the Coordinator, who waits,
+// the connections, the decisions, what needs you, the memory, and the widgets added to it — sits
+// where the person put it, at the size they chose. Right-click a tile: move it, resize it, take it
+// off Home, or add another. What is kept is this browser's (Home's own layout, like its cards).
+// A widget exists only where something real feeds it (src/server.mjs, homeWidget): the machine,
+// the projects' servers sentinels and datasets, the Coordinator's own dataset, and Ollama.
+const LAYOUT_KEY = 'pulse.home.layout';
+const ZONES = { top: 'sm-top', low: 'sm-low' };
+const SIZES = [[4, () => t('Small')], [6, () => t('Medium')], [8, () => t('Large')], [12, () => t('Full width')]];
+const HOME_TILES = {
+  bishop: { id: 'sm-bishop', name: () => t('Coordinator'), about: () => t('Your coordinator, its state and its recent summary.'), size: 8 },
+  waiting: { id: 'sm-waiting', name: () => t('Waiting for you'), about: () => t('The questions and permissions an agent is waiting on.'), size: 4 },
+  links: { id: 'sm-links-tile', name: () => t('Connections'), about: () => t('The map of who looks up whom.'), size: 4 },
+  decisions: { id: 'sm-decisions', name: () => t('Recent decisions'), about: () => t('What your projects decided lately.'), size: 4 },
+  attention: { id: 'sm-attention', name: () => t('Needs you'), about: () => t('What Home noticed that needs a hand.'), size: 4 },
+  memory: { id: 'sm-memory', name: () => t('Memory'), about: () => t('What your projects remember, by kind.'), size: 4 },
+};
+const WIDGETS = {
+  'w-system': { kind: 'system', name: () => t('System resources'), about: () => t('How busy this Mac\'s processor is, and how much memory is free.'), size: 4 },
+  'w-servers': { kind: 'servers', name: () => t('Servers'), about: () => t('The servers running in your open projects, and whether they answer.'), size: 4, needs: () => t('Turn on Preview in a project\'s Modules to see its servers.') },
+  'w-memory': { kind: 'memory', name: () => t('Memory quality'), about: () => t('How grown each open project\'s memory is, and its weakest side.'), size: 4, needs: () => t('Open a project to read its memory.') },
+  'w-coordinator': { kind: 'coordinator', name: () => t('Coordinator training'), about: () => t('How far the Coordinator\'s own record is from a model of its own.'), size: 4 },
+  'w-models': { kind: 'models', name: () => t('Local models'), about: () => t('Ollama, its models, and how close each project is to its own.'), size: 4 },
+};
+const DEFAULT_LAYOUT = { top: ['bishop', 'waiting', 'links'], low: ['decisions', 'attention', 'memory'], size: {} };
+const known = (id) => Object.hasOwn(HOME_TILES, id) || Object.hasOwn(WIDGETS, id);
+function readLayout() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null'); } catch { raw = null; }
+  if (!raw || typeof raw !== 'object') return structuredClone(DEFAULT_LAYOUT);
+  const seen = new Set();
+  const zone = (list) => (Array.isArray(list) ? list : []).filter((id) => typeof id === 'string' && known(id) && !seen.has(id) && seen.add(id));
+  const size = Object.fromEntries(Object.entries(raw.size ?? {}).filter(([id, span]) => known(id) && SIZES.some(([one]) => one === span)));
+  return { top: zone(raw.top), low: zone(raw.low), size };
+}
+let layout = readLayout();
+function saveLayout() {
+  try {
+    if (JSON.stringify(layout) === JSON.stringify(DEFAULT_LAYOUT)) localStorage.removeItem(LAYOUT_KEY);
+    else localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+  } catch { /* the arrangement lasts as long as the page */ }
+  applyLayout();
+}
+const zoneOf = (id) => (layout.top.includes(id) ? 'top' : layout.low.includes(id) ? 'low' : null);
+const spanOf = (id) => layout.size[id] ?? (HOME_TILES[id] ?? WIDGETS[id]).size;
+const widgetNodes = new Map();
+function tileNode(id) {
+  if (HOME_TILES[id]) return $(HOME_TILES[id].id);
+  if (!widgetNodes.has(id)) widgetNodes.set(id, makeWidget(id));
+  return widgetNodes.get(id);
+}
+function applyLayout() {
+  for (const [zone, hostId] of Object.entries(ZONES)) {
+    const host = $(hostId);
+    for (const id of layout[zone]) {
+      const node = tileNode(id);
+      if (!node) continue;
+      node.classList.remove('sm-off', 'c-3', 'c-4', 'c-5', 'c-6', 'c-8', 'c-12');
+      node.classList.add(`c-${spanOf(id)}`);
+      node.dataset.tile = id;
+      host.append(node);
+    }
+  }
+  for (const id of Object.keys(HOME_TILES)) if (!zoneOf(id)) $(HOME_TILES[id].id)?.classList.add('sm-off');
+  for (const [id, node] of widgetNodes) if (!zoneOf(id)) { node.remove(); node.stop?.(); widgetNodes.delete(id); }
+  for (const zone of Object.keys(ZONES)) $(ZONES[zone]).classList.toggle('sm-empty', !layout[zone].length);
+  for (const [id, node] of widgetNodes) if (zoneOf(id)) node.start?.();
+}
+function moveTile(id, step) {
+  const list = layout[zoneOf(id)];
+  const at = list.indexOf(id);
+  const to = Math.max(0, Math.min(list.length - 1, at + step));
+  if (at < 0 || at === to) return;
+  list.splice(at, 1);
+  list.splice(to, 0, id);
+  saveLayout();
+}
+function crossTile(id) {
+  const from = zoneOf(id);
+  const to = from === 'top' ? 'low' : 'top';
+  layout[from] = layout[from].filter((one) => one !== id);
+  if (to === 'top') layout.top.push(id); else layout.low.unshift(id);
+  saveLayout();
+}
+function removeTile(id) {
+  for (const zone of Object.keys(ZONES)) layout[zone] = layout[zone].filter((one) => one !== id);
+  delete layout.size[id];
+  saveLayout();
+}
+function addTile(id) {
+  if (zoneOf(id)) return;
+  layout.low.push(id);
+  saveLayout();
+  requestAnimationFrame(() => tileNode(id)?.scrollIntoView({ block: 'center', behavior: motionStill() ? 'auto' : 'smooth' }));
+}
+
+// The menu a right-click opens, shared by the tiles and the space between them: the same card and
+// keys as a project's menu (pinsMenu), closed the same way.
+const MOVE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v13M5.5 8 10 3.5 14.5 8M5.5 12 10 16.5 14.5 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const BEFORE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const AFTER_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SIZE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="5" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 10h6M11 8l2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ADD_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+const RESET_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 9.5a5.5 5.5 0 1 1 1.6 4.4M4.5 14.5v-5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const HIDE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 10h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+function homeMenu(point, entries, label) {
+  pinsCloseMenu();
+  const menu = el('div', 'bar-card sm-menu');
+  menu.setAttribute('role', 'menu');
+  if (label) menu.setAttribute('aria-label', label);
+  for (const entry of entries) {
+    if (entry === 'sep') { menu.append(el('i', 'sm-menu-sep')); continue; }
+    if (entry.heading) { menu.append(el('span', 'sm-menu-head', entry.heading)); continue; }
+    const one = button(`sm-menu-item${entry.danger ? ' danger' : ''}${entry.checked ? ' checked' : ''}`, null, () => { pinsCloseMenu(); entry.act(); });
+    one.setAttribute('role', entry.checked !== undefined ? 'menuitemradio' : 'menuitem');
+    if (entry.checked !== undefined) one.setAttribute('aria-checked', String(Boolean(entry.checked)));
+    if (entry.disabled) one.disabled = true;
+    one.innerHTML = entry.icon ?? ''; // trusted: our own SVG strings
+    one.append(el('span', null, entry.words));
+    menu.append(one);
+  }
+  menu.addEventListener('keydown', (key) => {
+    const items = [...menu.querySelectorAll('.sm-menu-item:not(:disabled)')];
+    const at = items.indexOf(document.activeElement);
+    if (key.key === 'ArrowDown') { key.preventDefault(); items[(at + 1) % items.length].focus(); }
+    if (key.key === 'ArrowUp') { key.preventDefault(); items[(at - 1 + items.length) % items.length].focus(); }
+  });
+  document.body.append(menu);
+  pins.menu = menu;
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  menu.style.left = `${Math.round(Math.max(8, Math.min(window.innerWidth - width - 8, point.x)))}px`;
+  menu.style.top = `${Math.round(Math.max(8, Math.min(window.innerHeight - height - 8, point.y)))}px`;
+  menu.style.right = 'auto';
+  menu.querySelector('.sm-menu-item:not(:disabled)')?.focus({ preventScroll: true });
+}
+const customized = () => JSON.stringify(layout) !== JSON.stringify(DEFAULT_LAYOUT);
+const addEntries = () => [{ words: t('Add to Home…'), icon: ADD_ICON, act: () => openHomeAdd() }, ...(customized() ? [{ words: t('Back to the default layout'), icon: RESET_ICON, act: () => { layout = structuredClone(DEFAULT_LAYOUT); saveLayout(); } }] : [])];
+function tileMenu(event, id) {
+  event.preventDefault();
+  const zone = zoneOf(id);
+  const list = layout[zone];
+  const at = list.indexOf(id);
+  const spec = HOME_TILES[id] ?? WIDGETS[id];
+  homeMenu({ x: event.clientX, y: event.clientY }, [
+    { heading: spec.name() },
+    { words: t('Move before'), icon: BEFORE_ICON, disabled: at <= 0, act: () => moveTile(id, -1) },
+    { words: t('Move after'), icon: AFTER_ICON, disabled: at >= list.length - 1, act: () => moveTile(id, 1) },
+    { words: zone === 'top' ? t('Move below the projects') : t('Move above the projects'), icon: MOVE_ICON, act: () => crossTile(id) },
+    'sep',
+    ...SIZES.map(([span, words]) => ({ words: words(), icon: SIZE_ICON, checked: spanOf(id) === span, act: () => { if (span === (HOME_TILES[id] ?? WIDGETS[id]).size) delete layout.size[id]; else layout.size[id] = span; saveLayout(); } })),
+    'sep',
+    { words: t('Take off Home'), icon: HIDE_ICON, act: () => removeTile(id) },
+    ...addEntries(),
+  ], spec.name());
+}
+for (const hostId of Object.values(ZONES)) {
+  $(hostId)?.addEventListener('contextmenu', (event) => {
+    if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    const tile = event.target.closest('[data-tile]');
+    if (tile) { tileMenu(event, tile.dataset.tile); return; }
+    event.preventDefault();
+    homeMenu({ x: event.clientX, y: event.clientY }, addEntries(), t('Home'));
+  });
+}
+// The space around the projects, right-clicked, offers the same.
+document.querySelector('.sm-main')?.addEventListener('contextmenu', (event) => {
+  if (event.defaultPrevented || event.target.closest('.sm-tile, .sm-card, input, textarea, select, a, button, dialog')) return;
+  event.preventDefault();
+  homeMenu({ x: event.clientX, y: event.clientY }, addEntries(), t('Home'));
+});
+
+// «Add to Home»: the tiles taken off and the widgets not yet on it, each said in a line, with what
+// it would need when nothing feeds it yet.
+let homeAddSheet = null;
+async function openHomeAdd() {
+  homeAddSheet?.remove();
+  homeAddSheet = el('dialog', 'sm-sheet sm-add-sheet');
+  const body = el('div', 'sm-sheet-body');
+  const head = el('header', 'sm-sheet-head');
+  head.append(el('h3', null, t('Add to Home')));
+  const close = button('sm-btn ghost small', t('Close'), () => homeAddSheet.close());
+  head.append(close);
+  body.append(head, el('p', 'hint', t('Tiles you took off and widgets you can put on Home. Right-click any tile to move it, resize it or take it off.')));
+  const list = el('div', 'sm-add-list');
+  body.append(list);
+  homeAddSheet.append(body);
+  homeAddSheet.addEventListener('close', () => { homeAddSheet?.remove(); homeAddSheet = null; });
+  document.body.append(homeAddSheet);
+  homeAddSheet.showModal();
+  const entries = [
+    ...Object.entries(HOME_TILES).filter(([id]) => !zoneOf(id)).map(([id, spec]) => ({ id, spec, ready: true })),
+    ...Object.entries(WIDGETS).filter(([id]) => !zoneOf(id)).map(([id, spec]) => ({ id, spec, ready: null })),
+  ];
+  if (!entries.length) { list.append(el('p', 'sm-hint', t('Everything is already on Home.'))); return; }
+  for (const entry of entries) {
+    const row = el('div', 'sm-add-row');
+    const words = el('div', 'sm-add-words');
+    words.append(el('b', null, entry.spec.name()), el('small', null, entry.spec.about()));
+    const said = el('small', 'sm-add-need');
+    words.append(said);
+    const add = button('sm-btn primary small', t('Add'), () => { addTile(entry.id); homeAddSheet?.close(); });
+    row.append(words, add);
+    list.append(row);
+    // A widget is offered only when something feeds it: asked of the server, which says so.
+    if (entry.ready === null) {
+      add.disabled = true;
+      said.textContent = t('Checking…');
+      const reading = await fetch(`/api/salas/widget?kind=${entry.spec.kind}`, { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+      if (!row.isConnected) return;
+      const ok = Boolean(reading?.available);
+      add.disabled = !ok;
+      said.textContent = ok ? '' : (entry.spec.needs?.() ?? t('Nothing feeds it on this Mac yet.'));
+    }
+  }
+}
+
+// ---- The widgets. Each is a tile that reads its own route every 20 s while Home is in view.
+const pct = (value) => (value === null || value === undefined ? '—' : `${Math.round(value * 100)}%`);
+const gb = (bytes) => `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+function meter(value, tone = null) {
+  const bar = el('span', `sm-meter${tone ? ` ${tone}` : ''}`);
+  const fill = el('i');
+  fill.style.width = `${Math.round(Math.max(0, Math.min(1, value ?? 0)) * 100)}%`;
+  bar.append(fill);
+  return bar;
+}
+const toneFor = (share) => (share >= 0.85 ? 'hot' : share >= 0.6 ? 'warm' : null);
+const WIDGET_PAINT = {
+  system(body, reading) {
+    const cpu = el('div', 'sm-w-metric');
+    cpu.append(el('span', 'sm-w-label', t('Processor')), el('b', 'sm-w-big', pct(reading.cpu.busy)), meter(reading.cpu.busy, toneFor(reading.cpu.busy ?? 0)), el('small', null, t('{n} cores · load {load}', { n: reading.cpu.cores, load: reading.cpu.load[0] })));
+    const used = reading.memory.total ? 1 - reading.memory.free / reading.memory.total : null;
+    const mem = el('div', 'sm-w-metric');
+    mem.append(el('span', 'sm-w-label', t('Memory')), el('b', 'sm-w-big', t('{free} free', { free: gb(reading.memory.free) })), meter(used, toneFor(used ?? 0)), el('small', null, t('of {total}. The system lends what is free to its cache and takes it back when needed.', { total: gb(reading.memory.total) })));
+    body.append(cpu, mem);
+  },
+  servers(body, reading) {
+    const running = reading.projects.flatMap((one) => one.ports.map((port) => ({ ...port, project: one.name })));
+    if (!running.length) body.append(el('p', 'sm-hint', reading.projects.some((one) => one.preview) ? t('No server is running in your open projects.') : t('Turn on Preview in a project\'s Modules to see its servers.')));
+    for (const one of running) {
+      const healthy = one.status !== null && one.status < 500;
+      const row = el('div', `sm-w-row${healthy ? ' ok' : ' bad'}`);
+      row.append(el('i', 'sm-w-dot'), el('b', null, `:${one.port}`), el('span', null, one.project), el('small', null, one.status ? t('answers {status}', { status: one.status }) : t('no answer')));
+      body.append(row);
+    }
+    const off = reading.projects.filter((one) => !one.preview && !one.unreachable).length;
+    if (off && running.length) body.append(el('small', 'sm-w-foot', off === 1 ? t('1 project has Preview off.') : t('{n} projects have Preview off.', { n: off })));
+  },
+  memory(body, reading) {
+    const read = reading.projects.filter((one) => !one.unreachable);
+    if (!read.length) { body.append(el('p', 'sm-hint', t('Open a project to read its memory.'))); return; }
+    for (const one of read) {
+      const row = el('div', 'sm-w-project');
+      const top = el('div', 'sm-w-line');
+      top.append(el('b', null, one.name), el('span', 'sm-w-stage', one.stage ?? '—'), el('small', null, pct(one.score)));
+      row.append(top, meter(one.score));
+      const notes = [one.weakest?.label ? t('weakest: {what}', { what: one.weakest.label.toLowerCase() }) : null, one.aberrations ? t('{n} odd memories', { n: one.aberrations }) : null].filter(Boolean);
+      if (notes.length) row.append(el('small', null, notes.join(' · ')));
+      body.append(row);
+    }
+  },
+  coordinator(body, reading) {
+    const share = reading.target ? reading.pairs / reading.target : 0;
+    const top = el('div', 'sm-w-line');
+    top.append(el('b', 'sm-w-big', `${reading.pairs}`), el('span', null, t('of {n} exchanges to train on', { n: reading.target })));
+    body.append(top, meter(share));
+    body.append(el('p', 'sm-w-says', [reading.stage, reading.says].filter(Boolean).join(' · ')));
+    const facts = [t('{n} memories', { n: reading.notes ?? 0 }), reading.trained ? t('model {name}', { name: reading.trained }) : t('no model of its own yet')];
+    body.append(el('small', 'sm-w-foot', facts.join(' · ')));
+  },
+  models(body, reading) {
+    const head = el('div', `sm-w-row${reading.ollama.running ? ' ok' : ' bad'}`);
+    head.append(el('i', 'sm-w-dot'), el('b', null, 'Ollama'), el('span', null, reading.ollama.running ? t('{n} models on this Mac', { n: reading.ollama.models.length }) : t('not running')));
+    body.append(head);
+    if (reading.ollama.models.length) body.append(el('small', 'sm-w-foot mono', reading.ollama.models.slice(0, 4).join(' · ') + (reading.ollama.models.length > 4 ? ' …' : '')));
+    for (const one of reading.projects.filter((project) => !project.unreachable)) {
+      const row = el('div', 'sm-w-project');
+      const top = el('div', 'sm-w-line');
+      const ready = one.pairs >= one.target;
+      top.append(el('b', null, one.name), el('small', null, one.trained ? t('trained · {name}', { name: one.trained }) : ready ? t('ready to train') : `${one.pairs}/${one.target}`));
+      row.append(top, meter(one.trained ? 1 : one.target ? one.pairs / one.target : 0));
+      body.append(row);
+    }
+  },
+};
+function makeWidget(id) {
+  const spec = WIDGETS[id];
+  if (!spec) return null;
+  const node = el('section', `sm-tile sm-widget w-${spec.kind}`);
+  const head = el('header', 'sm-tile-head');
+  head.append(el('h2', null, spec.name()));
+  const body = el('div', 'sm-w-body');
+  body.append(el('p', 'sm-hint', t('Reading…')));
+  node.append(head, body);
+  let timer = 0;
+  const read = async () => {
+    if (document.hidden || !node.isConnected) return;
+    const reading = await fetch(`/api/salas/widget?kind=${spec.kind}`, { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+    if (!node.isConnected) return;
+    body.replaceChildren();
+    if (!reading) { body.append(el('p', 'sm-hint', t('It could not be read just now.'))); return; }
+    WIDGET_PAINT[spec.kind](body, reading);
+  };
+  node.start = () => { if (timer) return; void read(); timer = setInterval(() => void read(), 20000); };
+  node.stop = () => { clearInterval(timer); timer = 0; };
+  return node;
+}
+applyLayout();
 
 // THE WELCOME OF 1.0 (public/tour.js): the bonjour the first time, the chapters after it, the pill
 // that waits in the bar, `?` for the gestures, and the hint on Connections. In Home, «Take me
@@ -2005,6 +2336,14 @@ function pinsMenu(event, room, at = null) {
   item(on ? t('Remove from the bar') : t('Pin to the bar'), on ? UNPIN_ICON : PIN_ICON, () => (on ? pinRemove(room.id) : pinAdd(room.id)));
   item(t('Arrange the bar'), ARRANGE_ICON, () => pinsEdit(true));
   menu.append(el('i', 'sm-menu-sep'));
+  // Where it sits among the projects: moved by hand, the order becomes «Yours».
+  const order = projectsInOrder().all.map((one) => one.id);
+  const place = order.indexOf(room.id);
+  if (place > 0) item(t('Move before'), BEFORE_ICON, () => moveProject(room.id, -1));
+  if (place >= 0 && place < order.length - 1) item(t('Move after'), AFTER_ICON, () => moveProject(room.id, 1));
+  if (place > 0) item(t('Move to the start'), BEFORE_ICON, () => moveProject(room.id, 'first'));
+  item(t('Add to Home…'), ADD_ICON, () => openHomeAdd());
+  menu.append(el('i', 'sm-menu-sep'));
   item(t('Remove from MADRE…'), FORGET_ICON, () => { forgetting.add(room.id); asking.delete(room.id); failed.delete(room.id); draw(); }, { danger: true });
   menu.addEventListener('keydown', (key) => {
     const items = [...menu.querySelectorAll('.sm-menu-item')];
@@ -2512,6 +2851,111 @@ ui.add.addEventListener('click', openAddSheet);
 // Kept current while it is on screen: polled, and told by the room's events how it is going.
 // `compact` is the welcome's first step: there, a connected agent is done, and a button to change
 // the account it signs in with is a question nobody asked on their first minute.
+// Who makes each agent, said under its name as the project's AJUSTES says it.
+const VENDOR_WORDS = { codex: 'OpenAI', claude: 'Anthropic', gemini: 'Google', opencode: 'OpenCode' };
+
+// OpenCode's providers in Home, the same block as the project's AJUSTES › Agents › OpenCode: a line
+// per provider with a key or an account and its switch for the chat, one row to add another, and
+// the model it answers with by default. Asked of the server once a minute at most, because asking
+// runs `opencode models`; a change asks again at once.
+const openCodeProviders = (() => {
+  let reading = null;
+  let at = 0;
+  let host = null;
+  const fetchNow = async () => {
+    reading = await fetch('/api/agents/opencode/providers', { cache: 'no-store' }).then((response) => response.json().then((json) => ({ ok: response.ok, json }))).catch(() => ({ ok: false, json: {} }));
+    at = Date.now();
+    paintInto();
+  };
+  const sendKey = (path, payload) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+    .then(async (response) => ({ ok: response.ok, body: await response.json().catch(() => ({})) })).catch(() => ({ ok: false, body: {} }));
+  const switchFor = (on, change, label) => {
+    const wrap = el('label', 'settings-switch');
+    const box = el('input'); box.type = 'checkbox'; box.checked = on; box.setAttribute('aria-label', label);
+    box.addEventListener('change', () => void change(box.checked, box));
+    wrap.append(box, el('i'));
+    return wrap;
+  };
+  function paintInto() {
+    if (!host?.isConnected) return;
+    host.replaceChildren(el('b', 'sm-oc-title', t('Providers')));
+    if (!reading) { host.append(el('small', 'sm-agent-note', t('Reading OpenCode\'s providers…'))); return; }
+    if (!reading.ok) { host.append(el('small', 'sm-agent-note', reading.json.error ?? t('OpenCode\'s providers could not be read.'))); return; }
+    const providers = reading.json.providers ?? [];
+    const hidden = new Set(providers.filter((one) => one.hidden).map((one) => one.id));
+    for (const provider of providers.filter((one) => one.via)) {
+      const row = el('div', 'sm-oc-row');
+      const words = el('span', 'sm-agent-words');
+      const status = provider.via === 'own' ? t('Included with OpenCode · {n} models', { n: provider.models.length })
+        : provider.via === 'api' ? t('Connected with a key · {n} models', { n: provider.models.length })
+          : provider.via === 'oauth' ? t('Connected with its account · {n} models', { n: provider.models.length })
+            : t('Connected · {n} models', { n: provider.models.length });
+      words.append(el('b', null, provider.label), el('small', 'sm-agent-note', status));
+      const controls = el('span', 'sm-oc-controls');
+      if (provider.via === 'api') {
+        const remove = button('sm-btn ghost small', t('Remove the key'), async () => {
+          if (remove.dataset.sure !== '1') { remove.dataset.sure = '1'; remove.textContent = t('Remove it?'); return; }
+          remove.disabled = true;
+          const answer = await sendKey('/api/agents/opencode/providers/remove', { provider: provider.id });
+          if (!answer.ok) { remove.disabled = false; remove.textContent = answer.body.error ?? t('The key was not removed.'); return; }
+          void fetchNow();
+        });
+        controls.append(remove);
+      }
+      const label = el('span', 'sm-oc-shown', t('In the chat'));
+      controls.append(label, switchFor(!provider.hidden, async (on, box) => {
+        if (on) hidden.delete(provider.id); else hidden.add(provider.id);
+        const answer = await sendKey('/api/settings', { opencode: { hidden: [...hidden] } });
+        if (!answer.ok) { box.checked = !on; if (on) hidden.add(provider.id); else hidden.delete(provider.id); }
+      }, t('Show {provider} in the chat', { provider: provider.label })));
+      row.append(words, controls);
+      host.append(row);
+    }
+    const waiting = providers.filter((one) => !one.via && one.takesKey);
+    if (waiting.length) {
+      const form = el('form', 'sm-agent-key-form sm-oc-add');
+      const which = el('select');
+      which.setAttribute('aria-label', t('Provider'));
+      for (const provider of waiting) { const option = el('option', null, provider.label); option.value = provider.id; which.append(option); }
+      const input = el('input');
+      input.type = 'password'; input.autocomplete = 'off'; input.spellcheck = false;
+      const link = el('a', 'sm-agent-key-link', t('Where do I get one?'));
+      link.target = '_blank'; link.rel = 'noopener';
+      const said = el('small', 'sm-agent-line');
+      const sync = () => {
+        const provider = waiting.find((one) => one.id === which.value);
+        input.placeholder = t('{provider} API key', { provider: provider?.label ?? '' });
+        link.hidden = !provider?.keyUrl;
+        if (provider?.keyUrl) link.href = provider.keyUrl;
+      };
+      which.addEventListener('change', sync);
+      sync();
+      const save = el('button', 'sm-btn primary small', t('Add'));
+      save.type = 'submit';
+      form.append(which, input, save, link, said);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!input.value.trim()) { input.focus(); return; }
+        save.disabled = true;
+        said.textContent = t('Checking…');
+        const answer = await sendKey('/api/agents/opencode/key', { key: input.value.trim(), provider: which.value });
+        input.value = '';
+        save.disabled = false;
+        if (answer.ok) void fetchNow(); else said.textContent = answer.body.error ?? t('The key was not accepted.');
+      });
+      host.append(el('b', 'sm-oc-title', t('Add a provider')), form);
+    }
+  }
+  return {
+    node() {
+      // The same node across the panel's repaints, so a key being typed is never thrown away.
+      host ??= el('div', 'sm-oc');
+      if (!reading || Date.now() - at > 60000) void fetchNow(); else paintInto();
+      return host;
+    },
+  };
+})();
+
 function agentsPanel({ onPaint = null, compact = false } = {}) {
   const list = el('div', 'sm-agents');
   const lastLine = new Map();   // agent → what its install or sign-in said last
@@ -2615,29 +3059,39 @@ function agentsPanel({ onPaint = null, compact = false } = {}) {
     list.replaceChildren();
     for (const agent of answer.agents.filter((one) => one.id !== 'madre')) {
       const state = agentState(agent, answer);
-      const item = el('div', `sm-agent${state.ok ? ' ok' : ''}`);
+      // The project's AJUSTES design (2026-10-13): one card per agent, folded to a line that says
+      // who it is and whether it has a session. One that needs the person opens by itself.
+      const unfolded = openMore.has(agent.id) || !state.ok || state.busyNow || (live && live.agent === agent.id);
+      const item = el('section', `sm-agent${state.ok ? ' ok' : ''}${unfolded ? ' open' : ''}`);
+      item.dataset.agent = agent.id;
+      const head = button('sm-agent-head', null, () => { toggleMore(agent.id); if (!openMore.has(agent.id) && !state.ok) openMore.add(agent.id); void paint(); });
+      head.setAttribute('aria-expanded', String(unfolded));
       const words = el('span', 'sm-agent-words');
-      words.append(el('b', null, agent.label ?? agent.id));
-      words.append(el('small', `session-lamp ${state.key}`, state.words));
-      // Which account it is signed in with, as its own CLI reports it: the one fact that was
-      // missing when someone paying for the API could not tell which door had let them in.
-      if (agent.detected && answer.sessions?.[agent.id]?.detail) words.append(el('small', 'sm-agent-line', answer.sessions[agent.id].detail));
-      // Which account this one asks for, said where the decision is made. The server says it in
-      // the room's language already.
-      if (agent.account) words.append(el('small', 'sm-agent-note', agent.account));
+      words.append(el('b', null, agent.label ?? agent.id), el('small', null, VENDOR_WORDS[agent.id] ?? ''));
+      const chip = el('span', `sm-agent-chip session-lamp ${state.key}`);
+      chip.append(el('span', null, state.words));
+      head.append(mark(agent.id, 34), words, chip, el('span', 'sm-chevron'));
+      item.append(head);
+      const body = el('div', 'sm-agent-body');
+      // Which account it is signed in with, as its own CLI reports it, and which one it asks for.
+      const facts = el('div', 'sm-agent-facts');
+      if (agent.detected && agent.version) facts.append(el('code', 'sm-agent-line', `${agent.version}${agent.path ? ` · ${agent.path}` : ''}`));
+      if (agent.detected && answer.sessions?.[agent.id]?.detail) facts.append(el('small', 'sm-agent-line', answer.sessions[agent.id].detail));
+      if (agent.account) facts.append(el('small', 'sm-agent-note', agent.account));
       if (lastLine.has(agent.id) && !state.ok) {
         const said = lastLine.get(agent.id);
         const line = el('small', 'sm-agent-line', said.line);
         if (said.url) { const link = el('a', null, t('Open the sign-in page')); link.href = said.url; link.target = '_blank'; link.rel = 'noopener'; line.append(' ', link); }
-        words.append(line);
+        facts.append(line);
       }
+      if (facts.childNodes.length) body.append(facts);
       // One button per account the CLI can sign in with: Claude has two, and only the human can
       // say which one is paying.
       const doorKeys = () => {
         const doors = agent.login?.methods?.length ? agent.login.methods : [{ id: null, label: null, note: agent.login?.note }];
         return doors.map((door) => {
           const name = door.label ? t(door.label) : state.ok ? t('Sign in again') : t('Sign in');
-          const key = button(`sm-btn ${state.ok ? 'ghost' : 'primary'} small`, name, async (event) => {
+          const key = button(`sm-btn ${state.ok ? '' : 'primary'} small`, name, async (event) => {
             event.currentTarget.disabled = true;
             await post(`/api/agents/${agent.id}/login`, { method: door.id });
             void paint();
@@ -2646,29 +3100,20 @@ function agentsPanel({ onPaint = null, compact = false } = {}) {
           return key;
         });
       };
-      const acts = el('span', 'sm-agent-acts');
-      const more = el('div', 'sm-agent-more');
-      const unfolded = openMore.has(agent.id);
+      const acts = el('div', 'sm-agent-acts');
       if (!state.busyNow) {
-        if (!agent.detected && agent.install) acts.append(button('sm-btn ghost small', t('Install'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/install`); void paint(); }));
-        else if (agent.detected && !state.ok) {
-          // Nothing to fold: what it needs is the only thing on the row.
-          if (agent.login?.headless) for (const key of doorKeys()) acts.append(key);
-          if (agent.key) acts.append(button('sm-btn ghost small', unfolded ? t('Close') : t('Paste a key'), () => { toggleMore(agent.id); void paint(); }));
-        } else if (agent.detected && !compact) {
-          // Connected: the row stays quiet, and everything that could change the account is one
-          // press away rather than four buttons nobody asked for.
-          acts.append(button('sm-btn ghost small', unfolded ? t('Close') : t('Change the account'), () => { toggleMore(agent.id); void paint(); }));
-        }
+        if (!agent.detected && agent.install) acts.append(button('sm-btn primary small', t('Install'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/install`); void paint(); }));
+        else if (agent.detected && agent.login?.headless) for (const key of doorKeys()) acts.append(key);
       }
-      item.append(mark(agent.id, 34), words, acts);
+      if (acts.childNodes.length) body.append(acts);
       const ask = askBlock(agent);
-      if (ask) more.append(ask);
-      if (unfolded && state.ok && agent.login?.headless) { const doors = el('div', 'sm-agent-ask'); for (const key of doorKeys()) doors.append(key); more.append(doors); }
-      if (unfolded && agent.detected && agent.key) more.append(keyForm(agent));
-      // A CLI that signs in from its own prompt gets the command, as the project's panel gives it.
-      if (agent.detected && agent.login && !agent.login.headless && (unfolded || !state.ok)) more.append(el('code', 'sm-agent-command', agent.login.display));
-      if (more.childNodes.length) item.append(more);
+      if (ask) body.append(ask);
+      // A key, pasted here; OpenCode's are its providers', in the block below.
+      if (agent.detected && agent.key && agent.id !== 'opencode') body.append(keyForm(agent));
+      // A CLI that signs in from its own prompt gets the command, until it has a session.
+      if (agent.detected && agent.login && !agent.login.headless && !state.ok) body.append(el('code', 'sm-agent-command', agent.login.display));
+      if (agent.id === 'opencode' && agent.detected) body.append(openCodeProviders.node());
+      item.append(body);
       list.append(item);
     }
     onPaint?.(ready, answer);
@@ -3109,7 +3554,7 @@ function fillLook(host) {
   // Home's own: its cards, its text, the order of its projects. The conversation's bubbles and text
   // are each project's, in its own Settings.
   const home = sxBlock(side, t('Home'), t('Only for Home: each project keeps its conversation as you set it there.'));
-  const homeSeg = (name) => customSeg(HOME_LOOKS[name].values.map((value) => [value, HOME_LOOKS[name].words[value]()]), looks.home[name], (value) => saveHome(name, value), HOME_LOOKS[name].values.length === 2 ? 'two' : 'three');
+  const homeSeg = (name) => customSeg(HOME_LOOKS[name].values.map((value) => [value, HOME_LOOKS[name].words[value]()]), looks.home[name], (value) => saveHome(name, value), ['', '', 'two', 'three', 'four'][HOME_LOOKS[name].values.length] ?? 'three');
   sxRow(home, t('Project cards'), null, homeSeg('cards'), { stack: true });
   sxRow(home, t('Text'), null, homeSeg('text'), { stack: true });
   sxRow(home, t('Project order'), null, homeSeg('order'), { stack: true });
@@ -3147,9 +3592,11 @@ function fillBar(host) {
   host.append(acts);
 }
 function fillAgents(host, keep) {
-  const block = sxBlock(host, t('Agents'), t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.'));
+  // The project's AJUSTES › Agents, here too: a sentence, then a card per agent.
+  host.append(el('p', 'sx-intro', t('MADRE works with the AI tools already on this computer. Each one is connected once, and every project uses it.')));
   const panel = agentsPanel({ onPaint: () => settingsSheet?.sync() });
-  block.rows.append(panel.node);
+  panel.node.classList.add('cards');
+  host.append(panel.node);
   keep(panel.stop);
   void panel.paint().then(() => panel.live());
 }

@@ -19,6 +19,9 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 - **El mapa de conexiones de Inicio, más claro.** La tarjeta muestra solo los proyectos conectados, cada uno con un tono derivado de tu acento que se repite en sus cables y en su nombre; tocarla abre el mapa completo, amplio, en «Ver las conexiones».
 - **Botones con sombra más limpia**, con un borde fino y una sombra corta, en claro y en oscuro.
 - **Ajustes › Agentes, ordenado.** Cada agente es una línea con su estado hasta que lo abres; abierto, sus opciones van en pares. El registro de un inicio de sesión ya no apila un «still running…» cada 8 segundos: la línea se actualiza, y cada intento empieza limpio. Los proveedores de OpenCode viven dentro de su tarjeta, una línea cada uno y una sola fila para agregar otro.
+- **Inicio a tu medida.** Clic derecho en cualquier tarjeta de Inicio: moverla antes o después, llevarla arriba o abajo de los proyectos, cambiar su tamaño (pequeño, medio, grande, ancho completo), quitarla o **Agregar a Inicio**. Los proyectos también se mueven con su clic derecho, y el orden queda como «Tuyo».
+- **Widgets en Inicio**, cada uno con datos reales: Recursos del sistema (procesador y memoria disponible, leída del propio sistema), Servidores (los de tus proyectos abiertos con Vista previa, y si responden), Calidad de la memoria (madurez de cada proyecto y su lado más débil), Entrenamiento del Coordinador y Modelos locales (Ollama y qué tan cerca está cada proyecto de su propio modelo). Uno sin nada que lo alimente no se puede agregar y dice qué le falta.
+- **Agentes en Inicio con el diseño de los proyectos**: tarjetas plegables con su estado, también en el asistente para quien empieza, y los proveedores de OpenCode dentro de su tarjeta.
 - **Los botones de ajustes y «nuevo» de Archivos y Servidores** ya no parecen presionados: en reposo llevan el borde fino de los controles de al lado y se tiñen al pasar el puntero.
 
 ## 1.0.0 · 2026-10-12

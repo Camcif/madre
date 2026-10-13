@@ -74,7 +74,7 @@ const SDK_PAGE = { es: 'https://madre.run/sdk/', en: 'https://madre.run/en/sdk/'
 import { moduleUpdate } from './modules/updates.mjs';
 import { adoptStrays, chatIndex, chatLedger, createChat, deleteChat, isChatId, listChats, openChat as openChatIndex, projectFloor, renameChat, touchChat } from './chats.mjs';
 import { spawn } from 'node:child_process';
-import { totalmem } from 'node:os';
+import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import { discoverModels, groupOpenCode, openCodeHidden, providerLabel, OPENCODE_OWN } from './models.mjs';
 import { observable } from './modules/intents-observe.mjs';
 import { normalizeMode, setImageModule } from './capabilities.mjs';
@@ -360,6 +360,89 @@ export async function createPulseServer({
   // A busy agent can delay a room's glance without closing the room. Keep the last confirmed
   // reading for a short time, and distinguish a slow answer from a stopped process.
   const lobbyGlances = new Map();
+  // HOME'S WIDGETS (2026-10-13): what each one shows comes from something that already exists —
+  // the machine (node:os), each open project's servers sentinel (/api/ports) and dataset
+  // (/api/dataset: maturity, pairs, the model trained on it), this room's own dataset for the
+  // Coordinator, and Ollama as this room probed it. A reading is kept 30 s, so a page that asks
+  // every few seconds never makes the projects work for it.
+  const widgetReadings = new Map();
+  let cpuSeen = null;
+  const cpuTimes = () => cpus().reduce((sum, one) => {
+    const times = one.times;
+    sum.idle += times.idle;
+    sum.total += times.user + times.nice + times.sys + times.idle + times.irq;
+    return sum;
+  }, { idle: 0, total: 0 });
+  async function cpuBusy() {
+    let before = cpuSeen;
+    if (!before || Date.now() - before.at > 60000) { before = { ...cpuTimes(), at: Date.now() }; await new Promise((done) => setTimeout(done, 300)); }
+    const now = { ...cpuTimes(), at: Date.now() };
+    cpuSeen = now;
+    const total = now.total - before.total;
+    return total > 0 ? Math.max(0, Math.min(1, 1 - (now.idle - before.idle) / total)) : null;
+  }
+  const readinessOf = (answer) => (answer && !answer.unreachable && !answer.outdated ? {
+    pairs: answer.readiness?.pairs ?? 0, target: answer.readiness?.target ?? 300, aberrations: answer.readiness?.aberrations ?? 0,
+    good: answer.readiness?.good ?? 0, bad: answer.readiness?.bad ?? 0, trained: answer.trained ?? null,
+    score: answer.maturity?.score ?? null, stage: answer.maturity?.stage?.label ?? null, says: answer.maturity?.stage?.says ?? null,
+    weakest: (() => { const one = (answer.maturity?.signals ?? []).find((signal) => signal.id === answer.maturity?.weakest); return one ? { label: one.label ?? null, next: one.next ?? null } : null; })(),
+    signals: (answer.maturity?.signals ?? []).map((one) => ({ id: one.id, label: one.label, value: one.value })),
+  } : null);
+  async function openProjects() {
+    const salas = salasRoomId(root);
+    return (await knownRooms(root)).filter((one) => one.open && one.id !== salas);
+  }
+  // Memory a program could have now. os.freemem() counts only pages nobody holds; macOS keeps
+  // most of the rest as cache it gives back at once, so «free» read 0.1 GB of 16 on an idle Mac.
+  // The system's own count: free, inactive, speculative and purgeable pages on macOS (vm_stat),
+  // MemAvailable on Linux; freemem() where neither answers.
+  async function memoryAvailable() {
+    try {
+      if (process.platform === 'darwin') {
+        const { stdout } = await execFileAsync('vm_stat', [], { timeout: 2000 });
+        const page = Number(stdout.match(/page size of (\d+) bytes/)?.[1] ?? 0);
+        const pages = (name) => Number(stdout.match(new RegExp(`Pages ${name}:\\s+(\\d+)`))?.[1] ?? 0);
+        if (page) return { bytes: (pages('free') + pages('inactive') + pages('speculative') + pages('purgeable')) * page, source: 'vm_stat' };
+      }
+      if (process.platform === 'linux') {
+        const kb = Number((await readFile('/proc/meminfo', 'utf8')).match(/^MemAvailable:\s+(\d+)/m)?.[1] ?? 0);
+        if (kb) return { bytes: kb * 1024, source: 'meminfo' };
+      }
+    } catch { /* the plain count below */ }
+    return { bytes: freemem(), source: 'freemem' };
+  }
+  async function homeWidget(kind) {
+    const kept = widgetReadings.get(kind);
+    if (kept && Date.now() - kept.at < 30000) return kept.reading;
+    let reading;
+    if (kind === 'system') {
+      const total = totalmem();
+      const free = await memoryAvailable();
+      reading = { available: true, cpu: { busy: await cpuBusy(), cores: cpus().length, load: loadavg().map((one) => Math.round(one * 100) / 100) }, memory: { total, free: Math.min(total, free.bytes), source: free.source } };
+    } else if (kind === 'servers') {
+      const rooms = await openProjects();
+      const projects = await Promise.all(rooms.map(async (one) => {
+        const answer = await askRoom(one.open.port, '/api/ports', { timeoutMs: 4000 });
+        if (answer.unreachable && answer.status === 412) return { id: one.id, name: one.name, preview: false, ports: [] };
+        if (answer.unreachable || answer.outdated) return { id: one.id, name: one.name, unreachable: true, ports: [] };
+        return { id: one.id, name: one.name, preview: true, ports: (answer.ports ?? []).map((port) => ({ port: port.port, status: port.status ?? null, command: port.command ?? null })) };
+      }));
+      reading = { available: projects.some((one) => one.preview), projects };
+    } else if (kind === 'memory' || kind === 'models') {
+      const rooms = await openProjects();
+      const projects = await Promise.all(rooms.map(async (one) => ({ id: one.id, name: one.name, ...(readinessOf(await askRoom(one.open.port, '/api/dataset', { timeoutMs: 6000 })) ?? { unreachable: true }) })));
+      reading = kind === 'memory'
+        ? { available: projects.some((one) => !one.unreachable), projects }
+        : { available: true, ollama: { running: Boolean(ollama.running), models: (ollama.models ?? []).map((model) => model.name).filter(Boolean) }, projects };
+    } else if (kind === 'coordinator') {
+      const notes = memory ? memory.memories({ limit: 5000 }) : [];
+      const ready = datasetReadiness(await store.readAll(), notes);
+      const research = room.memoryResearch();
+      reading = { available: true, ...readinessOf({ readiness: ready, trained: ollama.madreModel ?? null, maturity: maturity({ readiness: ready, notes, links: research?.links ?? [], stats: research?.stats ?? null }) }), notes: notes.length };
+    } else return null;
+    widgetReadings.set(kind, { at: Date.now(), reading });
+    return reading;
+  }
   async function lobbyGlance(one) {
     if (!one.open) { lobbyGlances.delete(one.id); return null; }
     const reading = await askRoom(one.open.port, '/api/glance?census=1', { timeoutMs: 1200 });
@@ -1653,6 +1736,12 @@ export async function createPulseServer({
         const file = await readFile(join(publicDirectory, url.pathname.slice(1)));
         response.writeHead(200, { 'content-type': url.pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8', 'cache-control': 'no-cache' });
         return response.end(file);
+      }
+      // A widget of Home, read here (homeWidget above): only from this Mac's own pages.
+      if (request.method === 'GET' && url.pathname === '/api/salas/widget') {
+        const reading = await homeWidget(String(url.searchParams.get('kind') ?? ''));
+        if (!reading) return sendJson(response, 404, { error: t('Home has no widget by that name.') });
+        return sendJson(response, 200, reading);
       }
       if (request.method === 'GET' && url.pathname === '/api/salas') {
         const rooms = await knownRooms(root);
