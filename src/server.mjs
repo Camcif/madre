@@ -357,6 +357,20 @@ export async function createPulseServer({
   // rooms, asked of them at most every few minutes (each room works its zones out itself).
   const lobbyWork = { file: join(roomDir, 'lobby-work.json'), loaded: false, key: null, at: 0, tried: 0, bullets: null, model: null, error: null, running: null };
   const lobbyDecisions = { at: 0, list: null, running: null };
+  // A busy agent can delay a room's glance without closing the room. Keep the last confirmed
+  // reading for a short time, and distinguish a slow answer from a stopped process.
+  const lobbyGlances = new Map();
+  async function lobbyGlance(one) {
+    if (!one.open) { lobbyGlances.delete(one.id); return null; }
+    const reading = await askRoom(one.open.port, '/api/glance?census=1', { timeoutMs: 1200 });
+    if (!reading.unreachable && !reading.outdated) {
+      lobbyGlances.set(one.id, { port: one.open.port, reading, at: Date.now() });
+      return reading;
+    }
+    const last = lobbyGlances.get(one.id);
+    if (reading.unreachable && last?.port === one.open.port && Date.now() - last.at < 30000) return { ...last.reading, delayed: true };
+    return reading;
+  }
   // Every conversation's room other than the open one (see the note above mountChat); declared
   // here because the local wiring below reaches all of them.
   const parked = new Map();   // chatId -> { room, store, off, feed }
@@ -889,8 +903,12 @@ export async function createPulseServer({
       // The human answering clears what waited; a message BISHOP's channel brought is not the human.
       if (event?.type === 'message.created' && said.role === 'user' && said.via !== 'bishop') { for (const key of [...asks.keys()]) asks.delete(key); }
       else if (event?.type === 'choice.offered') asks.set(`choice:${said.responseMessageId}`, { kind: 'choice', agent: said.agent, text: said.question ?? null, at: event.timestamp });
-      else if (event?.type === 'run.requested') asks.set(`run:${said.responseMessageId}`, { kind: 'run', agent: said.agent, text: said.commands?.[0]?.line ?? null, at: event.timestamp });
-      else if (event?.type === 'run.started') asks.delete(`run:${said.responseMessageId}`);
+      else if (event?.type === 'run.requested') {
+        for (const [index, command] of (said.commands ?? []).entries()) {
+          if (command.argv) asks.set(`run:${said.responseMessageId}:${index}`, { kind: 'run', agent: said.agent, text: command.line, at: event.timestamp });
+        }
+      }
+      else if (event?.type === 'run.started') asks.delete(`run:${said.responseMessageId}:${said.index}`);
       // BISHOP (fase 4c): a #3/#4 proposal waits for the human's key in this room; in Salas, a
       // plan with something to press waits until it closes.
       else if (event?.type === 'bishop.order.proposed') asks.set(`bishop:${said.plan}:${said.step}`, { kind: 'bishop', agent: said.agent, mode: said.mode, text: said.text ?? null, at: event.timestamp });
@@ -903,7 +921,7 @@ export async function createPulseServer({
   }
   function asksOf(target, now = Date.now()) {
     const modes = (target.pendingModes?.() ?? []).map((asked) => ({ kind: 'mode', agent: asked.agent, mode: asked.mode, text: null }));
-    const kept = [...(asksByRoom.get(target)?.values() ?? [])].filter((ask) => now - Date.parse(ask.at ?? 0) < ASK_FRESH_MS);
+    const kept = [...(asksByRoom.get(target)?.values() ?? [])].filter((ask) => now - Date.parse(ask.at ?? 0) < ASK_FRESH_MS).sort((a, b) => String(b.at).localeCompare(String(a.at)));
     return [...modes, ...kept];
   }
   let unsubscribeAsks = () => {};
@@ -1567,7 +1585,7 @@ export async function createPulseServer({
           chats: chats.length,
           chat: latest ? { id: latest.id, title: latest.title, named: latest.named, preview: latest.preview, at: latest.updatedAt, messages: latest.messages } : null,
           working: [...working],
-          waiting: waiting.slice(0, 5).map(({ kind, agent, mode, text, chat, chatTitle }) => ({ kind, agent, mode: mode ?? undefined, text: typeof text === 'string' ? text.slice(0, 140) : null, chat, chatTitle })),
+          waiting: waiting.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))).slice(0, 5).map(({ kind, agent, mode, text, chat, chatTitle }) => ({ kind, agent, mode: mode ?? undefined, text: typeof text === 'string' ? text.slice(0, 140) : null, chat, chatTitle })),
           waitingCount: waiting.length,
           // What the archive holds, counted, when Salas asks (?census=1): never the words, only how
           // many of each kind and how many travel into turns.
@@ -1596,7 +1614,7 @@ export async function createPulseServer({
         const seen = await Promise.all(rooms.map(async (one) => ({
           ...one,
           here: one.id === here,
-          glance: one.open ? await askRoom(one.open.port, '/api/glance?census=1') : null,
+          glance: await lobbyGlance(one),
         })));
         // The links in force (docs/MACROVERSO.md, fase 3c), each with what crossed: counted from the
         // lines the serving room keeps beside its record, never from a ledger. `salas` is the id of
@@ -3087,11 +3105,16 @@ export async function createPulseServer({
       }
       if (request.method === 'POST' && /^\/api\/modes\/[\w-]+\/decide$/.test(url.pathname)) {
         const requestId = url.pathname.split('/')[3];
-        const { decision } = await body(request);
+        const { decision, key } = await body(request);
         const here = await scopeOf(url);
         if (here.error) return sendJson(response, 404, here);
-        // From a phone a mode is granted up to #2, as it is asked for up to #2.
-        if (viaPhone && decision !== 'deny' && (here.room.modeAsked(requestId) ?? 0) > PHONE_MAX_MODE) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
+        if (!['once', 'plan', 'deny'].includes(decision)) return sendJson(response, 400, { error: t('Decision must be once, plan or deny.') });
+        const asked = here.room.modeRequest(requestId);
+        if (!asked) return sendJson(response, 409, { error: t('That request is no longer pending.') });
+        if (decision !== 'deny' && asked.mode > PHONE_MAX_MODE) {
+          if (viaPhone) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
+          if (!spendPass(key, asked.agent, asked.mode)) return sendJson(response, 403, { error: t('#{n} needs its key. Unlock it again and send.', { n: asked.mode }), needsKey: true });
+        }
         const result = here.room.decideMode(requestId, decision);
         return sendJson(response, result.ok ? 200 : 409, result);
       }

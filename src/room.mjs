@@ -276,13 +276,18 @@ export class Room {
   async #askForMode({ planId, plan, step, index, totalSteps, orchestrator, parentMessageId, mode = 2 }) {
     const requestId = randomUUID();
     const expiresAt = new Date(Date.now() + this.#escalation.ms).toISOString();
-    const payload = { requestId, planId, agent: step.agent, orchestrator, mode, step: index + 1, totalSteps, text: step.text, expiresAt, message: `@${step.agent} needs #${mode} ${MODES[mode].label} for step ${index + 1}: the plan runs at #1. Grant it once, for the whole plan, or deny.` };
+    const payload = { requestId, planId, agent: step.agent, orchestrator, mode, step: index + 1, totalSteps, text: step.text, expiresAt, message: `@${step.agent} needs #${mode} ${MODES[mode].label} for step ${index + 1}. Grant it once, for the whole plan, or deny.` };
+    const pending = this.#escalation.wait(requestId, payload, plan);
     await this.#emit('mode.requested', payload);
-    const decision = await this.#escalation.wait(requestId, payload, plan);
+    const decision = await pending;
     if (decision.decision === 'deny' || plan.stopped) {
       const reason = plan.stopped ? 'stopped' : decision.reason ?? 'denied';
-      await this.#emit('mode.denied', { requestId, planId, agent: step.agent, mode, step: index + 1, reason, message: reason === 'timeout' ? `No answer in ${Math.round(this.#escalation.ms / 1000)}s: @${step.agent} runs step ${index + 1} at #1.` : reason === 'stopped' ? `The plan was stopped while @${step.agent} waited for #${mode}.` : `Denied: @${step.agent} runs step ${index + 1} at #1 and will say what it could not create.` });
+      await this.#emit('mode.denied', { requestId, planId, agent: step.agent, mode, step: index + 1, reason, message: reason === 'timeout' ? `No answer in ${Math.round(this.#escalation.ms / 1000)}s: @${step.agent} runs step ${index + 1} at #1.` : reason === 'stopped' ? `The plan was stopped while @${step.agent} waited for #${mode}.` : `Denied: @${step.agent} runs step ${index + 1} at #1 and will say what it could not do.` });
       return { scope: null, reason };
+    }
+    if (mode >= 3) {
+      await this.#emit('mode.granted', { requestId, planId, agent: step.agent, mode, step: index + 1, scope: decision.decision, message: `#${mode} granted to @${step.agent}${decision.decision === 'plan' ? ' for the rest of the plan' : ' for this step'}.` });
+      return { scope: decision.decision, mode };
     }
     const scopes = this.scopesFor(step.agent);
     const enabled = Object.fromEntries(SCOPES.map((scope) => [scope, scopes[scope].enabled && scopes[scope].wired]));
@@ -310,6 +315,7 @@ export class Room {
   // The human's answer to a pending request: 'once', 'plan' or 'deny'.
   decideMode(requestId, decision) { return this.#escalation.decide(requestId, decision); }
   modeAsked(requestId) { return this.#escalation.modeOf(requestId); }
+  modeRequest(requestId) { return this.#escalation.requestOf(requestId); }
   // The modes plans are waiting for the human to grant, as asked.
   pendingModes() { return this.#escalation.pending(); }
 
@@ -1298,7 +1304,7 @@ export class Room {
 
   // One room turn for one agent. `requester` is who asked ('you' or an
   // orchestrating agent); `depth` 0 turns may delegate, deeper ones may not.
-  async #dispatch({ messageId, targetId, text, requester, depth, planId = null, allowDelegation = true, model = null, effort = null, attachments = [], references = [], lease = null, ash = false, mode = 1, escalation = null }) {
+  async #dispatch({ messageId, targetId, text, requester, depth, planId = null, allowDelegation = true, deferPlan = false, model = null, effort = null, attachments = [], references = [], lease = null, ash = false, mode = 1, escalation = null }) {
     if (this.#shuttingDown) return null;
     const agent = this.#agents.find((item) => item.id === targetId);
     if (!agent?.detected) {
@@ -1373,8 +1379,19 @@ export class Room {
     }
     // The orchestrator's turn is over before its plan starts, so it is never
     // counted as in flight while the others work.
-    if (outcome?.directives?.steps.length) {
-      await this.#runPlan({ orchestrator: agent.id, parentMessageId: outcome.responseMessageId, directives: outcome.directives, lease, ash, mode });
+    if (outcome?.directives?.steps.length && !deferPlan) {
+      let next = outcome.directives;
+      let parent = outcome.responseMessageId;
+      const grants = new Map();
+      // The orchestrator may form another wave after seeing the crew's replies. Three waves
+      // bound cost and time; a grant for the plan carries forward, only for its authorized scope.
+      for (let round = 0; next?.steps.length && round < 3; round += 1) {
+        const continued = await this.#runPlan({ orchestrator: agent.id, parentMessageId: parent, directives: next, lease, ash, mode, grants });
+        next = continued?.directives ?? null;
+        parent = continued?.responseMessageId ?? parent;
+        lease = continued?.lease ?? lease;
+      }
+      if (next?.steps.length) await this.#emit('plan.ignored', { orchestrator: agent.id, responseMessageId: parent, reasons: ['The plan reached its three-round limit. Continue with a new message if needed.'] });
     }
     return outcome?.responseMessageId ?? null;
   }
@@ -1828,30 +1845,38 @@ export class Room {
     }
   }
 
-  async #runPlan({ orchestrator, parentMessageId, directives, lease = null, ash = false, mode = 1 }) {
+  async #runPlan({ orchestrator, parentMessageId, directives, lease = null, ash = false, mode = 1, grants = new Map() }) {
     const planId = randomUUID();
+    const closing = directives.closing ?? 'Review the delegated answers and the work completed. If more work is needed within the permission already granted by the human, finish your reply with one new pulse plan. If a command requested from the human has not run, say what is waiting. Ask the human only for a decision or a new #3/#4 key.';
     // The plan's ceiling is the human's mode: #3 when the orchestrator held CONTROL, #2 while a
     // lease exists, #1 otherwise. A step may ask for a mode ("@codex #2: …"); it gets the lowest
-    // of what it asked, the ceiling and its own MAX MODE. Without a number it inherits the plan.
+    // of what it asked, the ceiling and its own MAX MODE. Without a number it reads, or creates
+    // while a lease exists: as in 1.0, #3 has to be asked for by name.
     const ceiling = mode >= 3 ? mode : lease ? 2 : 1;
+    // A key for one delegate does not authorize every other provider in the plan, and #4 is never
+    // reached through the human's own #4: a delegate gets it only with its own key.
+    const planGrants = grants;
+    const reach = (agent, asked) => Math.max(asked >= 4 ? Math.min(ceiling, 3) : ceiling, planGrants.get(agent) ?? 0);
+    const askedOf = (step) => normalizeMode(step.mode, lease ? 2 : 1);
     const stepMode = (step) => {
       const scopes = this.scopesFor(step.agent);
-      const asked = normalizeMode(step.mode, lease ? 2 : 1);
-      const granted = Math.min(asked, ceiling, scopes.maxMode);
+      const asked = askedOf(step);
+      const granted = Math.min(asked, reach(step.agent, asked), scopes.maxMode);
       return granted >= 2 && !scopes.write.enabled ? 1 : granted;
     };
-    const plan = { planId, orchestrator, steps: directives.steps, closing: directives.closing, step: 0, stopped: null, startedAt: Date.now() };
+    const plan = { planId, orchestrator, steps: directives.steps, closing, step: 0, stopped: null, startedAt: Date.now() };
     this.#plans.set(planId, plan);
     await this.#emit('plan.created', {
       planId,
       orchestrator,
       parentMessageId,
       steps: directives.steps.map((step) => ({ ...step, mode: stepMode(step) })),
-      closing: directives.closing,
+      closing,
       ignored: directives.ignored,
       mode: ceiling,
       leaseId: lease?.leaseId ?? null,
     });
+    let continuation = null;
     try {
       for (const [index, step] of directives.steps.entries()) {
         if (plan.stopped) break;
@@ -1864,7 +1889,18 @@ export class Room {
         let stepLease = lease;
         let escalation = null;
         const stepScopes = this.scopesFor(step.agent);
-        const wanted = stepMode(step);
+        let wanted = stepMode(step);
+        const askedMode = askedOf(step);
+        // #3/#4 are never granted by an agent's text alone. The room waits for the human's
+        // existing key, even when a lower-mode plan asked for a stronger delegate.
+        if (askedMode >= 3 && (askedMode > reach(step.agent, askedMode) || askedMode > stepScopes.maxMode)) {
+          const outcome = await this.#askForMode({ planId, plan, step, index, totalSteps: directives.steps.length + 1, orchestrator, parentMessageId, mode: askedMode });
+          if (outcome.scope === 'plan') planGrants.set(step.agent, askedMode);
+          if (outcome.scope) wanted = Math.min(askedMode, this.scopesFor(step.agent).maxMode);
+          // Denied or unanswered, the step reads, as the line in the room says.
+          else { escalation = outcome.reason; wanted = 1; }
+          if (plan.stopped) break;
+        }
         // Under a #3 ceiling the orchestrator's word is enough: a #2 step gets its project lease,
         // a #3 step gets CONTROL for its turn. Under #1 a creation step still asks the human.
         if (ceiling >= 3 && !stepLease && wanted === 2) {
@@ -1873,8 +1909,8 @@ export class Room {
           stepLease.scopes = Object.fromEntries(SCOPES.map((scope) => [scope, stepScopes[scope].enabled && stepScopes[scope].wired]));
           await this.#emit('lease.granted', { delegated: true, leaseId: stepLease.leaseId, messageId, agent: step.agent, outDir: '.', scratchDir: stepLease.scratchDir, grantedBy: orchestrator, scopes: SCOPES.filter((scope) => stepLease.scopes[scope]), unavailable: [], planId });
         }
-        if (ceiling < 3 && !lease && !stepScopes.write.always && (wanted >= 2 || looksLikeCreation(step.text)) && stepScopes.maxMode >= 2 && stepScopes.write.enabled) {
-          const outcome = await this.#askForMode({ planId, plan, step, index, totalSteps: directives.steps.length + (directives.closing ? 1 : 0), orchestrator, parentMessageId, mode: 2 });
+        if (ceiling < 3 && !lease && !stepScopes.write.always && askedMode < 3 && (askedMode >= 2 || looksLikeCreation(step.text)) && stepScopes.maxMode >= 2 && stepScopes.write.enabled) {
+          const outcome = await this.#askForMode({ planId, plan, step, index, totalSteps: directives.steps.length + 1, orchestrator, parentMessageId, mode: 2 });
           if (outcome.scope === 'plan') lease = outcome.lease;
           if (outcome.scope) stepLease = outcome.lease; else escalation = outcome.reason;
           if (plan.stopped) break;
@@ -1891,20 +1927,21 @@ export class Room {
           mode: wanted >= 3 ? wanted : stepLease && stepScopes.write.enabled ? 2 : 1,
           escalation: escalation ?? undefined,
           step: index + 1,
-          totalSteps: directives.steps.length + (directives.closing ? 1 : 0),
+          totalSteps: directives.steps.length + 1,
         });
         await this.#dispatch({ messageId, targetId: step.agent, text: stepText, requester: orchestrator, depth: 1, planId, allowDelegation: false, lease: wanted >= 3 ? null : stepLease, ash, mode: wanted >= 3 ? wanted : stepLease && stepScopes.write.enabled ? 2 : 1, escalation });
       }
-      if (!plan.stopped && directives.closing) {
+      if (!plan.stopped) {
         plan.step = directives.steps.length + 1;
         const messageId = randomUUID();
+        // A delegate's newly granted #3/#4 never raises the orchestrator's own mode.
         const closingMode = ceiling >= 3 ? ceiling : lease ? 2 : 1;
         await this.#emit('message.created', {
           messageId,
           role: 'assistant',
           sender: orchestrator,
           target: orchestrator,
-          text: directives.closing,
+          text: closing,
           ash: ash ? { active: true } : undefined,
           mode: closingMode,
           status: 'delegated',
@@ -1912,7 +1949,10 @@ export class Room {
           step: plan.step,
           totalSteps: plan.step,
         });
-        await this.#dispatch({ messageId, targetId: orchestrator, text: `${directives.closing}\n(The delegated agents have answered above; this is your closing turn.)`, requester: orchestrator, depth: 1, planId, allowDelegation: false, lease, ash, mode: closingMode });
+        const responseMessageId = await this.#dispatch({ messageId, targetId: orchestrator, text: `${closing}\n(The delegated agents have answered above; this is your closing turn.)`, requester: orchestrator, depth: 0, planId, allowDelegation: true, deferPlan: true, lease, ash, mode: closingMode });
+        const reply = responseMessageId ? (await this.#store.readAll()).find((event) => event.type === 'message.created' && event.payload?.messageId === responseMessageId)?.payload?.text : null;
+        const parsed = reply ? parseDirectives(reply, { self: orchestrator, available: this.delegatesFor(orchestrator), maxSteps: this.#maxPlanSteps }) : null;
+        if (parsed?.steps.length && JSON.stringify(parsed.steps) !== JSON.stringify(directives.steps)) continuation = { responseMessageId, directives: parsed, lease };
       }
     } finally {
       this.#plans.delete(planId);
@@ -1923,5 +1963,6 @@ export class Room {
         reason: plan.stopped ?? null,
       });
     }
+    return continuation;
   }
 }

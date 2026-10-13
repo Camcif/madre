@@ -7,6 +7,11 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 ## 1.0.1 · Sin publicar
 
 - **El README abre con el logo oficial de MADRE** y la frase de 1.0, en lugar del banner con la firma «MU/TH/UR 6000 · INTERFACE 2037».
+- **Los planes revisan sus resultados y pueden continuar** hasta tres tramos por petición. Un paso sin número sigue leyendo, o creando si el plan ya puede crear; uno que pide `#3` o `#4` por encima de tu mensaje espera tu llave para ese agente, y `#4` la pide siempre.
+- **Inicio muestra las conexiones directas entre proyectos** antes de las del Coordinador y deja más espacio para leerlas. Si una sala tarda en responder, conserva brevemente su último estado conocido; el Mapa de proyectos vuelve a intentar una lectura fallida.
+- **La navegación del Mapa respeta las ventanas abiertas.** Clics, arrastres y rueda sobre una tarjeta no actúan sobre el lienzo detrás.
+- **Los comandos indican su estado y tiempo transcurrido.** Cada línea muestra una barra de actividad mientras corre y el resumen distingue las que terminaron. Inicio deja de mostrar como pendiente una línea ya iniciada y conserva el agente que la pidió.
+- **Los servidores tienen una tecla de recarga reconocible.**
 
 ## 1.0.0 · 2026-10-12
 

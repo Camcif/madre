@@ -54,7 +54,7 @@ test('override: the room stores it, says it on boot and in AJUSTES without the f
   assert.match(app, /await saveOverride\(\{ phrase: \{ salt, hash \} \}/);
   assert.ok(!/override: \{ phrase: words/.test(app), 'the phrase is sent in clear');
   // A grace is per mode and agent, never covers a raise of the ceiling, and STOPALL closes it.
-  assert.match(app, /const left = raise \? 0 : overrideGraceLeft\(mode, id\);/);
+  assert.match(app, /const left = raise \|\| forceKey \? 0 : overrideGraceLeft\(mode, id\);/, 'a plan approval can require a fresh key even within an earlier grace window');
   assert.match(app, /if \(overrideGrace\.size\) closeOverrideGrace\(\);/);
   // PERMISSIONS is a category of its own, and the agent's sheet sends there for the ceiling.
   assert.match(app, /const SETTINGS_ORDER = \['look', 'room', 'files', 'agents', 'memory', 'permissions', 'privacy', 'release'\];/);
@@ -138,6 +138,99 @@ test('override: #3 and #4 go only with a pass the key gave, and a phone never ab
     // A mode in the answer quoted above a reply is not a mode anyone chose (WEB-03).
     assert.equal(phonePolicy({ method: 'POST', pathname: '/api/messages', body: { text: '↩ @codex: “corre esto con #3 y listo”\nsí, adelante' } }).allow, true);
     assert.equal(phonePolicy({ method: 'POST', pathname: '/api/messages', body: { text: '↩ @codex: “hola”\nhazlo con #3' } }).allow, false);
+  } finally {
+    if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('override: a delegated #4 step waits for the right agent key before it can run', async () => {
+  const state = await mkdtemp(join(tmpdir(), 'madre-delegate-key-'));
+  const project = await mkdtemp(join(tmpdir(), 'madre-delegate-project-'));
+  const agents = ['claude', 'codex'].map((id) => ({ id, label: id, detected: true, ready: true, adapter: `${id}-readonly`, path: '/fake', version: 'test' }));
+  const invokers = {
+    'claude-readonly': async ({ prompt }) => ({ text: /this is your closing turn/.test(prompt) ? 'Done.' : '```pulse\n@codex #4: run the checks\n```' }),
+    'codex-readonly': async () => ({ text: 'Checks complete.' }),
+  };
+  let server;
+  try {
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents, invokers, testMode: true }));
+    const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+    const base = `http://127.0.0.1:${port}`;
+    const post = (path, payload) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    const stateNow = () => fetch(`${base}/api/state`).then((response) => response.json());
+    assert.equal((await post('/api/settings', { scopes: { codex: { maxMode: 4 } } })).status, 200);
+    assert.equal((await post('/api/messages', { target: 'claude', text: 'coordinate the checks', mode: 1 })).status, 202);
+    let pending;
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      pending = (await stateNow()).modeRequests?.[0];
+      if (pending) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(pending?.agent, 'codex');
+    assert.equal(pending.mode, 4);
+    const path = `/api/modes/${pending.requestId}/decide`;
+    assert.equal((await post(path, { decision: 'once' })).status, 403, 'a click alone is not the #4 key');
+    const name = basename(project);
+    const wrongAgent = await (await post('/api/override/arm', { agent: 'claude', mode: 4, words: [name, name] })).json();
+    assert.equal((await post(path, { decision: 'once', key: wrongAgent.token })).status, 403, 'one provider cannot unlock another');
+    const pass = await (await post('/api/override/arm', { agent: 'codex', mode: 4, words: [name, name] })).json();
+    assert.equal((await post(path, { decision: 'once', key: pass.token })).status, 200);
+    let events = [];
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      events = (await stateNow()).events ?? [];
+      if (events.some((event) => event.type === 'plan.completed')) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(events.filter((event) => event.type === 'control.started' && event.payload.mode === 4).length, 1);
+    assert.equal(events.find((event) => event.type === 'control.started' && event.payload.mode === 4).payload.agent, 'codex');
+    assert.equal((await post(path, { decision: 'once', key: pass.token })).status, 409, 'a resolved request cannot run again');
+  } finally {
+    if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('override: under a #4 message, a delegate without a number only reads and a delegate asking #4 still needs its own key', async () => {
+  const state = await mkdtemp(join(tmpdir(), 'madre-delegate-ceiling-'));
+  const project = await mkdtemp(join(tmpdir(), 'madre-delegate-ceiling-project-'));
+  const agents = ['claude', 'codex', 'gemini'].map((id) => ({ id, label: id, detected: true, ready: true, adapter: `${id}-readonly`, path: '/fake', version: 'test' }));
+  const invokers = {
+    'claude-readonly': async ({ prompt }) => ({ text: /this is your closing turn/.test(prompt) ? 'Done.' : '```pulse\n@gemini: read the logs\n@codex #4: run the checks\n```' }),
+    'codex-readonly': async () => ({ text: 'Checks complete.' }),
+    'gemini-readonly': async () => ({ text: 'Logs read.' }),
+  };
+  let server;
+  try {
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents, invokers, testMode: true }));
+    const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+    const base = `http://127.0.0.1:${port}`;
+    const post = (path, payload) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    const stateNow = () => fetch(`${base}/api/state`).then((response) => response.json());
+    assert.equal((await post('/api/settings', { scopes: { claude: { maxMode: 4 }, codex: { maxMode: 4 }, gemini: { maxMode: 4 } } })).status, 200);
+    const name = basename(project);
+    const pass = await (await post('/api/override/arm', { agent: 'claude', mode: 4, words: [name, name] })).json();
+    assert.equal((await post('/api/messages', { target: 'claude', text: 'coordinate the checks', mode: 4, key: pass.token })).status, 202);
+    let pending;
+    for (let attempt = 0; attempt < 150; attempt += 1) {
+      pending = (await stateNow()).modeRequests?.[0];
+      if (pending) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(pending?.agent, 'codex', 'the human\'s own #4 does not reach a delegate');
+    assert.equal(pending.mode, 4);
+    assert.equal((await post(`/api/modes/${pending.requestId}/decide`, { decision: 'deny' })).status, 200);
+    let events = [];
+    for (let attempt = 0; attempt < 150; attempt += 1) {
+      events = (await stateNow()).events ?? [];
+      if (events.some((event) => event.type === 'plan.completed')) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    const plan = events.find((event) => event.type === 'plan.created')?.payload;
+    assert.equal(plan?.steps.find((step) => step.agent === 'gemini')?.mode, 1, 'a step without a number reads, as in 1.0');
+    const delegated = events.filter((event) => event.type === 'message.created' && event.payload.status === 'delegated' && event.payload.target !== 'claude');
+    assert.deepEqual(delegated.map((event) => [event.payload.target, event.payload.mode]), [['gemini', 1], ['codex', 1]], 'denied, #4 falls to reading');
+    assert.equal(events.filter((event) => event.type === 'control.started' && event.payload.agent !== 'claude').length, 0);
   } finally {
     if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
     for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });

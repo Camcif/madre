@@ -13,6 +13,7 @@ export class Escalation {
   pending() { return [...this.#requests.values()].map((entry) => entry.payload); }
   // The mode a pending request asks for, so a decision can be weighed against who makes it.
   modeOf(requestId) { return this.#requests.get(requestId)?.payload?.mode ?? null; }
+  requestOf(requestId) { return this.#requests.get(requestId)?.payload ?? null; }
 
   // Resolves with { decision: 'once' | 'plan' | 'deny', reason } when the human answers or the clock runs out.
   // The clock keeps the process alive on purpose; settleAll() clears it.

@@ -9,9 +9,9 @@
 //
 // MADRE runs the steps sequentially as regular room turns, each recorded,
 // each subject to handoff, budget and timeout, and each stoppable by the
-// human. A step addressed to the orchestrator itself becomes its closing
-// turn once the others have answered. Delegated agents cannot delegate
-// further (depth is capped at one), so a plan always terminates.
+// human. The orchestrator gets a closing turn after the others have answered.
+// Delegated agents cannot delegate further (depth is capped at one); the
+// orchestrator may start another bounded wave after reviewing their results.
 
 export const DELEGATION_HELP = (self, others, maxSteps) => [
   `You may put other agents to work: ${others.map((id) => `@${id}`).join(', ')}.`,
@@ -21,8 +21,8 @@ export const DELEGATION_HELP = (self, others, maxSteps) => [
   `@${others[0] ?? 'codex'}: <question for that agent>`,
   `@${self}: <what you will do with their answers, optional closing turn for you>`,
   '```',
-  'A step may name the mode it needs, "@codex #2: create the page" or "@claude #3: fix the router"; MADRE caps it at your own mode and at that agent\'s MAX MODE. Without a number a step inherits the plan\'s mode.',
-  `MADRE runs the steps in order (at most ${maxSteps}), shows every answer in the room, then hands you the closing turn if you asked for one.`,
+  'A step may name the mode it needs, "@codex #2: create the page" or "@claude #3: fix the router"; MADRE uses the human permission for this turn as the ceiling. A higher mode pauses for the human to unlock it for that agent, and #4 always does. Without a number a step only reads, or creates files when the plan may create; ask for #3 by name.',
+  `MADRE runs the steps in order (at most ${maxSteps}), shows every answer in the room, then hands you a closing turn to review progress. If work remains within the human permission, you may end that turn with another pulse plan; at most three waves run from one request.`,
   'The plan block must be the very last thing in your reply: nothing after it, not even a closing sentence. Say everything else before it.',
   'Address each agent once. Do not delegate what you can answer yourself.',
 ].join('\n');
@@ -47,7 +47,7 @@ export function parseDirectives(text, { self, available = [], maxSteps = 4 } = {
       const line = raw.trim();
       if (!line || line.startsWith('#')) continue;
       // "@agent: text" or "@agent #2: text": the mode is a request, capped by the plan's ceiling and the agent's MAX MODE.
-      const match = line.match(/^[-*]?\s*@([a-z0-9_-]+)\s*(?:#([0-3]))?\s*[:：]\s*(.+)$/i);
+      const match = line.match(/^[-*]?\s*@([a-z0-9_-]+)\s*(?:#([0-4]))?\s*[:：]\s*(.+)$/i);
       if (!match) { ignored.push({ line, reason: 'not a step (expected "@agent: text" or "@agent #2: text")' }); continue; }
       const agent = match[1].toLowerCase();
       const instruction = match[3].trim();

@@ -82,7 +82,7 @@ Los alcances de imagen de Claude, Gemini y OpenCode se cumplen con **Image Studi
 
 Un turno en `#2` toma la misma fotografía que CONTROL, sin asiento: varios turnos `#2` pueden correr a la vez. Al terminar, `diff` contra la fotografía: los archivos añadidos se conservan y se registran como `artifacts.created` con su ruta en el proyecto; los modificados, renombrados o borrados se restauran desde la fotografía y se anuncian en `create.reverted`. Las zonas prohibidas se restauran igual que en CONTROL. Cada CLI recibe sus herramientas de escritura sobre el proyecto: Claude Code niega `Write` si `Edit` no está permitido en la misma ruta y OpenCode deja sin herramienta de escritura si `edit` está denegado (ambos verificados con el CLI real), así que en `#2` van juntas y la garantía de "solo añadir" es la restauración posterior, no la regla previa. Gemini recibe solo `write_file`. El `scratchDir` bajo `.pulse/out/` sigue existiendo para lo que no tiene sitio y para Image Studio.
 
-En un plan, el modo de cada paso es el mínimo entre lo que pidió el orquestador (`@agente #n:`), el techo del plan (el modo del mensaje humano) y el `MAX MODE` del agente. Bajo techo `#3`, un paso `#2` recibe un lease de proyecto emitido a nombre del orquestador y un paso `#3` toma CONTROL con su propio checkpoint, uno a la vez. Bajo techo `#1`, un paso `#2` pasa por la escalación al humano.
+En un plan, el modo de cada paso es el mínimo entre lo que pidió el orquestador (`@agente #n:`; sin número, `#1`, o `#2` si hay lease), el techo del plan (el modo del mensaje humano) y el `MAX MODE` del agente. `#4` nunca llega a un delegado por el techo: solo con la llave de ese agente. Bajo techo `#3`, un paso `#2` recibe un lease de proyecto emitido a nombre del orquestador y un paso `#3` toma CONTROL con su propio checkpoint, uno a la vez. Bajo techo `#1`, un paso `#2` pasa por la escalación al humano. Un paso `#3` o `#4` que supera el techo pide la llave al humano para ese agente; concederla para el plan no eleva el techo de los demás.
 
 ## CONTROL por dentro
 
@@ -90,7 +90,7 @@ Antes del turno, MADRE fotografía el proyecto como un commit real bajo `refs/ma
 
 ## Recuperación operativa
 
-Si MADRE se detiene a mitad de un turno, al arrancar detecta los `agent.started` sin cierre y registra un `message.failed` recuperado para cada uno. Al cerrar con Ctrl+C o `SIGTERM`, interrumpe los procesos de agente en curso, registra esos turnos como fallidos, entrega los eventos pendientes a las páginas abiertas y termina. Los planes se ejecutan en secuencia y los delegados no delegan, así que todo plan termina; `STOPALL` corta cualquier cosa en curso.
+Si MADRE se detiene a mitad de un turno, al arrancar detecta los `agent.started` sin cierre y registra un `message.failed` recuperado para cada uno. Al cerrar con Ctrl+C o `SIGTERM`, interrumpe los procesos de agente en curso, registra esos turnos como fallidos, entrega los eventos pendientes a las páginas abiertas y termina. Los planes se ejecutan en secuencia y los delegados no delegan. El orquestador revisa las respuestas y puede abrir otro tramo, hasta tres por petición; `STOPALL` corta cualquier cosa en curso.
 
 ## Empaquetado y pruebas
 

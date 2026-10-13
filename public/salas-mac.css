@@ -256,7 +256,8 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 /* The map of the links (2026-10-11): hairline spokes from the Coordinator, a wire in the accent per
    contract with the notes running along it, the projects it touches drawn whole and named in
    full, the rest quiet round the edge. */
-.sm-map { position: relative; flex: 1; min-height: 150px; color: var(--s-acc); }
+.sm-links-tile { gap: 14px; padding: 22px 24px; }
+.sm-map { position: relative; flex: 1; min-height: 170px; color: var(--s-acc); }
 .sm-map svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .sm-map .spoke { stroke: var(--text-3); stroke-opacity: .22; stroke-width: 1; }
 .sm-map .spoke.linked { stroke-opacity: 0; }
@@ -269,7 +270,7 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 .sm-map .label { font-family: var(--read); font-size: 11px; font-weight: 500; fill: var(--text-3); }
 .sm-map .label.linked { font-size: 12px; font-weight: 650; fill: var(--text); }
 .sm-map .bishop .halo { fill: none; stroke: var(--s-acc); stroke-opacity: .35; stroke-width: 1.5; }
-.sm-map-legend { display: grid; gap: 4px; margin: 2px 0 0; padding: 0; list-style: none; }
+.sm-map-legend { display: grid; gap: 7px; margin: 4px 0 2px; padding: 0; list-style: none; }
 .sm-map-legend li { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--text-2); }
 .sm-map-legend li i { flex: none; width: 14px; height: 2px; border-radius: 1px; background: var(--s-acc); }
 .sm-map-legend li b { font-weight: 650; color: var(--text); }
@@ -330,18 +331,20 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
 .sm-chip.salas { background: color-mix(in srgb, var(--s-acc) 18%, transparent); color: color-mix(in srgb, var(--s-acc) 75%, var(--text)); }
 
 /* LINKS (docs/MACROVERSO.md, phase 3c): the contracts between rooms, and the sheet that signs one. */
-.sm-link-list { display: grid; gap: 10px; }
-.sm-link { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; padding: 14px 16px; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.sm-link-list { display: grid; gap: 14px; }
+.sm-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px 22px; align-items: center; padding: 20px 22px; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.sm-link-kind { grid-column: 1; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: var(--s-acc); text-transform: uppercase; }
 .sm-link .who { margin: 0; font-family: var(--read); font-size: 15px; font-weight: 650; letter-spacing: -.01em; text-transform: none; }
 .sm-link .who b { color: var(--s-acc); }
 .sm-link .what, .sm-link .traffic { margin: 0; font-family: var(--read); font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--text-2); }
 .sm-link .what { grid-column: 1; }
 .sm-link .traffic { grid-column: 1; }
-.sm-link .sm-actions { grid-column: 2; grid-row: 1 / span 4; display: flex; align-items: center; gap: 8px; }
+.sm-link .sm-actions { grid-column: 2; grid-row: 1 / span 5; display: flex; align-items: center; gap: 8px; }
 .sm-link .sm-recall { grid-column: 1; display: flex; align-items: center; gap: 8px; margin: 2px 0 0; font-family: var(--read); font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--text-2); cursor: pointer; }
 .sm-link .sm-recall input { accent-color: var(--s-acc); }
 .sm-link.revoking { box-shadow: inset 0 0 0 1px color-mix(in srgb, #ff4d3d 55%, var(--line)); }
 .sm-link .sm-ask { font-size: 12.5px; color: var(--text-2); }
+@media (max-width: 600px) { .sm-link { grid-template-columns: 1fr; padding: 18px; } .sm-link .sm-actions { grid-column: 1; grid-row: auto; justify-content: flex-start; } }
 /* Every sheet of the lobby wears the room's window material (styles.css, dialog.settings-window):
    the second ground at 94 %, a light falling from its top, the space behind it blurred. What is
    inside stands on it as the room's cards do. */
@@ -450,7 +453,8 @@ body.sm-in-macro { overflow: hidden; }
 .sm-mark svg { width: 62%; height: 62%; }
 
 /* Sheets that are wider than the link sheet, and their head. */
-.sm-sheet.sm-wide { --sm-sheet-w: 720px; }
+.sm-sheet.sm-wide { --sm-sheet-w: 780px; }
+#sm-links-sheet .sm-sheet-body { padding: 24px 26px; gap: 18px; }
 .sm-sheet-body { display: grid; gap: 14px; padding: 20px 24px 20px; }
 .sm-sheet-body > h3 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.015em; }
 .sm-sheet-body .hint, .sm-picker .hint { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }

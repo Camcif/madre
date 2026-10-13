@@ -1598,6 +1598,18 @@ async function browserServers() {
   catch { menu.replaceChildren(el('div', 'ports-note', t('COULD NOT READ THE PORTS'))); browser.servers?.setAttribute('data-live', 'no'); return; }
   paintPorts(read);
 }
+async function refreshBrowserServers(button) {
+  button.disabled = true;
+  button.classList.add('checking');
+  try {
+    const response = await fetch('/api/ports', { cache: 'no-store' });
+    paintPorts(await response.json());
+  } catch {
+    button.classList.remove('checking');
+    button.disabled = false;
+    toast(t('Could not read the ports'));
+  }
+}
 
 // This project's servers, and only them. The servers sentinel says when the list changes, so an
 // open menu redraws itself and the lamp on the button follows without anyone asking again.
@@ -1643,7 +1655,16 @@ function paintPorts(read) {
   // The lamp on the button keeps what the reading found, so the state survives the menu closing.
   browser.servers?.setAttribute('data-live', ports.length ? 'yes' : 'no');
   if (menu.hidden) return;
-  menu.replaceChildren(el('div', 'ports-head', t('THIS PROJECT\'S SERVERS')));
+  const head = el('div', 'ports-head');
+  head.append(el('span', null, t('THIS PROJECT\'S SERVERS')));
+  const refresh = el('button', 'ports-refresh');
+  refresh.type = 'button';
+  refresh.setAttribute('aria-label', t('Refresh servers'));
+  refresh.title = t('Refresh servers');
+  refresh.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.76-4.24M16 3.6v3.6h-3.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  refresh.addEventListener('click', () => void refreshBrowserServers(refresh));
+  head.append(refresh);
+  menu.replaceChildren(head);
   if (!ports.length && !wider.length) menu.append(el('div', 'ports-empty', t('Nothing started from this project is answering. Start your dev server inside the project folder and it shows up here by itself.')));
   for (const found of ports) {
     const row = el('button', `ports-row${found.framable === false ? ' refuses' : ''}`);
@@ -2982,6 +3003,7 @@ const override = {
   cancelled: null, // called when the human walks away from it, to put back what they wrote
   raise: false,   // the agent is capped below the mode: arming also raises its max mode in Settings › Permissions
   mode: 3,        // #3 CONTROL or #4 AIRLOCK
+  preserveComposer: false,
   stage: 'designation',   // designation · phrase · confirm; #4 asks for the same key a second time
   again: false,           // the second time, for #4
   key: 'designation',     // the key chosen in AJUSTES › Permissions for this mode
@@ -3058,12 +3080,12 @@ function askOverrideKey(stage, { again = false } = {}) {
   override.form.querySelector('.k').textContent = stage === 'phrase' ? (again ? t('Type your phrase again') : t('Type your phrase')) : again ? t('Type the project name again') : t('Type the project name');
   override.input.placeholder = '';
 }
-function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null } = {}) {
+function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null, preserveComposer = false, forceKey = false } = {}) {
   if (!override.dialog) return;
   // Inside the grace of an accepted key, the same mode for the same agent is not asked again —
   // unless arming would also raise the agent's ceiling, which is always asked.
-  const left = raise ? 0 : overrideGraceLeft(mode, id);
-  if (left) { void grantOverride({ agent: id, raise: false, mode, then, delay: 0, left }); return; }
+  const left = raise || forceKey ? 0 : overrideGraceLeft(mode, id);
+  if (left) { void grantOverride({ agent: id, raise: false, mode, then, delay: 0, left, preserveComposer }); return; }
   override.agent = id;
   // What to do once it is armed. The chip's road arms and waits for the human to send; a #3 or #4
   // typed in a message that was sent, and the way up on an agent's card, send right away.
@@ -3072,6 +3094,7 @@ function openOverride(id, { raise = false, mode = 3, then = null, cancelled = nu
   override.cancelled = cancelled;
   override.raise = raise;
   override.mode = mode;
+  override.preserveComposer = preserveComposer;
   override.key = overrideKeyFor(mode);
   askOverrideKey(override.key.startsWith('phrase') ? 'phrase' : override.key === 'confirm' ? 'confirm' : 'designation');
   override.title.textContent = mode === 4 ? t('Open #4 FULL ACCESS for @{agent}', { agent: id }) : t('Unlock #3 EDIT for @{agent}', { agent: id });
@@ -3137,13 +3160,13 @@ override.form?.addEventListener('submit', async (event) => {
   }
   override.reply.textContent = override.mode === 4 ? t('Open for @{agent}.', { agent: override.agent }) : t('Unlocked for @{agent}.', { agent: override.agent });
   override.reply.className = 'key-reply granted';
-  const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900, pass: answer.token };
+  const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900, pass: answer.token, preserveComposer: override.preserveComposer };
   override.then = null;
   override.cancelled = null;
   void grantOverride(granted);
 });
 // Arms the mode for that agent: after the key, or straight away inside the grace of an earlier one.
-async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0, pass = null }) {
+async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0, pass = null, preserveComposer = false }) {
   if (pass) overridePasses.set(`${mode}:${agent}`, pass);
   if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
   if (override.dialog?.open) override.dialog.close();
@@ -3158,9 +3181,11 @@ async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0, pa
   }
   const minutes = overrideConfig().grace?.[mode] ?? 0;
   if (!left && minutes > 0) { overrideGrace.set(`${mode}:${agent}`, Date.now() + minutes * 60000); tickGrace(); }
-  state.modeArmedFor = agent;
-  els.target.value = agent;
-  setMode(mode, { wink: true });
+  if (!preserveComposer) {
+    state.modeArmedFor = agent;
+    els.target.value = agent;
+    setMode(mode, { wink: true });
+  }
   if (then) { await then(); return; }
   if (left) { toast(t('Diagnostics › {label} is still open for @{agent} · {left} left.', { label: MODES[mode].label, agent, left: graceWords(left) }), { tone: 'look' }); return; }
   toast(mode === 4
@@ -4686,21 +4711,28 @@ function renderModeRequest(event) {
   quote.title = text;
   node.append(quote);
   const actions = el('div', 'actions');
-  const decide = async (decision, button) => {
+  const decide = async (decision, button, key = null) => {
+    if (mode >= 3 && decision !== 'deny' && !key) {
+      const ready = overridePass(mode, agent);
+      if (ready) { void decide(decision, button, ready); return; }
+      openOverride(agent, { mode, raise: mode > ceilingFor(agent) && Boolean(state.capabilities[agent]?.scopes?.write?.capable), preserveComposer: true, forceKey: true, then: () => decide(decision, button, overridePass(mode, agent)) });
+      return;
+    }
     for (const other of actions.querySelectorAll('button')) other.disabled = true;
     try {
-      const response = await fetch(`/api/modes/${requestId}/decide`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision }) });
+      const response = await fetch(`/api/modes/${requestId}/decide`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ decision, ...(key ? { key } : {}) }) });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+      if (!response.ok) { if (result.needsKey) overridePasses.delete(`${mode}:${agent}`); throw new Error(result.error ?? `HTTP ${response.status}`); }
+      if (key && !overrideGraceLeft(mode, agent)) overridePasses.delete(`${mode}:${agent}`);
       button.textContent = decision === 'deny' ? t('DENIED') : t('GRANTED');
     } catch (error) {
       toast(`${t('Diagnostics › ')}${error.message}`);
       for (const other of actions.querySelectorAll('button')) other.disabled = false;
     }
   };
-  const once = el('button', 'grant', t('GRANT ONCE')); once.type = 'button'; once.title = `@${agent} may add files to the project for this step only.`;
-  const plan = el('button', 'grant plan', t('GRANT FOR PLAN')); plan.type = 'button'; plan.title = t('Every remaining writable step of this plan shares one lease directory.');
-  const deny = el('button', 'deny', t('DENY')); deny.type = 'button'; deny.title = `@${agent} answers read-only and says what it would have created.`;
+  const once = el('button', 'grant', t('GRANT ONCE')); once.type = 'button'; once.title = mode >= 3 ? t('Unlock #{mode} for this step only.', { mode }) : t('Allow creation for this step only.');
+  const plan = el('button', 'grant plan', t('GRANT FOR PLAN')); plan.type = 'button'; plan.title = mode >= 3 ? t('Unlock #{mode} for the remaining steps of this plan.', { mode }) : t('Every remaining writable step of this plan shares one lease directory.');
+  const deny = el('button', 'deny', t('DENY')); deny.type = 'button'; deny.title = t('The step continues in read-only mode.');
   once.addEventListener('click', () => decide('once', once));
   plan.addEventListener('click', () => decide('plan', plan));
   deny.addEventListener('click', () => decide('deny', deny));
@@ -5014,6 +5046,7 @@ function renderRunRequest(event) {
     button.title = t('Runs {command} from the project root, with no shell. A restore point is taken first.', { command: command.line });
     button.addEventListener('click', async () => {
       button.disabled = true;
+      markRun({ responseMessageId, index }, 'running', null, event.timestamp);
       try {
         const response = await fetch('/api/runs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ responseMessageId, index }) });
         const result = await response.json().catch(() => ({}));
@@ -5025,27 +5058,39 @@ function renderRunRequest(event) {
     });
     list.append(button);
   });
-  node.append(list, el('p', 'choice-foot', t('Each line runs only when you press it · from the project root, no shell · the output comes back to the project')));
+  node.append(list, el('p', 'run-summary', t('{done} of {total} commands finished', { done: 0, total: commands.filter((one) => one.argv).length })), el('p', 'choice-foot', t('Each line runs only when you press it · from the project root, no shell · the output comes back to the project')));
   state.lastSender = null;
   return node;
 }
 
 // The state of one line of a run request, from the events that follow it: running, ran, failed.
 // A line that ran can be pressed again; tests are run more than once.
-function markRun({ responseMessageId, index }, status, where = null) {
+function markRun({ responseMessageId, index }, status, where = null, startedAt = null) {
   const button = document.querySelector(`.run-request[data-run="${CSS.escape(String(responseMessageId))}"] .run-line[data-index="${Number(index)}"]`);
   if (!button || button.classList.contains('refused')) return;
   button.classList.remove('running', 'serving', 'ran', 'failed');
   if (status) button.classList.add(status);
+  if (status === 'running') button.dataset.startedAt = startedAt ?? new Date().toISOString();
+  else delete button.dataset.startedAt;
   button.disabled = status === 'running' || status === 'serving';
   const tag = button.querySelector('.choice-tag');
   if (tag) tag.textContent = { running: t('RUNNING'), serving: t('SERVING'), ran: t('RUN AGAIN'), failed: t('RUN AGAIN') }[status] ?? t('RUN');
+  const group = button.closest('.run-request');
+  const summary = group?.querySelector('.run-summary');
+  if (summary) summary.textContent = t('{done} of {total} commands finished', { done: group.querySelectorAll('.run-line.ran, .run-line.failed').length, total: group.querySelectorAll('.run-line:not(.refused)').length });
   // While it is alive, a line of its own under it: where it serves, and the two things a person
   // does with a running command: look at it, or stop it. It goes when the command ends.
   let live = button.nextElementSibling?.classList.contains('run-live') ? button.nextElementSibling : null;
   if (status !== 'running' && status !== 'serving') { live?.remove(); return; }
   if (!live) { live = el('div', 'run-live'); button.after(live); }
   live.replaceChildren();
+  if (status === 'running') {
+    const progress = el('span', 'run-progress-track');
+    progress.setAttribute('role', 'progressbar');
+    progress.setAttribute('aria-label', t('Command running'));
+    live.append(progress, el('span', 'run-elapsed'));
+    updateRunClock(button);
+  }
   if (status === 'serving' && where?.port) {
     live.append(el('span', 'where', where.network
       ? t('serving on :{port} · listens on the whole network, so the project will not open it', { port: where.port })
@@ -5069,6 +5114,16 @@ function markRun({ responseMessageId, index }, status, where = null) {
   });
   live.append(stop);
 }
+function updateRunClock(button) {
+  const shown = button.nextElementSibling?.querySelector('.run-elapsed');
+  if (!shown || !button.dataset.startedAt) return;
+  const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(button.dataset.startedAt)) / 1000));
+  shown.textContent = t('Running · {time} elapsed', { time: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` });
+}
+const runClock = setInterval(() => {
+  if (!document.hidden) for (const button of document.querySelectorAll('.run-line.running')) updateRunClock(button);
+}, 1000);
+runClock.unref?.();
 
 // BISHOP proposed a plan in the room of Salas (docs/MACROVERSO.md, fases 4b y 4c). One row per
 // order with the room, the agent and the mode in sight, and one per link it proposes. What a press
@@ -5792,7 +5847,7 @@ function renderEventNode(event) {
     case 'choice.offered': node = renderChoice(event); break;
     case 'chat.activity': onChatActivity(event.payload); return;
     case 'run.requested': node = renderRunRequest(event); break;
-    case 'run.started': markRun(event.payload, 'running'); return;
+    case 'run.started': markRun(event.payload, 'running', null, event.timestamp); return;
     case 'run.serving': markRun(event.payload, 'serving', event.payload); return;
     case 'write.waiting': {
       // Two turns writing the project at once could not be told apart afterwards; the second waits.
@@ -16107,8 +16162,19 @@ function stopNostromo() {
 // Drag turns the archive in the hand, Shift+drag pans, wheel zooms about the pointer, a still
 // click selects. Let go and it stays where it was left; RECENTER brings back the side view.
 const drag = { active: false, moved: false, pan: false, x: 0, y: 0 };
-nostromo.canvas?.addEventListener('mousedown', (event) => { drag.active = true; drag.moved = false; drag.pan = event.shiftKey; drag.x = event.clientX; drag.y = event.clientY; });
+// Floating memory cards and other open windows keep their entire visible rectangle. A click on a
+// command or a window's glass must never be interpreted as a click on the map behind it.
+function nostromoCovered(event) {
+  const panels = [...nostromo.cards, ...floatingWindows(), ...document.querySelectorAll('dialog[open]')];
+  return panels.some((panel) => {
+    if (panel.hidden || panel === nostromo.dialog || panel.contains(nostromo.canvas)) return false;
+    const rect = panel.getBoundingClientRect();
+    return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+  });
+}
+nostromo.canvas?.addEventListener('mousedown', (event) => { if (event.button !== 0 || nostromoCovered(event)) return; drag.active = true; drag.moved = false; drag.pan = event.shiftKey; drag.x = event.clientX; drag.y = event.clientY; });
 nostromo.canvas?.addEventListener('mousemove', (event) => {
+  if (nostromoCovered(event)) return;
   if (drag.active) {
     const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
     if (Math.hypot(dx, dy) > 3) drag.moved = true;
@@ -16135,6 +16201,7 @@ nostromo.canvas?.addEventListener('mousemove', (event) => {
 window.addEventListener?.('mouseup', () => { drag.active = false; nostromo.canvas?.classList.remove('dragging'); });
 nostromo.canvas?.addEventListener('mouseleave', () => { nostromo.hover = null; });
 nostromo.canvas?.addEventListener('wheel', (event) => {
+  if (nostromoCovered(event)) return;
   event.preventDefault();
   if (!nostromoLive()) return;
   const rect = nostromo.canvas.getBoundingClientRect();
@@ -16153,8 +16220,9 @@ nostromo.canvas?.addEventListener('wheel', (event) => {
 for (const [type, phase] of [['pointerdown', 'down'], ['pointermove', 'move'], ['pointerup', 'up'], ['pointercancel', 'up']]) {
   nostromo.canvas?.addEventListener(type, (event) => flatTouch(event, phase));
 }
-nostromo.canvas?.addEventListener('click', () => flatPaint());
+nostromo.canvas?.addEventListener('click', (event) => { if (!nostromoCovered(event)) flatPaint(); });
 nostromo.canvas?.addEventListener('click', (event) => {
+  if (nostromoCovered(event)) return;
   if (drag.moved) { drag.moved = false; return; }
   const at = nostromo.flat ? flatAt(event) : nostromoAt(event);
   // The core is the door. Touching it used to be treated as an attempt on the archive; what is

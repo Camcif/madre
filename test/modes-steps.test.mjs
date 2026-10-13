@@ -27,6 +27,42 @@ test('scopes: MAX MODE and DEFAULT MODE are the two controls; older flags still 
   assert.deepEqual(parseDirectives('```pulse\n@codex #2: make the page\n@gemini: read it\n@claude #3: fix the router\n```', { self: 'opencode', available: ['codex', 'gemini', 'claude'] }).steps, [
     { agent: 'codex', text: 'make the page', mode: 2 }, { agent: 'gemini', text: 'read it' }, { agent: 'claude', text: 'fix the router', mode: 3 },
   ]);
+  assert.deepEqual(parseDirectives('```pulse\n@codex #4: run the checks\n```', { self: 'claude', available: ['codex'] }).steps, [
+    { agent: 'codex', text: 'run the checks', mode: 4 },
+  ], 'a plan can ask for #4, which still waits for the human key');
+});
+
+test('a plan closes, reviews the crew, and can continue through a bounded second wave', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pulse-plan-waves-'));
+  const logDir = await mkdtemp(join(tmpdir(), 'pulse-plan-waves-log-'));
+  try {
+    const store = await new EventStore(join(logDir, 'events.jsonl')).initialize();
+    const agents = ['codex', 'gemini'].map((id) => ({ id, label: id, detected: true, ready: true, adapter: `${id}-readonly`, path: '/x', version: '1' }));
+    let closes = 0;
+    const leases = [];
+    const room = new Room({ store, agents, projectRoot: root, invokers: {
+      'codex-readonly': async ({ prompt }) => {
+        if (/this is your closing turn/.test(prompt)) {
+          closes += 1;
+          return { text: closes === 1 ? 'One more check.\n```pulse\n@gemini #2: verify the result\n```' : 'Verified and complete.', usage: null };
+        }
+        return { text: 'First check.\n```pulse\n@gemini #2: inspect the issue\n```', usage: null };
+      },
+      'gemini-readonly': async ({ lease }) => { leases.push(lease); return { text: 'Checked.', usage: null }; },
+    } });
+    room.subscribe((event) => { if (event.type === 'mode.requested') room.decideMode(event.payload.requestId, 'plan'); });
+    await room.send({ text: 'coordinate the checks', target: 'codex', mode: 1 });
+    const events = await store.readAll();
+    assert.equal(events.filter((event) => event.type === 'plan.created').length, 2);
+    assert.equal(events.filter((event) => event.type === 'plan.completed').length, 2);
+    assert.equal(closes, 2, 'the orchestrator reviewed each wave without a new human prompt');
+    assert.equal(events.filter((event) => event.type === 'mode.requested').length, 1, 'the #2 grant for the plan carries into its next wave');
+    assert.equal(leases.length, 2);
+    assert.equal(leases[0]?.outDir, leases[1]?.outDir);
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+    await rm(logDir, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
 });
 
 test('plan steps carry the mode the orchestrator asked for, capped by the human and by each agent', async () => {

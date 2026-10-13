@@ -260,6 +260,7 @@ function stateOf(room) {
   if (!room.open) return { key: 'asleep', words: room.lastOpened ? t('Asleep · last open {when}', { when: ago(room.lastOpened) }) : t('Asleep') };
   if (glance.outdated) return { key: 'outdated', words: t('Update MADRE in this project to see it here.') };
   if (glance.unreachable) return { key: 'quiet', words: t('Not answering right now') };
+  if (glance.delayed) return { key: 'quiet', words: t('Responding slowly · last known state') };
   if (glance.waitingCount) return { key: 'waiting', words: t('Waiting for you · {n}', { n: glance.waitingCount }) };
   if (glance.working?.length) return { key: 'working', words: glance.working.length === 1 ? t('@{agent} is working', { agent: glance.working[0] }) : t('{n} agents working', { n: glance.working.length }) };
   return { key: 'calm', words: t('Calm') };
@@ -664,6 +665,7 @@ function linkRow(enlace) {
   const { source, reader } = endsOf(enlace);
   const node = el('article', `sm-link${revoking.has(enlace.id) ? ' revoking' : ''}`);
   node.dataset.link = enlace.id;
+  node.append(el('span', 'sm-link-kind', source === data.salas || reader === data.salas ? t('With the Coordinator') : t('Between projects')));
   node.append(el('p', 'who', enlace.direction === 'both' ? t('{a} and {b} read each other', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) }) : t('{reader} reads from {source}', { reader: roomName(reader), source: roomName(source) })));
   const what = [kindsWords(enlace.kinds), enlace.expires ? t('until {date}', { date: new Date(enlace.expires).toLocaleDateString(language, { day: 'numeric', month: 'short' }) }) : t('no expiry')];
   if (enlace.orders?.allowed) what.push(t('orders up to #{n}', { n: enlace.orders.maxMode }));
@@ -694,7 +696,10 @@ function linkRow(enlace) {
   return node;
 }
 function drawLinks(projects) {
-  const enlaces = data.enlaces ?? [];
+  const enlaces = [...(data.enlaces ?? [])].sort((a, b) => {
+    const direct = (one) => Number(one.rooms.a !== data.salas && one.rooms.b !== data.salas);
+    return direct(b) - direct(a) || roomName(endsOf(a).reader).localeCompare(roomName(endsOf(b).reader)) || roomName(endsOf(a).source).localeCompare(roomName(endsOf(b).source));
+  });
   const enough = data.rooms.length >= 2;
   ui.link.hidden = !enough;
   ui.linkMore.hidden = !enough;
@@ -722,7 +727,7 @@ function drawMapLegend(enlaces) {
     if (reader === data.salas) return sayBold('The Coordinator looks up {source}', { source: roomName(source) });
     return sayBold('{reader} looks up {source}', { reader: roomName(reader), source: roomName(source) });
   };
-  for (const enlace of enlaces.slice(0, 2)) {
+  for (const enlace of enlaces.slice(0, 3)) {
     const line = el('li');
     const words = el('span', 'says');
     words.append(said(enlace));
@@ -730,7 +735,7 @@ function drawMapLegend(enlaces) {
     if (enlace.orders?.allowed) line.append(el('span', 'sm-map-orders', t('orders up to #{n}', { n: enlace.orders.maxMode })));
     mapLegend.append(line);
   }
-  if (enlaces.length > 2) mapLegend.append(el('li', 'more', t('and {n} more', { n: enlaces.length - 2 })));
+  if (enlaces.length > 3) mapLegend.append(el('li', 'more', t('and {n} more', { n: enlaces.length - 3 })));
 }
 async function revokeLink(id) {
   revoking.delete(id);
@@ -761,8 +766,10 @@ function drawMap(projects, enlaces) {
   const box = ui.map.getBoundingClientRect();
   const W = Math.max(220, Math.round(box.width || 320)), H = Math.max(140, Math.round(box.height || 200));
   const cx = W / 2, cy = H / 2 - 4;
-  const shown = projects.slice(0, 10);
   const linked = new Set(enlaces.flatMap((enlace) => [enlace.rooms.a, enlace.rooms.b]));
+  // At this tile's size only ten labels fit. Show connected projects first, including links
+  // signed directly between projects; the full list remains in the sheet below.
+  const shown = [...projects].sort((a, b) => Number(linked.has(b.id)) - Number(linked.has(a.id)) || a.name.localeCompare(b.name)).slice(0, 10);
   const rx = Math.max(64, W / 2 - 50), ry = Math.max(36, H / 2 - 26);
   // The Coordinator's halo (drawn while it is connected) is part of its body for the wires.
   const at = new Map([[data.salas, { x: cx, y: cy, r: 17, pad: linked.has(data.salas) ? 7 : 0, up: false }]]);
@@ -1307,8 +1314,12 @@ function openLinkSheet({ reader = null, source = null } = {}) {
 }
 ui.link.addEventListener('click', () => openLinkSheet());
 
+let refreshPending = null;
 async function refresh() {
-  const answer = await fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  if (refreshPending) return refreshPending;
+  refreshPending = fetch('/api/salas', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  const answer = await refreshPending;
+  refreshPending = null;
   if (!answer) { ui.foot.textContent = t('This project did not answer. It may have closed.'); ui.bar.live.classList.add('is-off'); ui.bar.live.lastChild.textContent = t('Not answering right now'); return; }
   if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); homeTour.repaint(); }
   data = answer;

@@ -573,6 +573,15 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
         now[key] = answer ?? { unreachable: true };
         if (now.loading) delete now.loading[key];
         if (!full) { now.dirty = true; redraw(); }
+        // A saturated machine can miss one read while the room is still alive. Do not keep
+        // that transient failure as the universe's permanent texture.
+        if (now[key].unreachable || now[key].outdated) setTimeout(() => {
+          const current = universes.find((item) => item.room.id === one.room.id);
+          if (!current || current.face !== one.face || (!current[key]?.unreachable && !current[key]?.outdated)) return;
+          current[key] = null;
+          if (full) { if (focus === current && !live) enterLive(current); }
+          else { current.dirty = true; redraw(); }
+        }, 5000);
         return now[key];
       });
     one.loading = { ...(one.loading ?? {}), [key]: asked };
@@ -1345,8 +1354,16 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
 
   // Pointer: a drag on the space moves it; a drag on the chosen universe turns it; a click picks a
   // universe, or a memory inside the chosen one; the wheel brings the space closer round the pointer.
+  const covered = (event) => {
+    const panels = [...windows.map((win) => win.el), card, ...document.querySelectorAll('dialog[open], .tree.window, .surface.window, .conv-window, .browser-dock.window')];
+    return panels.some((panel) => {
+      if (panel.hidden || panel.contains(canvas)) return false;
+      const rect = panel.getBoundingClientRect();
+      return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    });
+  };
   canvas.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || covered(event)) return;
     drag.active = true;
     drag.moved = false;
     drag.turning = Boolean(liveAt(event)?.inside);
@@ -1357,6 +1374,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     try { canvas.setPointerCapture(event.pointerId); } catch { /* the pointer already left */ }
   });
   canvas.addEventListener('pointermove', (event) => {
+    if (covered(event)) return;
     const box = canvas.getBoundingClientRect();
     pointer = { x: event.clientX - box.left, y: event.clientY - box.top };
     if (drag.active) {
@@ -1400,7 +1418,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   });
   const release = (event) => {
     // Let go over another universe: the notes of the one carried would travel to it.
-    if (linking?.over && event?.type === 'pointerup') actions.link?.(linking.from.room, linking.over.room);
+    if (linking?.over && event?.type === 'pointerup' && !covered(event)) actions.link?.(linking.from.room, linking.over.room);
     linking = null;
     drag.active = false;
     drag.turning = false;
@@ -1412,6 +1430,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
   canvas.addEventListener('pointercancel', release);
   canvas.addEventListener('pointerleave', () => { hover = null; pointer = null; if (live) live.scene.hover = null; redraw(); });
   canvas.addEventListener('click', (event) => {
+    if (covered(event)) return;
     if (drag.moved) { drag.moved = false; return; }
     const over = liveAt(event);
     if (over?.inside && live) {
@@ -1428,6 +1447,7 @@ export function openMacroverso({ host, rooms, here, enlaces = [], accent = '#9bf
     choose(one && one !== focus ? one : focus && !one ? null : one);
   });
   canvas.addEventListener('wheel', (event) => {
+    if (covered(event)) return;
     event.preventDefault();
     const rect = canvas.getBoundingClientRect();
     const px = event.clientX - rect.left, py = event.clientY - rect.top;
