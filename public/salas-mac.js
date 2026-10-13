@@ -279,6 +279,11 @@ function card(room) {
   const state = stateOf(room);
   const node = el('article', `sm-tile sm-card is-${state.key}${room.here ? ' here' : ''}`);
   node.dataset.room = room.id;
+  // Its own piece of the wallpaper (salas-mac.css): a place on the image, steady for the project.
+  let seed = 0;
+  for (const char of room.id) seed = (seed * 31 + char.charCodeAt(0)) >>> 0;
+  node.style.setProperty('--wx', `${seed % 101}%`);
+  node.style.setProperty('--wy', `${(seed >>> 8) % 101}%`);
   // To the bar: dragged there, or pinned from its right-click.
   node.draggable = true;
   node.addEventListener('dragstart', (event) => pinsDragOut(event, room));
@@ -1038,6 +1043,30 @@ function paintMap(host, projects, enlaces, { wide, pick = null, picked = null })
   svg.setAttribute('aria-label', ui.linksSum.textContent);
   const defs = svgNode('defs');
   svg.append(defs);
+  // STARS (2026-10-13): each project is a point of light in its tone, its glow a radial gradient
+  // that fades to nothing; the notes on their way are sparks. The theme decides how bright
+  // (salas-mac.css): a lit sky in the dark, a quieter one in the light, where the text must read.
+  const glowId = `sm-glow-${wide ? 'w' : 't'}`;
+  const glow = svgNode('filter', { id: glowId, x: '-200%', y: '-200%', width: '500%', height: '500%' });
+  glow.append(svgNode('feGaussianBlur', { stdDeviation: wide ? 2.2 : 1.8, result: 'soft' }));
+  const merge = svgNode('feMerge');
+  merge.append(svgNode('feMergeNode', { in: 'soft' }), svgNode('feMergeNode', { in: 'SourceGraphic' }));
+  glow.append(merge);
+  defs.append(glow);
+  const halos = new Map();
+  const haloFor = (id, colour) => {
+    if (halos.has(id)) return halos.get(id);
+    const ref = `sm-halo-${wide ? 'w' : 't'}-${halos.size}`;
+    const gradient = svgNode('radialGradient', { id: ref });
+    for (const [offset, opacity] of [['0%', 0.95], ['38%', 0.42], ['100%', 0]]) {
+      const stop = svgNode('stop', { offset, 'stop-opacity': opacity });
+      stop.style.stopColor = colour;
+      gradient.append(stop);
+    }
+    defs.append(gradient);
+    halos.set(id, `url(#${ref})`);
+    return halos.get(id);
+  };
   // One small arrowhead per tone: a marker cannot borrow the colour of the wire it ends.
   const heads = new Map();
   const headFor = (id) => {
@@ -1097,7 +1126,7 @@ function paintMap(host, projects, enlaces, { wide, pick = null, picked = null })
     // The notes on their way, in the tone of where they come from.
     const ways = enlace.direction === 'both' ? [['0;1', 0, tone], ['1;0', 1.3, reader === data.salas ? 'var(--text-3)' : toneOf(reader)]] : [['0;1', 0, tone]];
     for (const [points, offset, colour] of ways) {
-      const dot = svgNode('circle', { class: 'note', r: wide ? 2.6 : 2.2, opacity: 0 });
+      const dot = svgNode('circle', { class: 'note', r: wide ? 2.2 : 1.9, opacity: 0, filter: `url(#${glowId})` });
       dot.style.fill = colour;
       dot.dataset.a = source;
       dot.dataset.b = reader;
@@ -1117,7 +1146,17 @@ function paintMap(host, projects, enlaces, { wide, pick = null, picked = null })
     group.style.setProperty('--pc', toneOf(room.id));
     group.dataset.id = room.id;
     if (on && room.glance?.waitingCount) group.append(svgNode('circle', { class: 'wait', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: (spot.r + 5).toFixed(1) }));
-    group.append(svgNode('circle', { class: 'body', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: spot.r.toFixed(1) }));
+    // The star: a halo that breathes, a core of its tone and a white heart. Each one twinkles at its
+    // own pace, so the sky never pulses as one.
+    const star = svgNode('g', { class: 'star' });
+    star.style.setProperty('--tw', `${(2.6 + ((room.id.length * 37) % 19) / 10).toFixed(1)}s`);
+    star.style.setProperty('--tw-delay', `${(((room.id.charCodeAt(0) ?? 0) * 13) % 23) / 10}s`);
+    star.append(
+      svgNode('circle', { class: 'halo', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: (spot.r * (on ? 2.9 : 2.2)).toFixed(1), fill: haloFor(room.id, toneOf(room.id)) }),
+      svgNode('circle', { class: 'body', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: (spot.r * (on ? 0.82 : 0.9)).toFixed(1) }),
+      svgNode('circle', { class: 'heart', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: Math.max(0.9, spot.r * 0.22).toFixed(1) }),
+    );
+    group.append(star);
     const title = svgNode('title');
     title.textContent = `${room.name} · ${stateOf(room).words}`;
     group.append(title);
@@ -1136,8 +1175,10 @@ function paintMap(host, projects, enlaces, { wide, pick = null, picked = null })
   const brand = brandOf('bishop');
   const hub = svgNode('g', { class: `bishop${linked.has(data.salas) ? ' linked' : ''}` });
   hub.dataset.id = data.salas;
+  // The Coordinator is the brightest star, in its own colour, its mark at the heart.
+  hub.append(svgNode('circle', { class: 'corona', cx, cy, r: hubR * 2.4, fill: haloFor(data.salas, brand.solid ?? brand.color) }));
   if (linked.has(data.salas)) hub.append(svgNode('circle', { class: 'halo', cx, cy, r: hubR + 6 }));
-  hub.append(svgNode('circle', { cx, cy, r: hubR, fill: brand.solid ?? brand.color }));
+  hub.append(svgNode('circle', { class: 'core', cx, cy, r: hubR, fill: brand.solid ?? brand.color }));
   const size = Math.round(hubR * 1.24);
   const face = svgNode('g', { transform: `translate(${cx - size / 2} ${cy - size / 2})`, color: brand.ink });
   face.innerHTML = brand.mark(); // trusted: our own SVG string from brands.js
@@ -1449,6 +1490,17 @@ document.addEventListener('dragend', () => {
   projectCarried = null;
   draw();
 });
+
+// THE BAR'S KEYS MOVE UNDER THE POINTER (2026-10-13), as the room's do (styles.css, «Each drawing
+// moves in its own way»): the two halves of Connections close on each other (CSS), and the planets
+// of the Project map go round their orbit while the pointer stays.
+{
+  const key = $('sm-macro');
+  const orbits = [...(key?.querySelectorAll('animateMotion') ?? [])];
+  const still = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  key?.addEventListener('pointerenter', () => { if (!still()) for (const one of orbits) one.beginElement?.(); });
+  key?.addEventListener('pointerleave', () => { for (const one of orbits) one.endElement?.(); });
+}
 
 // The space around the projects, right-clicked, offers the same.
 document.querySelector('.sm-main')?.addEventListener('contextmenu', (event) => {

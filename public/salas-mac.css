@@ -1000,3 +1000,78 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 .sm-link-list .sm-link > :is(.sm-link-kind, .who, .what, .traffic) { grid-column: 1 / -1; }
 .sm-link-list .sm-link > .sm-recall { grid-column: 1; margin: 0; }
 .sm-link-list .sm-link > .sm-actions { grid-column: 2; grid-row: auto; margin: 0; align-self: center; }
+
+/* ==========================================================================================
+   THE MAP AS A SKY · 13 OCT
+   Each project a star in its tone (salas-mac.js, paintMap): a halo that breathes, a core and a
+   white heart; the Coordinator the brightest, in its own colour, its mark at the heart. In the
+   dark the stars glow on the sky; in the light they are quieter, so the names keep their contrast.
+   ========================================================================================== */
+.sm-map { --star-halo: .5; --star-heart: .7; --star-blend: normal; }
+:root[data-scheme="dark"] .sm-map, .mv .sm-map { --star-halo: .85; --star-heart: .95; --star-blend: screen; }
+.sm-map .node .star { animation: sm-twinkle var(--tw, 3.2s) ease-in-out var(--tw-delay, 0s) infinite; }
+.sm-map .node .star .halo { opacity: var(--star-halo); mix-blend-mode: var(--star-blend); transform-box: fill-box; transform-origin: center; animation: sm-breathe var(--tw, 3.2s) ease-in-out var(--tw-delay, 0s) infinite; }
+.sm-map .node .star .body { fill: var(--pc, var(--s-acc)); stroke: none; stroke-dasharray: none; }
+.sm-map .node .star .heart { fill: #ffffff; opacity: var(--star-heart); }
+.sm-map .node:not(.linked) .star .body { fill: color-mix(in srgb, var(--pc, var(--s-acc)) 45%, var(--text-3)); }
+.sm-map .node:not(.linked) .star .halo { opacity: calc(var(--star-halo) * .4); }
+.sm-map .node:not(.linked) .star .heart { opacity: calc(var(--star-heart) * .5); }
+/* Asleep, a star still shines, lower and without twinkling. */
+.sm-map .node.asleep .star { animation: none; opacity: .72; }
+.sm-map .node.asleep .star .halo { animation: none; opacity: calc(var(--star-halo) * .55); }
+.sm-map .bishop .corona { opacity: var(--star-halo); mix-blend-mode: var(--star-blend); transform-box: fill-box; transform-origin: center; animation: sm-breathe 4.6s ease-in-out infinite; }
+.sm-map .bishop .halo { fill: none; stroke: color-mix(in srgb, #ffffff 30%, transparent); stroke-width: 1; }
+:root[data-scheme="light"] .sm-map .bishop .halo { stroke: color-mix(in srgb, var(--text) 12%, transparent); }
+.sm-map .wire { stroke-opacity: .6; }
+:root[data-scheme="dark"] .sm-map .wire { stroke-opacity: .55; stroke-width: 1.3; }
+.sm-map .note { mix-blend-mode: var(--star-blend); }
+@keyframes sm-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .78; } }
+@keyframes sm-breathe { 0%, 100% { transform: scale(.88); } 50% { transform: scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .sm-map :is(.node .star, .node .star .halo, .bishop .corona) { animation: none; } }
+
+/* Connections: the two halves of the link are apart at rest and close on each other under the
+   pointer, the bar between them drawn as they meet. */
+#sm-tb-links svg :is(.ic-a, .ic-b) { transition: transform calc(220ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+#sm-tb-links svg .ic-a { transform: translate(1.2px, -1.2px); }
+#sm-tb-links svg .ic-b { transform: translate(-1.2px, 1.2px); }
+#sm-tb-links svg .ic-mid { stroke-dasharray: 6; stroke-dashoffset: 6; transition: stroke-dashoffset calc(260ms * var(--motion-scale, 1)) var(--ease-out, ease-out) 60ms; }
+#sm-tb-links:is(:hover, :focus-visible) svg :is(.ic-a, .ic-b) { transform: none; }
+#sm-tb-links:is(:hover, :focus-visible) svg .ic-mid { stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: reduce) { #sm-tb-links svg :is(.ic-a, .ic-b) { transform: none; } #sm-tb-links svg .ic-mid { stroke-dashoffset: 0; transition: none; } }
+
+/* ==========================================================================================
+   EACH PROJECT ON ITS PIECE OF THE WALLPAPER · 13 OCT
+   The wallpaper is one for all of MADRE (src/looks.mjs), so each card in the drawer shows a
+   different part of it (salas-mac.js, card: --wx, --wy), blurred under a veil of the card's own
+   surface: the image is felt, the words keep their contrast in either theme. No wallpaper, no image.
+   ========================================================================================== */
+:root[data-wallpaper="biznaga"] { --wp-now: var(--wp-biznaga); }
+:root[data-wallpaper="canela"] { --wp-now: var(--wp-canela); }
+:root[data-wallpaper="jarrito"] { --wp-now: var(--wp-jarrito); }
+:root[data-wallpaper="magna"] { --wp-now: var(--wp-magna); }
+:root[data-wallpaper="oceano"] { --wp-now: var(--wp-oceano); }
+:root[data-wallpaper="paradise"] { --wp-now: var(--wp-paradise); }
+:root[data-wallpaper="quila"] { --wp-now: var(--wp-quila); }
+:root[data-wallpaper="tradicion"] { --wp-now: var(--wp-tradicion); }
+:root[data-wallpaper="tropical"] { --wp-now: var(--wp-tropical); }
+:root[data-wallpaper="urbania"] { --wp-now: var(--wp-urbania); }
+:root[data-wallpaper="ventura"] { --wp-now: var(--wp-ventura); }
+:root[data-wallpaper="xico"] { --wp-now: var(--wp-xico); }
+.sm-drawer .sm-projects > .sm-card { isolation: isolate; overflow: hidden; }
+:root[data-wallpaper] .sm-drawer .sm-projects > .sm-card::before {
+  content: ''; position: absolute; inset: -24px; z-index: -2; pointer-events: none;
+  background: var(--wp-now, none); background-size: 260% auto; background-position: var(--wx, 50%) var(--wy, 50%);
+  filter: blur(14px) saturate(1.25);
+}
+:root[data-wallpaper] .sm-drawer .sm-projects > .sm-card::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface, var(--panel)) 46%, transparent), color-mix(in srgb, var(--surface, var(--panel)) 84%, transparent) 62%);
+}
+:root[data-scheme="dark"][data-wallpaper] .sm-drawer .sm-projects > .sm-card::after {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface, var(--panel)) 54%, transparent), color-mix(in srgb, var(--surface, var(--panel)) 82%, transparent) 58%);
+}
+:root[data-wallpaper] .sm-drawer .sm-projects > .sm-card.is-asleep::after { background: color-mix(in srgb, var(--surface, var(--panel)) 86%, transparent); }
+/* A star has no outline, asleep or not: the dashed ring was the older map's. */
+.sm-map .node .star .body, .sm-map .node.asleep.linked .star .body { stroke: none !important; stroke-dasharray: none !important; }
+.sm-map .node.asleep.linked .star .body { fill: color-mix(in srgb, var(--pc, var(--s-acc)) 70%, var(--surface, var(--panel))); }
+:root[data-scheme="light"] .sm-map { --star-heart: .45; --star-halo: .45; }
