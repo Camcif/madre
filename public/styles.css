@@ -2468,6 +2468,23 @@ dialog.intents-window { width: 760px; height: 640px; }
 .conn-card .key-link:hover { color: var(--ph); }
 .conn-card .key-said.bad { color: var(--terror); }
 
+/* The second half of a browser sign-in. The CLI opens a page and then waits to be told the code
+   that page gives back; this is where the address stays put and where the code is typed. It used
+   to be nowhere, so the only thing on screen was a heartbeat and the sign-in died of its clock. */
+.login-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.login-ask[hidden] { display: none; }
+.login-code { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1 1 260px; }
+.login-code input { flex: 1 1 180px; min-width: 150px; font: inherit; font-size: 12.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 10px; }
+.login-code input:focus { outline: none; border-color: var(--phosphor); }
+.login-code button { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; border: 1px solid var(--phosphor); color: var(--phosphor); background: color-mix(in srgb, var(--phosphor) 10%, transparent); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+.login-code button:disabled { opacity: .5; cursor: default; }
+.login-code .key-said { flex: 1 0 100%; }
+/* Inside a connection card the ground is black and everything is phosphor, as the key form is. */
+.conn-card .login-code input { color: var(--ph); background: #000; border: 1px solid var(--ph-dim); border-radius: 0; font-size: 12px; padding: 6px 8px; }
+.conn-card .login-code input::placeholder { color: var(--ph-dim); opacity: .7; }
+.conn-card .login-code input:focus { outline: 1px solid var(--ph); border-color: var(--ph); }
+.conn-card .login-code button { border: 1px solid var(--ph); color: #041004; background: var(--ph); border-radius: 0; }
+
 /* A module card, floor by floor: what it is, what it does, what it touches, how it is doing, and
    then the switch. Everything inside a card wears the panel's phosphor, never the page's palette,
    and every number is given room so it can never land on its own label. */

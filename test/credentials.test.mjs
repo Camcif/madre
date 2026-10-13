@@ -9,14 +9,49 @@ import { createPulseServer } from '../src/server.mjs';
 const KEY = 'AIzaSyD-not-a-real-key-000000000000000';
 const mode = async (path) => (await stat(path)).mode & 0o777;
 
-test('a pasted key is checked before anything is written, and only two agents take one', () => {
+test('a pasted key is checked before anything is written, and only the CLIs that read one take it', () => {
   assert.deepEqual(normalizeKey('  '), { ok: false, error: 'Paste the key first.' });
   assert.match(normalizeKey('sk-abc def').error, /spaces or line breaks/);
   assert.match(normalizeKey('short').error, /check you copied all of it/);
   assert.deepEqual(normalizeKey(`  ${KEY}\n`), { ok: true, key: KEY });
   assert.equal(keyPlanFor('gemini').writesTo, '~/.gemini/.env');
+  assert.equal(keyPlanFor('claude').writesTo, '~/.claude/settings.json');
+  assert.match(keyPlanFor('claude').note, /every Claude Code|Claude Code uses on this computer/, 'a key there is the whole machine\'s, and that is said');
   assert.deepEqual(keyPlanFor('opencode').providers.map((provider) => provider.id), OPENCODE_PROVIDERS.map((provider) => provider.id));
   assert.equal(keyPlanFor('codex'), null, 'Codex signs in with a click');
+});
+
+test('Claude: the key goes into the settings its own CLI reads, and everything else there survives', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'pulse-key-claude-'));
+  const file = join(home, '.claude', 'settings.json');
+  const KEY_ANTHROPIC = 'sk-ant-api03-not-a-real-key-0000000000';
+  try {
+    await mkdir(join(home, '.claude'), { recursive: true });
+    await writeFile(file, JSON.stringify({ model: 'opus', env: { SOMETHING_ELSE: 'keep-me' } }, null, 2));
+
+    // The CLI is the judge. If it still reads as signed out, the file comes back as it was.
+    const refused = await applyKey({ agent: 'claude', key: KEY_ANTHROPIC, home, probe: async () => ({ state: 'signed-out', detail: 'not logged in' }) });
+    assert.equal(refused.ok, false);
+    assert.match(refused.error, /still reads as signed-out[\s\S]*Nothing was changed/);
+    assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), { model: 'opus', env: { SOMETHING_ELSE: 'keep-me' } });
+
+    const done = await applyKey({ agent: 'claude', key: KEY_ANTHROPIC, home, probe: async () => ({ state: 'signed-in', detail: 'via api_key' }) });
+    assert.deepEqual(done, { ok: true, detail: 'via api_key' });
+    assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), { model: 'opus', env: { SOMETHING_ELSE: 'keep-me', ANTHROPIC_API_KEY: KEY_ANTHROPIC } }, 'the key is added; the rest of the settings are left alone');
+    assert.equal(await mode(file), 0o600, 'readable only by the owner');
+
+    // No settings file at all is the common case, and a broken one is not a reason to refuse.
+    const fresh = await mkdtemp(join(tmpdir(), 'pulse-key-claude-new-'));
+    try {
+      const made = await applyKey({ agent: 'claude', key: KEY_ANTHROPIC, home: fresh, probe: async () => ({ state: 'signed-in', detail: 'via api_key' }) });
+      assert.equal(made.ok, true);
+      assert.deepEqual(JSON.parse(await readFile(join(fresh, '.claude', 'settings.json'), 'utf8')), { env: { ANTHROPIC_API_KEY: KEY_ANTHROPIC } });
+    } finally {
+      await rm(fresh, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+    }
+  } finally {
+    await rm(home, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
 });
 
 test('Gemini: the key lands where its CLI reads it, locked to the owner, and a refusal leaves nothing behind', async () => {

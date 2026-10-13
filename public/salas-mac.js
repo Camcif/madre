@@ -2448,44 +2448,175 @@ function openAddSheet() {
 }
 ui.add.addEventListener('click', openAddSheet);
 
-// The agents of this computer, each with its session and the one action it needs (install, or
-// sign in), kept current while it is on screen: polled, and told by the room's events what an
-// install or a sign-in says as it goes. The wizard's first step and the settings sheet show it.
-function agentsPanel({ onPaint = null } = {}) {
+// The agents of this computer, with everything a connection needs in one place: which account
+// each one signs in with, the doors it has, the box where a pasted key goes, the address a
+// sign-in opened and the code that page gives back. Home used to show a name, a lamp and one
+// button — the project's panel had the rest, so the same errand was two different screens.
+// Kept current while it is on screen: polled, and told by the room's events how it is going.
+// `compact` is the welcome's first step: there, a connected agent is done, and a button to change
+// the account it signs in with is a question nobody asked on their first minute.
+function agentsPanel({ onPaint = null, compact = false } = {}) {
   const list = el('div', 'sm-agents');
   const lastLine = new Map();   // agent → what its install or sign-in said last
+  const openMore = new Set();   // agents whose connection detail is unfolded
+  const toggleMore = (id) => { if (openMore.has(id)) openMore.delete(id); else openMore.add(id); };
+  let live = null;              // the sign-in running right now, as the server tells it
   let poll = 0;
   let stream = null;
+
+  // The second half of a browser sign-in: the address stays put, and the code that page hands
+  // back is typed here. Without it the sign-in could only wait until its clock killed it.
+  const askBlock = (agent) => {
+    if (!live || live.agent !== agent.id) return null;
+    const box = el('div', 'sm-agent-ask');
+    if (live.url) {
+      const open = el('a', 'sm-btn primary small', t('Open the sign-in page'));
+      open.href = live.url;
+      open.target = '_blank';
+      open.rel = 'noopener';
+      box.append(open);
+    }
+    if (live.asksForCode || live.awaitingCode) {
+      const form = el('form', 'sm-agent-code');
+      const input = el('input');
+      input.type = 'text';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.placeholder = t('Paste the code the page gave you');
+      const send = el('button', 'sm-btn primary small', t('Send the code'));
+      send.type = 'submit';
+      const said = el('small', 'sm-agent-line');
+      form.append(input, send, said);
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        send.disabled = true;
+        said.textContent = t('Checking…');
+        const answer = await post(`/api/agents/${agent.id}/login/code`, { code: input.value });
+        if (answer.ok) { input.value = ''; said.textContent = t('Sent. The sign-in finishes on its own.'); }
+        else said.textContent = answer.body.error ?? t('The code was not accepted.');
+        send.disabled = false;
+      });
+      box.append(form);
+    }
+    box.append(button('sm-btn ghost small', t('Cancel the sign-in'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/login/cancel`); void paint(); }));
+    return box;
+  };
+
+  // Handing a key to a CLI, with the same promise the project's panel makes: it is written where
+  // that CLI reads it, MADRE keeps no copy, and the CLI itself says whether it took.
+  const keyForm = (agent) => {
+    const plan = agent.key;
+    const form = el('form', 'sm-agent-key-form');
+    let select = null;
+    if (plan.providers) {
+      select = el('select');
+      select.setAttribute('aria-label', t('Provider'));
+      for (const provider of plan.providers) { const option = el('option', null, provider.label); option.value = provider.id; select.append(option); }
+      form.append(select);
+    }
+    const input = el('input');
+    input.type = 'password';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = t(plan.label);
+    const save = el('button', 'sm-btn primary small', t('Save the key'));
+    save.type = 'submit';
+    form.append(input, save);
+    const said = el('small', 'sm-agent-line');
+    const keyUrl = plan.providers ? (plan.providers[0]?.keyUrl ?? null) : plan.keyUrl;
+    if (keyUrl) {
+      const link = el('a', 'sm-agent-key-link', t('Where do I get one?'));
+      link.href = keyUrl;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      form.append(link);
+      select?.addEventListener('change', () => { const next = plan.providers.find((one) => one.id === select.value)?.keyUrl; if (next) link.href = next; });
+    }
+    form.append(said, el('small', 'sm-agent-note', t(plan.note)));
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      save.disabled = true;
+      said.textContent = t('Checking…');
+      const answer = await post(`/api/agents/${agent.id}/key`, { key: input.value, provider: select?.value ?? null });
+      if (answer.ok) { input.value = ''; openMore.delete(agent.id); void paint(); }
+      else { said.textContent = answer.body.error ?? t('The key was not accepted.'); save.disabled = false; }
+    });
+    return form;
+  };
+
   const paint = async () => {
     const answer = await fetch('/api/settings', { cache: 'no-store' }).then((response) => response.json()).catch(() => null);
     if (!answer?.agents) return;
     agentsSeen = answer;
     drawAttention();
-    list.replaceChildren();
+    live = answer.login ?? null;
     let ready = 0;
+    for (const agent of answer.agents.filter((one) => one.id !== 'madre')) if (agentState(agent, answer).ok) ready += 1;
+    // A field being typed into is never yanked away by the poll: the panel redraws every few
+    // seconds, and a half-pasted key or code would go with it.
+    if (list.contains(document.activeElement) && ['INPUT', 'SELECT'].includes(document.activeElement.tagName)) { onPaint?.(ready, answer); return; }
+    list.replaceChildren();
     for (const agent of answer.agents.filter((one) => one.id !== 'madre')) {
       const state = agentState(agent, answer);
-      if (state.ok) ready += 1;
       const item = el('div', `sm-agent${state.ok ? ' ok' : ''}`);
       const words = el('span', 'sm-agent-words');
       words.append(el('b', null, agent.label ?? agent.id));
       words.append(el('small', `session-lamp ${state.key}`, state.words));
+      // Which account it is signed in with, as its own CLI reports it: the one fact that was
+      // missing when someone paying for the API could not tell which door had let them in.
+      if (agent.detected && answer.sessions?.[agent.id]?.detail) words.append(el('small', 'sm-agent-line', answer.sessions[agent.id].detail));
+      // Which account this one asks for, said where the decision is made. The server says it in
+      // the room's language already.
+      if (agent.account) words.append(el('small', 'sm-agent-note', agent.account));
       if (lastLine.has(agent.id) && !state.ok) {
         const said = lastLine.get(agent.id);
         const line = el('small', 'sm-agent-line', said.line);
         if (said.url) { const link = el('a', null, t('Open the sign-in page')); link.href = said.url; link.target = '_blank'; link.rel = 'noopener'; line.append(' ', link); }
         words.append(line);
       }
-      item.append(mark(agent.id, 34), words);
-      if (!state.ok && !state.busyNow) {
-        if (!agent.detected && agent.install) item.append(button('sm-btn ghost small', t('Install'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/install`); void paint(); }));
-        else if (agent.detected && agent.login) item.append(button('sm-btn ghost small', t('Sign in'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/login`); void paint(); }));
+      // One button per account the CLI can sign in with: Claude has two, and only the human can
+      // say which one is paying.
+      const doorKeys = () => {
+        const doors = agent.login?.methods?.length ? agent.login.methods : [{ id: null, label: null, note: agent.login?.note }];
+        return doors.map((door) => {
+          const name = door.label ? t(door.label) : state.ok ? t('Sign in again') : t('Sign in');
+          const key = button(`sm-btn ${state.ok ? 'ghost' : 'primary'} small`, name, async (event) => {
+            event.currentTarget.disabled = true;
+            await post(`/api/agents/${agent.id}/login`, { method: door.id });
+            void paint();
+          });
+          if (door.note) key.title = t(door.note);
+          return key;
+        });
+      };
+      const acts = el('span', 'sm-agent-acts');
+      const more = el('div', 'sm-agent-more');
+      const unfolded = openMore.has(agent.id);
+      if (!state.busyNow) {
+        if (!agent.detected && agent.install) acts.append(button('sm-btn ghost small', t('Install'), async (event) => { event.currentTarget.disabled = true; await post(`/api/agents/${agent.id}/install`); void paint(); }));
+        else if (agent.detected && !state.ok) {
+          // Nothing to fold: what it needs is the only thing on the row.
+          if (agent.login?.headless) for (const key of doorKeys()) acts.append(key);
+          if (agent.key) acts.append(button('sm-btn ghost small', unfolded ? t('Close') : t('Paste a key'), () => { toggleMore(agent.id); void paint(); }));
+        } else if (agent.detected && !compact) {
+          // Connected: the row stays quiet, and everything that could change the account is one
+          // press away rather than four buttons nobody asked for.
+          acts.append(button('sm-btn ghost small', unfolded ? t('Close') : t('Change the account'), () => { toggleMore(agent.id); void paint(); }));
+        }
       }
+      item.append(mark(agent.id, 34), words, acts);
+      const ask = askBlock(agent);
+      if (ask) more.append(ask);
+      if (unfolded && state.ok && agent.login?.headless) { const doors = el('div', 'sm-agent-ask'); for (const key of doorKeys()) doors.append(key); more.append(doors); }
+      if (unfolded && agent.detected && agent.key) more.append(keyForm(agent));
+      // A CLI that signs in from its own prompt gets the command, as the project's panel gives it.
+      if (agent.detected && agent.login && !agent.login.headless && (unfolded || !state.ok)) more.append(el('code', 'sm-agent-command', agent.login.display));
+      if (more.childNodes.length) item.append(more);
       list.append(item);
     }
     onPaint?.(ready, answer);
   };
-  const live = () => {
+  const liveOn = () => {
     if (!list.isConnected || poll) return;
     poll = setInterval(() => { if (!document.hidden) void paint(); }, 2500);
     try {
@@ -2500,7 +2631,7 @@ function agentsPanel({ onPaint = null } = {}) {
     } catch { /* no stream: the poll keeps it current */ }
   };
   const stop = () => { clearInterval(poll); poll = 0; stream?.close(); stream = null; };
-  return { node: list, paint, live, stop };
+  return { node: list, paint, live: liveOn, stop };
 }
 
 // ---- The first time: three steps. The agents (connected once, for every project: a CLI's session
@@ -2592,6 +2723,7 @@ function openWizard({ then = null } = {}) {
     const next = button('sm-btn primary', t('Continue'), () => { step = 1; projectsStep(); });
     actions.append(next);
     const fresh = agentsPanel({
+      compact: true,
       onPaint: (ready, answer) => {
         next.textContent = ready ? t('Continue') : t('Continue without agents');
         // The scene lights the agents that are connected, and their wire to MADRE.

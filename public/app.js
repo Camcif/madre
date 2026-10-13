@@ -190,6 +190,13 @@ const MODES = {
   4: { key: 'airlock', label: t('FULL ACCESS'), hint: t('Run commands, push, deploy. What leaves the ship does not come back. Unlock, twice.') },
 };
 
+// A sign-in in flight. Claude's CLI opens a page and then waits to be told the code that page
+// gives back: with nowhere to type it, the sign-in could only die of its own timeout, which is
+// exactly what it did. This holds what the room knows about the one running — which agent, the
+// address, whether it is waiting — and `.login-ask` is where it is answered.
+const loginNow = { agent: null, method: null, url: null, awaiting: false, asksForCode: false };
+const looksLikeCodePrompt = (line) => /paste\s+(?:the\s+)?code|enter\s+(?:the\s+)?code|c[oó]digo\s*[:>]/i.test(String(line ?? ''));
+
 const state = {
   agents: new Map(),
   budget: null,
@@ -3342,12 +3349,15 @@ function bridgeCard(agent) {
   else if (stage === 'missing' && agent.install) actions.append(bridgeInstallButton(agent));
   let reveal = null;
   if (stage === 'signed-out' || (stage === 'ready' && agent.login?.headless)) {
-    if (agent.login?.headless) actions.append(bridgeSignInButton(agent, stage === 'ready'));
-    else if (agent.key) {
-      reveal = el('button', 'primary', t('PASTE KEY'));
+    // Every door the CLI has, not just the first one. Claude sells two accounts and MADRE used
+    // to open only the subscription, which left whoever pays for the API with no way in.
+    if (agent.login?.headless) for (const door of loginDoors(agent, stage === 'ready')) actions.append(bridgeSignInButton(agent, door, stage === 'ready'));
+    else if (!agent.key && agent.login) actions.append(el('span', 'note', t('signs in from its own prompt:')));
+    if (agent.key) {
+      reveal = el('button', agent.login?.headless ? null : 'primary', t('PASTE KEY'));
       reveal.type = 'button';
       actions.append(reveal);
-    } else if (agent.login) actions.append(el('span', 'note', t('signs in from its own prompt:')));
+    }
   }
   if (actions.childNodes.length) card.append(actions);
   if (reveal) {
@@ -3358,6 +3368,7 @@ function bridgeCard(agent) {
     reveal.addEventListener('click', () => { slot.hidden = !slot.hidden; if (!slot.hidden) slot.querySelector('input')?.focus(); });
     card.append(slot);
   } else if (stage !== 'missing' && agent.login && !agent.login.headless) card.append(commandBlock([agent.login.display, `# ${t(agent.login.note)}`]));
+  if (stage !== 'missing') card.append(loginAskSlot(agent.id));
   const log = el('pre', 'bridge-log');
   log.id = `bridge-log-${agent.id}`;
   for (const entry of state.loginLogs.get(agent.id) ?? []) log.append(loginLine(entry));
@@ -3491,18 +3502,15 @@ function bridgeInstallButton(agent) {
   });
   return button;
 }
-function bridgeSignInButton(agent, again = false) {
-  const button = el('button', again ? null : 'primary', again ? t('SIGN IN AGAIN') : t('SIGN IN'));
+function bridgeSignInButton(agent, door, again = false) {
+  const named = Boolean(agent.login?.methods?.length);
+  const button = el('button', again && !named ? null : 'primary', named ? door.label : again ? t('SIGN IN AGAIN') : t('SIGN IN'));
   button.type = 'button';
-  button.title = t(agent.login.note);
+  button.title = t(door.note || agent.login.note);
   button.addEventListener('click', async () => {
     button.disabled = true;
-    state.loginLogs.set(agent.id, []);
-    try {
-      const response = await fetch(`/api/agents/${agent.id}/login`, { method: 'POST' });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
-    } catch (error) { toast(t('Diagnostics › sign-in did not start: {error}', { error: error.message })); renderOnboarding(); }
+    try { await startLogin(agent.id, door.id); }
+    catch (error) { toast(t('Diagnostics › sign-in did not start: {error}', { error: error.message })); renderOnboarding(); }
   });
   return button;
 }
@@ -9874,6 +9882,7 @@ document.addEventListener?.('click', (event) => { if (!els.picker?.contains?.(ev
 state.budget = Number.isFinite(initial.softTokenBudget) && initial.softTokenBudget > 0 ? initial.softTokenBudget : null;
 state.timeouts = initial.timeouts ?? {};
 state.sessions = initial.sessions ?? {};
+readLoginState(initial.login ?? null);
 state.capabilities = initial.capabilities ?? {};
 state.override = initial.override ?? null;
 state.ripleyWeb = Boolean(initial.ripleyWeb);
@@ -13746,6 +13755,82 @@ const settingsUI = {
   loginLogs: new Map(),
 };
 
+function loginAskSlot(agentId) {
+  const box = el('div', 'login-ask');
+  box.dataset.agent = agentId;
+  fillLoginAsk(box);
+  return box;
+}
+function repaintLoginAsk() { for (const box of document.querySelectorAll('.login-ask')) fillLoginAsk(box); }
+function fillLoginAsk(box) {
+  const agentId = box.dataset.agent;
+  box.replaceChildren();
+  const live = loginNow.agent === agentId;
+  box.hidden = !live;
+  if (!live) return;
+  if (loginNow.url) {
+    const open = el('a', 'sx-btn primary', t('Open the sign-in page'));
+    open.href = loginNow.url;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
+    box.append(open);
+  }
+  if (loginNow.asksForCode || loginNow.awaiting) {
+    const form = el('form', 'login-code');
+    const input = el('input');
+    input.type = 'text';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = t('Paste the code the page gave you');
+    const send = el('button', 'primary', t('Send the code'));
+    send.type = 'submit';
+    const said = el('p', 'key-said');
+    form.append(input, send, said);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      send.disabled = true;
+      said.className = 'key-said';
+      said.textContent = t('CHECKING…');
+      try {
+        const response = await fetch(`/api/agents/${agentId}/login/code`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: input.value }) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+        input.value = '';
+        loginNow.awaiting = false;
+        said.textContent = t('Sent. The sign-in finishes on its own.');
+      } catch (error) {
+        said.textContent = error.message;
+        said.className = 'key-said bad';
+      } finally { send.disabled = false; }
+    });
+    box.append(form);
+  }
+  const stop = el('button', 'sx-btn', t('Cancel the sign-in'));
+  stop.type = 'button';
+  stop.addEventListener('click', async () => { stop.disabled = true; await fetch(`/api/agents/${agentId}/login/cancel`, { method: 'POST' }).catch(() => {}); });
+  box.append(stop);
+}
+// One door or two: Claude's CLI knows the subscription and the Console, and only the human can
+// say which account is paying. `null` is the single flow every other CLI has.
+function loginDoors(agent, signedIn) {
+  const methods = agent.login?.methods;
+  if (!methods?.length) return [{ id: null, label: signedIn ? t('Sign in again') : t('Sign in'), note: agent.login?.note ?? '' }];
+  return methods.map((method) => ({ id: method.id, label: t(method.label), note: method.note ?? '' }));
+}
+async function startLogin(agentId, method = null) {
+  state.loginLogs.set(agentId, []);
+  const response = await fetch(`/api/agents/${agentId}/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ method }) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+  loginNow.agent = agentId;
+  loginNow.method = method;
+  loginNow.url = null;
+  loginNow.awaiting = false;
+  loginNow.asksForCode = Boolean(result.asksForCode);
+  repaintLoginAsk();
+  return result;
+}
+
 
 function renderLoginEvent(event) {
   const { agent, command, session, code, error } = event.payload;
@@ -13758,6 +13843,11 @@ function renderLoginEvent(event) {
     ? (ok ? t('@{agent} signed in', { agent }) + (session?.detail ? ` · ${session.detail}` : '') : t('@{agent} sign-in did not complete', { agent }) + (error ? ` · ${error}` : code ? t(' · exit {code}', { code }) : ''))
     : t('signing in @{agent} · {command}', { agent, command }));
   if (finished) { state.sessions[agent] = session ?? state.sessions[agent]; renderOnboarding(); if (state.settingsOpen) void loadSettings(); }
+  if (!replaying) {
+    if (finished) { if (loginNow.agent === agent) { loginNow.agent = null; loginNow.url = null; loginNow.awaiting = false; } }
+    else { loginNow.agent = agent; loginNow.method = event.payload.method ?? null; loginNow.url = null; loginNow.awaiting = false; loginNow.asksForCode = Boolean(state.agents.get(agent)?.login?.asksForCode); }
+    repaintLoginAsk();
+  }
   state.lastSender = null;
   return node;
 }
@@ -13778,6 +13868,13 @@ function renderAgentInstall(event) {
 
 function appendLoginOutput(event) {
   const { agent, line, url } = event.payload;
+  if (!replaying && loginNow.agent === agent) {
+    // The address stays on screen instead of scrolling past: the heartbeat used to be the only
+    // line left, so the one thing the human had to open was the first thing MADRE lost.
+    if (url) loginNow.url = url;
+    if (looksLikeCodePrompt(line)) loginNow.awaiting = true;
+    if (url || looksLikeCodePrompt(line)) repaintLoginAsk();
+  }
   const log = state.loginLogs.get(agent) ?? [];
   log.push({ line, url });
   state.loginLogs.set(agent, log.slice(-60));
@@ -13805,7 +13902,19 @@ async function loadSettings() {
   settingsUI.data = await fetch('/api/settings').then((response) => response.json());
   if (settingsUI.data?.settings?.override) state.override = settingsUI.data.settings.override;
   state.sessions = settingsUI.data.sessions ?? state.sessions;
+  // The server is the one that knows whether a sign-in is still waiting: a page reloaded in the
+  // middle of one has to find the same address and the same box, not an empty card.
+  readLoginState(settingsUI.data.login ?? null);
   renderSettings();
+}
+// What the server says about the sign-in running right now, adopted as this page's own.
+function readLoginState(live) {
+  loginNow.agent = live?.agent ?? null;
+  loginNow.method = live?.method ?? null;
+  loginNow.url = live?.url ?? null;
+  loginNow.awaiting = Boolean(live?.awaitingCode);
+  loginNow.asksForCode = Boolean(live?.asksForCode);
+  repaintLoginAsk();
 }
 
 /* ---------- the core ---------- */
@@ -15074,16 +15183,16 @@ function connectionCard(agent) {
   }
   if (agent.detected && agent.login?.headless) {
     const signedIn = session?.state === 'signed-in';
-    const login = sxButton(signedIn ? t('Sign in again') : t('Sign in'), async () => {
-      login.disabled = true;
-      state.loginLogs.set(agent.id, []);
-      const response = await fetch(`/api/agents/${agent.id}/login`, { method: 'POST' });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) toast(result.error ?? t('The sign-in could not start.'));
-      else { settingsUI.data.loggingIn = agent.id; renderSettings(); }
-    }, { tone: signedIn ? null : 'primary', title: t(agent.login.note) });
-    login.disabled = Boolean(settingsUI.data.loggingIn);
-    acts.append(login);
+    // One button per account the CLI can sign in with. Which one is paying is the human's to say.
+    for (const door of loginDoors(agent, signedIn)) {
+      const login = sxButton(door.label, async () => {
+        login.disabled = true;
+        try { await startLogin(agent.id, door.id); settingsUI.data.loggingIn = agent.id; renderSettings(); }
+        catch (error) { toast(error.message || t('The sign-in could not start.')); login.disabled = false; }
+      }, { tone: signedIn ? null : 'primary', title: t(door.note || agent.login.note) });
+      login.disabled = Boolean(settingsUI.data.loggingIn);
+      acts.append(login);
+    }
   }
   acts.append(recheck);
   card.append(acts);
@@ -15093,6 +15202,7 @@ function connectionCard(agent) {
     slot.append(el('p', 'sx-hint', t('It signs in from its own prompt:')));
     slot.append(commandBlock([agent.login.display, `# ${t(agent.login.note)}`]));
   }
+  if (agent.detected && agent.login?.headless) slot.append(loginAskSlot(agent.id));
   const log = state.loginLogs.get(agent.id) ?? [];
   if (log.length || busy) {
     const box = el('div', 'login-log');

@@ -577,6 +577,23 @@ body.sm-in-macro { overflow: hidden; }
 .sm-agent-words small { font-size: 12.5px; }
 .sm-agent-line { font-family: var(--mono); font-size: 11.5px !important; color: var(--text-3); overflow-wrap: anywhere; }
 .sm-agent-line a { color: var(--s-acc); }
+/* Which account it asks for, said where the decision is made. */
+.sm-agent-note { font-size: 12px !important; color: var(--text-3); }
+.sm-agent-acts { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+/* Everything a connection needs that does not fit on the row: the page a sign-in opened, the
+   code it is waiting for, the key form. Home used to send you to a project for all of it. */
+.sm-agent-more { grid-column: 1 / -1; display: grid; gap: 8px; padding: 2px 0 6px 46px; }
+.sm-agent-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sm-agent-code { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1 1 240px; }
+.sm-agent-code input, .sm-agent-key-form input, .sm-agent-key-form select { height: 32px; min-width: 0; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 13px; box-shadow: var(--key-track); outline: 0; }
+.sm-agent-code input { flex: 1 1 160px; }
+.sm-agent-code input:focus, .sm-agent-key-form input:focus, .sm-agent-key-form select:focus { box-shadow: var(--key-down); }
+.sm-agent-key-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sm-agent-key-form input { flex: 1 1 200px; }
+.sm-agent-key-form .sm-agent-line, .sm-agent-key-form .sm-agent-note { flex: 1 0 100%; }
+.sm-agent-key-link { font-size: 12.5px; color: var(--s-acc); text-decoration: none; }
+.sm-agent-key-link:hover { text-decoration: underline; }
+.sm-agent-command { grid-column: 1 / -1; font-family: var(--mono); font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
 
 /* LINKING TWO ROOMS, step by step (salas-mac.js, openLinkSheet), in the room's settings language:
    the step and its question, what it decides; the choices on a card, a row each, the safe one

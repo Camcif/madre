@@ -38,6 +38,18 @@ export const OPENCODE_PROVIDERS = [
 
 // What the room offers for each agent that cannot be signed in with a click.
 export function keyPlanFor(id) {
+  if (id === 'claude') {
+    return {
+      agent: 'claude',
+      label: 'Anthropic API key',
+      keyUrl: 'https://console.anthropic.com/settings/keys',
+      writesTo: '~/.claude/settings.json',
+      // Said plainly because it is true: this file is the Claude CLI's own, not MADRE's. A key
+      // there is the one every Claude Code on this computer will use, MADRE's turns included.
+      note: 'The key is written where the Claude CLI looks for it, readable only by you. MADRE keeps no copy. It becomes the account Claude Code uses on this computer, here and in your own terminal, until you remove it.',
+      providers: null,
+    };
+  }
   if (id === 'gemini') {
     return {
       agent: 'gemini',
@@ -99,6 +111,33 @@ async function applyGeminiKey(key, { home, probe }) {
   }
 }
 
+// ---- Claude: `env.ANTHROPIC_API_KEY` in its own settings, confirmed by `claude auth status`.
+// The CLI reads that env block before it runs, which is why a key there is a session: its own
+// status answers `api_key` afterwards. Everything else in the file is left as it was.
+async function applyClaudeKey(key, { home, probe }) {
+  const dir = join(home, '.claude');
+  const file = join(dir, 'settings.json');
+  await mkdir(dir, { recursive: true });
+  const before = await readIfThere(file);
+  try {
+    let settings = {};
+    try { settings = JSON.parse(before ?? '{}') ?? {}; } catch { settings = {}; }
+    if (typeof settings !== 'object' || Array.isArray(settings)) settings = {};
+    settings.env = { ...(settings.env ?? {}), ANTHROPIC_API_KEY: key };
+    await writeFile(file, `${JSON.stringify(settings, null, 2)}\n`, { mode: OWNER_ONLY });
+    await chmod(file, OWNER_ONLY).catch(() => {});
+    const state = await probe();
+    if (state?.state !== 'signed-in') {
+      await restore(file, before);
+      return { ok: false, error: `The key was written but Claude still reads as ${state?.state ?? 'unknown'}${state?.detail ? ` (${state.detail})` : ''}. Nothing was changed.` };
+    }
+    return { ok: true, detail: state.detail ?? 'via API key' };
+  } catch (error) {
+    await restore(file, before);
+    return { ok: false, error: `The key could not be written: ${error.message}` };
+  }
+}
+
 // ---- OpenCode: an entry in its auth.json, confirmed by asking `opencode auth list`.
 async function applyOpenCodeKey(key, { home, provider, executable, run }) {
   const known = OPENCODE_PROVIDERS.some((item) => item.id === provider);
@@ -139,6 +178,7 @@ const runOpenCode = async (executable, args) => {
 export async function applyKey({ agent, key, provider = null, home = homedir(), probe, executable = 'opencode', run = runOpenCode }) {
   const checked = normalizeKey(key);
   if (!checked.ok) return checked;
+  if (agent === 'claude') return applyClaudeKey(checked.key, { home, probe });
   if (agent === 'gemini') return applyGeminiKey(checked.key, { home, probe });
   if (agent === 'opencode') return applyOpenCodeKey(checked.key, { home, provider, executable, run });
   return { ok: false, error: `${agent} does not take a key here: it signs in with a click.` };

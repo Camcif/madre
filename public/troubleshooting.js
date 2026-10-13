@@ -53,8 +53,8 @@ export const CONDITIONS = [
     severity: 'common',
     title: 'ANTHROPIC_API_KEY takes precedence over the claude.ai plan',
     match: /connectors are disabled because ANTHROPIC_API_KEY|another auth source is set and takes precedence|takes precedence over your claude\.ai login/i,
-    diagnosis: 'Claude Code found an API key in the environment as well as the claude.ai login, and the key wins. MADRE hands the CLI the environment exactly as this machine has it, so whatever is exported in your shell profile reaches it. The turn is billed to the API account, not to the plan, and your organisation connectors do not load.',
-    remedy: 'Decide which one you mean. To work on the plan, unset the key where your shell exports it and open the project again; to work on the API, this message is only a notice and can be ignored.',
+    diagnosis: 'Claude Code found an API key as well as the claude.ai login, and the key wins. It may come from your shell profile — MADRE hands the CLI the environment exactly as this machine has it — or from the `env` block of ~/.claude/settings.json, which is where a key pasted into Settings › Agents is written. The turn is billed to the API account, not to the plan, and your organisation connectors do not load.',
+    remedy: 'Decide which one you mean. To work on the API, this message is only a notice and can be ignored. To work on the plan, take the key out of wherever it is set: your shell profile, or the `env` block of ~/.claude/settings.json if you pasted it into MADRE — then open the project again.',
     fixes: {
       darwin: ['grep -rn ANTHROPIC_API_KEY ~/.zshrc ~/.zprofile ~/.zshenv 2>/dev/null', '# remove or comment the line it finds, then:', 'unset ANTHROPIC_API_KEY', '# and start MADRE from a new terminal'],
       linux: ['grep -rn ANTHROPIC_API_KEY ~/.bashrc ~/.profile ~/.bash_profile 2>/dev/null', 'unset ANTHROPIC_API_KEY', '# and start MADRE from a new terminal'],

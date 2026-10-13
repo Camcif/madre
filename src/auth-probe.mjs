@@ -104,8 +104,18 @@ export const AGENT_SETUP = {
     login: ['auth', 'login'],
     loginNote: 'Opens your browser to sign in with your Claude account.',
     browser: true,
+    // Anthropic sells two doors and its CLI knows both: the subscription (the default) and the
+    // Console, which bills the work to the API credit of whoever signs in. MADRE used to open
+    // only the first, which is why someone paying for the API could not get in.
+    methods: [
+      { id: 'claudeai', label: 'Claude account', args: ['auth', 'login'], note: 'Opens your browser to sign in with your Claude account: the work goes against your subscription.' },
+      { id: 'console', label: 'Anthropic Console', args: ['auth', 'login', '--console'], note: 'Opens your browser to sign in with the Anthropic Console: the work is billed to your API credit, not to a subscription.' },
+    ],
+    // Its browser flow has no local server to come back to: the page gives a code and the CLI
+    // waits for it on its own input. The room asks for it and types it in.
+    asksForCode: true,
     vendor: 'Anthropic',
-    account: 'Signs in with a Claude account. An Anthropic API key works too.',
+    account: 'Signs in with a Claude account or with the Anthropic Console. An Anthropic API key works too.',
     paid: true,
   },
   gemini: {
@@ -138,7 +148,13 @@ export const AGENT_PACKAGE = {
 };
 // One honest line per agent about the account it needs, for the bridge and for Settings › Agents.
 // Which agents take a pasted key instead of a browser flow.
-export const TAKES_KEY = new Set(['gemini', 'opencode']);
+export const TAKES_KEY = new Set(['claude', 'gemini', 'opencode']);
+
+// A CLI that signs in through a page and then waits for the code that page gives back. The room
+// reads its output for both: the address to open, and the moment it starts waiting.
+export const SIGN_IN_URL = /https?:\/\/\S+/;
+export const CODE_PROMPT = /paste\s+(?:the\s+)?code|enter\s+(?:the\s+)?code|c[oó]digo\s*[:>]/i;
+export const looksLikeCodePrompt = (line) => CODE_PROMPT.test(String(line ?? ''));
 
 export function accountNoteFor(id) {
   // Said in the room's language when it is asked for, not when this file is imported.
@@ -171,17 +187,24 @@ export function installPlanFor(agent, { prefix = null } = {}) {
 // browser flow their own CLI drives, so the server can run them and stream the
 // URL; Gemini and OpenCode need their interactive prompt, so the user gets the
 // exact command instead.
-export function loginPlanFor(agent) {
+export function loginPlanFor(agent, { method = null } = {}) {
   const setup = AGENT_SETUP[agent.id];
   if (!setup) return null;
   const headless = Boolean(setup.browser) && setup.login.length > 0;
+  // Which door: the one asked for, the first one the CLI offers, or the single flow it has.
+  const chosen = setup.methods?.find((one) => one.id === method) ?? setup.methods?.[0] ?? null;
+  const args = chosen?.args ?? setup.login;
   return {
     headless,
     command: agent.path ?? agent.id,
-    args: headless ? setup.login : [],
-    display: headless ? `${agent.id} ${setup.login.join(' ')}` : agent.id === 'gemini' ? 'gemini   # then type /auth' : `${agent.id} ${setup.login.join(' ')}`,
-    note: setup.loginNote,
+    args: headless ? args : [],
+    display: headless ? `${agent.id} ${args.join(' ')}` : agent.id === 'gemini' ? 'gemini   # then type /auth' : `${agent.id} ${setup.login.join(' ')}`,
+    note: chosen?.note ?? setup.loginNote,
     install: setup.install,
+    // What the room offers as a choice, and what it must be ready to be asked for.
+    methods: setup.methods ? setup.methods.map(({ id, label, note }) => ({ id, label, note })) : null,
+    method: chosen?.id ?? null,
+    asksForCode: Boolean(headless && setup.asksForCode),
   };
 }
 

@@ -2090,7 +2090,8 @@ export const ES = {
   "Free and local through Ollama: no account, no tokens. It answers from the project's memory.":
     'Gratis y local con Ollama: sin cuenta, sin tokens. Contesta desde la memoria del proyecto.',
   'Signs in with a ChatGPT account. An OpenAI API key works too.': 'Inicia sesión con una cuenta de ChatGPT. También sirve una API key de OpenAI.',
-  'Signs in with a Claude account. An Anthropic API key works too.': 'Inicia sesión con una cuenta de Claude. También sirve una API key de Anthropic.',
+  'Signs in with a Claude account or with the Anthropic Console. An Anthropic API key works too.':
+    'Inicia sesión con una cuenta de Claude o con la Consola de Anthropic. También sirve una API key de Anthropic.',
   'Signs in with a Google account and has a free tier. A Gemini API key from AI Studio works too.':
     'Inicia sesión con una cuenta de Google y tiene capa gratuita. También sirve una API key de Gemini de AI Studio.',
   'Brings no model of its own: you point it at a provider you already use, in the cloud or on this computer.':
@@ -2325,10 +2326,10 @@ export const ES = {
   // ── DOS CONDICIONES QUE REPORTÓ QUIEN LA USA ──────────────────────────────
   'ANTHROPIC_API_KEY takes precedence over the claude.ai plan':
     'ANTHROPIC_API_KEY gana sobre el plan de claude.ai',
-  'Claude Code found an API key in the environment as well as the claude.ai login, and the key wins. MADRE hands the CLI the environment exactly as this machine has it, so whatever is exported in your shell profile reaches it. The turn is billed to the API account, not to the plan, and your organisation connectors do not load.':
-    'Claude Code encontró en el entorno una llave de API además del inicio de sesión de claude.ai, y gana la llave. MADRE le entrega al CLI el entorno tal como lo tiene esta computadora, así que lo que esté exportado en el perfil de tu shell le llega. El turno se le cobra a la cuenta de API, no al plan, y los conectores de tu organización no cargan.',
-  'Decide which one you mean. To work on the plan, unset the key where your shell exports it and open the project again; to work on the API, this message is only a notice and can be ignored.':
-    'Decide cuál quieres. Para trabajar con el plan, quita la llave de donde tu shell la exporta y vuelve a abrir el proyecto; para trabajar con la API, este mensaje es solo un aviso y se puede ignorar.',
+  'Claude Code found an API key as well as the claude.ai login, and the key wins. It may come from your shell profile — MADRE hands the CLI the environment exactly as this machine has it — or from the `env` block of ~/.claude/settings.json, which is where a key pasted into Settings › Agents is written. The turn is billed to the API account, not to the plan, and your organisation connectors do not load.':
+    'Claude Code encontró una llave de API además del inicio de sesión de claude.ai, y gana la llave. Puede venir del perfil de tu shell —MADRE le entrega al CLI el entorno tal como lo tiene esta computadora— o del bloque `env` de ~/.claude/settings.json, que es donde se escribe una llave pegada en Ajustes › Agentes. El turno se le cobra a la cuenta de API, no al plan, y los conectores de tu organización no cargan.',
+  'Decide which one you mean. To work on the API, this message is only a notice and can be ignored. To work on the plan, take the key out of wherever it is set: your shell profile, or the `env` block of ~/.claude/settings.json if you pasted it into MADRE — then open the project again.':
+    'Decide cuál quieres. Para trabajar con la API, este mensaje es solo un aviso y se puede ignorar. Para trabajar con el plan, quita la llave de donde esté puesta: el perfil de tu shell, o el bloque `env` de ~/.claude/settings.json si la pegaste en MADRE; luego vuelve a abrir el proyecto.',
   'The agent is pointed at a custom endpoint': 'El agente apunta a un endpoint personalizado',
   'The installed CLI inherited a base-URL override from this computer, so its request was going to another gateway instead of the official agent service. A demand to join a Telegram channel comes from that gateway, not from MADRE, Anthropic or OpenAI. MADRE now names that route and stops before sending the briefing.':
     'El CLI instalado heredó de esta computadora una dirección base distinta, así que su solicitud iba a otro gateway y no al servicio oficial del agente. La exigencia de unirse a un canal de Telegram viene de ese gateway, no de MADRE, Anthropic ni OpenAI. MADRE ahora nombra esa ruta y se detiene antes de enviar el briefing.',
@@ -4104,6 +4105,29 @@ export const ES = {
   'Nothing that looks like a project in the usual places. Look for it in Your folders.': 'No encontré nada que parezca un proyecto en los lugares de siempre. Búscalo en Tus carpetas.',
   'Only folders inside your home folder.': 'Solo carpetas dentro de tu carpeta de usuario.',
   'Open the sign-in page': 'Abrir la página para iniciar sesión',
+  // Las dos puertas de Claude, y la segunda mitad de un inicio de sesión con navegador: la
+  // página devuelve un código y el CLI lo está esperando.
+  'Claude account': 'Cuenta de Claude',
+  'Anthropic Console': 'Consola de Anthropic',
+  'Opens your browser to sign in with your Claude account: the work goes against your subscription.':
+    'Abre tu navegador para entrar con tu cuenta de Claude: el trabajo va contra tu suscripción.',
+  'Opens your browser to sign in with the Anthropic Console: the work is billed to your API credit, not to a subscription.':
+    'Abre tu navegador para entrar con la Consola de Anthropic: el trabajo se cobra a tu crédito de API, no a una suscripción.',
+  'Paste the code the page gave you': 'Pega aquí el código que te dio la página',
+  'Send the code': 'Enviar el código',
+  'Sent. The sign-in finishes on its own.': 'Enviado. El inicio de sesión termina solo.',
+  'The code was not accepted.': 'No se aceptó el código.',
+  'Cancel the sign-in': 'Cancelar el inicio de sesión',
+  'Anthropic API key': 'API key de Anthropic',
+  'The key is written where the Claude CLI looks for it, readable only by you. MADRE keeps no copy. It becomes the account Claude Code uses on this computer, here and in your own terminal, until you remove it.':
+    'La llave se escribe donde el CLI de Claude la lee, y solo tú puedes leerla. MADRE no guarda copia. Se vuelve la cuenta que Claude Code usa en esta computadora, aquí y en tu propia terminal, hasta que la quites.',
+  'Paste a key': 'Pegar una llave',
+  'Change the account': 'Cambiar la cuenta',
+  'Save the key': 'Guardar la llave',
+  'The key was not accepted.': 'No se aceptó la llave.',
+  'Where do I get one?': '¿Dónde consigo una?',
+  'Provider': 'Proveedor',
+  'Checking…': 'Revisando…',
   'Open what you will use': 'Abre lo que vas a usar',
   'Open {name}': 'Abrir {name}',
   'Opening {name}…': 'Abriendo {name}…',

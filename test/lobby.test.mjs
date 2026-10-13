@@ -137,6 +137,20 @@ test('lobby · BISHOP opens by links, here or in a new tab, and nothing is writt
   assert.doesNotMatch(page + app, /#para=/);
 });
 
+// Connecting an agent is one errand, and it used to be two screens: Home showed a name, a lamp
+// and one button, and everything else — which account, a pasted key, the page a sign-in opens,
+// the code it waits for — lived in a project's panel. Home does the whole errand now.
+test('lobby · Home connects an agent the way a project does: the doors, the key, the code', async () => {
+  const page = await readFile(join(import.meta.dirname, '..', 'public', 'salas-mac.js'), 'utf8');
+  assert.match(page, /post\(`\/api\/agents\/\$\{agent\.id\}\/login`, \{ method: door\.id \}\)/, 'Home cannot say which account is signing in');
+  assert.match(page, /post\(`\/api\/agents\/\$\{agent\.id\}\/login\/code`, \{ code: input\.value \}\)/, 'Home has nowhere to type the code the page gives back');
+  assert.match(page, /post\(`\/api\/agents\/\$\{agent\.id\}\/login\/cancel`\)/, 'a sign-in nobody finishes cannot be called off from Home');
+  assert.match(page, /post\(`\/api\/agents\/\$\{agent\.id\}\/key`, \{ key: input\.value, provider: select\?\.value \?\? null \}\)/, 'Home takes no pasted key');
+  assert.match(page, /t\('Where do I get one\?'\)/, 'the key form does not say where a key comes from');
+  // The panel redraws every couple of seconds. A field being typed into must survive that.
+  assert.match(page, /if \(list\.contains\(document\.activeElement\) && \['INPUT', 'SELECT'\]\.includes\(document\.activeElement\.tagName\)\)/, 'the poll would yank a half-pasted key away');
+});
+
 test('lobby · the last work is read from the rooms\' folders, newest first, and each of MADRE\'s lines takes its project from the conversation it numbers', async () => {
   const { lastMessages, parseWork, recentWork, workPrompt } = await import('../src/lobby-work.mjs');
   const state = await scratch('madre-lobby-work-');

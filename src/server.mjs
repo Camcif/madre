@@ -59,7 +59,7 @@ import { defaultQuotaSources } from './quota-sources.mjs';
 import { Room } from './room.mjs';
 import { changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
-import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
+import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, looksLikeCodePrompt, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
 import { applyKey, keyPlanFor } from './credentials.mjs';
 import { forgetSecret, summary as vaultSummary, writeSecret } from './vault.mjs';
 import { applyConfigToEnv, loadConfig as readConfig, updateConfig } from './config.mjs';
@@ -665,34 +665,75 @@ export async function createPulseServer({
   }
 
   let loggingIn = null;
-  async function loginAgent(id) {
+  // A sign-in in flight, as the room is allowed to see it: which door, the address to open, and
+  // whether the CLI is waiting to be told the code that page gave back. Never the code itself.
+  let loginRun = null;
+  const loginState = () => (loginRun ? { agent: loginRun.agent, method: loginRun.method, command: loginRun.command, url: loginRun.url, asksForCode: loginRun.asksForCode, awaitingCode: loginRun.awaitingCode, startedAt: loginRun.startedAt } : null);
+
+  async function loginAgent(id, { method = null } = {}) {
     const agent = agents.find((item) => item.id === id);
     if (!agent) return { status: 404, body: { error: `Unknown agent: ${id}.` } };
     if (!agent.detected) return { status: 412, body: { error: `${agent.label} is not installed on this computer.`, install: loginPlanFor(agent)?.install ?? [] } };
-    const plan = loginRunners[id]?.(agent) ?? loginPlanFor(agent);
+    const plan = loginRunners[id]?.(agent, { method }) ?? loginPlanFor(agent, { method });
     if (!plan) return { status: 404, body: { error: `No sign-in flow known for ${id}.` } };
     if (!plan.headless) return { status: 409, body: { error: `${agent.label} signs in from its own prompt. Run this in a terminal, then press RECHECK.`, command: plan.display, note: plan.note } };
     if (loggingIn) return { status: 409, body: { error: `A sign-in is already running (${loggingIn}).` } };
     loggingIn = id;
-    await room.record('connection.login.started', { agent: id, command: plan.display, note: plan.note });
+    loginRun = { agent: id, method: plan.method ?? null, command: plan.display, url: null, asksForCode: Boolean(plan.asksForCode), awaitingCode: false, startedAt: Date.now(), child: null };
+    await room.record('connection.login.started', { agent: id, command: plan.display, note: plan.note, method: plan.method ?? null });
     void (async () => {
       const lines = [];
       const result = await runInstaller({
         command: plan.command,
         args: plan.args,
         projectRoot: canonicalProjectRoot,
-        timeoutMs: 300000,
+        // A person is in the middle of this: the browser, the account, the code. Five minutes was
+        // the installer's clock, and it killed sign-ins that were only waiting on a human.
+        timeoutMs: 900000,
+        // A CLI that asks for a code needs a way to be answered, and its question never ends in a
+        // newline, so the half-line is flushed rather than left sitting in the buffer.
+        stdin: plan.asksForCode ? 'pipe' : 'ignore',
+        flushIdleMs: plan.asksForCode ? 600 : 0,
+        quietNote: 'the sign-in is waiting on you: finish it in the page that opened',
+        onChild: (handle) => { if (loginRun?.agent === id) loginRun.child = handle; },
         onLine: (line) => {
           lines.push(line);
           const url = line.match(/https?:\/\/\S+/)?.[0] ?? null;
+          if (loginRun?.agent === id) {
+            if (url) loginRun.url = url;
+            if (plan.asksForCode && looksLikeCodePrompt(line)) loginRun.awaitingCode = true;
+          }
           void room.record('connection.login.output', { agent: id, line: line.slice(0, 500), url });
         },
       });
       await refreshSessions();
       await room.record('connection.login.finished', { agent: id, code: result.code, error: result.error ?? null, session: sessions[id] ?? null, tail: lines.slice(-6) });
       loggingIn = null;
+      loginRun = null;
     })();
-    return { status: 202, body: { accepted: true, command: plan.display } };
+    return { status: 202, body: { accepted: true, command: plan.display, method: plan.method ?? null, asksForCode: Boolean(plan.asksForCode) } };
+  }
+
+  // The second half of a browser sign-in: the page hands back a code and the CLI is waiting for
+  // it on its own input. The room types it in. The code is a credential for the minute it lives,
+  // so it is taken from this computer only and never written to the ledger.
+  async function answerLogin(id, code) {
+    if (!loginRun || loginRun.agent !== id) return { status: 409, body: { error: 'No sign-in is waiting for a code.' } };
+    if (!loginRun.child?.write) return { status: 409, body: { error: 'That sign-in cannot be answered from here.' } };
+    const text = String(code ?? '').trim();
+    if (!text) return { status: 400, body: { error: 'Paste the code the page gave you.' } };
+    if (/\s/.test(text) || text.length > 400) return { status: 400, body: { error: 'That does not look like the code: check you copied all of it and nothing else.' } };
+    loginRun.child.write(`${text}\n`);
+    loginRun.awaitingCode = false;
+    await room.record('connection.login.answered', { agent: id });
+    return { status: 202, body: { accepted: true } };
+  }
+
+  async function cancelLogin(id) {
+    if (!loginRun || loginRun.agent !== id) return { status: 409, body: { error: 'No sign-in is running for that agent.' } };
+    loginRun.child?.cancel?.();
+    await room.record('connection.login.cancelled', { agent: id });
+    return { status: 202, body: { cancelled: true } };
   }
 
   // A CLI installed from the room appears without restarting: detection runs again, the roster
@@ -2058,6 +2099,7 @@ export async function createPulseServer({
           control: room.control(),
           sessions,
           sessionsAt,
+          login: loginState(),
           capabilities: room.capabilities(),
           quotaSources: quotaMonitor.snapshot(),
           budgetWindow: room.budgetWindow(),
@@ -2266,7 +2308,7 @@ export async function createPulseServer({
         await refreshPrivacy();
         const stored = await readConfig(root);
         if (stored.override) stored.override = publicOverride(stored.override);
-        return sendJson(response, 200, { settings: effectiveSettings(), config: stored, sessions, sessionsAt, loggingIn, agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })) });
+        return sendJson(response, 200, { settings: effectiveSettings(), config: stored, sessions, sessionsAt, loggingIn, login: loginState(), agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })) });
       }
       if (request.method === 'POST' && url.pathname === '/api/settings') {
         const patch = await body(request);
@@ -2859,7 +2901,7 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/agents/probe') {
         // Look for the binaries again too: a CLI installed a moment ago must appear now.
         await redetectAgents();
-        return sendJson(response, 200, { sessions, sessionsAt, agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })) });
+        return sendJson(response, 200, { sessions, sessionsAt, loggingIn, login: loginState(), agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })) });
       }
       // A provider key for a CLI that signs in from its own prompt. Local connections only: a key
       // pasted from another machine would travel the network. It is written where that CLI looks
@@ -2924,7 +2966,25 @@ export async function createPulseServer({
       }
       const loginMatch = request.method === 'POST' && url.pathname.match(/^\/api\/agents\/([a-z0-9-]+)\/login$/);
       if (loginMatch) {
-        const result = await loginAgent(loginMatch[1]);
+        const payload = await body(request).catch(() => ({}));
+        const result = await loginAgent(loginMatch[1], { method: payload.method ? String(payload.method) : null });
+        return sendJson(response, result.status, result.body);
+      }
+      // The code the sign-in page gives back. It is a credential while it lives, so it is taken
+      // from this computer only — the same rule as a key — and it never reaches the ledger.
+      const loginCodeMatch = request.method === 'POST' && url.pathname.match(/^\/api\/agents\/([a-z0-9-]+)\/login\/code$/);
+      if (loginCodeMatch) {
+        const address = request.socket.remoteAddress ?? '';
+        if (viaPhone || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address)) {
+          return sendJson(response, 403, { error: t('A key is only accepted from this computer, never over the network.') });
+        }
+        const payload = await body(request).catch(() => ({}));
+        const result = await answerLogin(loginCodeMatch[1], payload.code);
+        return sendJson(response, result.status, result.body);
+      }
+      const loginStopMatch = request.method === 'POST' && url.pathname.match(/^\/api\/agents\/([a-z0-9-]+)\/login\/cancel$/);
+      if (loginStopMatch) {
+        const result = await cancelLogin(loginStopMatch[1]);
         return sendJson(response, result.status, result.body);
       }
       if (request.method === 'GET' && url.pathname === '/api/models') {

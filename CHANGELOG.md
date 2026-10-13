@@ -6,6 +6,9 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 1.0.1 · Sin publicar
 
+- **Claude ya se puede conectar con tu propia API key.** Al iniciar sesión eliges la puerta: «Cuenta de Claude» (tu suscripción) o «Consola de Anthropic» (se cobra a tu crédito de API). También puedes pegar tu `ANTHROPIC_API_KEY`: se escribe donde el CLI de Claude la lee (`~/.claude/settings.json`, solo para ti), MADRE no guarda copia y, si el CLI no la acepta, todo vuelve como estaba. Esa llave manda sobre todo Claude Code de esta computadora, y MADRE lo dice antes de guardarla.
+- **Un inicio de sesión con navegador ya se puede terminar dentro de MADRE.** La página de Claude devuelve un código y su CLI lo espera: antes no había dónde pegarlo y el intento moría a los cinco minutos. Ahora la dirección se queda a la vista, hay una caja para el código y una tecla para cancelar; la espera dura hasta quince minutos, porque del otro lado hay una persona.
+- **Inicio trae los ajustes de conexión completos.** La misma tarjeta que el proyecto: con qué cuenta está conectado cada agente, las puertas para entrar, la caja para pegar una llave, la página del inicio de sesión y su código. Un campo a medio escribir ya no se borra cuando el panel se actualiza solo.
 - **El README abre con el logo oficial de MADRE** y la frase de 1.0, en lugar del banner con la firma «MU/TH/UR 6000 · INTERFACE 2037».
 - **Los planes revisan sus resultados y pueden continuar** hasta tres tramos por petición. Un paso sin número sigue leyendo, o creando si el plan ya puede crear; uno que pide `#3` o `#4` por encima de tu mensaje espera tu llave para ese agente, y `#4` la pide siempre.
 - **Inicio muestra las conexiones directas entre proyectos** antes de las del Coordinador y deja más espacio para leerlas. Si una sala tarda en responder, conserva brevemente su último estado conocido; el Mapa de proyectos vuelve a intentar una lectura fallida.

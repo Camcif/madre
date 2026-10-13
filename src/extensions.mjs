@@ -25,38 +25,59 @@ export async function listExtensions({ projectRoot, agents = [], config = {}, im
 // Runs one installer inside the project, streaming output lines. `runner`
 // lets tests substitute the real installer with a local script.
 // `npm` and other Node CLIs are .cmd shims on Windows, which cannot be spawned directly.
-export function runInstaller({ command, args, projectRoot, onLine, timeoutMs = 600000, heartbeatMs = 8000, env = process.env }) {
+//
+// A sign-in is the same spawn with a human in the middle of it, so three knobs exist for it:
+// `stdin: 'pipe'` opens a way back in (a CLI that asks for a pasted code reads it there),
+// `onChild` hands the caller that way in, and `flushIdleMs` emits a line that never ends in a
+// newline — a prompt like `Paste code here > ` — once the output has been still for that long.
+// Without it the prompt sits in the buffer and the room shows a sign-in that says nothing.
+export function runInstaller({ command, args, projectRoot, onLine, timeoutMs = 600000, heartbeatMs = 8000, env = process.env, stdin = 'ignore', onChild = null, flushIdleMs = 0, quietNote = 'installer is quiet (npm install or git status can take a while)' }) {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd: projectRoot, env: { ...env, NO_COLOR: '1', CI: '1' }, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32', windowsHide: true });
+    const child = spawn(command, args, { cwd: projectRoot, env: { ...env, NO_COLOR: '1', CI: '1' }, stdio: [stdin, 'pipe', 'pipe'], shell: process.platform === 'win32', windowsHide: true });
     const started = Date.now();
     let lastOutput = started;
+    let buffer = '';
+    const emit = (line, stream) => { lastOutput = Date.now(); onLine?.(line, stream); };
     // Installers go quiet for long stretches (npm install, git status); say so.
     const heartbeat = setInterval(() => {
+      // A half-line waiting on a human is said before the silence is reported, so the room shows
+      // the question instead of the heartbeat that would otherwise be the only thing on screen.
+      if (flushIdleMs && buffer.trim() && Date.now() - lastOutput >= flushIdleMs) { const partial = buffer.trim(); buffer = ''; emit(partial, 'stdout'); return; }
       if (Date.now() - lastOutput >= heartbeatMs) {
-        onLine?.(`… still running · ${Math.round((Date.now() - started) / 1000)}s · installer is quiet (npm install or git status can take a while)`, 'heartbeat');
+        onLine?.(`… still running · ${Math.round((Date.now() - started) / 1000)}s · ${quietNote}`, 'heartbeat');
         lastOutput = Date.now();
       }
-    }, Math.min(heartbeatMs, 2000));
+    }, Math.min(flushIdleMs || heartbeatMs, heartbeatMs, 2000));
     heartbeat.unref?.();
-    let buffer = '';
     const feed = (chunk, stream) => {
       buffer += chunk;
       let index;
       while ((index = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, index).replace(/\r$/, '');
         buffer = buffer.slice(index + 1);
-        if (line.trim()) { lastOutput = Date.now(); onLine?.(line, stream); }
+        if (line.trim()) emit(line, stream);
       }
     };
     child.stdout.on('data', (chunk) => feed(String(chunk), 'stdout'));
     child.stderr.on('data', (chunk) => feed(String(chunk), 'stderr'));
     const timer = setTimeout(() => { child.kill('SIGKILL'); }, timeoutMs);
-    child.on('error', (error) => { clearTimeout(timer); clearInterval(heartbeat); resolve({ code: 1, error: error.code === 'ENOENT' ? `${error.message} (is the project folder present and ${command} on PATH?)` : error.message }); });
+    let done = false;
+    const settle = (result) => { if (done) return; done = true; clearTimeout(timer); clearInterval(heartbeat); resolve(result); };
+    onChild?.({
+      // What the room can do to a sign-in while it runs: answer it, or call it off.
+      write: (text) => { try { child.stdin?.write(text); return true; } catch { return false; } },
+      cancel: () => {
+        try { child.kill('SIGTERM'); } catch { /* already gone */ }
+        // A terminal UI can ignore a polite ask; it does not get to ignore the second one.
+        const hard = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } }, 1500);
+        hard.unref?.();
+      },
+      pid: child.pid ?? null,
+    });
+    child.on('error', (error) => settle({ code: 1, error: error.code === 'ENOENT' ? `${error.message} (is the project folder present and ${command} on PATH?)` : error.message }));
     child.on('close', (code) => {
-      clearTimeout(timer);
-      clearInterval(heartbeat);
       if (buffer.trim()) onLine?.(buffer.trim(), 'stdout');
-      resolve({ code: code ?? 1 });
+      settle({ code: code ?? 1 });
     });
   });
 }

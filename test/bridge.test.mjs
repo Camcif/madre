@@ -16,6 +16,141 @@ test('the bridge: one runnable install command per agent, and the room knows whi
   assert.deepEqual([loginPlanFor({ id: 'gemini' }).headless, loginPlanFor({ id: 'opencode' }).headless], [false, false], 'these hand the human their command');
 });
 
+test('the bridge: every door a CLI has, not only the first — Claude sells two accounts', () => {
+  const claude = loginPlanFor({ id: 'claude', path: '/x/claude' });
+  assert.deepEqual(claude.methods.map((method) => method.id), ['claudeai', 'console'], 'the subscription and the Console are both offered');
+  assert.deepEqual([claude.method, claude.args], ['claudeai', ['auth', 'login']], 'the subscription is still what a plain sign-in does');
+  assert.ok(claude.asksForCode, 'its page hands back a code the room has to be able to type');
+
+  const console_ = loginPlanFor({ id: 'claude', path: '/x/claude' }, { method: 'console' });
+  assert.deepEqual(console_.args, ['auth', 'login', '--console'], 'whoever pays for the API gets the Console flow');
+  assert.equal(console_.display, 'claude auth login --console');
+  assert.match(console_.note, /API credit/);
+
+  // A door that does not exist falls back to the first rather than inventing arguments.
+  assert.deepEqual(loginPlanFor({ id: 'claude', path: '/x/claude' }, { method: 'nope' }).args, ['auth', 'login']);
+  // Codex has one way in, and nothing to paste afterwards: its own CLI listens on localhost.
+  assert.deepEqual([loginPlanFor({ id: 'codex' }).methods, loginPlanFor({ id: 'codex' }).asksForCode], [null, false]);
+});
+
+test('a sign-in with a code: the address is kept, the code is typed in, and it never reaches the ledger', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pulse-signin-'));
+  const project = await mkdtemp(join(tmpdir(), 'pulse-signin-project-'));
+  // A CLI that opens a page and then waits to be told the code that page gives back — which is
+  // what Claude's does, and what the room could not answer until there was somewhere to type it.
+  const script = [
+    "console.log('Opening browser to sign in');",
+    "console.log('If the browser did not open, visit: https://claude.example/authorize?code=true');",
+    // The question a terminal asks never ends in a newline: that is the half-line the room
+    // has to flush, or a sign-in waiting on a human looks like a sign-in saying nothing.
+    "process.stdout.write('Paste code here if prompted > ');",
+    "let seen = '';",
+    "process.stdin.on('data', (chunk) => { seen += chunk; if (seen.includes(String.fromCharCode(10))) { const ok = seen.trim() === 'the-code'; console.log(ok ? 'Login successful' : 'Invalid code.'); process.exit(ok ? 0 : 1); } });",
+  ].join('\n');
+  let signedIn = false;
+  const asked = [];
+  try {
+    const { server, store } = await createPulseServer({
+      projectRoot: project,
+      stateRoot: root,
+      agents: [{ id: 'claude', label: 'Claude', detected: true, ready: true, adapter: 'claude-readonly', path: '/x/claude', version: '1' }],
+      probe: async () => ({ claude: signedIn ? { state: 'signed-in', detail: 'via api_key' } : { state: 'signed-out', detail: 'not logged in' } }),
+      loginRunners: {
+        claude: (agent, { method } = {}) => {
+          asked.push(method ?? null);
+          return { headless: true, asksForCode: true, method: method ?? 'claudeai', command: process.execPath, args: ['-e', script], display: `claude auth login${method === 'console' ? ' --console' : ''}`, note: 'browser' };
+        },
+      },
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const api = (path, payload) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload ?? {}) }).then(async (response) => ({ status: response.status, body: await response.json() }));
+    const settings = () => fetch(`${base}/api/settings`).then((response) => response.json());
+    const until = async (ready) => {
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        const answer = await settings();
+        if (ready(answer)) return answer;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      return null;
+    };
+    try {
+      const started = await api('/api/agents/claude/login', { method: 'console' });
+      assert.equal(started.status, 202);
+      assert.deepEqual([started.body.command, started.body.asksForCode], ['claude auth login --console', true]);
+      assert.deepEqual(asked, ['console'], 'the door the human chose is the one that runs');
+
+      // The address stays in the room's own state instead of scrolling past in a log, and the
+      // room knows the CLI is waiting — the half-line it prints never ends in a newline.
+      const waiting = await until((answer) => answer.login?.awaitingCode);
+      assert.ok(waiting, 'the room never noticed the sign-in was waiting for a code');
+      assert.deepEqual([waiting.login.agent, waiting.login.method, waiting.login.url], ['claude', 'console', 'https://claude.example/authorize?code=true']);
+
+      assert.equal((await api('/api/agents/claude/login/code', { code: 'two words' })).status, 400, 'that is not a code');
+      assert.equal((await api('/api/agents/nope/login/code', { code: 'the-code' })).status, 409, 'nothing is waiting for that one');
+
+      signedIn = true;
+      assert.equal((await api('/api/agents/claude/login/code', { code: 'the-code' })).status, 202);
+      const done = await until((answer) => !answer.loggingIn && answer.sessions.claude.state === 'signed-in');
+      assert.ok(done, 'the sign-in never finished');
+      assert.equal(done.login, null, 'nothing is left waiting once it is over');
+
+      const events = await store.readAll();
+      const finished = events.find((event) => event.type === 'connection.login.finished');
+      assert.deepEqual([finished.payload.code, finished.payload.session.state], [0, 'signed-in']);
+      assert.ok(events.some((event) => event.type === 'connection.login.answered'), 'the room records that it answered');
+      assert.ok(!JSON.stringify(events).includes('the-code'), 'the code is nowhere in the ledger');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+    await rm(project, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
+test('a sign-in nobody finishes is called off, and the next one can start', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pulse-signin-stop-'));
+  const project = await mkdtemp(join(tmpdir(), 'pulse-signin-stop-project-'));
+  const script = "process.stdout.write('Paste code here if prompted > '); setInterval(() => {}, 1000);";
+  try {
+    const { server, store } = await createPulseServer({
+      projectRoot: project,
+      stateRoot: root,
+      agents: [{ id: 'claude', label: 'Claude', detected: true, ready: true, adapter: 'claude-readonly', path: '/x/claude', version: '1' }],
+      probe: async () => ({ claude: { state: 'signed-out', detail: 'not logged in' } }),
+      loginRunners: { claude: () => ({ headless: true, asksForCode: true, method: 'claudeai', command: process.execPath, args: ['-e', script], display: 'claude auth login', note: 'browser' }) },
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const api = (path) => fetch(`${base}${path}`, { method: 'POST' }).then(async (response) => ({ status: response.status, body: await response.json() }));
+    try {
+      const over = async (count) => {
+        for (let attempt = 0; attempt < 200; attempt += 1) {
+          if ((await store.readAll()).filter((event) => event.type === 'connection.login.finished').length >= count) return true;
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        return false;
+      };
+      assert.equal((await api('/api/agents/claude/login')).status, 202);
+      assert.equal((await api('/api/agents/claude/login')).status, 409, 'one at a time');
+      assert.equal((await api('/api/agents/claude/login/cancel')).status, 202);
+      assert.ok(await over(1), 'the sign-in that was called off never ended');
+      assert.ok((await store.readAll()).some((event) => event.type === 'connection.login.cancelled'));
+      assert.equal((await api('/api/agents/claude/login')).status, 202, 'the next one can start');
+      await api('/api/agents/claude/login/cancel');
+      // Nothing is left running when the room is taken down, or the ledger is written into a
+      // folder the test has already removed.
+      assert.ok(await over(2));
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+    await rm(project, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
+  }
+});
+
 test('the bridge installs a CLI from the room, streams it, and the agent appears without restarting', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pulse-bridge-'));
   const project = await mkdtemp(join(tmpdir(), 'pulse-bridge-project-'));
