@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { changeLooks, readLooks } from '../src/looks.mjs';
+import { changeLooks, changeRoomLook, readLooks, roomLooks } from '../src/looks.mjs';
 import { createPulseServer } from '../src/server.mjs';
 
 // THE LOOKS ARE THE PERSON'S (2026-10-12): Home and every project are different origins, so what one
@@ -64,4 +64,23 @@ test('looks · two pages of two projects share the theme through the server', as
     if (b) await close(b);
     for (const dir of [state, one, two]) await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('looks · a project may keep a wallpaper of its own, and a shared change never takes it away', async () => {
+  const state = await scratch('madre-looks-room-');
+  try {
+    await changeLooks(state, { 'pulse.wallpaper': 'canela', 'pulse.theme': 'dark' });
+    assert.deepEqual(await changeRoomLook(state, 'pulse-3c377cb62303118e', 'magna'), { own: { wallpaper: 'magna' } });
+    assert.deepEqual((await readLooks(state, { room: 'pulse-3c377cb62303118e' })).own, { wallpaper: 'magna' });
+    assert.equal((await readLooks(state, { room: 'another-1234' })).own, null);
+    assert.equal((await readLooks(state)).looks['pulse.wallpaper'], 'canela', 'the shared wallpaper stays as it was');
+    // A shared change keeps every project's own.
+    await changeLooks(state, { 'pulse.wallpaper': 'xico' });
+    assert.deepEqual(await roomLooks(state), { 'pulse-3c377cb62303118e': { wallpaper: 'magna' } });
+    assert.deepEqual(await changeRoomLook(state, 'pulse-3c377cb62303118e', 'no way!'), { error: 'value' });
+    assert.deepEqual(await changeRoomLook(state, '../x/../../y', 'magna'), { error: 'room' });
+    assert.deepEqual(await changeRoomLook(state, 'pulse-3c377cb62303118e', null), { own: null });
+    assert.deepEqual(await roomLooks(state), {});
+    assert.equal((await readLooks(state)).looks['pulse.theme'], 'dark');
+  } finally { await rm(state, { recursive: true, force: true }); }
 });

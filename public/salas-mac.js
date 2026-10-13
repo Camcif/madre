@@ -284,6 +284,8 @@ function card(room) {
   for (const char of room.id) seed = (seed * 31 + char.charCodeAt(0)) >>> 0;
   node.style.setProperty('--wx', `${seed % 101}%`);
   node.style.setProperty('--wy', `${(seed >>> 8) % 101}%`);
+  // A project with a wallpaper of its own («only in this project») shows that one, whole.
+  if (room.wallpaper) { node.dataset.wp = room.wallpaper; node.style.setProperty('--wx', '50%'); node.style.setProperty('--wy', '50%'); }
   // To the bar: dragged there, or pinned from its right-click.
   node.draggable = true;
   node.addEventListener('dragstart', (event) => pinsDragOut(event, room));
@@ -875,7 +877,7 @@ function focusable(svg, { pick = null, picked = null } = {}) {
       wire.classList.toggle('lit', Boolean(on || (picked?.link && wire.dataset.link === picked.link)));
       if (on) { near.add(wire.dataset.a); near.add(wire.dataset.b); }
     }
-    for (const dot of svg.querySelectorAll('.note')) dot.classList.toggle('lit', Boolean(id) && (dot.dataset.a === id || dot.dataset.b === id));
+    for (const dot of svg.querySelectorAll('.note, .flow')) dot.classList.toggle('lit', Boolean(id) && (dot.dataset.a === id || dot.dataset.b === id));
     for (const node of svg.querySelectorAll('.node, .bishop')) node.classList.toggle('lit', near.has(node.dataset.id));
   };
   const resting = () => {
@@ -1067,19 +1069,6 @@ function paintMap(host, projects, enlaces, { wide, pick = null, picked = null })
     halos.set(id, `url(#${ref})`);
     return halos.get(id);
   };
-  // One small arrowhead per tone: a marker cannot borrow the colour of the wire it ends.
-  const heads = new Map();
-  const headFor = (id) => {
-    if (heads.has(id)) return heads.get(id);
-    const ref = `sm-head-${wide ? 'w' : 't'}-${heads.size}`;
-    const marker = svgNode('marker', { id: ref, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6.5, markerHeight: 6.5, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' });
-    const tip = svgNode('path', { d: 'M1.5 1.5L8.5 5L1.5 8.5', fill: 'none', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
-    tip.style.stroke = id === data.salas ? 'var(--text-3)' : toneOf(id);
-    marker.append(tip);
-    defs.append(marker);
-    heads.set(id, `url(#${ref})`);
-    return heads.get(id);
-  };
   const edges = (from, to, gapFrom = 4, gapTo = 5) => {
     const dx = to.x - from.x, dy = to.y - from.y, length = Math.hypot(dx, dy) || 1;
     const ux = dx / length, uy = dy / length;
@@ -1112,31 +1101,27 @@ function paintMap(host, projects, enlaces, { wide, pick = null, picked = null })
     // The wire wears the tone of the project the notes come from.
     const tone = source === data.salas ? 'var(--text-3)' : toneOf(source);
     const id = `sm-wire-${wide ? 'w' : 't'}-${index}`;
-    const wire = svgNode('path', { id, class: 'wire', d, 'marker-end': headFor(source) });
+    const wire = svgNode('path', { id, class: 'wire', d });
     wire.style.stroke = tone;
     wire.dataset.a = source;
     wire.dataset.b = reader;
     wire.dataset.link = enlace.id;
-    if (enlace.direction === 'both') wire.setAttribute('marker-start', headFor(reader));
     const title = svgNode('title');
     title.textContent = enlace.direction === 'both' ? t('{a} and {b} look each other up', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) }) : reader === data.salas ? t('The Coordinator looks up {source}', { source: roomName(source) }) : t('{reader} looks up {source}', { reader: roomName(reader), source: roomName(source) });
     wire.append(title);
     svg.append(wire);
-    if (still) return;
-    // The notes on their way, in the tone of where they come from.
-    const ways = enlace.direction === 'both' ? [['0;1', 0, tone], ['1;0', 1.3, reader === data.salas ? 'var(--text-3)' : toneOf(reader)]] : [['0;1', 0, tone]];
-    for (const [points, offset, colour] of ways) {
-      const dot = svgNode('circle', { class: 'note', r: wide ? 2.2 : 1.9, opacity: 0, filter: `url(#${glowId})` });
-      dot.style.fill = colour;
-      dot.dataset.a = source;
-      dot.dataset.b = reader;
-      const begin = `${(offset + index * 0.45).toFixed(2)}s`;
-      const move = svgNode('animateMotion', { dur: '2.6s', repeatCount: 'indefinite', begin, keyPoints: points, keyTimes: '0;1', calcMode: 'spline', keySplines: '.4 0 .2 1' });
-      const along = svgNode('mpath');
-      along.setAttribute('href', `#${id}`);
-      move.append(along);
-      dot.append(move, svgNode('animate', { attributeName: 'opacity', values: '0;1;1;0', keyTimes: '0;.12;.88;1', dur: '2.6s', repeatCount: 'indefinite', begin }));
-      svg.append(dot);
+    // ELECTRIC FLOW (2026-10-13): no arrowheads; the current runs along the line the way the notes
+    // travel, from the project read to the one reading, and both ways when they read each other.
+    // A still line under it says the connection is there even when nothing moves.
+    const ways = enlace.direction === 'both' ? [['out', tone], ['back', reader === data.salas ? 'var(--text-3)' : toneOf(reader)]] : [['out', tone]];
+    for (const [way, colour] of ways) {
+      const flow = svgNode('path', { class: `flow ${way}`, d, filter: `url(#${glowId})` });
+      flow.style.stroke = colour;
+      flow.style.setProperty('--flow-delay', `${(index * 0.37) % 1.4}s`);
+      flow.dataset.a = source;
+      flow.dataset.b = reader;
+      if (still) flow.classList.add('still');
+      svg.append(flow);
     }
   });
   for (const room of ring) {

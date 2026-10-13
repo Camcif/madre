@@ -6085,12 +6085,19 @@ window.addEventListener?.('storage', (event) => {
 const SHARED_LOOKS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text'];
 let booted = false;
 let looksPush = 0;
+// This project's own wallpaper (src/looks.mjs, `rooms`), when the person chose «only in this
+// project»: it is kept apart from the shared looks, which then never carry the wallpaper here.
+let ownWallpaper = null;
+function saveOwnWallpaper(value) {
+  ownWallpaper = value;
+  void fetch('/api/looks/room', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ wallpaper: value }) }).catch(() => null);
+}
 function pushLooks() {
   if (SPLIT_CHAT) return;
   clearTimeout(looksPush);
   looksPush = setTimeout(() => {
     const patch = {};
-    try { for (const key of SHARED_LOOKS) patch[key] = localStorage.getItem(key); } catch { return; }
+    try { for (const key of SHARED_LOOKS) if (!(key === 'pulse.wallpaper' && ownWallpaper)) patch[key] = localStorage.getItem(key); } catch { return; }
     void fetch('/api/looks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => null);
   }, 250);
 }
@@ -6098,12 +6105,14 @@ async function pullLooks() {
   let answer = null;
   try { answer = await fetch('/api/looks', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)); } catch { return; }
   if (!answer?.looks) return;
+  ownWallpaper = answer.own?.wallpaper ?? null;
   try {
     // Nothing kept yet: the first page that has a choice of its own hands it to the others.
     if (!answer.saved) { if (SHARED_LOOKS.some((key) => localStorage.getItem(key) !== null)) pushLooks(); return; }
     let changed = false;
     for (const key of SHARED_LOOKS) {
-      const value = answer.looks[key] ?? null;
+      // A project with a wallpaper of its own wears it, whatever the others wear.
+      const value = key === 'pulse.wallpaper' && ownWallpaper ? ownWallpaper : answer.looks[key] ?? null;
       if (localStorage.getItem(key) === value) continue;
       if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value);
       changed = true;
@@ -6131,7 +6140,9 @@ function saveLook(name, value) {
     if (value === LOOKS[name].values[0]) localStorage.removeItem(LOOKS[name].key);
     else localStorage.setItem(LOOKS[name].key, value);
   } catch { /* the choice lasts as long as the page */ }
-  applyLook(name, value);  pushLooks();
+  applyLook(name, value);
+  if (name === 'wallpaper' && ownWallpaper && ownWallpaper !== value) saveOwnWallpaper(value);
+  pushLooks();
 }
 // What is picked on the sheet is a draft: the preview wears it, the room does not, until ACCEPT.
 // Closing the window drops it. The language is part of the draft too, and accepting a new one
@@ -6323,9 +6334,23 @@ function drawCustom() {
     const paperBox = el('div', 'paper-box');
     paperBox.append(papers);
     if (paperTune.children.length) paperBox.append(paperTune);
-    sxBlock(page, t('Wallpaper'), PHOTO_WALLPAPERS.has(draft.wallpaper)
+    const paperBlock = sxBlock(page, t('Wallpaper'), PHOTO_WALLPAPERS.has(draft.wallpaper)
       ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
-      : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.')).rows.append(paperBox);
+      : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.'));
+    paperBlock.rows.append(paperBox);
+    // «Only in this project»: the wallpaper chosen here stays here, and Home shows it on this
+    // project's card. Off, the project wears the wallpaper every page shares again.
+    if (!SPLIT_CHAT) {
+      const own = sxSwitch(Boolean(ownWallpaper), async (on, box) => {
+        box.disabled = true;
+        if (on) saveOwnWallpaper(draft.wallpaper);
+        else { saveOwnWallpaper(null); await pullLooks(); }
+        box.disabled = false;
+        toast(on ? t('This project keeps its own wallpaper.') : t('This project wears the shared wallpaper again.'));
+        drawCustom();
+      }, { label: t('Only in this project') });
+      sxRow(paperBlock, t('Only in this project'), ownWallpaper ? t('The wallpaper you choose here is this project\'s alone, and Home shows it on its card.') : t('Off, every project and Home wear the same wallpaper.'), own);
+    }
     const talk = sxBlock(page, t('Conversation'));
     sxRow(talk, t('Bubbles'), null, segmented('bubbles'), { stack: true });
     sxRow(talk, t('Text'), null, segmented('text'), { stack: true });

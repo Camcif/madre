@@ -1058,20 +1058,53 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 :root[data-wallpaper="ventura"] { --wp-now: var(--wp-ventura); }
 :root[data-wallpaper="xico"] { --wp-now: var(--wp-xico); }
 .sm-drawer .sm-projects > .sm-card { isolation: isolate; overflow: hidden; }
-:root[data-wallpaper] .sm-drawer .sm-projects > .sm-card::before {
+.sm-drawer .sm-projects > .sm-card:is([data-wp], :root[data-wallpaper] .sm-card)::before {
   content: ''; position: absolute; inset: -24px; z-index: -2; pointer-events: none;
-  background: var(--wp-now, none); background-size: 260% auto; background-position: var(--wx, 50%) var(--wy, 50%);
+  background: var(--wp-card, var(--wp-now, none)); background-size: var(--wp-size, 260% auto); background-position: var(--wx, 50%) var(--wy, 50%);
   filter: blur(14px) saturate(1.25);
 }
-:root[data-wallpaper] .sm-drawer .sm-projects > .sm-card::after {
+.sm-drawer .sm-projects > .sm-card:is([data-wp], :root[data-wallpaper] .sm-card)::after {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface, var(--panel)) 46%, transparent), color-mix(in srgb, var(--surface, var(--panel)) 84%, transparent) 62%);
 }
-:root[data-scheme="dark"][data-wallpaper] .sm-drawer .sm-projects > .sm-card::after {
+:root[data-scheme="dark"] .sm-drawer .sm-projects > .sm-card:is([data-wp], :root[data-wallpaper] .sm-card)::after {
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface, var(--panel)) 54%, transparent), color-mix(in srgb, var(--surface, var(--panel)) 82%, transparent) 58%);
 }
-:root[data-wallpaper] .sm-drawer .sm-projects > .sm-card.is-asleep::after { background: color-mix(in srgb, var(--surface, var(--panel)) 86%, transparent); }
+.sm-drawer .sm-projects > .sm-card.is-asleep:is([data-wp], :root[data-wallpaper] .sm-card)::after { background: color-mix(in srgb, var(--surface, var(--panel)) 86%, transparent); }
 /* A star has no outline, asleep or not: the dashed ring was the older map's. */
 .sm-map .node .star .body, .sm-map .node.asleep.linked .star .body { stroke: none !important; stroke-dasharray: none !important; }
 .sm-map .node.asleep.linked .star .body { fill: color-mix(in srgb, var(--pc, var(--s-acc)) 70%, var(--surface, var(--panel))); }
 :root[data-scheme="light"] .sm-map { --star-heart: .45; --star-halo: .45; }
+
+/* ELECTRIC FLOW · 13 OCT. A connection is a still, faint line with current running along it: short
+   bright pulses, from the project read to the one that reads (both ways when they read each
+   other), each line at its own phase so the board never pulses as one. */
+.sm-map .wire { stroke-opacity: .28; stroke-width: 1.2; }
+:root[data-scheme="dark"] .sm-map .wire { stroke-opacity: .32; stroke-width: 1.1; }
+.sm-map .flow { fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-dasharray: 3 14; pointer-events: none; mix-blend-mode: var(--star-blend); animation: sm-current 1.1s linear var(--flow-delay, 0s) infinite, sm-flicker 2.3s steps(1, end) var(--flow-delay, 0s) infinite; }
+.sm-map .flow.back { animation-direction: reverse, normal; stroke-dasharray: 2 17; }
+.sm-map .flow.still { animation: none; stroke-dasharray: none; stroke-opacity: .6; }
+@keyframes sm-current { from { stroke-dashoffset: 17; } to { stroke-dashoffset: 0; } }
+@keyframes sm-flicker { 0%, 100% { opacity: 1; } 37% { opacity: .55; } 41% { opacity: 1; } 73% { opacity: .75; } 76% { opacity: 1; } }
+.sm-map svg.focusing .flow:not(.lit) { opacity: .1; animation-play-state: paused; }
+.sm-map svg.focusing .flow.lit { stroke-width: 2.2; }
+@media (prefers-reduced-motion: reduce) { .sm-map .flow { animation: none; stroke-dasharray: none; stroke-opacity: .6; } }
+
+/* THE BAR'S ICONS LIGHT UP IN THE ACCENT chosen for Home, under the pointer or the keyboard. */
+.salas-mac :is(.sm-barkey, .sm-icon-key) svg { transition: color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), filter calc(200ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.salas-mac :is(.sm-barkey, .sm-icon-key):is(:hover, :focus-visible) svg { color: var(--s-acc); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--s-acc) 65%, transparent)); }
+:root[data-scheme="light"] .salas-mac :is(.sm-barkey, .sm-icon-key):is(:hover, :focus-visible) svg { color: color-mix(in srgb, var(--s-acc) 80%, var(--text)); filter: drop-shadow(0 0 2px color-mix(in srgb, var(--s-acc) 45%, transparent)); }
+
+/* A project's own wallpaper on its card, seen whole rather than in a piece. */
+.sm-card[data-wp="biznaga"] { --wp-card: var(--wp-biznaga); --wp-size: cover; }
+.sm-card[data-wp="canela"] { --wp-card: var(--wp-canela); --wp-size: cover; }
+.sm-card[data-wp="jarrito"] { --wp-card: var(--wp-jarrito); --wp-size: cover; }
+.sm-card[data-wp="magna"] { --wp-card: var(--wp-magna); --wp-size: cover; }
+.sm-card[data-wp="oceano"] { --wp-card: var(--wp-oceano); --wp-size: cover; }
+.sm-card[data-wp="paradise"] { --wp-card: var(--wp-paradise); --wp-size: cover; }
+.sm-card[data-wp="quila"] { --wp-card: var(--wp-quila); --wp-size: cover; }
+.sm-card[data-wp="tradicion"] { --wp-card: var(--wp-tradicion); --wp-size: cover; }
+.sm-card[data-wp="tropical"] { --wp-card: var(--wp-tropical); --wp-size: cover; }
+.sm-card[data-wp="urbania"] { --wp-card: var(--wp-urbania); --wp-size: cover; }
+.sm-card[data-wp="ventura"] { --wp-card: var(--wp-ventura); --wp-size: cover; }
+.sm-card[data-wp="xico"] { --wp-card: var(--wp-xico); --wp-size: cover; }

@@ -26,16 +26,48 @@ export const LOOK_KEYS = {
 };
 const looksFile = (stateRoot) => join(stateRoot, 'looks.json');
 
+// A project may keep a wallpaper of its own (2026-10-13): the person said «only in this project».
+// It lives beside the shared looks, under `rooms`, by the room's id; every other look stays shared.
+const ROOM_ID = /^[\w .-]{1,120}$/;
+const readFileLooks = (stateRoot) => readFile(looksFile(stateRoot), 'utf8').then((text) => JSON.parse(text)).catch(() => null);
+function roomsOf(raw) {
+  const rooms = {};
+  for (const [id, own] of Object.entries(raw?.rooms ?? {})) {
+    if (ROOM_ID.test(id) && typeof own?.wallpaper === 'string' && CHOICE.test(own.wallpaper)) rooms[id] = { wallpaper: own.wallpaper };
+  }
+  return rooms;
+}
+
 // What is kept, read key by key: anything else in the file, or a value of the wrong shape, is not
-// a look. `null` for a key means the first value — the room as it always was.
-export async function readLooks(stateRoot) {
-  const raw = await readFile(looksFile(stateRoot), 'utf8').then((text) => JSON.parse(text)).catch(() => null);
+// a look. `null` for a key means the first value — the room as it always was. With `room`, that
+// project's own wallpaper comes back too, as `own`.
+export async function readLooks(stateRoot, { room = null } = {}) {
+  const raw = await readFileLooks(stateRoot);
   const looks = {};
   for (const [key, shape] of Object.entries(LOOK_KEYS)) {
     const value = raw?.looks?.[key];
     looks[key] = typeof value === 'string' && shape.test(value) ? value : null;
   }
-  return { looks, saved: Boolean(raw && typeof raw.looks === 'object') };
+  const answer = { looks, saved: Boolean(raw && typeof raw.looks === 'object') };
+  if (room) answer.own = roomsOf(raw)[room] ?? null;
+  return answer;
+}
+// Every project's own wallpaper, for Home's cards.
+export async function roomLooks(stateRoot) {
+  return roomsOf(await readFileLooks(stateRoot));
+}
+// A project's own wallpaper set, or taken away (`null`): it follows the shared one again.
+export function changeRoomLook(stateRoot, room, wallpaper) {
+  return oneAtATime(looksFile(stateRoot), async () => {
+    if (typeof room !== 'string' || !ROOM_ID.test(room)) return { error: 'room' };
+    if (wallpaper !== null && (typeof wallpaper !== 'string' || !CHOICE.test(wallpaper))) return { error: 'value' };
+    const raw = await readFileLooks(stateRoot);
+    const { looks } = await readLooks(stateRoot);
+    const rooms = roomsOf(raw);
+    if (wallpaper === null) delete rooms[room]; else rooms[room] = { wallpaper };
+    await writeWhole(looksFile(stateRoot), `${JSON.stringify({ looks, ...(Object.keys(rooms).length ? { rooms } : {}), at: new Date().toISOString() }, null, 2)}\n`);
+    return { own: rooms[room] ?? null };
+  });
 }
 
 // A change from a page: the keys it names, set or cleared. A key it does not know, or a value of
@@ -49,7 +81,8 @@ export function changeLooks(stateRoot, patch, now = new Date()) {
     }
     const { looks } = await readLooks(stateRoot);
     Object.assign(looks, patch);
-    await writeWhole(looksFile(stateRoot), `${JSON.stringify({ looks, at: new Date(now).toISOString() }, null, 2)}\n`);
+    const rooms = roomsOf(await readFileLooks(stateRoot));
+    await writeWhole(looksFile(stateRoot), `${JSON.stringify({ looks, ...(Object.keys(rooms).length ? { rooms } : {}), at: new Date(now).toISOString() }, null, 2)}\n`);
     return { looks, saved: true };
   });
 }

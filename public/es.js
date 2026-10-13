@@ -4594,4 +4594,9 @@ export const ES = {
   '{n} asleep': '{n} dormidos',
   '{n} more projects: {parts}': '{n} proyectos más: {parts}',
   '{n} open': '{n} abiertos',
+  'Only in this project': 'Solo en este proyecto',
+  'This project keeps its own wallpaper.': 'Este proyecto conserva su propio fondo.',
+  'This project wears the shared wallpaper again.': 'Este proyecto vuelve a usar el fondo compartido.',
+  'The wallpaper you choose here is this project\'s alone, and Home shows it on its card.': 'El fondo que elijas aquí es solo de este proyecto, e Inicio lo muestra en su tarjeta.',
+  'Off, every project and Home wear the same wallpaper.': 'Apagado, todos los proyectos e Inicio usan el mismo fondo.',
 };
