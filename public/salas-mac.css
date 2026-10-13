@@ -1090,10 +1090,21 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 .sm-map svg.focusing .flow.lit { stroke-width: 2.2; }
 @media (prefers-reduced-motion: reduce) { .sm-map .flow { animation: none; stroke-dasharray: none; stroke-opacity: .6; } }
 
-/* THE BAR'S ICONS LIGHT UP IN THE ACCENT chosen for Home, under the pointer or the keyboard. */
-.salas-mac :is(.sm-barkey, .sm-icon-key) svg { transition: color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), filter calc(200ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
-.salas-mac :is(.sm-barkey, .sm-icon-key):is(:hover, :focus-visible) svg { color: var(--s-acc); filter: drop-shadow(0 0 3px color-mix(in srgb, var(--s-acc) 65%, transparent)); }
-:root[data-scheme="light"] .salas-mac :is(.sm-barkey, .sm-icon-key):is(:hover, :focus-visible) svg { color: color-mix(in srgb, var(--s-acc) 80%, var(--text)); filter: drop-shadow(0 0 2px color-mix(in srgb, var(--s-acc) 45%, transparent)); }
+/* THE BAR'S KEYS BEHAVE AS THE PROJECT'S DO (styles.css, «.bar > :is(.tree-button, .mother-button)»):
+   under the pointer the whole key — its drawing and its word — takes the accent (in the light, the
+   accent darkened 30% so it reads), the key lifts to --key-over, the drawing's stroke thickens to
+   --icon-stroke-hover and each drawing moves in its own way. No glow, nothing else moves. */
+.salas-mac :is(.sm-barkey, .sm-icon-key) { --icon-w: var(--icon-stroke, 1.6); transition: color calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out), box-shadow calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.salas-mac :is(.sm-barkey, .sm-icon-key) svg :is(path, circle, rect, ellipse)[stroke], .salas-mac :is(.sm-barkey, .sm-icon-key) svg[stroke] :is(path, circle, rect, ellipse) { stroke-width: var(--icon-w); transition: stroke-width calc(200ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.salas-mac :is(.sm-barkey, .sm-icon-key):is(:hover, :focus-visible) { --icon-w: var(--icon-stroke-hover, 1.8); color: var(--s-acc); box-shadow: var(--key-over, var(--key-rest)); }
+:root[data-scheme="light"] .salas-mac :is(.sm-barkey, .sm-icon-key):is(:hover, :focus-visible) { color: color-mix(in srgb, var(--s-acc) 70%, #000000); }
+.salas-mac :is(.sm-barkey, .sm-icon-key):is(:hover, :focus-visible) :is(svg, span) { color: inherit; }
+.salas-mac :is(.sm-barkey, .sm-icon-key):active { box-shadow: var(--key-down); transform: scale(.96); }
+/* Reload turns once, as the project's; the gear gives a sixth of a turn. */
+#sm-reload:hover svg { animation: icon-reload 420ms var(--ease-out, ease-out); }
+#sm-gear svg { transition: transform calc(320ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+#sm-gear:hover svg { transform: rotate(60deg); }
+@media (prefers-reduced-motion: reduce) { #sm-reload:hover svg { animation: none; } #sm-gear:hover svg { transform: none; } }
 
 /* A project's own wallpaper on its card, seen whole rather than in a piece. */
 .sm-card[data-wp="biznaga"] { --wp-card: var(--wp-biznaga); --wp-size: cover; }
