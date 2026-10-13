@@ -410,6 +410,7 @@ function draw() {
   ui.macro.hidden = !data.rooms.length || window.innerWidth < 900;
   macro?.update(data.rooms, data.enlaces ?? []);
   settingsSheet?.sync();
+  fitTiles();
 }
 
 // The projects, as the search box and the filter leave them. Nothing is hidden by the filter
@@ -428,8 +429,47 @@ function drawProjects(all = data ? projectsInOrder().all : []) {
   ui.projects.hidden = !shown.length;
   ui.none.hidden = Boolean(shown.length);
   ui.none.replaceChildren();
+  fitDrawer(all);
   if (!all.length) ui.none.append(el('span', null, t('No projects yet. Add the first one.')), button('sm-btn primary small', t('Add a project'), openAddSheet));
   else if (!shown.length) ui.none.append(el('span', null, query ? t('No project matches «{query}».', { query }) : filter === 'open' ? t('No project is open.') : t('No project is asleep.')));
+}
+// THE DRAWER (2026-10-13): the projects live in a tile of their own, moved like any other, three
+// rows at a time. What does not fit is counted on a key under them — «+5», how many are open and
+// how many asleep — and the key opens the drawer whole, or closes it back to three rows.
+const drawerMore = $('sm-drawer-more');
+let drawerOpen = false;
+const DRAWER_ROWS = 3;
+function fitDrawer(all = data ? projectsInOrder().all : []) {
+  const count = $('sm-drawer-count');
+  if (count) count.textContent = String(all.length);
+  const cards = [...ui.projects.querySelectorAll('.sm-card[data-room]')];
+  for (const one of cards) one.hidden = false;
+  if (!cards.length) { drawerMore.hidden = true; return; }
+  // How many fit in a row is the grid's to say, at this width: 4, 3 or 2.
+  const first = cards[0].getBoundingClientRect();
+  const perRow = Math.max(1, Math.round((ui.projects.getBoundingClientRect().width + 16) / ((first.width || 1) + 16)));
+  const room = perRow * DRAWER_ROWS;
+  const out = cards.slice(room);
+  if (!out.length) { drawerMore.hidden = true; return; }
+  if (!drawerOpen) for (const one of out) one.hidden = true;
+  const rooms = out.map((one) => data.rooms.find((room) => room.id === one.dataset.room)).filter(Boolean);
+  const open = rooms.filter((room) => room.open).length;
+  const asleep = rooms.length - open;
+  drawerMore.hidden = false;
+  drawerMore.replaceChildren();
+  if (drawerOpen) drawerMore.append(el('span', null, t('Show fewer')));
+  else {
+    drawerMore.append(el('b', null, `+${out.length}`));
+    const parts = [open ? t('{n} open', { n: open }) : null, asleep ? t('{n} asleep', { n: asleep }) : null].filter(Boolean);
+    drawerMore.append(el('span', null, parts.join(' · ')));
+  }
+  drawerMore.setAttribute('aria-expanded', String(drawerOpen));
+  drawerMore.title = drawerOpen ? t('Show three rows') : t('{n} more projects: {parts}', { n: out.length, parts: [open ? t('{n} open', { n: open }) : null, asleep ? t('{n} asleep', { n: asleep }) : null].filter(Boolean).join(', ') });
+}
+drawerMore?.addEventListener('click', () => { drawerOpen = !drawerOpen; fitDrawer(); fitTiles(); });
+if (typeof ResizeObserver === 'function') {
+  let wide = 0;
+  new ResizeObserver(() => { const now = Math.round(ui.projects.getBoundingClientRect().width); if (now && now !== wide) { wide = now; fitDrawer(); } }).observe(ui.projects);
 }
 ui.search.addEventListener('input', () => { query = ui.search.value.trim(); drawProjects(); });
 for (const choice of ui.filter.querySelectorAll('[data-filter]')) {
@@ -638,6 +678,7 @@ function drawDecisions() {
     item.append(head, el('p', null, one.text));
     list.append(item);
   }
+  if (typeof fitTiles === 'function') fitTiles();
 }
 // A project's name as a small tag: a way into it when it is open.
 function roomTag(id, name) {
@@ -694,6 +735,7 @@ function drawWork() {
     : state === 'failed' ? t('MADRE could not summarise them this time: these are your latest conversations, as they are.')
     : work.stale ? t('There is newer work than this summary: it is written again in a few minutes, or now if you ask.')
     : t('Written by MADRE on this Mac from your latest conversations.');
+  if (typeof fitTiles === 'function') fitTiles();
 }
 ui.work.again.addEventListener('click', () => void loadWork({ again: true }));
 
@@ -1132,12 +1174,14 @@ if (typeof ResizeObserver === 'function') {
 // A widget exists only where something real feeds it (src/server.mjs, homeWidget): the machine,
 // the projects' servers sentinels and datasets, the Coordinator's own dataset, and Ollama.
 const LAYOUT_KEY = 'pulse.home.layout';
-const ZONES = { top: 'sm-top', low: 'sm-low' };
+// One board (2026-10-13): every tile of Home in one order, the projects' drawer among them.
+const BOARD = 'sm-top';
 const SIZES = [[4, () => t('Small')], [6, () => t('Medium')], [8, () => t('Large')], [12, () => t('Full width')]];
 const HOME_TILES = {
   bishop: { id: 'sm-bishop', name: () => t('Coordinator'), about: () => t('Your coordinator, its state and its recent summary.'), size: 8 },
   waiting: { id: 'sm-waiting', name: () => t('Waiting for you'), about: () => t('The questions and permissions an agent is waiting on.'), size: 4 },
   links: { id: 'sm-links-tile', name: () => t('Connections'), about: () => t('The map of who looks up whom.'), size: 4 },
+  projects: { id: 'sm-drawer', name: () => t('Projects'), about: () => t('Every project, open or asleep, three rows at a time.'), size: 12, sizes: [12], kept: true },
   decisions: { id: 'sm-decisions', name: () => t('Recent decisions'), about: () => t('What your projects decided lately.'), size: 4 },
   attention: { id: 'sm-attention', name: () => t('Needs you'), about: () => t('What Home noticed that needs a hand.'), size: 4 },
   memory: { id: 'sm-memory', name: () => t('Memory'), about: () => t('What your projects remember, by kind.'), size: 4 },
@@ -1149,11 +1193,12 @@ const WIDGETS = {
   'w-coordinator': { kind: 'coordinator', name: () => t('Coordinator training'), about: () => t('How far the Coordinator\'s own record is from a model of its own.'), size: 4 },
   'w-models': { kind: 'models', name: () => t('Local models'), about: () => t('Ollama, its models, and how close each project is to its own.'), size: 4 },
 };
-const DEFAULT_LAYOUT = { top: ['bishop', 'waiting', 'links'], low: ['decisions', 'attention', 'memory'], size: {} };
+const DEFAULT_LAYOUT = { order: ['bishop', 'waiting', 'links', 'projects', 'decisions', 'attention', 'memory'], size: {} };
 // What each tile is, drawn in the accent the person chose (the same line as the room's AJUSTES icons).
 const TILE_ICONS = {
   'bishop': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><circle cx="10" cy="3.6" r="1.4"/><circle cx="4.4" cy="14" r="1.4"/><circle cx="15.6" cy="14" r="1.4"/><path d="M10 5v2.4M8 11.6 5.6 13.2M12 11.6l2.4 1.6"/></svg>',
   'waiting': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8M6 16.5h8M6.8 3.5c0 3.2 3.2 4 3.2 6.5S6.8 13.3 6.8 16.5M13.2 3.5c0 3.2-3.2 4-3.2 6.5s3.2 3.3 3.2 6.5"/></svg>',
+  'projects': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12.5" rx="2.4"/><path d="M3 9.2h14M8 6.6h4"/></svg>',
   'links': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="13.5" r="2.2"/><circle cx="15" cy="6.5" r="2.2"/><path d="M7 12.2 13 7.8"/></svg>',
   'decisions': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="m7 10.2 2.1 2.1L13.2 8"/></svg>',
   'attention': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><path d="M10 6.6v4.2"/><path d="M10 13.4h.01" stroke-width="2.2"/></svg>',
@@ -1171,9 +1216,13 @@ function readLayout() {
   try { raw = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null'); } catch { raw = null; }
   if (!raw || typeof raw !== 'object') return structuredClone(DEFAULT_LAYOUT);
   const seen = new Set();
-  const zone = (list) => (Array.isArray(list) ? list : []).filter((id) => typeof id === 'string' && known(id) && !seen.has(id) && seen.add(id));
+  const clean = (list) => (Array.isArray(list) ? list : []).filter((id) => typeof id === 'string' && known(id) && !seen.has(id) && seen.add(id));
+  // An arrangement kept before the board was one (top · projects · low) reads as one order.
+  const order = clean(Array.isArray(raw.order) ? raw.order : [...(raw.top ?? []), 'projects', ...(raw.low ?? [])]);
+  // The drawer is never taken off: a list that lost it gets it back where the projects were.
+  if (!order.includes('projects')) order.splice(Math.min(order.length, 3), 0, 'projects');
   const size = Object.fromEntries(Object.entries(raw.size ?? {}).filter(([id, span]) => known(id) && SIZES.some(([one]) => one === span)));
-  return { top: zone(raw.top), low: zone(raw.low), size };
+  return { order, size };
 }
 let layout = readLayout();
 function saveLayout() {
@@ -1183,7 +1232,7 @@ function saveLayout() {
   } catch { /* the arrangement lasts as long as the page */ }
   applyLayout();
 }
-const zoneOf = (id) => (layout.top.includes(id) ? 'top' : layout.low.includes(id) ? 'low' : null);
+const placed = (id) => layout.order.includes(id);
 const spanOf = (id) => layout.size[id] ?? (HOME_TILES[id] ?? WIDGETS[id]).size;
 const widgetNodes = new Map();
 function tileNode(id) {
@@ -1192,46 +1241,52 @@ function tileNode(id) {
   return widgetNodes.get(id);
 }
 function applyLayout() {
-  for (const [zone, hostId] of Object.entries(ZONES)) {
-    const host = $(hostId);
-    for (const id of layout[zone]) {
-      const node = tileNode(id);
-      if (!node) continue;
-      node.classList.remove('sm-off', 'c-3', 'c-4', 'c-5', 'c-6', 'c-8', 'c-12');
-      node.classList.add(`c-${spanOf(id)}`);
-      node.dataset.tile = id;
-      host.append(node);
-    }
+  const board = $(BOARD);
+  for (const id of layout.order) {
+    const node = tileNode(id);
+    if (!node) continue;
+    node.classList.remove('sm-off', 'c-3', 'c-4', 'c-5', 'c-6', 'c-8', 'c-12', 'r-1', 'r-2', 'r-3');
+    node.classList.add(`c-${spanOf(id)}`);
+    node.dataset.tile = id;
+    board.append(node);
+    tileFits.observe(node);
   }
-  for (const id of Object.keys(HOME_TILES)) if (!zoneOf(id)) $(HOME_TILES[id].id)?.classList.add('sm-off');
-  for (const [id, node] of widgetNodes) if (!zoneOf(id)) { node.remove(); node.stop?.(); widgetNodes.delete(id); }
-  for (const zone of Object.keys(ZONES)) $(ZONES[zone]).classList.toggle('sm-empty', !layout[zone].length);
-  for (const [id, node] of widgetNodes) if (zoneOf(id)) node.start?.();
+  for (const id of Object.keys(HOME_TILES)) if (!placed(id)) $(HOME_TILES[id].id)?.classList.add('sm-off');
+  for (const [id, node] of widgetNodes) if (!placed(id)) { tileFits.unobserve(node); node.remove(); node.stop?.(); widgetNodes.delete(id); }
+  for (const [id, node] of widgetNodes) if (placed(id)) node.start?.();
+  fitTiles();
 }
-function moveTile(id, step) {
-  const list = layout[zoneOf(id)];
+// Each tile is as tall as what it holds (2026-10-13): the board's rows are 4 px and a tile spans as
+// many as its content needs, plus the gap under it. A tile made wider or narrower grows or shrinks
+// with its content instead of stretching to a height chosen for another size.
+const ROW_UNIT = 4;
+const ROW_GAP = 16;
+function fitTile(node) {
+  const height = node.getBoundingClientRect().height;
+  if (height) node.style.gridRow = `auto / span ${Math.ceil((height + ROW_GAP) / ROW_UNIT)}`;
+}
+// Measured whenever what a tile holds changes (drawn, read, opened) and whenever it resizes; the
+// observer alone is not enough where the page is not being painted.
+function fitTiles() { for (const node of $(BOARD)?.querySelectorAll(':scope > [data-tile]') ?? []) fitTile(node); }
+const tileFits = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => { for (const entry of entries) fitTile(entry.target); }) : { observe() {}, unobserve() {} };
+function moveTile(id, where) {
+  const list = layout.order;
   const at = list.indexOf(id);
-  const to = Math.max(0, Math.min(list.length - 1, at + step));
-  if (at < 0 || at === to) return;
+  if (at < 0) return;
   list.splice(at, 1);
+  const to = where === 'first' ? 0 : where === 'last' ? list.length : Math.max(0, Math.min(list.length, at + where));
   list.splice(to, 0, id);
   saveLayout();
 }
-function crossTile(id) {
-  const from = zoneOf(id);
-  const to = from === 'top' ? 'low' : 'top';
-  layout[from] = layout[from].filter((one) => one !== id);
-  if (to === 'top') layout.top.push(id); else layout.low.unshift(id);
-  saveLayout();
-}
 function removeTile(id) {
-  for (const zone of Object.keys(ZONES)) layout[zone] = layout[zone].filter((one) => one !== id);
+  if ((HOME_TILES[id] ?? WIDGETS[id])?.kept) return;
+  layout.order = layout.order.filter((one) => one !== id);
   delete layout.size[id];
   saveLayout();
 }
 function addTile(id) {
-  if (zoneOf(id)) return;
-  layout.low.push(id);
+  if (placed(id)) return;
+  layout.order.push(id);
   saveLayout();
   requestAnimationFrame(() => tileNode(id)?.scrollIntoView({ block: 'center', behavior: motionStill() ? 'auto' : 'smooth' }));
 }
@@ -1281,39 +1336,38 @@ const customized = () => JSON.stringify(layout) !== JSON.stringify(DEFAULT_LAYOU
 const addEntries = () => [{ words: t('Add to Home…'), icon: ADD_ICON, act: () => openHomeAdd() }, ...(customized() ? [{ words: t('Back to the default layout'), icon: RESET_ICON, act: () => { layout = structuredClone(DEFAULT_LAYOUT); saveLayout(); } }] : [])];
 function tileMenu(event, id) {
   event.preventDefault();
-  const zone = zoneOf(id);
-  const list = layout[zone];
+  const list = layout.order;
   const at = list.indexOf(id);
   const spec = HOME_TILES[id] ?? WIDGETS[id];
+  const sizes = SIZES.filter(([span]) => !spec.sizes || spec.sizes.includes(span));
   homeMenu({ x: event.clientX, y: event.clientY }, [
     { heading: spec.name(), tile: id },
     { words: t('Move before'), icon: BEFORE_ICON, disabled: at <= 0, act: () => moveTile(id, -1) },
     { words: t('Move after'), icon: AFTER_ICON, disabled: at >= list.length - 1, act: () => moveTile(id, 1) },
-    { words: zone === 'top' ? t('Move below the projects') : t('Move above the projects'), icon: MOVE_ICON, act: () => crossTile(id) },
+    { words: t('Move to the start'), icon: MOVE_ICON, disabled: at <= 0, act: () => moveTile(id, 'first') },
+    { words: t('Move to the end'), icon: MOVE_ICON, disabled: at >= list.length - 1, act: () => moveTile(id, 'last') },
+    ...(sizes.length > 1 ? ['sep', ...sizes.map(([span, words]) => ({ words: words(), icon: sizeIcon(span), checked: spanOf(id) === span, act: () => { if (span === spec.size) delete layout.size[id]; else layout.size[id] = span; saveLayout(); } }))] : []),
     'sep',
-    ...SIZES.map(([span, words]) => ({ words: words(), icon: sizeIcon(span), checked: spanOf(id) === span, act: () => { if (span === (HOME_TILES[id] ?? WIDGETS[id]).size) delete layout.size[id]; else layout.size[id] = span; saveLayout(); } })),
-    'sep',
-    { words: t('Take off Home'), icon: HIDE_ICON, act: () => removeTile(id) },
+    ...(spec.kept ? [] : [{ words: t('Take off Home'), icon: HIDE_ICON, act: () => removeTile(id) }]),
     ...addEntries(),
   ], spec.name());
 }
-for (const hostId of Object.values(ZONES)) {
-  $(hostId)?.addEventListener('contextmenu', (event) => {
-    if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-    const tile = event.target.closest('[data-tile]');
-    if (tile) { tileMenu(event, tile.dataset.tile); return; }
-    event.preventDefault();
-    homeMenu({ x: event.clientX, y: event.clientY }, addEntries(), t('Home'));
-  });
-}
+$(BOARD)?.addEventListener('contextmenu', (event) => {
+  // A project's card keeps its own menu (pinsMenu); the drawer around it has the tile's.
+  if (event.target.closest('input, textarea, select, [contenteditable="true"], .sm-card')) return;
+  const tile = event.target.closest('[data-tile]');
+  if (tile) { tileMenu(event, tile.dataset.tile); return; }
+  event.preventDefault();
+  homeMenu({ x: event.clientX, y: event.clientY }, addEntries(), t('Home'));
+});
 // DRAG AND DROP (2026-10-13): a tile is taken by its head and set down where it should go — in the
 // same row of tiles or the other one, above or below the projects. While it is carried the tiles
 // make room for it; let go, that order is kept. Escape, or a drop outside, puts everything back.
 const TILE_TYPE = 'application/x-madre-tile';
 let carried = null;
-const grabbable = (event) => !event.target.closest('a, button, input, select, textarea, svg, .sm-map, [contenteditable="true"]') && event.target.closest('.sm-tile-head, .sm-bishop-head, .sm-bishop-words');
-for (const hostId of Object.values(ZONES)) {
-  const host = $(hostId);
+const grabbable = (event) => !event.target.closest('a, button, input, select, textarea, label, svg, .sm-map, .sm-card, .sm-tools, [contenteditable="true"]') && event.target.closest('.sm-tile-head, .sm-bishop-head, .sm-bishop-words');
+{
+  const host = $(BOARD);
   host?.addEventListener('pointerdown', (event) => {
     const tile = event.target.closest('[data-tile]');
     if (tile && event.button === 0 && grabbable(event)) tile.draggable = true;
@@ -1332,6 +1386,7 @@ for (const hostId of Object.values(ZONES)) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     const over = event.target.closest('[data-tile]');
+    if (over && !host.contains(over)) return;
     if (!over) { if (!host.contains(carried)) host.append(carried); return; }
     if (over === carried) return;
     const box = over.getBoundingClientRect();
@@ -1342,7 +1397,7 @@ for (const hostId of Object.values(ZONES)) {
   host?.addEventListener('drop', (event) => {
     if (!carried || !event.dataTransfer.types.includes(TILE_TYPE)) return;
     event.preventDefault();
-    for (const [zone, id] of Object.entries(ZONES)) layout[zone] = [...$(id).children].filter((node) => node.dataset.tile && known(node.dataset.tile) && !node.classList.contains('sm-off')).map((node) => node.dataset.tile);
+    layout.order = [...host.children].filter((node) => node.dataset.tile && known(node.dataset.tile) && !node.classList.contains('sm-off')).map((node) => node.dataset.tile);
     carried.classList.remove('sm-carried');
     carried.draggable = false;
     carried = null;
@@ -1426,8 +1481,8 @@ async function openHomeAdd() {
   document.body.append(homeAddSheet);
   homeAddSheet.showModal();
   const entries = [
-    ...Object.entries(HOME_TILES).filter(([id]) => !zoneOf(id)).map(([id, spec]) => ({ id, spec, ready: true })),
-    ...Object.entries(WIDGETS).filter(([id]) => !zoneOf(id)).map(([id, spec]) => ({ id, spec, ready: null })),
+    ...Object.entries(HOME_TILES).filter(([id]) => !placed(id)).map(([id, spec]) => ({ id, spec, ready: true })),
+    ...Object.entries(WIDGETS).filter(([id]) => !placed(id)).map(([id, spec]) => ({ id, spec, ready: null })),
   ];
   if (!entries.length) { list.append(el('p', 'sm-hint', t('Everything is already on Home.'))); return; }
   for (const entry of entries) {
@@ -1473,23 +1528,29 @@ const WIDGET_PAINT = {
     const used = reading.memory.total ? 1 - reading.memory.free / reading.memory.total : null;
     const mem = el('div', 'sm-w-metric');
     mem.append(el('span', 'sm-w-label', t('Memory')), el('b', 'sm-w-big', t('{free} free', { free: gb(reading.memory.free) })), meter(used, toneFor(used ?? 0)), el('small', null, t('of {total}. The system lends what is free to its cache and takes it back when needed.', { total: gb(reading.memory.total) })));
-    body.append(cpu, mem);
+    const grid = el('div', 'sm-w-grid');
+    grid.append(cpu, mem);
+    body.append(grid);
   },
   servers(body, reading) {
     const running = reading.projects.flatMap((one) => one.ports.map((port) => ({ ...port, project: one.name })));
     if (!running.length) body.append(el('p', 'sm-hint', reading.projects.some((one) => one.preview) ? t('No server is running in your open projects.') : t('Turn on Preview in a project\'s Modules to see its servers.')));
+    const grid = el('div', 'sm-w-grid');
     for (const one of running) {
       const healthy = one.status !== null && one.status < 500;
       const row = el('div', `sm-w-row${healthy ? ' ok' : ' bad'}`);
       row.append(el('i', 'sm-w-dot'), el('b', null, `:${one.port}`), el('span', null, one.project), el('small', null, one.status ? t('answers {status}', { status: one.status }) : t('no answer')));
-      body.append(row);
+      grid.append(row);
     }
+    if (running.length) body.append(grid);
     const off = reading.projects.filter((one) => !one.preview && !one.unreachable).length;
     if (off && running.length) body.append(el('small', 'sm-w-foot', off === 1 ? t('1 project has Preview off.') : t('{n} projects have Preview off.', { n: off })));
   },
   memory(body, reading) {
     const read = reading.projects.filter((one) => !one.unreachable);
     if (!read.length) { body.append(el('p', 'sm-hint', t('Open a project to read its memory.'))); return; }
+    const grid = el('div', 'sm-w-grid');
+    body.append(grid);
     for (const one of read) {
       const row = el('div', 'sm-w-project');
       const top = el('div', 'sm-w-line');
@@ -1497,7 +1558,7 @@ const WIDGET_PAINT = {
       row.append(top, meter(one.score));
       const notes = [one.weakest?.label ? t('weakest: {what}', { what: one.weakest.label.toLowerCase() }) : null, one.aberrations ? t('{n} odd memories', { n: one.aberrations }) : null].filter(Boolean);
       if (notes.length) row.append(el('small', null, notes.join(' · ')));
-      body.append(row);
+      grid.append(row);
     }
   },
   coordinator(body, reading) {
@@ -1514,13 +1575,15 @@ const WIDGET_PAINT = {
     head.append(el('i', 'sm-w-dot'), el('b', null, 'Ollama'), el('span', null, reading.ollama.running ? t('{n} models on this Mac', { n: reading.ollama.models.length }) : t('not running')));
     body.append(head);
     if (reading.ollama.models.length) body.append(el('small', 'sm-w-foot mono', reading.ollama.models.slice(0, 4).join(' · ') + (reading.ollama.models.length > 4 ? ' …' : '')));
+    const grid = el('div', 'sm-w-grid');
+    body.append(grid);
     for (const one of reading.projects.filter((project) => !project.unreachable)) {
       const row = el('div', 'sm-w-project');
       const top = el('div', 'sm-w-line');
       const ready = one.pairs >= one.target;
       top.append(el('b', null, one.name), el('small', null, one.trained ? t('trained · {name}', { name: one.trained }) : ready ? t('ready to train') : `${one.pairs}/${one.target}`));
       row.append(top, meter(one.trained ? 1 : one.target ? one.pairs / one.target : 0));
-      body.append(row);
+      grid.append(row);
     }
   },
 };
@@ -1541,6 +1604,7 @@ function makeWidget(id) {
     body.replaceChildren();
     if (!reading) { body.append(el('p', 'sm-hint', t('It could not be read just now.'))); return; }
     WIDGET_PAINT[spec.kind](body, reading);
+    fitTile(node);
   };
   node.start = () => { if (timer) return; void read(); timer = setInterval(() => void read(), 20000); };
   node.stop = () => { clearInterval(timer); timer = 0; };
@@ -2825,7 +2889,9 @@ function drawBishop(room) {
   const b = ui.bishop;
   const glance = room?.glance ?? {};
   const state = room?.open ? stateOf(room) : { key: 'asleep', words: t('Asleep') };
-  b.box.className = `sm-tile sm-bishop c-8 r-3 is-${state.key}`;
+  // Only its state: its size is the person's (applyLayout), and a class written whole took it back.
+  for (const one of [...b.box.classList]) if (one.startsWith('is-')) b.box.classList.remove(one);
+  b.box.classList.add(`is-${state.key}`);
   b.state.querySelector('span').textContent = state.words;
   const waking = busy.get(data?.salas) === 'starting';
   for (const way of [b.go, b.tab]) way.setAttribute('aria-disabled', String(waking));
@@ -4147,6 +4213,7 @@ function translateStatic() {
   ui.search.placeholder = t('Search a project…');
   ui.search.setAttribute('aria-label', t('Search a project…'));
   ui.filter.setAttribute('aria-label', t('Show'));
+  $('sm-drawer-title').textContent = t('Projects');
   const FILTER_WORDS = { all: t('All projects'), open: t('Open projects'), asleep: t('Asleep projects') };
   for (const choice of ui.filter.querySelectorAll('[data-filter]')) choice.textContent = FILTER_WORDS[choice.dataset.filter];
   paintOrderKey();

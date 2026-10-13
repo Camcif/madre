@@ -929,3 +929,74 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 .sm-order svg { width: 16px; height: 16px; color: var(--s-acc); }
 .sm-menu-head + .sm-menu-item { margin-top: 2px; }
 .sm-menu .sm-menu-head:last-child { max-width: 240px; padding-bottom: 8px; font-size: 11.5px; font-weight: 450; letter-spacing: 0; text-transform: none; line-height: 1.4; }
+
+/* ==========================================================================================
+   ONE BOARD · 13 OCT
+   Home is one board of tiles in the person's order, the projects' drawer among them. Each tile is
+   as tall as what it holds: the board's rows are 4 px and salas-mac.js (tileFits) sets how many a
+   tile spans, so a tile made wider or narrower never stretches to a height chosen for another.
+   ========================================================================================== */
+.sm-hero { margin: 0; }
+#sm-top.sm-bento { grid-auto-rows: 4px; row-gap: 0; column-gap: 16px; align-items: start; margin-top: 18px; }
+#sm-top > .sm-tile { align-self: start; }
+#sm-top > .sm-bishop .sm-work { flex: none; }
+
+/* The drawer of projects: its tools in its head, three rows of cards, and a key for the rest. */
+.sm-drawer { gap: 14px; padding: 18px 20px 20px; }
+.sm-drawer-head { flex-wrap: wrap; justify-content: flex-start; gap: 10px 12px; }
+.sm-drawer-head h2 { margin: 0; }
+.sm-drawer-head .sm-tools { margin-left: auto; padding: 0; background: transparent !important; box-shadow: none !important; flex-wrap: wrap; justify-content: flex-end; }
+.sm-drawer .sm-projects { margin: 0; }
+.sm-drawer .sm-projects > .sm-card { box-shadow: var(--key-rest); }
+.sm-drawer .sm-projects > .sm-card[hidden] { display: none; }
+.sm-drawer-more { align-self: center; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--surface, var(--panel)); box-shadow: var(--key-rest); color: var(--text-2); font: inherit; font-size: 12.5px; cursor: pointer; }
+.sm-drawer-more b { font-family: var(--mono); font-size: 12px; font-weight: 650; color: var(--text); }
+.sm-drawer-more:hover { box-shadow: var(--key-over, var(--key-rest)); color: var(--text); }
+.sm-drawer-more[hidden] { display: none; }
+@media (max-width: 920px) { .sm-drawer-head .sm-tools { margin-left: 0; width: 100%; justify-content: flex-start; } }
+
+/* ==========================================================================================
+   THE WIDGET CONTRACT · 13 OCT
+   A widget is <section class="sm-tile sm-widget"> with a .sm-tile-head and a .sm-w-body. Inside,
+   these pieces arrange themselves by the width the tile was given (container queries on the
+   tile), never by the window, so any widget works at Small, Medium, Large or Full width:
+     .sm-w-grid    repeated items (projects, servers, metrics) in as many columns as fit
+     .sm-w-metric  a label, a big number, a meter and a line
+     .sm-w-project a name with a figure and a meter under it
+     .sm-meter     a bar; .warm and .hot when it runs high
+   The tokens below are the only sizes a widget should use.
+   ========================================================================================== */
+.sm-tile { container: tile / inline-size; }
+.sm-tile, .sm-widget {
+  --w-gap: 12px;
+  --w-col: 200px;
+  --w-big: 22px;
+  --w-text: 13px;
+}
+.sm-w-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--w-col)), 1fr)); gap: var(--w-gap) calc(var(--w-gap) * 1.8); }
+.sm-w-big { font-size: var(--w-big); }
+.sm-w-body { gap: var(--w-gap); font-size: var(--w-text); }
+@container tile (max-width: 300px) {
+  .sm-widget { --w-big: 19px; --w-gap: 10px; }
+  .sm-w-row { grid-template-columns: auto auto minmax(0, 1fr); }
+  .sm-w-row small { grid-column: 3; }
+}
+@container tile (min-width: 640px) {
+  .sm-widget { --w-big: 26px; --w-col: 240px; }
+}
+/* The Coordinator's summary reads as two columns when the tile is wide enough for them. */
+@container tile (min-width: 980px) {
+  .sm-bishop .sm-work-list { grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr); }
+  .sm-bishop .sm-work-list li { grid-column: span 2; }
+}
+
+/* The connections, as cards in two columns: a long list is scanned across, not scrolled down. */
+.sm-sheet.sm-wide:has(#sm-links) { --sm-sheet-w: 980px; }
+.sm-link-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 12px; align-items: stretch; }
+.sm-link-list .sm-link { grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 16px 18px; }
+.sm-link-list .sm-link .sm-actions { grid-column: 1; grid-row: auto; justify-content: flex-end; margin-top: 4px; }
+.sm-link-list .sm-link .who { font-size: 14.5px; }
+.sm-link-list .sm-link { grid-template-columns: minmax(0, 1fr) auto; }
+.sm-link-list .sm-link > :is(.sm-link-kind, .who, .what, .traffic) { grid-column: 1 / -1; }
+.sm-link-list .sm-link > .sm-recall { grid-column: 1; margin: 0; }
+.sm-link-list .sm-link > .sm-actions { grid-column: 2; grid-row: auto; margin: 0; align-self: center; }

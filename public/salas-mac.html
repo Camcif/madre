@@ -62,18 +62,6 @@
     <main class="sm-main">
       <section class="sm-hero">
         <h1 id="sm-title" class="visually-hidden">Home</h1>
-        <div class="sm-tools">
-          <label class="settings-search sm-search">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            <input id="sm-search" type="search" autocomplete="off" spellcheck="false" placeholder="Search a project…" aria-label="Search a project…">
-          </label>
-          <div id="sm-filter" class="sx-seg" role="radiogroup" aria-label="Show">
-            <button type="button" role="radio" data-filter="all" aria-checked="true">All projects</button>
-            <button type="button" role="radio" data-filter="open" aria-checked="false">Open projects</button>
-            <button type="button" role="radio" data-filter="asleep" aria-checked="false">Asleep projects</button>
-          </div>
-          <button id="sm-add" class="sm-btn primary sm-add" type="button">Add a project</button>
-        </div>
       </section>
 
       <div id="sm-top" class="sm-bento">
@@ -115,12 +103,26 @@
           <div id="sm-map" class="sm-map"></div>
           <footer class="sm-tile-foot"><span id="sm-links-sum" class="sm-hint"></span><button id="sm-links-all" class="sm-btn ghost small" type="button">See the connections</button></footer>
         </section>
-      </div>
-
-      <div id="sm-projects" class="sm-bento sm-projects" aria-live="polite"></div>
-      <p id="sm-none" class="sm-none" hidden></p>
-
-      <div id="sm-low" class="sm-bento sm-low">
+        <section id="sm-drawer" class="sm-tile sm-drawer c-12" aria-labelledby="sm-drawer-title">
+          <header class="sm-tile-head sm-drawer-head">
+            <h2 id="sm-drawer-title">Projects</h2><span id="sm-drawer-count" class="sm-chip port"></span>
+            <div class="sm-tools">
+              <label class="settings-search sm-search">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                <input id="sm-search" type="search" autocomplete="off" spellcheck="false" placeholder="Search a project…" aria-label="Search a project…">
+              </label>
+              <div id="sm-filter" class="sx-seg" role="radiogroup" aria-label="Show">
+                <button type="button" role="radio" data-filter="all" aria-checked="true">All projects</button>
+                <button type="button" role="radio" data-filter="open" aria-checked="false">Open projects</button>
+                <button type="button" role="radio" data-filter="asleep" aria-checked="false">Asleep projects</button>
+              </div>
+              <button id="sm-add" class="sm-btn primary sm-add" type="button">Add a project</button>
+            </div>
+          </header>
+          <div id="sm-projects" class="sm-bento sm-projects" aria-live="polite"></div>
+          <p id="sm-none" class="sm-none" hidden></p>
+          <button id="sm-drawer-more" class="sm-drawer-more" type="button" hidden></button>
+        </section>
         <section id="sm-decisions" class="sm-tile c-5" aria-labelledby="sm-decisions-title">
           <header class="sm-tile-head"><h2 id="sm-decisions-title">Recent decisions</h2></header>
           <ol id="sm-decisions-list" class="sm-decisions"></ol>
@@ -134,6 +136,8 @@
           <div id="sm-memory-body" class="sm-memory-body"></div>
         </section>
       </div>
+
+
       <!-- The foot: what Home is, and the room's own corner — which MADRE this is, and whose. -->
       <footer class="sm-foot-row">
         <p id="sm-foot" class="sm-foot"></p>
