@@ -60,7 +60,7 @@ import { Room } from './room.mjs';
 import { changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, looksLikeCodePrompt, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
-import { applyKey, keyPlanFor } from './credentials.mjs';
+import { applyKey, keyPlanFor, OPENCODE_PROVIDERS, readOpenCodeProviders, removeOpenCodeKey } from './credentials.mjs';
 import { forgetSecret, summary as vaultSummary, writeSecret } from './vault.mjs';
 import { applyConfigToEnv, loadConfig as readConfig, updateConfig } from './config.mjs';
 import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
@@ -75,7 +75,7 @@ import { moduleUpdate } from './modules/updates.mjs';
 import { adoptStrays, chatIndex, chatLedger, createChat, deleteChat, isChatId, listChats, openChat as openChatIndex, projectFloor, renameChat, touchChat } from './chats.mjs';
 import { spawn } from 'node:child_process';
 import { totalmem } from 'node:os';
-import { discoverModels } from './models.mjs';
+import { discoverModels, groupOpenCode, openCodeHidden, providerLabel, OPENCODE_OWN } from './models.mjs';
 import { observable } from './modules/intents-observe.mjs';
 import { normalizeMode, setImageModule } from './capabilities.mjs';
 import { resolveGeminiKey } from './image-studio.mjs';
@@ -598,6 +598,11 @@ export async function createPulseServer({
     if (patch.opencode && 'model' in patch.opencode) {
       config.opencode = { model: patch.opencode.model || undefined };
       if (patch.opencode.model) process.env.PULSE_OPENCODE_MODEL = String(patch.opencode.model); else delete process.env.PULSE_OPENCODE_MODEL;
+    }
+    // The providers left out of the composer's chooser: ids only, the way OpenCode names them.
+    if (patch.opencode && 'hidden' in patch.opencode) {
+      if (!Array.isArray(patch.opencode.hidden) || patch.opencode.hidden.some((id) => typeof id !== 'string' || !/^[\w.-]{1,60}$/.test(id))) throw new Error(t('Hidden providers must be a list of provider names.'));
+      config.opencode = { ...(config.opencode ?? {}), hidden: [...new Set(patch.opencode.hidden)] };
     }
     if (patch.timeouts) {
       const timeouts = { ...room.settings().agentTimeouts };
@@ -2994,6 +2999,39 @@ export async function createPulseServer({
           return models;
         };
         return sendJson(response, 200, { models: await discoverModels({ agents, config: await readConfig(root), listOpenCode: url.searchParams.get('opencode') === '1' ? listOpenCode : async () => [] }) });
+      }
+      // OpenCode's providers for AJUSTES: who has a key or an account, what each offers, which are
+      // left out of the chooser. Never a key: only that one is there and of what kind.
+      if (request.method === 'GET' && url.pathname === '/api/agents/opencode/providers') {
+        const opencode = agents.find((agent) => agent.id === 'opencode');
+        if (!opencode?.detected) return sendJson(response, 404, { error: t('OpenCode is not installed.') });
+        const names = [];
+        await runInstaller({ command: opencode.path, args: ['models'], projectRoot: canonicalProjectRoot, timeoutMs: 20000, onLine: (line) => { if (/^[\w.-]+\/[\w.:/-]+$/.test(line.trim())) names.push(line.trim()); } });
+        const config = await readConfig(root);
+        const hidden = new Set(openCodeHidden(config));
+        const signed = new Map((await readOpenCodeProviders({ home: credentialHome })).map((one) => [one.id, one.type]));
+        const groups = new Map(groupOpenCode(names).map((group) => [group.id, group]));
+        const ids = [...new Set([...OPENCODE_PROVIDERS.map((one) => one.id), ...signed.keys(), ...groups.keys()])];
+        const providers = ids.map((id) => {
+          const known = OPENCODE_PROVIDERS.find((one) => one.id === id);
+          const own = id === OPENCODE_OWN;
+          const via = own ? 'own' : signed.get(id) ?? null;
+          return { id, label: providerLabel(id), keyUrl: known?.keyUrl ?? null, takesKey: Boolean(known), via, models: groups.get(id)?.models ?? [], hidden: hidden.has(id) };
+        }).sort((a, b) => Number(Boolean(b.via)) - Number(Boolean(a.via)) || Number(a.via === 'own') - Number(b.via === 'own') || a.label.localeCompare(b.label));
+        return sendJson(response, 200, { providers, default: process.env.PULSE_OPENCODE_MODEL ?? null });
+      }
+      // A provider's key out of OpenCode, from this computer only, the same rule as putting one in.
+      if (request.method === 'POST' && url.pathname === '/api/agents/opencode/providers/remove') {
+        const address = request.socket.remoteAddress ?? '';
+        if (viaPhone || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address)) return sendJson(response, 403, { error: t('A key is only changed from this computer, never over the network.') });
+        const opencode = agents.find((agent) => agent.id === 'opencode');
+        if (!opencode?.detected) return sendJson(response, 412, { error: t('OpenCode is not installed.') });
+        const payload = await body(request).catch(() => ({}));
+        const result = await removeOpenCodeKey({ provider: payload.provider, home: credentialHome, executable: opencode.path ?? 'opencode' });
+        if (!result.ok) return sendJson(response, 422, { error: result.error });
+        await refreshSessions();
+        await room.record('connection.key.removed', { agent: 'opencode', label: opencode.label, provider: payload.provider });
+        return sendJson(response, 200, { ok: true });
       }
       if (request.method === 'GET' && url.pathname === '/api/agents/opencode/models') {
         const opencode = agents.find((agent) => agent.id === 'opencode');

@@ -8368,3 +8368,54 @@ dialog.tour-bonjour::backdrop { background: transparent; }
   .ts-search em { width: 54%; }
 }
 .tour-pill-slot:not([hidden]) { display: inline-flex; align-items: center; }
+
+/* ==========================================================================================
+   KEYS WITH A CLEAN EDGE · 13 OCT
+   ------------------------------------------------------------------------------------------
+   The two soft shadows of the shared light (above) read as a smudge on a white card: the light
+   one vanishes and the dark one spreads. A key now stands on three thin layers instead — a
+   hairline that draws its edge, a tight contact shadow and a short soft one below — with a
+   faint lit top in the dark. Over it, it lifts a little; pressed, the shade goes inside. The
+   same four tokens dress every key, in Home and in every project.
+   ========================================================================================== */
+:root {
+  --key-rest: inset 0 1px 0 rgba(255, 255, 255, .055), 0 0 0 .5px rgba(0, 0, 0, .6), 0 1px 1.5px rgba(0, 0, 0, .42), 0 3px 8px -3px rgba(0, 0, 0, .5);
+  --key-over: inset 0 1px 0 rgba(255, 255, 255, .075), 0 0 0 .5px rgba(0, 0, 0, .6), 0 2px 3px rgba(0, 0, 0, .38), 0 8px 18px -7px rgba(0, 0, 0, .58);
+  --key-down: inset 0 1px 2px rgba(0, 0, 0, .55), inset 0 0 0 .5px rgba(0, 0, 0, .5);
+  --key-track: inset 0 0 0 .5px rgba(255, 255, 255, .07), inset 0 1px 2px rgba(0, 0, 0, .38);
+}
+:root[data-scheme="light"] {
+  --key-rest: 0 0 0 .5px rgba(22, 30, 22, .11), 0 1px 1.5px rgba(22, 30, 22, .08), 0 2px 6px -2px rgba(22, 30, 22, .12);
+  --key-over: 0 0 0 .5px rgba(22, 30, 22, .13), 0 2px 3px rgba(22, 30, 22, .08), 0 8px 18px -8px rgba(22, 30, 22, .2);
+  --key-down: inset 0 1px 2px rgba(22, 30, 22, .14), inset 0 0 0 .5px rgba(22, 30, 22, .14);
+  --key-track: inset 0 0 0 .5px rgba(22, 30, 22, .12), inset 0 1px 2px rgba(22, 30, 22, .06);
+}
+
+/* ==========================================================================================
+   OPENCODE BY PROVIDER · 13 OCT
+   The composer's chooser groups OpenCode's models under the provider they come from, and
+   AJUSTES › Project › OpenCode lists the providers with their key and their switch.
+   ========================================================================================== */
+.model-list { max-height: 320px; }
+.model-group { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 10px 10px 3px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+.model-group:first-of-type { margin-top: 6px; }
+.model-group b { font-weight: 650; color: var(--text-2); }
+.model-group span { letter-spacing: .04em; text-transform: none; font-size: 10.5px; }
+.model-group + .model-option { margin-top: 1px; }
+.model-manage { display: block; width: 100%; margin-top: 8px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--agent, var(--phosphor)); font: inherit; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; }
+.model-manage:hover { background: color-mix(in srgb, var(--agent, var(--phosphor)) 10%, transparent); }
+
+.oc-providers { display: grid; gap: 10px; padding: 4px 0 10px; }
+.oc-provider { display: grid; gap: 10px; padding: 14px 16px; border-radius: 12px; box-shadow: var(--key-track); }
+.oc-provider.on { box-shadow: var(--key-rest); background: var(--surface, var(--panel)); }
+.oc-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; }
+.oc-words { display: grid; gap: 2px; min-width: 0; }
+.oc-words b { font-size: 14px; font-weight: 600; color: var(--text); }
+.oc-shown { display: inline-flex; align-items: center; gap: 10px; flex: none; font-size: 12.5px; color: var(--text-2); }
+.oc-key { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.oc-key .sx-input { flex: 1 1 220px; min-width: 0; }
+.oc-where { font-size: 12.5px; font-weight: 550; color: var(--phosphor); text-decoration: none; }
+.oc-where:hover { text-decoration: underline; }
+.oc-actions { display: flex; justify-content: flex-end; }
+.oc-note { margin: 0; }
+.oc-default { min-width: 0; }

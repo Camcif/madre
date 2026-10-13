@@ -183,3 +183,43 @@ export async function applyKey({ agent, key, provider = null, home = homedir(), 
   if (agent === 'opencode') return applyOpenCodeKey(checked.key, { home, provider, executable, run });
   return { ok: false, error: `${agent} does not take a key here: it signs in with a click.` };
 }
+
+// ---- OpenCode's providers, as its auth.json says them: who is signed in and how, never the key.
+// `api` is a key (MADRE's or one pasted in a terminal), `oauth` an account signed in from
+// `opencode auth login`. Anything unreadable reads as nobody.
+export async function readOpenCodeProviders({ home = homedir() } = {}) {
+  const raw = await readIfThere(join(home, '.local', 'share', 'opencode', 'auth.json'));
+  let auth = {};
+  try { auth = JSON.parse(raw ?? '{}') ?? {}; } catch { auth = {}; }
+  if (!auth || typeof auth !== 'object' || Array.isArray(auth)) return [];
+  return Object.entries(auth)
+    .filter(([id, entry]) => /^[\w.-]{1,60}$/.test(id) && entry && typeof entry === 'object')
+    .map(([id, entry]) => ({ id, type: entry.type === 'api' || entry.type === 'oauth' ? entry.type : 'other' }));
+}
+
+// Takes a provider's key out of OpenCode's auth.json, the other entries untouched. Only a key
+// (`api`): an account signed in with OpenCode's own login is signed out where it was signed in.
+// OpenCode is the judge again: if it still lists the provider, the file goes back as it was.
+export async function removeOpenCodeKey({ provider, home = homedir(), executable = 'opencode', run = runOpenCode } = {}) {
+  if (typeof provider !== 'string' || !/^[\w.-]{1,60}$/.test(provider)) return { ok: false, error: 'Pick the provider whose key goes.' };
+  const file = join(home, '.local', 'share', 'opencode', 'auth.json');
+  const before = await readIfThere(file);
+  let auth = {};
+  try { auth = JSON.parse(before ?? '{}') ?? {}; } catch { return { ok: false, error: 'OpenCode\'s auth.json could not be read, so nothing was changed.' }; }
+  if (!auth[provider]) return { ok: false, error: `OpenCode has no key for ${provider}.` };
+  if (auth[provider].type !== 'api') return { ok: false, error: `${provider} is signed in with its account, not a key: sign it out with \`opencode auth logout\` in a terminal.` };
+  try {
+    delete auth[provider];
+    await writeFile(file, `${JSON.stringify(auth, null, 2)}\n`, { mode: OWNER_ONLY });
+    await chmod(file, OWNER_ONLY).catch(() => {});
+    const listed = await run(executable, ['auth', 'list']);
+    if (new RegExp(`\\b${provider.replace(/[.-]/g, '\\$&')}\\b`, 'i').test(listed.replace(/auth\.json/gi, ''))) {
+      await restore(file, before);
+      return { ok: false, error: `OpenCode still lists ${provider}, so MADRE put the file back. Remove it with \`opencode auth logout\` in a terminal.` };
+    }
+    return { ok: true };
+  } catch (error) {
+    await restore(file, before);
+    return { ok: false, error: `The key could not be removed: ${error.message}` };
+  }
+}

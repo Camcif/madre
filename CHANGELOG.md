@@ -15,6 +15,9 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 - **La navegación del Mapa respeta las ventanas abiertas.** Clics, arrastres y rueda sobre una tarjeta no actúan sobre el lienzo detrás.
 - **Los comandos indican su estado y tiempo transcurrido.** Cada línea muestra una barra de actividad mientras corre y el resumen distingue las que terminaron. Inicio deja de mostrar como pendiente una línea ya iniciada y conserva el agente que la pidió.
 - **Los servidores tienen una tecla de recarga reconocible.**
+- **OpenCode por proveedor.** El selector de modelo del chat agrupa los modelos de OpenCode bajo su proveedor (solo los que tienen llave o cuenta, y los propios de OpenCode) y lleva a **Ajustes › Agentes › OpenCode**: ahí se pega o se quita la llave de cada proveedor, se elige cuáles aparecen en el chat y el modelo por defecto.
+- **El mapa de conexiones de Inicio, más claro.** La tarjeta muestra solo los proyectos conectados, cada uno con un tono derivado de tu acento que se repite en sus cables y en su nombre; tocarla abre el mapa completo, amplio, en «Ver las conexiones».
+- **Botones con sombra más limpia**, con un borde fino y una sombra corta, en claro y en oscuro.
 
 ## 1.0.0 · 2026-10-12
 

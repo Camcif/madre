@@ -666,7 +666,9 @@ function linkRow(enlace) {
   const node = el('article', `sm-link${revoking.has(enlace.id) ? ' revoking' : ''}`);
   node.dataset.link = enlace.id;
   node.append(el('span', 'sm-link-kind', source === data.salas || reader === data.salas ? t('With the Coordinator') : t('Between projects')));
-  node.append(el('p', 'who', enlace.direction === 'both' ? t('{a} and {b} read each other', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) }) : t('{reader} reads from {source}', { reader: roomName(reader), source: roomName(source) })));
+  const who = el('p', 'who');
+  who.append(enlace.direction === 'both' ? sayTinted('{a} and {b} read each other', { a: enlace.rooms.a, b: enlace.rooms.b }) : sayTinted('{reader} reads from {source}', { reader, source }));
+  node.append(who);
   const what = [kindsWords(enlace.kinds), enlace.expires ? t('until {date}', { date: new Date(enlace.expires).toLocaleDateString(language, { day: 'numeric', month: 'short' }) }) : t('no expiry')];
   if (enlace.orders?.allowed) what.push(t('orders up to #{n}', { n: enlace.orders.maxMode }));
   // D-S13: a link BISHOP signed on its own says so, so it is never mistaken for one you signed.
@@ -710,32 +712,29 @@ function drawLinks(projects) {
     : enough ? t('No connections yet.') : t('Add a project to connect it.');
   ui.linksNote.textContent = t('A connection lets one project read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes that travel into turns cross.');
   ui.links.replaceChildren(...enlaces.map(linkRow));
-  drawMapLegend(enlaces);
+  if (!bigMap.isConnected) ui.linksNote.after(bigMap);
+  bigMap.hidden = !enlaces.length;
   if (!enlaces.length && ui.linksSheet.open) ui.linksSheet.close();
   drawMap(projects, enlaces);
 }
-// Under the map, each connection in words, who looks up whom (2026-10-11): the first two, and how
-// many more there are; the whole list is one press away.
-const mapLegend = el('ul', 'sm-map-legend');
-function drawMapLegend(enlaces) {
-  if (!mapLegend.isConnected) ui.map.after(mapLegend);
-  mapLegend.replaceChildren();
-  mapLegend.hidden = !enlaces.length;
-  const said = (enlace) => {
-    const { source, reader } = endsOf(enlace);
-    if (enlace.direction === 'both') return sayBold('{a} and {b} look each other up', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) });
-    if (reader === data.salas) return sayBold('The Coordinator looks up {source}', { source: roomName(source) });
-    return sayBold('{reader} looks up {source}', { reader: roomName(reader), source: roomName(source) });
-  };
-  for (const enlace of enlaces.slice(0, 3)) {
-    const line = el('li');
-    const words = el('span', 'says');
-    words.append(said(enlace));
-    line.append(el('i'), words);
-    if (enlace.orders?.allowed) line.append(el('span', 'sm-map-orders', t('orders up to #{n}', { n: enlace.orders.maxMode })));
-    mapLegend.append(line);
+// A sentence whose project names wear their tone (the map's): `vars` names room ids.
+function sayTinted(key, vars) {
+  const out = document.createDocumentFragment();
+  const template = t(key);
+  let at = 0;
+  for (const match of template.matchAll(/\{(\w+)\}/g)) {
+    out.append(template.slice(at, match.index));
+    const id = vars[match[1]];
+    if (id === undefined) out.append(match[0]);
+    else {
+      const name = el('b', `sm-tinted${id === data.salas ? ' hub' : ''}`, roomName(id));
+      if (id !== data.salas) name.style.setProperty('--pc', toneOf(id));
+      out.append(name);
+    }
+    at = match.index + match[0].length;
   }
-  if (enlaces.length > 3) mapLegend.append(el('li', 'more', t('and {n} more', { n: enlaces.length - 3 })));
+  out.append(template.slice(at));
+  return out;
 }
 async function revokeLink(id) {
   revoking.delete(id);
@@ -743,14 +742,17 @@ async function revokeLink(id) {
   await refresh();
 }
 ui.linksAll.addEventListener('click', () => { if (!ui.linksSheet.open) ui.linksSheet.showModal(); });
+// The tile's map is the small one: a press opens the wide one, with every connection under it.
+ui.map.addEventListener('click', (event) => { if (event.target.closest('svg') && (data?.enlaces ?? []).length && !ui.linksSheet.open) ui.linksSheet.showModal(); });
+// Closed, the sheet has no size to draw at: the wide map is drawn each time it opens.
+new MutationObserver(() => { if (ui.linksSheet.open && mapDrawn) requestAnimationFrame(() => paintMap(bigMap, mapDrawn.projects, mapDrawn.enlaces, { wide: true })); }).observe(ui.linksSheet, { attributes: true, attributeFilter: ['open'] });
 ui.linksClose.addEventListener('click', () => ui.linksSheet.close());
 ui.linkMore.addEventListener('click', () => openLinkSheet());
 
-// The map of the links: BISHOP in the middle, the projects round it (the first ten, in the
-// lobby's order), and a wire for each contract in force, from the room that serves to the one
-// that reads, the notes running along it the way they travel. Drawn at the tile's own size
-// (2026-10-11), so the names read at their real size: the projects a connection touches are
-// drawn whole and named in full; the rest stay quiet round the edge, a dashed ring when asleep.
+// The map of the links (redrawn 2026-10-13): the Coordinator in the middle and, round it, the
+// projects a contract touches, each in its own tone of the accent the person chose, so a project
+// is the same colour on the map, on its wires and in the words under it. The tile draws only the
+// connected ones, large enough to read; the sheet («See the connections») draws them all, wide.
 // Nothing here is drawn that the contracts do not say.
 const SVG = 'http://www.w3.org/2000/svg';
 const svgNode = (tag, attributes = {}) => {
@@ -758,46 +760,78 @@ const svgNode = (tag, attributes = {}) => {
   for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
   return node;
 };
+// A project's tone: the accent turned round the colour wheel, keeping its own lightness and
+// strength. The turns are shared out evenly among the projects a connection touches (in a steady
+// order, by id), so no two of them look alike; the first wears the accent itself. Where the
+// browser cannot turn a colour (no relative colour syntax), every project wears the accent.
+const TURNS = typeof CSS !== 'undefined' && CSS.supports?.('color', 'oklch(from red l c h)');
+function toneOf(id) {
+  const linked = [...new Set((data?.enlaces ?? []).flatMap((enlace) => [enlace.rooms.a, enlace.rooms.b]))].filter((one) => one !== data?.salas).sort();
+  const index = linked.indexOf(id);
+  if (!TURNS || index <= 0) return 'var(--s-acc)';
+  const step = 360 / Math.max(5, linked.length);
+  return `oklch(from var(--s-acc) l c calc(h + ${(index * step).toFixed(1)}))`;
+}
 let mapDrawn = null;
+const bigMap = el('div', 'sm-map sm-map-wide');
 function drawMap(projects, enlaces) {
   mapDrawn = { projects, enlaces };
-  ui.map.replaceChildren();
-  if (!projects.length) { ui.map.append(el('p', 'sm-hint', t('Your projects show here, round the Coordinator, with the connections between them.'))); return; }
-  const box = ui.map.getBoundingClientRect();
-  const W = Math.max(220, Math.round(box.width || 320)), H = Math.max(140, Math.round(box.height || 200));
-  const cx = W / 2, cy = H / 2 - 4;
+  paintMap(ui.map, projects, enlaces, { wide: false });
+  if (ui.linksSheet.open) paintMap(bigMap, projects, enlaces, { wide: true });
+}
+function paintMap(host, projects, enlaces, { wide }) {
+  host.replaceChildren();
+  if (!projects.length) { host.append(el('p', 'sm-hint', t('Your projects show here, round the Coordinator, with the connections between them.'))); return; }
+  const box = host.getBoundingClientRect();
+  const W = Math.max(240, Math.round(box.width || 320)), H = Math.max(170, Math.round(box.height || 220));
+  const cx = W / 2, cy = H / 2;
   const linked = new Set(enlaces.flatMap((enlace) => [enlace.rooms.a, enlace.rooms.b]));
-  // At this tile's size only ten labels fit. Show connected projects first, including links
-  // signed directly between projects; the full list remains in the sheet below.
-  const shown = [...projects].sort((a, b) => Number(linked.has(b.id)) - Number(linked.has(a.id)) || a.name.localeCompare(b.name)).slice(0, 10);
-  const rx = Math.max(64, W / 2 - 50), ry = Math.max(36, H / 2 - 26);
-  // The Coordinator's halo (drawn while it is connected) is part of its body for the wires.
-  const at = new Map([[data.salas, { x: cx, y: cy, r: 17, pad: linked.has(data.salas) ? 7 : 0, up: false }]]);
-  shown.forEach((room, index) => {
-    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / shown.length + (shown.length === 2 ? Math.PI / 2 : 0);
+  const connected = projects.filter((room) => linked.has(room.id));
+  // The tile names only who is connected; the sheet has room for everyone, the quiet ones fainter.
+  const ring = (wide ? [...connected, ...projects.filter((room) => !linked.has(room.id))] : connected.length ? connected : projects).slice(0, wide ? 18 : 10);
+  const quiet = projects.length - ring.length;
+  const name = (room) => (room.name.length > 16 ? `${room.name.slice(0, 15)}…` : room.name);
+  // The ring leaves room for the longest name on either side, so nothing is cut at the edge.
+  const longest = Math.max(40, ...ring.map((room) => name(room).length * (wide ? 7.4 : 7)));
+  const rx = Math.max(60, W / 2 - longest - 18), ry = Math.max(44, H / 2 - (wide ? 34 : 26));
+  const hubR = wide ? 21 : 17;
+  const at = new Map([[data.salas, { x: cx, y: cy, r: hubR, pad: linked.has(data.salas) ? 6 : 0 }]]);
+  ring.forEach((room, index) => {
+    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / ring.length + (ring.length === 2 ? Math.PI / 2 : 0);
     const memories = room.glance?.census?.memories ?? 0;
-    const r = (room.open ? 6 + Math.min(4, Math.sqrt(memories) / 3) : 5.5) + (linked.has(room.id) ? 1 : 0);
-    // A name above its body in the upper half, below it in the lower, so none runs into the middle.
-    at.set(room.id, { x: cx + Math.cos(angle) * rx, y: cy + Math.sin(angle) * ry, r, up: Math.sin(angle) < -0.35 });
+    const r = linked.has(room.id) ? (wide ? 8 : 7) + Math.min(3, Math.sqrt(memories) / 4) : 4.5;
+    at.set(room.id, { x: cx + Math.cos(angle) * rx, y: cy + Math.sin(angle) * ry, r, cos: Math.cos(angle), sin: Math.sin(angle) });
   });
   const svg = svgNode('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
   svg.setAttribute('aria-label', ui.linksSum.textContent);
   const defs = svgNode('defs');
-  const arrow = svgNode('marker', { id: 'sm-arrow', viewBox: '0 0 10 10', refX: 7, refY: 5, markerWidth: 7, markerHeight: 7, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' });
-  arrow.append(svgNode('path', { d: 'M1 1.5L8 5L1 8.5', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
-  defs.append(arrow);
   svg.append(defs);
-  // From the edge of one body to the edge of the other.
-  const edges = (from, to, gapFrom = 3, gapTo = 4) => {
+  // One small arrowhead per tone: a marker cannot borrow the colour of the wire it ends.
+  const heads = new Map();
+  const headFor = (id) => {
+    if (heads.has(id)) return heads.get(id);
+    const ref = `sm-head-${wide ? 'w' : 't'}-${heads.size}`;
+    const marker = svgNode('marker', { id: ref, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6.5, markerHeight: 6.5, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' });
+    const tip = svgNode('path', { d: 'M1.5 1.5L8.5 5L1.5 8.5', fill: 'none', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+    tip.style.stroke = id === data.salas ? 'var(--text-3)' : toneOf(id);
+    marker.append(tip);
+    defs.append(marker);
+    heads.set(id, `url(#${ref})`);
+    return heads.get(id);
+  };
+  const edges = (from, to, gapFrom = 4, gapTo = 5) => {
     const dx = to.x - from.x, dy = to.y - from.y, length = Math.hypot(dx, dy) || 1;
     const ux = dx / length, uy = dy / length;
     const reach = (spot, gap) => spot.r + (spot.pad ?? 0) + gap;
     return { start: { x: from.x + ux * reach(from, gapFrom), y: from.y + uy * reach(from, gapFrom) }, end: { x: to.x - ux * reach(to, gapTo), y: to.y - uy * reach(to, gapTo) } };
   };
+  // A hairline from the middle to each project on the ring that no contract touches: it is there,
+  // and nothing crosses.
   const centre = at.get(data.salas);
-  for (const room of shown) {
-    const { start, end } = edges(centre, at.get(room.id), 2, 2);
-    svg.append(svgNode('line', { class: `spoke${linked.has(room.id) ? ' linked' : ''}`, x1: start.x.toFixed(1), y1: start.y.toFixed(1), x2: end.x.toFixed(1), y2: end.y.toFixed(1) }));
+  for (const room of ring) {
+    if (linked.has(room.id)) continue;
+    const { start, end } = edges(centre, at.get(room.id), 3, 3);
+    svg.append(svgNode('line', { class: 'spoke', x1: start.x.toFixed(1), y1: start.y.toFixed(1), x2: end.x.toFixed(1), y2: end.y.toFixed(1) }));
   }
   const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   enlaces.forEach((enlace, index) => {
@@ -805,68 +839,91 @@ function drawMap(projects, enlaces) {
     const from = at.get(source), to = at.get(reader);
     if (!from || !to) return;
     const { start, end } = edges(from, to);
-    // With the Coordinator at one end the wire runs straight along its spoke; between two
-    // projects it bows outwards, away from the middle, so it never crosses the Coordinator.
+    // To or from the Coordinator the wire is straight; between two projects it bows away from the
+    // middle, so it never runs through the Coordinator.
     let d = `M${start.x.toFixed(1)} ${start.y.toFixed(1)} L${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
     if (source !== data.salas && reader !== data.salas) {
       const mx = (start.x + end.x) / 2, my = (start.y + end.y) / 2;
       const ox = mx - cx, oy = my - cy, out = Math.hypot(ox, oy) || 1;
-      d = `M${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${(mx + (ox / out) * 34).toFixed(1)} ${(my + (oy / out) * 34).toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+      const bow = Math.min(46, Math.hypot(end.x - start.x, end.y - start.y) * 0.28);
+      d = `M${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${(mx + (ox / out) * bow).toFixed(1)} ${(my + (oy / out) * bow).toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
     }
-    const id = `sm-wire-${index}`;
-    const wire = svgNode('path', { id, class: 'wire', d, 'marker-end': 'url(#sm-arrow)' });
-    if (enlace.direction === 'both') wire.setAttribute('marker-start', 'url(#sm-arrow)');
+    // The wire wears the tone of the project the notes come from.
+    const tone = source === data.salas ? 'var(--text-3)' : toneOf(source);
+    const id = `sm-wire-${wide ? 'w' : 't'}-${index}`;
+    const wire = svgNode('path', { id, class: 'wire', d, 'marker-end': headFor(source) });
+    wire.style.stroke = tone;
+    if (enlace.direction === 'both') wire.setAttribute('marker-start', headFor(reader));
+    const title = svgNode('title');
+    title.textContent = enlace.direction === 'both' ? t('{a} and {b} look each other up', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) }) : reader === data.salas ? t('The Coordinator looks up {source}', { source: roomName(source) }) : t('{reader} looks up {source}', { reader: roomName(reader), source: roomName(source) });
+    wire.append(title);
     svg.append(wire);
     if (still) return;
-    // The notes on their way: two dots one after the other, back the other way too when both read.
-    const ways = enlace.direction === 'both' ? [['0;1', 0], ['1;0', 1.2]] : [['0;1', 0]];
-    for (const [points, offset] of ways) {
-      for (const lag of [0, 1.2]) {
-        const dot = svgNode('circle', { class: 'note', r: 2.6, opacity: 0 });
-        const begin = `${(lag + offset + index * 0.4).toFixed(1)}s`;
-        const move = svgNode('animateMotion', { dur: '2.4s', repeatCount: 'indefinite', begin, keyPoints: points, keyTimes: '0;1', calcMode: 'linear' });
-        const along = svgNode('mpath');
-        along.setAttribute('href', `#${id}`);
-        move.append(along);
-        dot.append(move, svgNode('animate', { attributeName: 'opacity', values: '0;1;1;0', keyTimes: '0;.15;.85;1', dur: '2.4s', repeatCount: 'indefinite', begin }));
-        svg.append(dot);
-      }
+    // The notes on their way, in the tone of where they come from.
+    const ways = enlace.direction === 'both' ? [['0;1', 0, tone], ['1;0', 1.3, reader === data.salas ? 'var(--text-3)' : toneOf(reader)]] : [['0;1', 0, tone]];
+    for (const [points, offset, colour] of ways) {
+      const dot = svgNode('circle', { class: 'note', r: wide ? 2.6 : 2.2, opacity: 0 });
+      dot.style.fill = colour;
+      const begin = `${(offset + index * 0.45).toFixed(2)}s`;
+      const move = svgNode('animateMotion', { dur: '2.6s', repeatCount: 'indefinite', begin, keyPoints: points, keyTimes: '0;1', calcMode: 'spline', keySplines: '.4 0 .2 1' });
+      const along = svgNode('mpath');
+      along.setAttribute('href', `#${id}`);
+      move.append(along);
+      dot.append(move, svgNode('animate', { attributeName: 'opacity', values: '0;1;1;0', keyTimes: '0;.12;.88;1', dur: '2.6s', repeatCount: 'indefinite', begin }));
+      svg.append(dot);
     }
   });
-  for (const room of shown) {
+  for (const room of ring) {
     const spot = at.get(room.id);
     const on = linked.has(room.id);
-    const body = svgNode('circle', { class: `node${room.open ? '' : ' asleep'}${on ? ' linked' : ''}${room.glance?.waitingCount ? ' waiting' : ''}`, cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: spot.r.toFixed(1) });
+    const group = svgNode('g', { class: `node${on ? ' linked' : ''}${room.open ? '' : ' asleep'}${room.glance?.waitingCount ? ' waiting' : ''}` });
+    group.style.setProperty('--pc', toneOf(room.id));
+    if (on && room.glance?.waitingCount) group.append(svgNode('circle', { class: 'wait', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: (spot.r + 5).toFixed(1) }));
+    group.append(svgNode('circle', { class: 'body', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: spot.r.toFixed(1) }));
     const title = svgNode('title');
     title.textContent = `${room.name} · ${stateOf(room).words}`;
-    body.append(title);
-    const name = svgNode('text', { class: `label${on ? ' linked' : ''}`, x: spot.x.toFixed(1), y: (spot.up ? spot.y - spot.r - 6 : spot.y + spot.r + 13).toFixed(1), 'text-anchor': 'middle' });
-    name.textContent = room.name.length > 16 ? `${room.name.slice(0, 15)}…` : room.name;
-    svg.append(body, name);
+    group.append(title);
+    // The name sits outside the ring, on the side its project is on: to the right on the right,
+    // to the left on the left, above or below at the top and the bottom.
+    const side = Math.abs(spot.cos) < 0.32 ? 'middle' : spot.cos > 0 ? 'start' : 'end';
+    const gap = spot.r + 7;
+    const x = side === 'middle' ? spot.x : spot.x + Math.sign(spot.cos) * gap;
+    const y = side === 'middle' ? (spot.sin < 0 ? spot.y - gap - 2 : spot.y + gap + 10) : spot.y + 4;
+    const label = svgNode('text', { class: 'label', x: x.toFixed(1), y: y.toFixed(1), 'text-anchor': side });
+    label.textContent = name(room);
+    group.append(label);
+    svg.append(group);
   }
-  // BISHOP, in its own colours, with its own mark (brands.js), and a halo while it is connected.
+  // The Coordinator, in its own colours and mark (brands.js).
   const brand = brandOf('bishop');
   const hub = svgNode('g', { class: `bishop${linked.has(data.salas) ? ' linked' : ''}` });
-  if (linked.has(data.salas)) hub.append(svgNode('circle', { class: 'halo', cx, cy, r: 23 }));
-  hub.append(svgNode('circle', { cx, cy, r: 17, fill: brand.solid ?? brand.color }));
-  const face = svgNode('g', { transform: `translate(${cx - 10.5} ${cy - 10.5})`, color: brand.ink });
+  if (linked.has(data.salas)) hub.append(svgNode('circle', { class: 'halo', cx, cy, r: hubR + 6 }));
+  hub.append(svgNode('circle', { cx, cy, r: hubR, fill: brand.solid ?? brand.color }));
+  const size = Math.round(hubR * 1.24);
+  const face = svgNode('g', { transform: `translate(${cx - size / 2} ${cy - size / 2})`, color: brand.ink });
   face.innerHTML = brand.mark(); // trusted: our own SVG string from brands.js
-  face.firstElementChild?.setAttribute('width', '21');
-  face.firstElementChild?.setAttribute('height', '21');
+  face.firstElementChild?.setAttribute('width', String(size));
+  face.firstElementChild?.setAttribute('height', String(size));
   hub.append(face);
+  const hubTitle = svgNode('title');
+  hubTitle.textContent = t('Coordinator');
+  hub.append(hubTitle);
   svg.append(hub);
-  ui.map.append(svg);
+  host.append(svg);
+  if (!wide && quiet > 0 && connected.length) host.append(el('span', 'sm-map-quiet', quiet === 1 ? t('1 more project, not connected') : t('{n} more projects, not connected', { n: quiet })));
 }
-// The tile changes size with the window: the map is drawn again at the new size.
+// The tile and the sheet change size with the window: the map is drawn again at the new size.
 if (typeof ResizeObserver === 'function') {
-  let drawnAt = '';
-  new ResizeObserver(() => {
-    const box = ui.map.getBoundingClientRect();
-    const size = `${Math.round(box.width)}x${Math.round(box.height)}`;
-    if (!box.width || size === drawnAt || !mapDrawn) return;
-    drawnAt = size;
-    drawMap(mapDrawn.projects, mapDrawn.enlaces);
-  }).observe(ui.map);
+  for (const [host, wide] of [[ui.map, false], [bigMap, true]]) {
+    let drawnAt = '';
+    new ResizeObserver(() => {
+      const box = host.getBoundingClientRect();
+      const size = `${Math.round(box.width)}x${Math.round(box.height)}`;
+      if (!box.width || size === drawnAt || !mapDrawn) return;
+      drawnAt = size;
+      paintMap(host, mapDrawn.projects, mapDrawn.enlaces, { wide });
+    }).observe(host);
+  }
 }
 
 // THE WELCOME OF 1.0 (public/tour.js): the bonjour the first time, the chapters after it, the pill

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { OPENCODE_PROVIDERS } from './credentials.mjs';
 
 // Which model a CLI should use for one turn. Every CLI accepts --model; the
 // names come from what is installed locally (Codex's model cache, OpenCode's
@@ -172,7 +173,17 @@ export async function discoverModels({ agents = [], config = {}, home = homedir(
       cliDefault = process.env.PULSE_OPENCODE_MODEL ?? null;
     }
     const custom = Array.isArray(config.models?.[agent.id]) ? config.models[agent.id] : [];
+    // OpenCode speaks to many providers: what `opencode models` lists is already only the ones
+    // signed in plus OpenCode's own. The person may hide a provider from the chooser (AJUSTES ›
+    // Project › OpenCode); its models are then left out, never the room default.
+    let groups;
+    if (agent.id === 'opencode') {
+      const hidden = new Set(openCodeHidden(config));
+      discovered = discovered.filter((name) => !hidden.has(providerOf(name)));
+      groups = groupOpenCode(unique([...custom, ...discovered]));
+    }
     result[agent.id] = {
+      ...(groups ? { groups } : {}),
       models: unique([...custom, ...discovered, ...known.defaults]),
       default: cliDefault,
       note: known.note,
@@ -183,4 +194,31 @@ export async function discoverModels({ agents = [], config = {}, home = homedir(
     };
   }
   return result;
+}
+
+// ---- OpenCode's models by provider: `provider/model`, named as the person knows the provider.
+export const OPENCODE_OWN = 'opencode';
+export const providerOf = (name) => String(name ?? '').split('/')[0];
+export function openCodeHidden(config = {}) {
+  const hidden = config.opencode?.hidden;
+  return Array.isArray(hidden) ? hidden.filter((id) => typeof id === 'string' && /^[\w.-]{1,60}$/.test(id)) : [];
+}
+export function providerLabel(id) {
+  if (id === OPENCODE_OWN) return 'OpenCode';
+  const known = OPENCODE_PROVIDERS.find((one) => one.id === id);
+  if (known) return known.label;
+  return id.split(/[-_.]/).map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part)).join(' ');
+}
+// Groups in a steady order: the providers with a key first, by name; OpenCode's own models last.
+export function groupOpenCode(names = []) {
+  const byProvider = new Map();
+  for (const name of names) {
+    if (!/^[\w.-]+\/[\w.:/-]+$/.test(name)) continue;
+    const id = providerOf(name);
+    if (!byProvider.has(id)) byProvider.set(id, []);
+    byProvider.get(id).push(name);
+  }
+  return [...byProvider.entries()]
+    .sort(([a], [b]) => Number(a === OPENCODE_OWN) - Number(b === OPENCODE_OWN) || providerLabel(a).localeCompare(providerLabel(b)))
+    .map(([id, models]) => ({ id, label: providerLabel(id), own: id === OPENCODE_OWN, models }));
 }

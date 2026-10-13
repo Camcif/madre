@@ -257,26 +257,27 @@ a.sm-tag-room:hover { background: color-mix(in srgb, var(--s-acc) 16%, transpare
    contract with the notes running along it, the projects it touches drawn whole and named in
    full, the rest quiet round the edge. */
 .sm-links-tile { gap: 14px; padding: 22px 24px; }
-.sm-map { position: relative; flex: 1; min-height: 170px; color: var(--s-acc); }
+.sm-map { position: relative; flex: 1; min-height: 210px; color: var(--s-acc); }
 .sm-map svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.sm-map .spoke { stroke: var(--text-3); stroke-opacity: .22; stroke-width: 1; }
-.sm-map .spoke.linked { stroke-opacity: 0; }
-.sm-map .wire { fill: none; stroke: var(--s-acc); stroke-width: 2; stroke-linecap: round; }
-.sm-map .note { fill: var(--s-acc); }
-.sm-map .node { fill: var(--surface, var(--panel)); stroke: color-mix(in srgb, var(--text) 22%, transparent); stroke-width: 1.2; opacity: .7; }
-.sm-map .node.asleep { fill: transparent; stroke: var(--text-3); stroke-dasharray: 2.5 2.5; }
-.sm-map .node.linked { opacity: 1; fill: var(--surface, var(--panel)); stroke: var(--s-acc); stroke-width: 2; stroke-dasharray: none; }
-.sm-map .node.waiting { stroke: var(--s-acc); stroke-width: 2; opacity: 1; }
-.sm-map .label { font-family: var(--read); font-size: 11px; font-weight: 500; fill: var(--text-3); }
-.sm-map .label.linked { font-size: 12px; font-weight: 650; fill: var(--text); }
-.sm-map .bishop .halo { fill: none; stroke: var(--s-acc); stroke-opacity: .35; stroke-width: 1.5; }
-.sm-map-legend { display: grid; gap: 7px; margin: 4px 0 2px; padding: 0; list-style: none; }
-.sm-map-legend li { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--text-2); }
-.sm-map-legend li i { flex: none; width: 14px; height: 2px; border-radius: 1px; background: var(--s-acc); }
-.sm-map-legend li b { font-weight: 650; color: var(--text); }
-.sm-map-legend .says { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-map-legend li.more { padding-left: 21px; }
-.sm-map-orders { flex: none; padding: 1px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--s-acc) 72%, var(--text)); background: color-mix(in srgb, var(--s-acc) 14%, transparent); }
+.sm-map .spoke { stroke: var(--text-3); stroke-opacity: .16; stroke-width: 1; stroke-dasharray: 1 4; stroke-linecap: round; }
+.sm-map .wire { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-opacity: .78; transition: stroke-opacity 160ms var(--ease-out, ease-out), stroke-width 160ms var(--ease-out, ease-out); }
+.sm-map .wire:hover { stroke-opacity: 1; stroke-width: 2.4; }
+.sm-map .node .body { fill: var(--pc, var(--s-acc)); stroke: var(--surface, var(--panel)); stroke-width: 2.5; paint-order: stroke; }
+.sm-map .node:not(.linked) .body { fill: color-mix(in srgb, var(--text) 18%, transparent); stroke-width: 0; }
+.sm-map .node.asleep.linked .body { fill: color-mix(in srgb, var(--pc, var(--s-acc)) 38%, var(--surface, var(--panel))); stroke: var(--pc, var(--s-acc)); stroke-width: 1.6; stroke-dasharray: 2.4 2.2; paint-order: normal; }
+.sm-map .node.asleep.linked .label { fill: var(--text-2); }
+.sm-map .node .wait { fill: none; stroke: var(--pc, var(--s-acc)); stroke-width: 1.4; stroke-opacity: .55; animation: sm-map-wait 1.8s var(--ease-out, ease-out) infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes sm-map-wait { from { transform: scale(.75); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sm-map .node .wait { animation: none; } }
+.sm-map .label { font-family: var(--read); font-size: 12px; font-weight: 600; letter-spacing: -.005em; fill: var(--text); paint-order: stroke; stroke: var(--surface, var(--panel)); stroke-width: 3px; stroke-linejoin: round; }
+.sm-map .node:not(.linked) .label { font-size: 11px; font-weight: 500; fill: var(--text-3); }
+.sm-map .bishop .halo { fill: none; stroke: color-mix(in srgb, var(--text) 14%, transparent); stroke-width: 1; }
+.sm-map-quiet { position: absolute; right: 0; bottom: -2px; font-size: 11.5px; color: var(--text-3); }
+.sm-map-wide { flex: none; height: clamp(300px, 46vh, 440px); margin: 6px 0 18px; border-radius: 16px; background: color-mix(in srgb, var(--text) 3%, transparent); }
+.sm-map-wide .label { font-size: 13px; }
+.sm-tinted { white-space: nowrap; color: var(--text) !important; }
+.sm-tinted::before { content: ''; display: inline-block; width: .55em; height: .55em; margin: 0 .35em .08em 0; border-radius: 50%; background: var(--pc, var(--s-acc)); vertical-align: middle; }
+.sm-tinted.hub::before { background: var(--text-3); }
 .sm-map > .sm-hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 12px; }
 
 /* The low row: what was decided, what needs you, and the memory. */
@@ -806,3 +807,5 @@ button.sm-pill { border: 0; cursor: pointer; }
 .sm-pill.is-update:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-acc) 70%, transparent); outline-offset: 2px; }
 /* A project's name inside the wizard's sentences stands out (salas-mac.js, sayBold). */
 :is(.lw-lead, .lw-note, .lw-review li, .lw-caution, .lw-allows li, .lw-already-says) b { font-weight: 650; color: var(--text); }
+
+#sm-map svg { cursor: zoom-in; }

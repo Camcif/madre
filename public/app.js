@@ -2556,12 +2556,24 @@ async function toggleModelMenu(id, anchor) {
   title.append(el('b', null, `@${id}`), t(' · model for this request'));
   modelMenu.append(title);
   const list = el('div', 'model-list');
-  const options = [{ name: null, label: `${t('default')}${info.default ? ` · ${info.default}` : ''}` }, ...info.models.map((name) => ({ name, label: name }))];
-  for (const option of options) {
-    const button = el('button', `model-option${(state.chosenModel[id] ?? null) === option.name ? ' current' : ''}`, option.label);
+  const option = (name, label) => {
+    const button = el('button', `model-option${(state.chosenModel[id] ?? null) === name ? ' current' : ''}`, label);
     button.type = 'button';
-    button.addEventListener('click', () => { rememberModel(id, option.name); closeModelMenu(); renderPicker(); focusComposer(); });
-    list.append(button);
+    button.addEventListener('click', () => { rememberModel(id, name); closeModelMenu(); renderPicker(); focusComposer(); });
+    return button;
+  };
+  list.append(option(null, `${t('default')}${info.default ? ` · ${info.default}` : ''}`));
+  // OpenCode answers through many providers: its models come under the provider they belong to,
+  // only the ones with a key or an account and OpenCode's own, the name shown without the prefix.
+  if (Array.isArray(info.groups) && info.groups.length) {
+    for (const group of info.groups) {
+      const head = el('div', `model-group${group.own ? ' own' : ''}`);
+      head.append(el('b', null, group.label), el('span', null, group.own ? t('OpenCode\'s own') : t('{n} models', { n: group.models.length })));
+      list.append(head);
+      for (const name of group.models) list.append(option(name, name.slice(name.indexOf('/') + 1)));
+    }
+  } else {
+    for (const name of info.models) list.append(option(name, name));
   }
   modelMenu.append(list);
   const custom = el('form', 'model-custom');
@@ -2569,7 +2581,12 @@ async function toggleModelMenu(id, anchor) {
   custom.append(input);
   custom.addEventListener('submit', (event) => { event.preventDefault(); const name = input.value.trim(); if (name) { rememberModel(id, name); closeModelMenu(); renderPicker(); } });
   modelMenu.append(custom);
-  if (info.note) modelMenu.append(el('div', 'model-note', info.note));
+  if (id === 'opencode') {
+    const manage = el('button', 'model-manage', t('Providers and keys…'));
+    manage.type = 'button';
+    manage.addEventListener('click', () => { closeModelMenu(); openSettingsOn('agents', { anchor: 'sx-opencode' }); });
+    modelMenu.append(manage);
+  } else if (info.note) modelMenu.append(el('div', 'model-note', info.note));
   placeModelMenu(anchor);
 }
 function placeModelMenu(anchor) {
@@ -5744,6 +5761,13 @@ function renderEventNode(event) {
       state.lastSender = null;
       break;
     }
+    case 'connection.key.removed': {
+      const { agent, label, provider } = event.payload;
+      node = paint(el('div', 'system connections'), agent);
+      node.append(el('b', null, t('connections › ')), t('{agent} no longer has the {provider} key', { agent: label ?? agent, provider: provider ?? '' }));
+      state.lastSender = null;
+      break;
+    }
     case 'room.settings': return;
     case 'extension.toggled':
       // A module switched on or off changes what the composer accepts.
@@ -7092,12 +7116,12 @@ for (const id of ['#tree-settings', '#browser-settings']) document.querySelector
 
 // From MU/TH/UR, a card or a pop-over: AJUSTES comes in front of whatever is open, and an agent
 // named on the way in is where the sheet lands.
-function openSettingsOn(category, { agent = null, part = null } = {}) {
+function openSettingsOn(category, { agent = null, part = null, anchor = null } = {}) {
   openSettings(true, { category });
-  if (!agent && !part) return;
+  if (!agent && !part && !anchor) return;
   let tries = 0;
   const land = () => {
-    const card = agent ? document.getElementById(`conn-${agent}`) : state.settingsTargets[part]?.isConnected && state.settingsTargets[part].firstElementChild ? state.settingsTargets[part] : null;
+    const card = anchor ? document.getElementById(anchor) : agent ? document.getElementById(`conn-${agent}`) : state.settingsTargets[part]?.isConnected && state.settingsTargets[part].firstElementChild ? state.settingsTargets[part] : null;
     if (card) { card.scrollIntoView({ block: 'start', behavior: 'smooth' }); card.classList.add('settings-found'); setTimeout(() => card.classList.remove('settings-found'), 1600); return; }
     if ((tries += 1) < 20) setTimeout(land, 150);
   };
@@ -15338,6 +15362,8 @@ function renderSettings() {
 function drawConnections(host, data) {
   host.append(el('p', 'sx-intro', t('One agent is enough to open the project. MADRE uses the session each CLI already has: install one here or sign it in, and the project opens by itself. The credentials stay in each CLI; MADRE only asks whether it is signed in.')));
   for (const agent of data.agents) host.append(connectionCard(agent));
+  // OpenCode answers through other providers: their keys and the chooser live beside its card.
+  if (data.agents.some((agent) => agent.id === 'opencode' && agent.detected)) drawOpenCodeSettings(host, data.settings ?? {});
 }
 
 function drawRoomSettings(host, data) {
@@ -15371,26 +15397,134 @@ function drawRoomSettings(host, data) {
     min: 0, label: t('Retries'), wire: { toPatch: (value) => ({ gemini: { retries: value } }), describe: (value) => t('Gemini retries saved: {n}.', { n: value }) },
   }));
 
-  const opencode = sxBlock(host, 'OpenCode', t('The provider and model OpenCode answers with in this project.'));
+}
+
+// OPENCODE (2026-10-13): the providers it can answer through, each with its key and whether it
+// shows in the composer's chooser, and the model it answers with when none is chosen. What
+// `opencode models` lists is the truth: a provider's models appear once OpenCode has its key.
+function drawOpenCodeSettings(host, s) {
+  const block = sxBlock(host, 'OpenCode', t('OpenCode answers through the providers you give it a key for. Choose which ones show in the chat, and the model it uses by default.'));
+  block.id = 'sx-opencode';
+  const rows = el('div', 'oc-providers');
+  rows.append(el('p', 'sx-hint', t('Reading OpenCode\'s providers…')));
+  block.rows.append(rows);
   const field = el('div', 'sx-field');
-  const model = el('input', 'sx-input mono');
-  model.value = s.opencodeModel ?? ''; model.placeholder = t('provider/model'); model.spellcheck = false;
-  model.setAttribute('aria-label', t('Model'));
-  const datalist = el('datalist'); datalist.id = 'opencode-models-settings'; model.setAttribute('list', datalist.id);
-  model.addEventListener('change', async () => {
-    try { await saveSettingNow({ opencode: { model: model.value.trim() } }, t('OpenCode model saved.')); } catch (error) { toast(t('The setting was not saved: {error}', { error: error.message })); }
-  });
-  const list = sxButton(t('List models'), async () => {
-    list.disabled = true;
-    const result = await fetch('/api/agents/opencode/models').then((response) => response.json()).catch(() => ({ models: [] }));
-    datalist.replaceChildren();
-    for (const name of result.models ?? []) { const option = el('option'); option.value = name; datalist.append(option); }
-    list.textContent = t('{n} models listed', { n: (result.models ?? []).length });
-    list.disabled = false;
-  });
-  field.append(model, datalist, list);
-  sxRow(opencode, t('Model'), t('Type provider/model, or list what OpenCode offers and pick one.'), field, { stack: true });
-  sxFoot(opencode, t('Every change is saved to ~/.pulse/config.json as you make it. Environment variables set before start still win on the next launch.'));
+  const select = el('select', 'sx-input oc-default');
+  select.setAttribute('aria-label', t('Default model'));
+  const other = el('input', 'sx-input mono');
+  other.placeholder = t('or type provider/model'); other.spellcheck = false;
+  other.setAttribute('aria-label', t('Another model'));
+  const saveDefault = async (value) => {
+    try { await saveSettingNow({ opencode: { model: value } }, t('OpenCode model saved.')); delete state.models.opencode; }
+    catch (error) { toast(t('The setting was not saved: {error}', { error: error.message })); }
+  };
+  select.addEventListener('change', () => { if (select.value !== '__other') { other.value = ''; void saveDefault(select.value); } else other.focus(); });
+  other.addEventListener('change', () => { const value = other.value.trim(); if (value) void saveDefault(value); });
+  field.append(select, other);
+  sxRow(block, t('Default model'), t('What OpenCode answers with when a message does not choose one.'), field, { stack: true });
+  sxFoot(block, t('Keys are written where OpenCode reads them (~/.local/share/opencode/auth.json), readable only by you; MADRE keeps no copy. The rest is saved to ~/.pulse/config.json.'));
+
+  const paintDefault = (providers, current) => {
+    select.replaceChildren();
+    const none = el('option', null, t('OpenCode\'s own default')); none.value = '';
+    select.append(none);
+    let found = !current;
+    for (const provider of providers.filter((one) => one.via && one.models.length)) {
+      const group = el('optgroup'); group.label = provider.label;
+      for (const name of provider.models) {
+        const option = el('option', null, name.slice(name.indexOf('/') + 1)); option.value = name;
+        if (name === current) { option.selected = true; found = true; }
+        group.append(option);
+      }
+      select.append(group);
+    }
+    const typed = el('option', null, t('Another…')); typed.value = '__other';
+    select.append(typed);
+    if (!found) { typed.selected = true; other.value = current; }
+  };
+  const load = async () => {
+    const answer = await fetch('/api/agents/opencode/providers').then((response) => response.json().then((json) => ({ ok: response.ok, json }))).catch(() => ({ ok: false, json: {} }));
+    if (!block.isConnected) return;
+    rows.replaceChildren();
+    if (!answer.ok) { rows.append(el('p', 'sx-hint', answer.json.error ?? t('OpenCode\'s providers could not be read.'))); return; }
+    const { providers, default: current } = answer.json;
+    const hidden = new Set(providers.filter((one) => one.hidden).map((one) => one.id));
+    for (const provider of providers) rows.append(openCodeProviderRow(provider, load, hidden));
+    paintDefault(providers, current ?? s.opencodeModel ?? '');
+  };
+  void load();
+}
+function openCodeProviderRow(provider, reload, hidden) {
+  const row = el('div', `oc-provider${provider.via ? ' on' : ''}`);
+  const head = el('div', 'oc-head');
+  const words = el('div', 'oc-words');
+  const status = provider.via === 'own' ? t('Included with OpenCode · {n} models', { n: provider.models.length })
+    : provider.via === 'api' ? t('Connected with a key · {n} models', { n: provider.models.length })
+      : provider.via === 'oauth' ? t('Connected with its account · {n} models', { n: provider.models.length })
+        : provider.via ? t('Connected · {n} models', { n: provider.models.length })
+          : t('No key yet');
+  words.append(el('b', null, provider.label), el('span', 'sx-hint', status));
+  head.append(words);
+  if (provider.via) {
+    const shown = sxSwitch(!provider.hidden, async (on, box) => {
+      if (on) hidden.delete(provider.id); else hidden.add(provider.id);
+      try {
+        await saveSettingNow({ opencode: { hidden: [...hidden] } }, on ? t('{provider} shows in the chat.', { provider: provider.label }) : t('{provider} no longer shows in the chat.', { provider: provider.label }));
+        delete state.models.opencode;
+      } catch (error) {
+        if (on) hidden.add(provider.id); else hidden.delete(provider.id);
+        box.checked = !on; toast(t('The setting was not saved: {error}', { error: error.message }));
+      }
+    }, { label: t('Show {provider} in the chat', { provider: provider.label }) });
+    const label = el('label', 'oc-shown');
+    label.append(el('span', null, t('In the chat')), shown);
+    head.append(label);
+  }
+  row.append(head);
+  // A key: pasted here when there is none, taken out when there is one. An account signed in
+  // with OpenCode's own login is signed out where it was signed in.
+  if (provider.takesKey && !provider.via) {
+    const form = el('form', 'oc-key');
+    const input = el('input', 'sx-input mono');
+    input.type = 'password'; input.autocomplete = 'off'; input.spellcheck = false;
+    input.placeholder = t('{provider} API key', { provider: provider.label });
+    input.setAttribute('aria-label', input.placeholder);
+    const save = el('button', 'sx-btn primary', t('Save the key'));
+    save.type = 'submit';
+    form.append(input, save);
+    if (provider.keyUrl) { const where = el('a', 'oc-where', t('Where do I get one?')); where.href = provider.keyUrl; where.target = '_blank'; where.rel = 'noopener'; form.append(where); }
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!input.value.trim()) return;
+      save.disabled = true;
+      const response = await fetch('/api/agents/opencode/key', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: input.value.trim(), provider: provider.id }) }).catch(() => null);
+      input.value = '';
+      const result = await response?.json().catch(() => ({})) ?? {};
+      save.disabled = false;
+      if (!response?.ok) { toast(result.error ?? t('The key was not saved.')); return; }
+      toast(t('{provider} is connected to OpenCode.', { provider: provider.label }), { tone: 'done' });
+      delete state.models.opencode;
+      void reload();
+    });
+    row.append(form);
+  } else if (provider.via === 'api') {
+    const actions = el('div', 'oc-actions');
+    const remove = sxButton(t('Remove the key'), async () => {
+      if (remove.dataset.sure !== '1') { remove.dataset.sure = '1'; remove.textContent = t('Remove it?'); setTimeout(() => { if (remove.isConnected) { remove.dataset.sure = ''; remove.textContent = t('Remove the key'); } }, 4000); return; }
+      remove.disabled = true;
+      const response = await fetch('/api/agents/opencode/providers/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: provider.id }) }).catch(() => null);
+      const result = await response?.json().catch(() => ({})) ?? {};
+      if (!response?.ok) { remove.disabled = false; toast(result.error ?? t('The key was not removed.')); return; }
+      toast(t('{provider} no longer has a key in OpenCode.', { provider: provider.label }), { tone: 'done' });
+      delete state.models.opencode;
+      void reload();
+    }, { tone: 'ghost' });
+    actions.append(remove);
+    row.append(actions);
+  } else if (provider.via === 'oauth') {
+    row.append(el('p', 'sx-hint oc-note', t('Signed in with its account from OpenCode. To sign it out, run `opencode auth logout` in a terminal.')));
+  }
+  return row;
 }
 
 // PERMISSIONS: what unlocks #3 and #4, a phrase of one's own, how long an accepted key holds, and
