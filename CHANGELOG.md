@@ -18,6 +18,8 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 - **OpenCode por proveedor.** El selector de modelo del chat agrupa los modelos de OpenCode bajo su proveedor (solo los que tienen llave o cuenta, y los propios de OpenCode) y lleva a **Ajustes › Agentes › OpenCode**: ahí se pega o se quita la llave de cada proveedor, se elige cuáles aparecen en el chat y el modelo por defecto.
 - **El mapa de conexiones de Inicio, más claro.** La tarjeta muestra solo los proyectos conectados, cada uno con un tono derivado de tu acento que se repite en sus cables y en su nombre; tocarla abre el mapa completo, amplio, en «Ver las conexiones».
 - **Botones con sombra más limpia**, con un borde fino y una sombra corta, en claro y en oscuro.
+- **Ajustes › Agentes, ordenado.** Cada agente es una línea con su estado hasta que lo abres; abierto, sus opciones van en pares. El registro de un inicio de sesión ya no apila un «still running…» cada 8 segundos: la línea se actualiza, y cada intento empieza limpio. Los proveedores de OpenCode viven dentro de su tarjeta, una línea cada uno y una sola fila para agregar otro.
+- **Los botones de ajustes y «nuevo» de Archivos y Servidores** ya no parecen presionados: en reposo llevan el borde fino de los controles de al lado y se tiñen al pasar el puntero.
 
 ## 1.0.0 · 2026-10-12
 

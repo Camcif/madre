@@ -5748,11 +5748,13 @@ function renderEventNode(event) {
   switch (event.type) {
     case 'connection.login.started':
     case 'connection.login.finished':
+      // A new attempt starts a clean log: the lines of an earlier one are history in the room.
+      if (event.type === 'connection.login.started') state.loginLogs.set(event.payload.agent, []);
       node = renderLoginEvent(event);
       break;
     case 'connection.login.output': appendLoginOutput(event); return;
     case 'connection.install.started':
-    case 'connection.install.finished': if (!replaying) jobProgress(event); node = renderAgentInstall(event); break;
+    case 'connection.install.finished': if (event.type === 'connection.install.started') state.loginLogs.set(event.payload.agent, []); if (!replaying) jobProgress(event); node = renderAgentInstall(event); break;
     case 'connection.install.output': if (!replaying) jobProgress(event); appendLoginOutput(event); return;
     case 'connection.key.set': {
       const { agent, label, provider, detail } = event.payload;
@@ -7117,6 +7119,9 @@ for (const id of ['#tree-settings', '#browser-settings']) document.querySelector
 // From MU/TH/UR, a card or a pop-over: AJUSTES comes in front of whatever is open, and an agent
 // named on the way in is where the sheet lands.
 function openSettingsOn(category, { agent = null, part = null, anchor = null } = {}) {
+  // An agent named on the way in is opened, not only scrolled to.
+  if (agent) settingsUI.agentsOpen.add(agent);
+  if (anchor === 'sx-opencode') settingsUI.agentsOpen.add('opencode');
   openSettings(true, { category });
   if (!agent && !part && !anchor) return;
   let tries = 0;
@@ -13777,6 +13782,8 @@ const settingsUI = {
   data: null,
   open: false,
   loginLogs: new Map(),
+  // The agents whose card is open in AJUSTES › Agents, kept while the page lives.
+  agentsOpen: new Set(),
 };
 
 function loginAskSlot(agentId) {
@@ -13899,13 +13906,18 @@ function appendLoginOutput(event) {
     if (looksLikeCodePrompt(line)) loginNow.awaiting = true;
     if (url || looksLikeCodePrompt(line)) repaintLoginAsk();
   }
+  // The heartbeat («… still running · 42s · …») says one thing, how long: it takes the place of
+  // the one before instead of piling up thirty lines over the address the person needs.
+  const beat = HEARTBEAT.test(line ?? '');
   const log = state.loginLogs.get(agent) ?? [];
+  if (beat && HEARTBEAT.test(log.at(-1)?.line ?? '')) log.pop();
   log.push({ line, url });
   state.loginLogs.set(agent, log.slice(-60));
   for (const id of [`login-log-${agent}`, `bridge-log-${agent}`]) {
     const box = document.getElementById(id);
     if (!box) continue;
     box.hidden = false;
+    if (beat && box.lastElementChild?.classList.contains('beat')) box.lastElementChild.remove();
     box.append(loginLine({ line, url }));
     box.scrollTop = box.scrollHeight;
   }
@@ -13913,8 +13925,9 @@ function appendLoginOutput(event) {
   // used to come back as a toast carrying a link that expired hours ago.
   if (url && !replaying) toast(t('@{agent}: open {url} to finish signing in', { agent, url }));
 }
+const HEARTBEAT = /^… still running · \d+s · /;
 function loginLine({ line, url }) {
-  const div = el('div');
+  const div = el('div', HEARTBEAT.test(line ?? '') ? 'beat' : null);
   if (url) {
     const a = el('a', null, line); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
     div.append(a);
@@ -15115,13 +15128,28 @@ function connectionCard(agent) {
   // amber while it signs in, grey when the CLI is not here.
   const lamp = busy ? 'busy' : !agent.detected ? 'absent' : session?.state === 'signed-in' ? 'on' : session?.state === 'signed-out' ? 'off' : 'unknown';
   const said = busy ? t('Signing in…') : !agent.detected ? t('Not installed') : session ? ({ 'signed-in': t('Signed in'), 'signed-out': t('Signed out') }[session.state] ?? t('Unknown')) : t('Unknown');
+  // Folded by default (2026-10-13): four agents with six settings each made a page to scroll
+  // through. The line says who it is and whether it has a session; a click opens the rest. One
+  // that is signing in, or has no session, opens by itself: that is where the person is needed.
+  const open = settingsUI.agentsOpen.has(agent.id) || busy || (agent.detected && session?.state === 'signed-out');
+  card.classList.toggle('open', open);
   const head = el('header', 'sx-head');
-  head.append(avatar(agent.id, { size: 32, status: agent.ready ? 'ready' : agent.detected ? 'detected' : 'offline' }));
+  const toggle = el('button', 'sx-agent-toggle');
+  toggle.type = 'button';
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.append(avatar(agent.id, { size: 32, status: agent.ready ? 'ready' : agent.detected ? 'detected' : 'offline' }));
   const words = el('div', 'sx-words');
   words.append(el('h3', null, agent.label), el('p', null, vendorWord(agent.id)));
   const chip = sxChip(said, lamp);
   if (lamp !== 'absent') chip.classList.add('session-lamp', lamp === 'on' ? 'ok' : lamp === 'off' ? 'bad' : 'wait');
-  head.append(words, chip);
+  toggle.append(words, chip, el('span', 'sx-chevron'));
+  toggle.addEventListener('click', () => {
+    const now = !card.classList.contains('open');
+    card.classList.toggle('open', now);
+    toggle.setAttribute('aria-expanded', String(now));
+    if (now) settingsUI.agentsOpen.add(agent.id); else settingsUI.agentsOpen.delete(agent.id);
+  });
+  head.append(toggle);
   card.append(head);
   // Where it lives, quietly: what is literal is in mono, what is said is not.
   const meta = el('div', 'sx-meta');
@@ -15131,8 +15159,14 @@ function connectionCard(agent) {
   const facts = [session?.detail ? t('Session {detail}', { detail: session.detail }) : null, agent.account ? `${agent.paid === false ? `${t('Free way in')} · ` : ''}${agent.account}` : null].filter(Boolean);
   if (facts.length) meta.append(el('span', null, facts.join(' · ')));
   card.append(meta);
+  const body = el('div', 'sx-agent-body');
+  card.append(body);
   card.rows = el('div', 'sx-rows');
-  card.append(card.rows);
+  body.append(card.rows);
+  // Settings in pairs: what it can do, then where its messages start and stop.
+  const abilities = el('div', 'sx-duo');
+  const modes = el('div', 'sx-duo');
+  card.rows.append(abilities, modes);
 
   const agentScopes = settingsUI.data.settings.capabilities?.[agent.id]?.scopes ?? {};
   // Two abilities per agent: images and web. Writing is not an ability, it is the ceiling below.
@@ -15154,7 +15188,7 @@ function connectionCard(agent) {
         toast(t('That permission was not saved: {error}', { error: error.message }));
       } finally { box.disabled = false; }
     }, { disabled: !usable, label: labelText });
-    const row = sxRow(card, labelText, why(scope.enabled), toggle, { off: !usable });
+    const row = sxRow(abilities, labelText, why(scope.enabled), toggle, { off: !usable });
     const hint = row.querySelector('.sx-hint');
     if (!scope.capable) {
       const assist = el('button', 'sx-link', t('Ask Diagnostics how'));
@@ -15166,10 +15200,11 @@ function connectionCard(agent) {
   }
   // The ceiling lives with every other agent's in PERMISSIONS: here it is said, and one key goes there.
   const currentCap = agentScopes.maxMode ?? 1;
-  sxRow(card, t('Max mode'), `#${currentCap} ${MODES[currentCap].label} · ${MODES[currentCap].hint}`, sxButton(t('Change in Permissions'), () => openSettingsOn('permissions', { part: 'permissions' })));
+  const capRow = sxRow(modes, t('Max mode'), `#${currentCap} ${MODES[currentCap].label}`, sxButton(t('Change it'), () => openSettingsOn('permissions', { part: 'permissions' })));
+  capRow.querySelector('.sx-hint').title = MODES[currentCap].hint;
   // The start: where a message to this agent begins. #2 means every turn may create files without arming CREATE.
   const currentStart = agentScopes.defaultMode ?? 1;
-  sxRow(card, t('Starting mode'), currentStart === 2 ? t('Every turn may create files, plan steps too.') : t('Read-only until you unlock CREATE.'), sxSeg([1, 2].map((n) => ({
+  sxRow(modes, t('Starting mode'), currentStart === 2 ? t('Every turn may create files, plan steps too.') : t('Read-only until you unlock CREATE.'), sxSeg([1, 2].map((n) => ({
     value: n, text: `#${n}`, className: `o${n}`, disabled: n > currentCap,
     title: n === 2 ? t('Every message to this agent starts in CREATE: new files where they belong, existing files untouched. Plan steps to it too.') : t('Messages start read-only; unlock CREATE when you want files.'),
   })), currentStart, async (n, seg) => {
@@ -15219,10 +15254,12 @@ function connectionCard(agent) {
     }
   }
   acts.append(recheck);
-  card.append(acts);
+  body.append(acts);
   const slot = el('div', 'sx-slot');
-  if (agent.detected && agent.key) slot.append(keyForm(agent, { onDone: () => { void loadSettings(); renderOnboarding(); } }));
-  if (agent.detected && agent.login && !agent.login.headless) {
+  // OpenCode's keys are its providers', added in the block under its settings, one row for all.
+  if (agent.detected && agent.key && agent.id !== 'opencode') slot.append(keyForm(agent, { onDone: () => { void loadSettings(); renderOnboarding(); } }));
+  // Signed in, OpenCode's providers are added in its block below; the terminal is for a first sign-in.
+  if (agent.detected && agent.login && !agent.login.headless && !(agent.id === 'opencode' && session?.state === 'signed-in')) {
     slot.append(el('p', 'sx-hint', t('It signs in from its own prompt:')));
     slot.append(commandBlock([agent.login.display, `# ${t(agent.login.note)}`]));
   }
@@ -15233,8 +15270,11 @@ function connectionCard(agent) {
     box.id = `login-log-${agent.id}`;
     for (const entry of log) box.append(loginLine(entry));
     slot.append(box);
+    requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
   }
-  if (slot.children.length) card.append(slot);
+  if (slot.children.length) body.append(slot);
+  // OpenCode answers through other providers: their keys and the chooser live in its own card.
+  if (agent.id === 'opencode' && agent.detected) drawOpenCodeSettings(body, settingsUI.data.settings ?? {});
   return card;
 }
 
@@ -15362,8 +15402,6 @@ function renderSettings() {
 function drawConnections(host, data) {
   host.append(el('p', 'sx-intro', t('One agent is enough to open the project. MADRE uses the session each CLI already has: install one here or sign it in, and the project opens by itself. The credentials stay in each CLI; MADRE only asks whether it is signed in.')));
   for (const agent of data.agents) host.append(connectionCard(agent));
-  // OpenCode answers through other providers: their keys and the chooser live beside its card.
-  if (data.agents.some((agent) => agent.id === 'opencode' && agent.detected)) drawOpenCodeSettings(host, data.settings ?? {});
 }
 
 function drawRoomSettings(host, data) {
@@ -15399,30 +15437,42 @@ function drawRoomSettings(host, data) {
 
 }
 
-// OPENCODE (2026-10-13): the providers it can answer through, each with its key and whether it
-// shows in the composer's chooser, and the model it answers with when none is chosen. What
+// OPENCODE (2026-10-13): the providers it can answer through, inside its own card. The ones with
+// a key or an account are a line each, with their switch for the chat; the ones without wait in
+// one row to be added; under them, the model it answers with when none is chosen. What
 // `opencode models` lists is the truth: a provider's models appear once OpenCode has its key.
 function drawOpenCodeSettings(host, s) {
-  const block = sxBlock(host, 'OpenCode', t('OpenCode answers through the providers you give it a key for. Choose which ones show in the chat, and the model it uses by default.'));
+  const block = el('section', 'oc-block');
   block.id = 'sx-opencode';
+  const head = el('div', 'oc-title');
+  head.append(el('b', null, t('Providers')), el('span', 'sx-hint', t('OpenCode answers through the providers you give it a key for. Choose which ones show in the chat, and the model it uses by default.')));
   const rows = el('div', 'oc-providers');
   rows.append(el('p', 'sx-hint', t('Reading OpenCode\'s providers…')));
-  block.rows.append(rows);
-  const field = el('div', 'sx-field');
+  const add = el('form', 'oc-add');
+  add.hidden = true;
+  const field = el('div', 'oc-default-row');
   const select = el('select', 'sx-input oc-default');
   select.setAttribute('aria-label', t('Default model'));
   const other = el('input', 'sx-input mono');
   other.placeholder = t('or type provider/model'); other.spellcheck = false;
   other.setAttribute('aria-label', t('Another model'));
+  other.hidden = true;
   const saveDefault = async (value) => {
     try { await saveSettingNow({ opencode: { model: value } }, t('OpenCode model saved.')); delete state.models.opencode; }
     catch (error) { toast(t('The setting was not saved: {error}', { error: error.message })); }
   };
-  select.addEventListener('change', () => { if (select.value !== '__other') { other.value = ''; void saveDefault(select.value); } else other.focus(); });
+  select.addEventListener('change', () => {
+    other.hidden = select.value !== '__other';
+    if (select.value !== '__other') { other.value = ''; void saveDefault(select.value); } else other.focus();
+  });
   other.addEventListener('change', () => { const value = other.value.trim(); if (value) void saveDefault(value); });
-  field.append(select, other);
-  sxRow(block, t('Default model'), t('What OpenCode answers with when a message does not choose one.'), field, { stack: true });
-  sxFoot(block, t('Keys are written where OpenCode reads them (~/.local/share/opencode/auth.json), readable only by you; MADRE keeps no copy. The rest is saved to ~/.pulse/config.json.'));
+  const defaultWords = el('div', 'sx-words');
+  defaultWords.append(el('b', null, t('Default model')), el('span', 'sx-hint', t('What OpenCode answers with when a message does not choose one.')));
+  const picks = el('div', 'oc-picks');
+  picks.append(select, other);
+  field.append(defaultWords, picks);
+  block.append(head, rows, add, field, el('p', 'sx-foot', t('Keys are written where OpenCode reads them (~/.local/share/opencode/auth.json), readable only by you; MADRE keeps no copy. The rest is saved to ~/.pulse/config.json.')));
+  host.append(block);
 
   const paintDefault = (providers, current) => {
     select.replaceChildren();
@@ -15440,7 +15490,47 @@ function drawOpenCodeSettings(host, s) {
     }
     const typed = el('option', null, t('Another…')); typed.value = '__other';
     select.append(typed);
-    if (!found) { typed.selected = true; other.value = current; }
+    if (!found) { typed.selected = true; other.value = current; other.hidden = false; }
+  };
+  // One row to add a provider: which one, its key, and where to get it.
+  const paintAdd = (waiting, reload) => {
+    add.replaceChildren();
+    add.hidden = !waiting.length;
+    if (!waiting.length) return;
+    const which = el('select', 'sx-input');
+    which.setAttribute('aria-label', t('Provider'));
+    for (const provider of waiting) { const option = el('option', null, provider.label); option.value = provider.id; which.append(option); }
+    const input = el('input', 'sx-input mono');
+    input.type = 'password'; input.autocomplete = 'off'; input.spellcheck = false;
+    const where = el('a', 'oc-where', t('Where do I get one?'));
+    where.target = '_blank'; where.rel = 'noopener';
+    const sync = () => {
+      const provider = waiting.find((one) => one.id === which.value);
+      input.placeholder = t('{provider} API key', { provider: provider?.label ?? '' });
+      input.setAttribute('aria-label', input.placeholder);
+      where.hidden = !provider?.keyUrl;
+      if (provider?.keyUrl) where.href = provider.keyUrl;
+    };
+    which.addEventListener('change', sync);
+    sync();
+    const save = el('button', 'sx-btn primary', t('Add'));
+    save.type = 'submit';
+    const label = el('b', 'oc-add-label', t('Add a provider'));
+    add.append(label, which, input, save, where);
+    add.onsubmit = async (event) => {
+      event.preventDefault();
+      if (!input.value.trim()) { input.focus(); return; }
+      const provider = waiting.find((one) => one.id === which.value);
+      save.disabled = true;
+      const response = await fetch('/api/agents/opencode/key', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: input.value.trim(), provider: which.value }) }).catch(() => null);
+      input.value = '';
+      const result = await response?.json().catch(() => ({})) ?? {};
+      save.disabled = false;
+      if (!response?.ok) { toast(result.error ?? t('The key was not saved.')); return; }
+      toast(t('{provider} is connected to OpenCode.', { provider: provider?.label ?? which.value }), { tone: 'done' });
+      delete state.models.opencode;
+      void reload();
+    };
   };
   const load = async () => {
     const answer = await fetch('/api/agents/opencode/providers').then((response) => response.json().then((json) => ({ ok: response.ok, json }))).catch(() => ({ ok: false, json: {} }));
@@ -15449,66 +15539,26 @@ function drawOpenCodeSettings(host, s) {
     if (!answer.ok) { rows.append(el('p', 'sx-hint', answer.json.error ?? t('OpenCode\'s providers could not be read.'))); return; }
     const { providers, default: current } = answer.json;
     const hidden = new Set(providers.filter((one) => one.hidden).map((one) => one.id));
-    for (const provider of providers) rows.append(openCodeProviderRow(provider, load, hidden));
+    for (const provider of providers.filter((one) => one.via)) rows.append(openCodeProviderRow(provider, load, hidden));
+    paintAdd(providers.filter((one) => !one.via && one.takesKey), load);
     paintDefault(providers, current ?? s.opencodeModel ?? '');
   };
   void load();
 }
+// One line per provider OpenCode can answer through: its name and how it is connected, its
+// switch for the chat, and the way its key comes out (an account is signed out in OpenCode).
 function openCodeProviderRow(provider, reload, hidden) {
-  const row = el('div', `oc-provider${provider.via ? ' on' : ''}`);
-  const head = el('div', 'oc-head');
-  const words = el('div', 'oc-words');
+  const row = el('div', 'oc-provider');
+  const words = el('div', 'sx-words');
   const status = provider.via === 'own' ? t('Included with OpenCode · {n} models', { n: provider.models.length })
     : provider.via === 'api' ? t('Connected with a key · {n} models', { n: provider.models.length })
       : provider.via === 'oauth' ? t('Connected with its account · {n} models', { n: provider.models.length })
-        : provider.via ? t('Connected · {n} models', { n: provider.models.length })
-          : t('No key yet');
+        : t('Connected · {n} models', { n: provider.models.length });
   words.append(el('b', null, provider.label), el('span', 'sx-hint', status));
-  head.append(words);
-  if (provider.via) {
-    const shown = sxSwitch(!provider.hidden, async (on, box) => {
-      if (on) hidden.delete(provider.id); else hidden.add(provider.id);
-      try {
-        await saveSettingNow({ opencode: { hidden: [...hidden] } }, on ? t('{provider} shows in the chat.', { provider: provider.label }) : t('{provider} no longer shows in the chat.', { provider: provider.label }));
-        delete state.models.opencode;
-      } catch (error) {
-        if (on) hidden.add(provider.id); else hidden.delete(provider.id);
-        box.checked = !on; toast(t('The setting was not saved: {error}', { error: error.message }));
-      }
-    }, { label: t('Show {provider} in the chat', { provider: provider.label }) });
-    const label = el('label', 'oc-shown');
-    label.append(el('span', null, t('In the chat')), shown);
-    head.append(label);
-  }
-  row.append(head);
-  // A key: pasted here when there is none, taken out when there is one. An account signed in
-  // with OpenCode's own login is signed out where it was signed in.
-  if (provider.takesKey && !provider.via) {
-    const form = el('form', 'oc-key');
-    const input = el('input', 'sx-input mono');
-    input.type = 'password'; input.autocomplete = 'off'; input.spellcheck = false;
-    input.placeholder = t('{provider} API key', { provider: provider.label });
-    input.setAttribute('aria-label', input.placeholder);
-    const save = el('button', 'sx-btn primary', t('Save the key'));
-    save.type = 'submit';
-    form.append(input, save);
-    if (provider.keyUrl) { const where = el('a', 'oc-where', t('Where do I get one?')); where.href = provider.keyUrl; where.target = '_blank'; where.rel = 'noopener'; form.append(where); }
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (!input.value.trim()) return;
-      save.disabled = true;
-      const response = await fetch('/api/agents/opencode/key', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: input.value.trim(), provider: provider.id }) }).catch(() => null);
-      input.value = '';
-      const result = await response?.json().catch(() => ({})) ?? {};
-      save.disabled = false;
-      if (!response?.ok) { toast(result.error ?? t('The key was not saved.')); return; }
-      toast(t('{provider} is connected to OpenCode.', { provider: provider.label }), { tone: 'done' });
-      delete state.models.opencode;
-      void reload();
-    });
-    row.append(form);
-  } else if (provider.via === 'api') {
-    const actions = el('div', 'oc-actions');
+  if (provider.via === 'oauth') words.lastChild.title = t('Signed in with its account from OpenCode. To sign it out, run `opencode auth logout` in a terminal.');
+  row.append(words);
+  const controls = el('div', 'oc-controls');
+  if (provider.via === 'api') {
     const remove = sxButton(t('Remove the key'), async () => {
       if (remove.dataset.sure !== '1') { remove.dataset.sure = '1'; remove.textContent = t('Remove it?'); setTimeout(() => { if (remove.isConnected) { remove.dataset.sure = ''; remove.textContent = t('Remove the key'); } }, 4000); return; }
       remove.disabled = true;
@@ -15519,11 +15569,22 @@ function openCodeProviderRow(provider, reload, hidden) {
       delete state.models.opencode;
       void reload();
     }, { tone: 'ghost' });
-    actions.append(remove);
-    row.append(actions);
-  } else if (provider.via === 'oauth') {
-    row.append(el('p', 'sx-hint oc-note', t('Signed in with its account from OpenCode. To sign it out, run `opencode auth logout` in a terminal.')));
+    controls.append(remove);
   }
+  const shown = sxSwitch(!provider.hidden, async (on, box) => {
+    if (on) hidden.delete(provider.id); else hidden.add(provider.id);
+    try {
+      await saveSettingNow({ opencode: { hidden: [...hidden] } }, on ? t('{provider} shows in the chat.', { provider: provider.label }) : t('{provider} no longer shows in the chat.', { provider: provider.label }));
+      delete state.models.opencode;
+    } catch (error) {
+      if (on) hidden.add(provider.id); else hidden.delete(provider.id);
+      box.checked = !on; toast(t('The setting was not saved: {error}', { error: error.message }));
+    }
+  }, { label: t('Show {provider} in the chat', { provider: provider.label }) });
+  const label = el('label', 'oc-shown');
+  label.append(el('span', null, t('In the chat')), shown);
+  controls.append(label);
+  row.append(controls);
   return row;
 }
 

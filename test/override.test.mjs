@@ -58,7 +58,7 @@ test('override: the room stores it, says it on boot and in AJUSTES without the f
   assert.match(app, /if \(overrideGrace\.size\) closeOverrideGrace\(\);/);
   // PERMISSIONS is a category of its own, and the agent's sheet sends there for the ceiling.
   assert.match(app, /const SETTINGS_ORDER = \['look', 'room', 'files', 'agents', 'memory', 'permissions', 'privacy', 'release'\];/);
-  assert.match(app, /sxButton\(t\('Change in Permissions'\), \(\) => openSettingsOn\('permissions', \{ part: 'permissions' \}\)\)/);
+  assert.match(app, /sxButton\(t\('Change it'\), \(\) => openSettingsOn\('permissions', \{ part: 'permissions' \}\)\)/);
   assert.match(page, /<dialog id="override"/);
 });
 

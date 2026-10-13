@@ -404,7 +404,7 @@ test('console details: NOSTROMO reads like every console header, effort shows it
   assert.match(css, /\.effort-slider \.tick\.cli::after \{ bottom: 17px;/);
   // A connection's state is said in words, in a chip of its own tone: colour is never the only
   // way it is told.
-  assert.match(app, /const chip = sxChip\(said, lamp\);\n[^\n]*session-lamp[^\n]*\n  head\.append\(words, chip\);/);
+  assert.match(app, /const chip = sxChip\(said, lamp\);\n[^\n]*session-lamp[^\n]*\n  toggle\.append\(words, chip, el\('span', 'sx-chevron'\)\);/);
   assert.ok(!/el\('span', `session\$\{busy/.test(app), 'the session word in a box is back');
   assert.match(css, /\.sx-chip\.on \{[^}]*var\(--phosphor\)/);
   assert.match(css, /\.sx-chip\.off \{[^}]*var\(--danger\)/);

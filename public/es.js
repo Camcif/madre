@@ -3518,7 +3518,6 @@ export const ES = {
   'Diagnostics › {label} is still open for @{agent} · {left} left.': 'Diagnóstico › {label} sigue abierto para @{agent} · quedan {left}.',
   '#{n} holds {minutes} min': '#{n} vale {minutes} min',
   'asked every message': 'se pide en cada mensaje',
-  'Change in Permissions': 'Cambiar en Permisos',
   'One click on UNLOCK. EDIT still takes a restore point first, and UNDO is one click.': 'Un clic en DESBLOQUEAR. EDITAR igual toma un punto de restauración antes, y DESHACER está a un clic.',
   'Your phrase, typed when you unlock it.': 'Tu frase, escrita al desbloquearlo.',
   'The folder name of the project ({name}), with no second key.': 'El nombre de la carpeta del proyecto ({name}), sin segunda llave.',
@@ -4505,7 +4504,6 @@ export const ES = {
   'Connected with a key · {n} models': 'Conectado con llave · {n} modelos',
   'Connected with its account · {n} models': 'Conectado con su cuenta · {n} modelos',
   'Connected · {n} models': 'Conectado · {n} modelos',
-  'No key yet': 'Sin llave todavía',
   '{provider} shows in the chat.': '{provider} aparece en el chat.',
   '{provider} no longer shows in the chat.': '{provider} ya no aparece en el chat.',
   'Show {provider} in the chat': 'Mostrar {provider} en el chat',
@@ -4520,4 +4518,7 @@ export const ES = {
   'Signed in with its account from OpenCode. To sign it out, run `opencode auth logout` in a terminal.': 'Entró con su cuenta desde OpenCode. Para cerrar esa sesión, corre `opencode auth logout` en una terminal.',
   'Hidden providers must be a list of provider names.': 'Los proveedores ocultos deben ser una lista de nombres de proveedor.',
   'A key is only changed from this computer, never over the network.': 'Una llave solo se cambia desde esta computadora, nunca por la red.',
+  'Providers': 'Proveedores',
+  'Add a provider': 'Agregar un proveedor',
+  'Change it': 'Cambiar',
 };
