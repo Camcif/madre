@@ -1119,3 +1119,22 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 .sm-card[data-wp="urbania"] { --wp-card: var(--wp-urbania); --wp-size: cover; }
 .sm-card[data-wp="ventura"] { --wp-card: var(--wp-ventura); --wp-size: cover; }
 .sm-card[data-wp="xico"] { --wp-card: var(--wp-xico); --wp-size: cover; }
+/* A project whose room has no wallpaper shows none on its card, whatever Home wears. */
+.sm-drawer .sm-projects > .sm-card[data-wp="none"]::before, .sm-drawer .sm-projects > .sm-card[data-wp="none"]::after { content: none; }
+
+/* NEEDS YOU, WITH AIR (2026-10-13): each notice a block of its own — the dot on the first line of
+   its title, the title and its hint with room to breathe, the action on a line of its own under
+   them; beside them only when the tile is wide enough to hold all three in a row. */
+.sm-attention { gap: 10px; }
+.sm-attention-item { grid-template-columns: auto minmax(0, 1fr); align-items: start; column-gap: 12px; row-gap: 10px; padding: 14px 16px; border-radius: 14px; }
+.sm-attention-item .dot { margin-top: 6px; }
+.sm-attention-words { gap: 4px; }
+.sm-attention-words b { font-size: 14px; font-weight: 600; line-height: 1.45; text-wrap: pretty; }
+.sm-attention-words span { font-size: 13px; line-height: 1.5; text-wrap: pretty; }
+.sm-attention-item > :is(.sm-btn, a.sm-btn) { grid-column: 2; justify-self: start; }
+@container tile (min-width: 560px) {
+  .sm-attention-item { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+  .sm-attention-item .dot { margin-top: 0; }
+  .sm-attention-item > :is(.sm-btn, a.sm-btn) { grid-column: 3; justify-self: end; }
+}
+.sm-attention > .sm-hint { padding: 2px 4px; }

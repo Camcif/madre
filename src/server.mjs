@@ -1752,11 +1752,13 @@ export async function createPulseServer({
         const rooms = await knownRooms(root);
         const here = basename(roomDir);
         const own = await roomLooks(root);
+        // A project that never chose its own wears the wallpaper every page shared before.
+        const before = (await readLooks(root)).looks['pulse.wallpaper'] ?? null;
         const seen = await Promise.all(rooms.map(async (one) => ({
           ...one,
           here: one.id === here,
           glance: await lobbyGlance(one),
-          wallpaper: own[one.id]?.wallpaper ?? null,
+          wallpaper: own[one.id]?.wallpaper ?? before,
         })));
         // The links in force (docs/MACROVERSO.md, fase 3c), each with what crossed: counted from the
         // lines the serving room keeps beside its record, never from a ledger. `salas` is the id of

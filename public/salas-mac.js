@@ -137,7 +137,7 @@ function saveLooks({ theme, accent, wallpaper, style, bubbles, text }) {
   try {
     if (theme) localStorage.setItem('pulse.theme', theme);
     if (accent) keep('pulse.accent', accent, 'madre');
-    if (wallpaper) keep('pulse.wallpaper', wallpaper, 'default');
+    if (wallpaper) { keep('pulse.wallpaper', wallpaper, 'default'); saveOwnWallpaper(wallpaper); }
     if (style) keep('pulse.wallpaper.style', style, 'veil');
     if (bubbles) keep('pulse.bubbles', bubbles, BUBBLES[0]);
     if (text) keep('pulse.text', text, TEXTS[0]);
@@ -165,7 +165,14 @@ window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change'
 // origin, so what this browser kept here no project saw. ~/.pulse/looks.json is read when Home
 // opens and whenever it comes back into view, and written when a choice changes. The twin of
 // app.js's pullLooks; Home's own card choices (HOME_LOOKS) stay here.
-const SHARED_LOOKS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text'];
+// The wallpaper is each page's own (2026-10-13): Home keeps the one chosen in Home, each project
+// the one chosen in it (src/looks.mjs, `rooms`). The rest of the looks are shared.
+const SHARED_LOOKS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text'];
+// Before a page had its own, every page wore the shared one: that is where a page starts.
+const wallpaperOf = (answer) => answer.own?.wallpaper ?? answer.looks?.['pulse.wallpaper'] ?? null;
+function saveOwnWallpaper(value) {
+  void fetch('/api/looks/room', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ wallpaper: value }) }).catch(() => null);
+}
 let looksPush = 0;
 function pushLooks() {
   clearTimeout(looksPush);
@@ -183,8 +190,8 @@ async function pullLooks() {
     // Nothing kept yet: the first page that has a choice of its own hands it to the others.
     if (!answer.saved) { if (SHARED_LOOKS.some((key) => localStorage.getItem(key) !== null)) pushLooks(); return; }
     let changed = false;
-    for (const key of SHARED_LOOKS) {
-      const value = answer.looks[key] ?? null;
+    const wall = wallpaperOf(answer);
+    for (const [key, value] of [...SHARED_LOOKS.map((one) => [one, answer.looks[one] ?? null]), ['pulse.wallpaper', wall === 'default' ? null : wall]]) {
       if (localStorage.getItem(key) === value) continue;
       if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value);
       changed = true;
@@ -285,7 +292,9 @@ function card(room) {
   node.style.setProperty('--wx', `${seed % 101}%`);
   node.style.setProperty('--wy', `${(seed >>> 8) % 101}%`);
   // A project with a wallpaper of its own («only in this project») shows that one, whole.
-  if (room.wallpaper) { node.dataset.wp = room.wallpaper; node.style.setProperty('--wx', '50%'); node.style.setProperty('--wy', '50%'); }
+  // The wallpaper its own room wears (each page keeps its own), seen whole; none when it has none.
+  if (room.wallpaper && room.wallpaper !== 'default') { node.dataset.wp = room.wallpaper; node.style.setProperty('--wx', '50%'); node.style.setProperty('--wy', '50%'); }
+  else node.dataset.wp = 'none';
   // To the bar: dragged there, or pinned from its right-click.
   node.draggable = true;
   node.addEventListener('dragstart', (event) => pinsDragOut(event, room));
