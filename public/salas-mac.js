@@ -733,8 +733,6 @@ function drawLinks(projects) {
     : enough ? t('No connections yet.') : t('Add a project to connect it.');
   ui.linksNote.textContent = t('A connection lets one project read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes that travel into turns cross.');
   ui.links.replaceChildren(...enlaces.map(linkRow));
-  if (!bigMap.isConnected) ui.linksNote.after(bigMap);
-  bigMap.hidden = !enlaces.length;
   if (!enlaces.length && ui.linksSheet.open) ui.linksSheet.close();
   drawMap(projects, enlaces);
 }
@@ -763,10 +761,10 @@ async function revokeLink(id) {
   await refresh();
 }
 ui.linksAll.addEventListener('click', () => { if (!ui.linksSheet.open) ui.linksSheet.showModal(); });
-// The tile's map is the small one: a press opens the wide one, with every connection under it.
-ui.map.addEventListener('click', (event) => { if (event.target.closest('svg') && (data?.enlaces ?? []).length && !ui.linksSheet.open) ui.linksSheet.showModal(); });
+// The tile's map is the small one: a press opens the map of connections in its own window.
+ui.map.addEventListener('click', (event) => { if (event.target.closest('svg') && (data?.enlaces ?? []).length) openGraph(); });
 // Closed, the sheet has no size to draw at: the wide map is drawn each time it opens.
-new MutationObserver(() => { if (ui.linksSheet.open && mapDrawn) requestAnimationFrame(() => paintMap(bigMap, mapDrawn.projects, mapDrawn.enlaces, { wide: true })); }).observe(ui.linksSheet, { attributes: true, attributeFilter: ['open'] });
+
 ui.linksClose.addEventListener('click', () => ui.linksSheet.close());
 ui.linkMore.addEventListener('click', () => openLinkSheet());
 
@@ -793,14 +791,156 @@ function toneOf(id) {
   const step = 360 / Math.max(5, linked.length);
   return `oklch(from var(--s-acc) l c calc(h + ${(index * step).toFixed(1)}))`;
 }
+// One project at a time (2026-10-13): under the pointer, or chosen in the window, a project
+// lights its own connections and the projects at their other end; the rest steps back.
+function focusable(svg, { pick = null, picked = null } = {}) {
+  const light = (id) => {
+    svg.classList.toggle('focusing', Boolean(id));
+    const near = new Set(id ? [id] : []);
+    for (const wire of svg.querySelectorAll('.wire')) {
+      const on = Boolean(id) && (wire.dataset.a === id || wire.dataset.b === id);
+      wire.classList.toggle('lit', Boolean(on || (picked?.link && wire.dataset.link === picked.link)));
+      if (on) { near.add(wire.dataset.a); near.add(wire.dataset.b); }
+    }
+    for (const dot of svg.querySelectorAll('.note')) dot.classList.toggle('lit', Boolean(id) && (dot.dataset.a === id || dot.dataset.b === id));
+    for (const node of svg.querySelectorAll('.node, .bishop')) node.classList.toggle('lit', near.has(node.dataset.id));
+  };
+  const resting = () => {
+    if (picked?.room) return light(picked.room);
+    if (picked?.link) {
+      const wire = svg.querySelector(`.wire[data-link="${CSS.escape(picked.link)}"]`);
+      svg.classList.add('focusing');
+      wire?.classList.add('lit');
+      for (const node of svg.querySelectorAll('.node, .bishop')) node.classList.toggle('lit', Boolean(wire) && (node.dataset.id === wire.dataset.a || node.dataset.id === wire.dataset.b));
+      return;
+    }
+    light(null);
+  };
+  for (const node of svg.querySelectorAll('.node, .bishop')) {
+    node.addEventListener('pointerenter', () => light(node.dataset.id));
+    node.addEventListener('pointerleave', resting);
+    if (pick) {
+      node.classList.add('pickable');
+      node.addEventListener('click', (event) => { event.stopPropagation(); pick({ room: node.dataset.id }); });
+    }
+  }
+  if (pick) {
+    for (const wire of svg.querySelectorAll('.wire')) {
+      wire.classList.add('pickable');
+      // A line is thin; the hand gets a wider, invisible one along it.
+      const hit = svgNode('path', { class: 'hit', d: wire.getAttribute('d') });
+      hit.addEventListener('click', (event) => { event.stopPropagation(); pick({ link: wire.dataset.link }); });
+      hit.addEventListener('pointerenter', () => wire.classList.add('hover'));
+      hit.addEventListener('pointerleave', () => wire.classList.remove('hover'));
+      wire.after(hit);
+    }
+    svg.addEventListener('click', () => pick(null));
+  }
+  resting();
+}
+
+// THE MAP OF CONNECTIONS, in a window of its own: the same drawing, wide, every project round the
+// Coordinator, and beside it what was chosen — a project (whom it reads, who reads it) or a line
+// (what crosses, until when, how often it was read). Opened from the tile's map.
+let graphWindow = null;
+function openGraph() {
+  if (graphWindow?.open) return;
+  graphWindow?.remove();
+  graphWindow = el('dialog', 'sm-sheet sm-graph');
+  const body = el('div', 'sm-sheet-body');
+  const head = el('header', 'sm-sheet-head');
+  const words = el('div', 'sm-graph-title');
+  words.append(el('h3', null, t('Map of connections')), el('small', null, t('Who looks up whom. Touch a project or a line.')));
+  const keys = el('span', 'surface-modes');
+  const close = button('surface-mode close x-close x-only', null, () => graphWindow.close());
+  close.setAttribute('aria-label', t('Close'));
+  close.innerHTML = '<span class="x-icon"><svg viewBox="0 0 20 20" focusable="false" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'; // trusted
+  keys.append(close);
+  head.append(words, keys);
+  const stage = el('div', 'sm-graph-stage');
+  const canvas = el('div', 'sm-map sm-map-wide sm-graph-canvas');
+  const side = el('aside', 'sm-graph-side');
+  stage.append(canvas, side);
+  body.append(head, stage);
+  graphWindow.append(body);
+  document.body.append(graphWindow);
+  let picked = null;
+  const paint = () => {
+    if (!graphWindow?.isConnected || !mapDrawn) return;
+    paintMap(canvas, mapDrawn.projects, mapDrawn.enlaces, { wide: true, pick: (next) => { picked = next; paint(); }, picked });
+    paintSide(side, picked, () => { graphWindow.close(); if (!ui.linksSheet.open) ui.linksSheet.showModal(); });
+  };
+  const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(() => paint()) : null;
+  graphWindow.addEventListener('close', () => { watch?.disconnect(); graphWindow?.remove(); graphWindow = null; });
+  graphWindow.repaint = paint;
+  graphWindow.showModal();
+  watch?.observe(canvas);
+  requestAnimationFrame(paint);
+}
+// What the side of the window says about the chosen thing, only what the contracts and the lobby say.
+function paintSide(side, picked, toList) {
+  side.replaceChildren();
+  const enlaces = mapDrawn?.enlaces ?? [];
+  const reads = enlaces.reduce((sum, enlace) => sum + (enlace.traffic?.reads24h ?? 0), 0);
+  const listKey = button('sm-btn ghost small', t('See the connections'), toList);
+  if (!picked) {
+    side.append(el('b', 'sm-graph-big', String(enlaces.length)), el('span', 'sm-graph-sub', enlaces.length === 1 ? t('connection in force') : t('connections in force')));
+    side.append(el('b', 'sm-graph-big', String(reads)), el('span', 'sm-graph-sub', t('reads in the last 24 h')));
+    side.append(el('p', 'sm-hint', t('Each line goes from the project whose notes are read to the one that reads them, in the colour of where they come from.')));
+    const quiet = (() => { try { return JSON.parse(side.previousElementSibling?.dataset.quiet ?? '[]'); } catch { return []; } })();
+    if (quiet.length) {
+      const box = el('div', 'sm-graph-list');
+      box.append(el('span', 'sm-graph-label', t('Not connected')));
+      box.append(el('span', 'sm-graph-quiet', quiet.map((id) => roomName(id)).join(' · ')));
+      side.append(box);
+    }
+    side.append(listKey);
+    return;
+  }
+  if (picked.room) {
+    const id = picked.room;
+    const room = data.rooms.find((one) => one.id === id);
+    const name = el('b', `sm-tinted sm-graph-name${id === data.salas ? ' hub' : ''}`, roomName(id));
+    if (id !== data.salas) name.style.setProperty('--pc', toneOf(id));
+    side.append(name);
+    if (room && id !== data.salas) side.append(el('span', 'sm-graph-sub', stateOf(room).words));
+    const readsFrom = enlaces.filter((enlace) => endsOf(enlace).reader === id || (enlace.direction === 'both' && (enlace.rooms.a === id || enlace.rooms.b === id))).map((enlace) => { const { source, reader } = endsOf(enlace); return source === id ? reader : source; });
+    const readBy = enlaces.filter((enlace) => endsOf(enlace).source === id || (enlace.direction === 'both' && (enlace.rooms.a === id || enlace.rooms.b === id))).map((enlace) => { const { source, reader } = endsOf(enlace); return reader === id ? source : reader; });
+    const list = (title, ids) => {
+      const box = el('div', 'sm-graph-list');
+      box.append(el('span', 'sm-graph-label', title));
+      if (!ids.length) box.append(el('span', 'sm-graph-sub', t('nobody')));
+      for (const one of [...new Set(ids)]) { const who = el('b', `sm-tinted${one === data.salas ? ' hub' : ''}`, roomName(one)); if (one !== data.salas) who.style.setProperty('--pc', toneOf(one)); box.append(who); }
+      side.append(box);
+    };
+    list(t('Looks up'), readsFrom);
+    list(t('Looked up by'), readBy);
+    if (room?.open && id !== data.salas) side.append(button('sm-btn primary small', t('Open the project'), () => leaveTo(addressOf(room))));
+    side.append(listKey);
+    return;
+  }
+  const enlace = enlaces.find((one) => one.id === picked.link);
+  if (!enlace) { side.append(el('p', 'sm-hint', t('That connection is no longer in force.')), listKey); return; }
+  const { source, reader } = endsOf(enlace);
+  const who = el('p', 'sm-graph-who');
+  who.append(enlace.direction === 'both' ? sayTinted('{a} and {b} read each other', { a: enlace.rooms.a, b: enlace.rooms.b }) : sayTinted('{reader} reads from {source}', { reader, source }));
+  side.append(who);
+  const fact = (label, value) => { const row = el('div', 'sm-graph-fact'); row.append(el('span', 'sm-graph-label', label), el('span', null, value)); side.append(row); };
+  fact(t('What crosses'), kindsWords(enlace.kinds) || '—');
+  fact(t('Until'), enlace.expires ? new Date(enlace.expires).toLocaleDateString(language, { day: 'numeric', month: 'long' }) : t('no expiry'));
+  fact(t('Reads in 24 h'), String(enlace.traffic?.reads24h ?? 0));
+  if (enlace.orders?.allowed) fact(t('Orders'), t('up to #{n}', { n: enlace.orders.maxMode }));
+  if (enlace.signed?.by === 'bishop') fact(t('Signed by'), t('Coordinator'));
+  side.append(listKey);
+}
+
 let mapDrawn = null;
-const bigMap = el('div', 'sm-map sm-map-wide');
 function drawMap(projects, enlaces) {
   mapDrawn = { projects, enlaces };
   paintMap(ui.map, projects, enlaces, { wide: false });
-  if (ui.linksSheet.open) paintMap(bigMap, projects, enlaces, { wide: true });
+  graphWindow?.repaint?.();
 }
-function paintMap(host, projects, enlaces, { wide }) {
+function paintMap(host, projects, enlaces, { wide, pick = null, picked = null }) {
   host.replaceChildren();
   if (!projects.length) { host.append(el('p', 'sm-hint', t('Your projects show here, round the Coordinator, with the connections between them.'))); return; }
   const box = host.getBoundingClientRect();
@@ -808,13 +948,16 @@ function paintMap(host, projects, enlaces, { wide }) {
   const cx = W / 2, cy = H / 2;
   const linked = new Set(enlaces.flatMap((enlace) => [enlace.rooms.a, enlace.rooms.b]));
   const connected = projects.filter((room) => linked.has(room.id));
-  // The tile names only who is connected; the sheet has room for everyone, the quiet ones fainter.
-  const ring = (wide ? [...connected, ...projects.filter((room) => !linked.has(room.id))] : connected.length ? connected : projects).slice(0, wide ? 18 : 10);
+  // Only who is connected goes round the Coordinator, evenly; the rest are named apart (the tile's
+  // last line, the window's side), so the drawing is never weighed down on one side.
+  const ring = (connected.length ? connected : projects).slice(0, wide ? 18 : 10);
   const quiet = projects.length - ring.length;
   const name = (room) => (room.name.length > 16 ? `${room.name.slice(0, 15)}…` : room.name);
   // The ring leaves room for the longest name on either side, so nothing is cut at the edge.
   const longest = Math.max(40, ...ring.map((room) => name(room).length * (wide ? 7.4 : 7)));
-  const rx = Math.max(60, W / 2 - longest - 18), ry = Math.max(44, H / 2 - (wide ? 34 : 26));
+  let rx = Math.max(60, W / 2 - longest - 18), ry = Math.max(44, H / 2 - (wide ? 34 : 26));
+  // Wide, the ring is a circle: an abstract map, not a shape stretched to its frame.
+  if (wide) rx = ry = Math.max(60, Math.min(rx, ry));
   const hubR = wide ? 21 : 17;
   const at = new Map([[data.salas, { x: cx, y: cy, r: hubR, pad: linked.has(data.salas) ? 6 : 0 }]]);
   ring.forEach((room, index) => {
@@ -874,6 +1017,9 @@ function paintMap(host, projects, enlaces, { wide }) {
     const id = `sm-wire-${wide ? 'w' : 't'}-${index}`;
     const wire = svgNode('path', { id, class: 'wire', d, 'marker-end': headFor(source) });
     wire.style.stroke = tone;
+    wire.dataset.a = source;
+    wire.dataset.b = reader;
+    wire.dataset.link = enlace.id;
     if (enlace.direction === 'both') wire.setAttribute('marker-start', headFor(reader));
     const title = svgNode('title');
     title.textContent = enlace.direction === 'both' ? t('{a} and {b} look each other up', { a: roomName(enlace.rooms.a), b: roomName(enlace.rooms.b) }) : reader === data.salas ? t('The Coordinator looks up {source}', { source: roomName(source) }) : t('{reader} looks up {source}', { reader: roomName(reader), source: roomName(source) });
@@ -885,6 +1031,8 @@ function paintMap(host, projects, enlaces, { wide }) {
     for (const [points, offset, colour] of ways) {
       const dot = svgNode('circle', { class: 'note', r: wide ? 2.6 : 2.2, opacity: 0 });
       dot.style.fill = colour;
+      dot.dataset.a = source;
+      dot.dataset.b = reader;
       const begin = `${(offset + index * 0.45).toFixed(2)}s`;
       const move = svgNode('animateMotion', { dur: '2.6s', repeatCount: 'indefinite', begin, keyPoints: points, keyTimes: '0;1', calcMode: 'spline', keySplines: '.4 0 .2 1' });
       const along = svgNode('mpath');
@@ -899,6 +1047,7 @@ function paintMap(host, projects, enlaces, { wide }) {
     const on = linked.has(room.id);
     const group = svgNode('g', { class: `node${on ? ' linked' : ''}${room.open ? '' : ' asleep'}${room.glance?.waitingCount ? ' waiting' : ''}` });
     group.style.setProperty('--pc', toneOf(room.id));
+    group.dataset.id = room.id;
     if (on && room.glance?.waitingCount) group.append(svgNode('circle', { class: 'wait', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: (spot.r + 5).toFixed(1) }));
     group.append(svgNode('circle', { class: 'body', cx: spot.x.toFixed(1), cy: spot.y.toFixed(1), r: spot.r.toFixed(1) }));
     const title = svgNode('title');
@@ -918,6 +1067,7 @@ function paintMap(host, projects, enlaces, { wide }) {
   // The Coordinator, in its own colours and mark (brands.js).
   const brand = brandOf('bishop');
   const hub = svgNode('g', { class: `bishop${linked.has(data.salas) ? ' linked' : ''}` });
+  hub.dataset.id = data.salas;
   if (linked.has(data.salas)) hub.append(svgNode('circle', { class: 'halo', cx, cy, r: hubR + 6 }));
   hub.append(svgNode('circle', { cx, cy, r: hubR, fill: brand.solid ?? brand.color }));
   const size = Math.round(hubR * 1.24);
@@ -931,11 +1081,13 @@ function paintMap(host, projects, enlaces, { wide }) {
   hub.append(hubTitle);
   svg.append(hub);
   host.append(svg);
+  focusable(svg, { pick, picked });
+  host.dataset.quiet = JSON.stringify(projects.filter((room) => !ring.includes(room)).map((room) => room.id));
   if (!wide && quiet > 0 && connected.length) host.append(el('span', 'sm-map-quiet', quiet === 1 ? t('1 more project, not connected') : t('{n} more projects, not connected', { n: quiet })));
 }
 // The tile and the sheet change size with the window: the map is drawn again at the new size.
 if (typeof ResizeObserver === 'function') {
-  for (const [host, wide] of [[ui.map, false], [bigMap, true]]) {
+  for (const [host, wide] of [[ui.map, false]]) {
     let drawnAt = '';
     new ResizeObserver(() => {
       const box = host.getBoundingClientRect();
@@ -1128,6 +1280,95 @@ for (const hostId of Object.values(ZONES)) {
     homeMenu({ x: event.clientX, y: event.clientY }, addEntries(), t('Home'));
   });
 }
+// DRAG AND DROP (2026-10-13): a tile is taken by its head and set down where it should go — in the
+// same row of tiles or the other one, above or below the projects. While it is carried the tiles
+// make room for it; let go, that order is kept. Escape, or a drop outside, puts everything back.
+const TILE_TYPE = 'application/x-madre-tile';
+let carried = null;
+const grabbable = (event) => !event.target.closest('a, button, input, select, textarea, svg, .sm-map, [contenteditable="true"]') && event.target.closest('.sm-tile-head, .sm-bishop-head, .sm-bishop-words');
+for (const hostId of Object.values(ZONES)) {
+  const host = $(hostId);
+  host?.addEventListener('pointerdown', (event) => {
+    const tile = event.target.closest('[data-tile]');
+    if (tile && event.button === 0 && grabbable(event)) tile.draggable = true;
+  });
+  host?.addEventListener('dragstart', (event) => {
+    const tile = event.target.closest?.('[data-tile]');
+    if (!tile || !tile.draggable) return;
+    carried = tile;
+    event.dataTransfer.setData(TILE_TYPE, tile.dataset.tile);
+    event.dataTransfer.effectAllowed = 'move';
+    pinsCloseMenu();
+    requestAnimationFrame(() => tile.classList.add('sm-carried'));
+  });
+  host?.addEventListener('dragover', (event) => {
+    if (!carried || !event.dataTransfer.types.includes(TILE_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const over = event.target.closest('[data-tile]');
+    if (!over) { if (!host.contains(carried)) host.append(carried); return; }
+    if (over === carried) return;
+    const box = over.getBoundingClientRect();
+    const after = event.clientY > box.bottom - box.height / 3 || (event.clientY > box.top + box.height / 3 && event.clientX > box.left + box.width / 2);
+    const target = after ? over.nextSibling : over;
+    if (target !== carried && carried.nextSibling !== target) host.insertBefore(carried, target);
+  });
+  host?.addEventListener('drop', (event) => {
+    if (!carried || !event.dataTransfer.types.includes(TILE_TYPE)) return;
+    event.preventDefault();
+    for (const [zone, id] of Object.entries(ZONES)) layout[zone] = [...$(id).children].filter((node) => node.dataset.tile && known(node.dataset.tile) && !node.classList.contains('sm-off')).map((node) => node.dataset.tile);
+    carried.classList.remove('sm-carried');
+    carried.draggable = false;
+    carried = null;
+    saveLayout();
+  });
+}
+document.addEventListener('dragend', (event) => {
+  if (!carried || event.target !== carried) return;
+  carried.classList.remove('sm-carried');
+  carried.draggable = false;
+  carried = null;
+  applyLayout();
+});
+document.addEventListener('pointerup', () => { for (const tile of document.querySelectorAll('[data-tile][draggable="true"]')) if (tile !== carried) tile.draggable = false; });
+
+// A project's card, dragged among the others (it was already dragged to the bar to pin it): the
+// cards make room as it passes, and where it is let go becomes «Yours». A search or a filter shows
+// only some of them: the ones out of sight keep their places.
+let projectCarried = null;
+ui.projects.addEventListener('dragstart', (event) => { projectCarried = event.target.closest?.('.sm-card[data-room]') ?? null; });
+ui.projects.addEventListener('dragover', (event) => {
+  if (!projectCarried || !event.dataTransfer.types.includes(PIN_TYPE)) return;
+  const over = event.target.closest('.sm-card[data-room]');
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  if (!over || over === projectCarried) return;
+  projectCarried.classList.add('sm-carried');
+  const box = over.getBoundingClientRect();
+  const after = event.clientY > box.bottom - box.height / 3 || (event.clientY > box.top + box.height / 3 && event.clientX > box.left + box.width / 2);
+  const target = after ? over.nextSibling : over;
+  if (target !== projectCarried && projectCarried.nextSibling !== target) ui.projects.insertBefore(projectCarried, target);
+});
+ui.projects.addEventListener('drop', (event) => {
+  if (!projectCarried || !event.dataTransfer.types.includes(PIN_TYPE)) return;
+  event.preventDefault();
+  const shown = [...ui.projects.querySelectorAll('.sm-card[data-room]')].map((node) => node.dataset.room);
+  const all = projectsInOrder().all.map((room) => room.id);
+  const slots = all.map((id) => shown.includes(id));
+  let next = 0;
+  const order = all.map((id, index) => (slots[index] ? shown[next++] : id));
+  try { localStorage.setItem(PROJECT_ORDER_KEY, JSON.stringify(order)); } catch { /* the order lasts as long as the page */ }
+  projectCarried.classList.remove('sm-carried');
+  projectCarried = null;
+  saveHome('order', 'mine');
+});
+document.addEventListener('dragend', () => {
+  if (!projectCarried) return;
+  projectCarried.classList.remove('sm-carried');
+  projectCarried = null;
+  draw();
+});
+
 // The space around the projects, right-clicked, offers the same.
 document.querySelector('.sm-main')?.addEventListener('contextmenu', (event) => {
   if (event.defaultPrevented || event.target.closest('.sm-tile, .sm-card, input, textarea, select, a, button, dialog')) return;

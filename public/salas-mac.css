@@ -886,3 +886,41 @@ dialog.sm-sheet.sm-add-sheet { --sm-sheet-w: 560px; }
 .sm-menu-head .sm-tile-icon { width: 22px; height: 22px; border-radius: 6px; }
 .sm-menu-head .sm-tile-icon svg { width: 14px; height: 14px; }
 .salas-mac .sm-menu-item svg { color: var(--s-acc); }
+
+/* THE MAP, INTERACTIVE (2026-10-13): a project under the pointer, or chosen, lights its own lines
+   and the projects at their ends; the rest steps back. The window is the same drawing, wide, with
+   what was chosen beside it. */
+.sm-map svg :is(.node, .bishop, .wire, .spoke) { transition: opacity calc(160ms * var(--motion-scale, 1)) var(--ease-out, ease-out); }
+.sm-map svg.focusing :is(.node, .bishop, .wire):not(.lit), .sm-map svg.focusing .spoke { opacity: .16; }
+/* A note in transit is moved and faded by its own animation: one that steps back is hidden, never
+   dimmed — an opacity set here would show it resting at the corner before it sets off. */
+.sm-map svg.focusing .note:not(.lit) { visibility: hidden; }
+.sm-map svg.focusing .wire.lit { stroke-opacity: 1; stroke-width: 2.2; }
+.sm-map .pickable { cursor: pointer; }
+.sm-map .wire.pickable { pointer-events: stroke; }
+dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
+.sm-graph .sm-sheet-body { display: grid; gap: 14px; }
+.sm-graph .sm-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sm-graph-title { display: grid; gap: 2px; }
+.sm-graph-title h3 { margin: 0; }
+.sm-graph-title small { font-size: 12.5px; color: var(--text-3); }
+.sm-graph-stage { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; min-height: min(620px, 72vh); }
+.sm-graph-canvas { height: auto !important; min-height: min(620px, 72vh); margin: 0 !important; }
+.sm-graph-side { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px; border-radius: 16px; background: var(--surface, var(--panel)); box-shadow: var(--key-track); overflow: auto; }
+.sm-graph-big { font-size: 30px; font-weight: 650; letter-spacing: -.02em; line-height: 1.05; color: var(--text); font-variant-numeric: tabular-nums; }
+.sm-graph-sub { margin-bottom: 10px; font-size: 12.5px; color: var(--text-2); }
+.sm-graph-name { font-size: 18px; font-weight: 650; }
+.sm-graph-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.sm-graph-label { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.sm-graph-who { margin: 0 0 8px; font-size: 14.5px; line-height: 1.45; }
+.sm-graph-fact { display: grid; gap: 1px; margin-bottom: 8px; font-size: 13px; color: var(--text); }
+.sm-graph-side .sm-btn { margin-top: 6px; }
+.sm-graph-side .sm-hint { margin: 6px 0 4px; font-size: 12.5px; line-height: 1.45; }
+@media (max-width: 760px) { .sm-graph-stage { grid-template-columns: 1fr; } .sm-graph-canvas { min-height: 380px; } }
+.sm-map .hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; pointer-events: stroke; }
+.sm-map .wire.hover { stroke-opacity: 1; stroke-width: 2.4; }
+/* Carried: the tile or card leaves a quiet outline where it would land. */
+.sm-carried { opacity: .35; outline: 1.5px dashed color-mix(in srgb, var(--s-acc) 60%, transparent); outline-offset: -6px; }
+[data-tile] :is(.sm-tile-head, .sm-bishop-head) { cursor: grab; }
+[data-tile] :is(.sm-tile-head, .sm-bishop-head) :is(a, button) { cursor: pointer; }
+.sm-graph-quiet { font-size: 12.5px; line-height: 1.5; color: var(--text-3); }
