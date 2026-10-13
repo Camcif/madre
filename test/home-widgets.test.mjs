@@ -24,9 +24,9 @@ test('home widgets: the machine is read from the system, a reading is kept, and 
     // No project is open in this state: nothing feeds the projects' widgets, and they say so.
     assert.deepEqual((await read('servers')).body, { available: false, projects: [] });
     assert.deepEqual((await read('memory')).body, { available: false, projects: [] });
-    const coordinator = (await read('coordinator')).body;
-    assert.equal(coordinator.available, true);
-    assert.equal(coordinator.target, 300);
+    // This server is a project, not Home: the Coordinator's training is read from the Coordinator's
+    // own room, and with that room closed nothing feeds it — never this project's record instead.
+    assert.deepEqual((await read('coordinator')).body, { available: false });
     assert.equal((await read('nothing')).status, 404);
   } finally {
     if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });

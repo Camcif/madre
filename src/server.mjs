@@ -434,6 +434,11 @@ export async function createPulseServer({
       reading = kind === 'memory'
         ? { available: projects.some((one) => !one.unreachable), projects }
         : { available: true, ollama: { running: Boolean(ollama.running), models: (ollama.models ?? []).map((model) => model.name).filter(Boolean) }, projects };
+    } else if (kind === 'coordinator' && !salasRoom) {
+      // Home's page is served by every project too: the Coordinator's record is its own room's.
+      const coordinator = (await knownRooms(root)).find((one) => one.id === salasRoomId(root));
+      const answer = coordinator?.open ? await askRoom(coordinator.open.port, '/api/salas/widget?kind=coordinator', { timeoutMs: 6000 }) : null;
+      reading = answer && !answer.unreachable && !answer.outdated ? answer : { available: false };
     } else if (kind === 'coordinator') {
       const notes = memory ? memory.memories({ limit: 5000 }) : [];
       const ready = datasetReadiness(await store.readAll(), notes);

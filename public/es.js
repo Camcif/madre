@@ -4570,4 +4570,5 @@ export const ES = {
   '{n} models on this Mac': '{n} modelos en esta Mac',
   '{n} odd memories': '{n} memorias raras',
   '{n} projects have Preview off.': '{n} proyectos tienen la Vista previa apagada.',
+  'This page is served by a project started before widgets existed: open Home from its own address, or restart that project.': 'Esta página la sirve un proyecto que arrancó antes de que existieran los widgets: abre Inicio desde su propia dirección o reinicia ese proyecto.',
 };

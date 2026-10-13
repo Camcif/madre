@@ -972,6 +972,21 @@ const WIDGETS = {
   'w-models': { kind: 'models', name: () => t('Local models'), about: () => t('Ollama, its models, and how close each project is to its own.'), size: 4 },
 };
 const DEFAULT_LAYOUT = { top: ['bishop', 'waiting', 'links'], low: ['decisions', 'attention', 'memory'], size: {} };
+// What each tile is, drawn in the accent the person chose (the same line as the room's AJUSTES icons).
+const TILE_ICONS = {
+  'bishop': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><circle cx="10" cy="3.6" r="1.4"/><circle cx="4.4" cy="14" r="1.4"/><circle cx="15.6" cy="14" r="1.4"/><path d="M10 5v2.4M8 11.6 5.6 13.2M12 11.6l2.4 1.6"/></svg>',
+  'waiting': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h8M6 16.5h8M6.8 3.5c0 3.2 3.2 4 3.2 6.5S6.8 13.3 6.8 16.5M13.2 3.5c0 3.2-3.2 4-3.2 6.5s3.2 3.3 3.2 6.5"/></svg>',
+  'links': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="13.5" r="2.2"/><circle cx="15" cy="6.5" r="2.2"/><path d="M7 12.2 13 7.8"/></svg>',
+  'decisions': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="m7 10.2 2.1 2.1L13.2 8"/></svg>',
+  'attention': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.5"/><path d="M10 6.6v4.2"/><path d="M10 13.4h.01" stroke-width="2.2"/></svg>',
+  'memory': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="10" cy="5.6" rx="5.5" ry="2.1"/><path d="M4.5 5.6v4.4c0 1.2 2.5 2.1 5.5 2.1s5.5-.9 5.5-2.1V5.6M4.5 10v4.4c0 1.2 2.5 2.1 5.5 2.1s5.5-.9 5.5-2.1V10"/></svg>',
+  'w-system': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="9" height="9" rx="1.8"/><path d="M8 3v2.5M12 3v2.5M8 14.5V17M12 14.5V17M3 8h2.5M3 12h2.5M14.5 8H17M14.5 12H17"/></svg>',
+  'w-servers': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.8" width="13" height="5" rx="1.6"/><rect x="3.5" y="11.2" width="13" height="5" rx="1.6"/><path d="M6.4 6.3h.01M6.4 13.7h.01" stroke-width="2.2"/><path d="M10 6.3h3.4M10 13.7h3.4"/></svg>',
+  'w-memory': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.8 13.5a6.2 6.2 0 1 1 12.4 0"/><path d="m10 13.5 3-4"/><path d="M10 13.5h.01" stroke-width="2.4"/></svg>',
+  'w-coordinator': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 16.5h13"/><path d="M5 13.5l3.2-3.2 2.6 2.4 4.2-5.2"/><path d="M12.4 7.5H15v2.6"/></svg>',
+  'w-models': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2 16 6.6v6.8L10 16.8 4 13.4V6.6z"/><path d="M4 6.6 10 10l6-3.4M10 10v6.8"/></svg>',
+};
+const tileIcon = (id) => { const box = el('span', 'sm-tile-icon'); box.innerHTML = TILE_ICONS[id] ?? ''; return box; }; // trusted: our own SVG strings
 const known = (id) => Object.hasOwn(HOME_TILES, id) || Object.hasOwn(WIDGETS, id);
 function readLayout() {
   let raw = null;
@@ -1048,9 +1063,10 @@ function addTile(id) {
 const MOVE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v13M5.5 8 10 3.5 14.5 8M5.5 12 10 16.5 14.5 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const BEFORE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const AFTER_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const SIZE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="5" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 10h6M11 8l2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// A size is drawn as the share of the row it takes: a third, a half, two thirds, all of it.
+const sizeIcon = (span) => `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.8" y="5.2" width="14.4" height="9.6" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".45"/><rect x="4.6" y="7" width="${(10.8 * span / 12).toFixed(2)}" height="6" rx="1.2" fill="currentColor"/></svg>`;
 const ADD_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
-const RESET_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 9.5a5.5 5.5 0 1 1 1.6 4.4M4.5 14.5v-5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const RESET_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 8.6A6 6 0 1 1 4.8 13"/><path d="M3.8 4.6v4.2H8"/></svg>';
 const HIDE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 10h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 function homeMenu(point, entries, label) {
   pinsCloseMenu();
@@ -1059,7 +1075,7 @@ function homeMenu(point, entries, label) {
   if (label) menu.setAttribute('aria-label', label);
   for (const entry of entries) {
     if (entry === 'sep') { menu.append(el('i', 'sm-menu-sep')); continue; }
-    if (entry.heading) { menu.append(el('span', 'sm-menu-head', entry.heading)); continue; }
+    if (entry.heading) { const head = el('span', 'sm-menu-head'); if (entry.tile) head.append(tileIcon(entry.tile)); head.append(el('span', null, entry.heading)); menu.append(head); continue; }
     const one = button(`sm-menu-item${entry.danger ? ' danger' : ''}${entry.checked ? ' checked' : ''}`, null, () => { pinsCloseMenu(); entry.act(); });
     one.setAttribute('role', entry.checked !== undefined ? 'menuitemradio' : 'menuitem');
     if (entry.checked !== undefined) one.setAttribute('aria-checked', String(Boolean(entry.checked)));
@@ -1092,12 +1108,12 @@ function tileMenu(event, id) {
   const at = list.indexOf(id);
   const spec = HOME_TILES[id] ?? WIDGETS[id];
   homeMenu({ x: event.clientX, y: event.clientY }, [
-    { heading: spec.name() },
+    { heading: spec.name(), tile: id },
     { words: t('Move before'), icon: BEFORE_ICON, disabled: at <= 0, act: () => moveTile(id, -1) },
     { words: t('Move after'), icon: AFTER_ICON, disabled: at >= list.length - 1, act: () => moveTile(id, 1) },
     { words: zone === 'top' ? t('Move below the projects') : t('Move above the projects'), icon: MOVE_ICON, act: () => crossTile(id) },
     'sep',
-    ...SIZES.map(([span, words]) => ({ words: words(), icon: SIZE_ICON, checked: spanOf(id) === span, act: () => { if (span === (HOME_TILES[id] ?? WIDGETS[id]).size) delete layout.size[id]; else layout.size[id] = span; saveLayout(); } })),
+    ...SIZES.map(([span, words]) => ({ words: words(), icon: sizeIcon(span), checked: spanOf(id) === span, act: () => { if (span === (HOME_TILES[id] ?? WIDGETS[id]).size) delete layout.size[id]; else layout.size[id] = span; saveLayout(); } })),
     'sep',
     { words: t('Take off Home'), icon: HIDE_ICON, act: () => removeTile(id) },
     ...addEntries(),
@@ -1128,8 +1144,13 @@ async function openHomeAdd() {
   const body = el('div', 'sm-sheet-body');
   const head = el('header', 'sm-sheet-head');
   head.append(el('h3', null, t('Add to Home')));
-  const close = button('sm-btn ghost small', t('Close'), () => homeAddSheet.close());
-  head.append(close);
+  // The same ✕ as every sheet of Home (the connections, the settings).
+  const keys = el('span', 'surface-modes');
+  const close = button('surface-mode close x-close x-only', null, () => homeAddSheet.close());
+  close.setAttribute('aria-label', t('Close'));
+  close.innerHTML = '<span class="x-icon"><svg viewBox="0 0 20 20" focusable="false" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'; // trusted
+  keys.append(close);
+  head.append(keys);
   body.append(head, el('p', 'hint', t('Tiles you took off and widgets you can put on Home. Right-click any tile to move it, resize it or take it off.')));
   const list = el('div', 'sm-add-list');
   body.append(list);
@@ -1144,6 +1165,7 @@ async function openHomeAdd() {
   if (!entries.length) { list.append(el('p', 'sm-hint', t('Everything is already on Home.'))); return; }
   for (const entry of entries) {
     const row = el('div', 'sm-add-row');
+    row.append(tileIcon(entry.id));
     const words = el('div', 'sm-add-words');
     words.append(el('b', null, entry.spec.name()), el('small', null, entry.spec.about()));
     const said = el('small', 'sm-add-need');
@@ -1155,11 +1177,13 @@ async function openHomeAdd() {
     if (entry.ready === null) {
       add.disabled = true;
       said.textContent = t('Checking…');
-      const reading = await fetch(`/api/salas/widget?kind=${entry.spec.kind}`, { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+      const reading = await fetch(`/api/salas/widget?kind=${entry.spec.kind}`, { cache: 'no-store' }).then((response) => (response.ok ? response.json() : { failed: response.status })).catch(() => ({ failed: true }));
       if (!row.isConnected) return;
       const ok = Boolean(reading?.available);
       add.disabled = !ok;
-      said.textContent = ok ? '' : (entry.spec.needs?.() ?? t('Nothing feeds it on this Mac yet.'));
+      // A page served by a project started before widgets existed cannot read them: said as that,
+      // not as a Mac with nothing to show.
+      said.textContent = ok ? '' : reading.failed === 404 ? t('This page is served by a project started before widgets existed: open Home from its own address, or restart that project.') : reading.failed ? t('It could not be read just now.') : (entry.spec.needs?.() ?? t('Nothing feeds it on this Mac yet.'));
     }
   }
 }
