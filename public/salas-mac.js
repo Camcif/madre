@@ -78,7 +78,7 @@ const TUNES = {
 const HOME_LOOKS = {
   cards: { key: 'pulse.home.cards', values: ['full', 'compact'], words: { full: () => t('With their last conversation'), compact: () => t('Name and state only') } },
   text: { key: 'pulse.home.text', values: ['comfortable', 'larger', 'smaller'], words: { comfortable: () => t('Comfortable'), larger: () => t('Larger'), smaller: () => t('Smaller') } },
-  order: { key: 'pulse.home.order', values: ['attention', 'name', 'recent', 'mine'], words: { attention: () => t('Attention'), name: () => t('Name'), recent: () => t('Recent'), mine: () => t('Yours') } },
+  order: { key: 'pulse.home.order', values: ['attention', 'name', 'recent', 'mine'], words: { attention: () => t('Attention'), name: () => t('Name'), recent: () => t('Recent'), mine: () => t('Your order') } },
 };
 const LOOK_KEYS = ['pulse.theme', 'pulse.accent', 'pulse.wallpaper', 'pulse.wallpaper.style', 'pulse.wallpaper.veil', 'pulse.wallpaper.blur', 'pulse.bubbles', 'pulse.text', ...Object.values(HOME_LOOKS).map((one) => one.key)];
 function readLooks() {
@@ -151,6 +151,7 @@ function saveHome(name, value) {
   try { if (value === spec.values[0]) localStorage.removeItem(spec.key); else localStorage.setItem(spec.key, value); } catch { /* the choice lasts as long as the page */ }
   applyLooks();
   if (name === 'order' && typeof draw === 'function') draw();
+  if (name === 'order' && typeof paintOrderKey === 'function') paintOrderKey();
   settingsSheet?.paintLooks();
 }
 // A dial is saved when it is let go and shown while it moves; the sheet is not painted again under
@@ -438,6 +439,31 @@ for (const choice of ui.filter.querySelectorAll('[data-filter]')) {
     drawProjects();
   });
 }
+
+// ORDER, where the projects are (2026-10-13): the same four orders as Home's Appearance, one press
+// away from the list they arrange. «Yours» is the order made by dragging a card or by its
+// right-click › Move; the menu says so, so the way to make it is never a secret.
+const SORT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5v11M3.5 13 6 15.5 8.5 13"/><path d="M11 6h5.5M11 10h4M11 14h2.5"/></svg>';
+const orderKey = button('sm-btn sm-order', null, () => {
+  const box = orderKey.getBoundingClientRect();
+  const now = readLooks().home.order;
+  homeMenu({ x: box.left, y: box.bottom + 6 }, [
+    { heading: t('Order the projects') },
+    ...HOME_LOOKS.order.values.map((value) => ({ words: HOME_LOOKS.order.words[value](), icon: SORT_ICON, checked: now === value, act: () => saveHome('order', value) })),
+    'sep',
+    { heading: t('Drag a card, or right-click it › Move, to make your own.') },
+  ], t('Order the projects'));
+});
+ui.filter.after(orderKey);
+function paintOrderKey() {
+  const now = readLooks().home.order;
+  orderKey.innerHTML = SORT_ICON; // trusted: our own SVG string
+  orderKey.append(el('span', null, HOME_LOOKS.order.words[now]()));
+  orderKey.title = t('Order the projects');
+  orderKey.setAttribute('aria-label', `${t('Order the projects')}: ${HOME_LOOKS.order.words[now]()}`);
+  orderKey.setAttribute('aria-haspopup', 'menu');
+}
+paintOrderKey();
 
 // WAITING FOR YOU: every question an agent asks the person, from every open room, counted in one
 // number; the first ones said, each leading to its room.
@@ -4123,6 +4149,7 @@ function translateStatic() {
   ui.filter.setAttribute('aria-label', t('Show'));
   const FILTER_WORDS = { all: t('All projects'), open: t('Open projects'), asleep: t('Asleep projects') };
   for (const choice of ui.filter.querySelectorAll('[data-filter]')) choice.textContent = FILTER_WORDS[choice.dataset.filter];
+  paintOrderKey();
   $('sm-bishop-name').textContent = t('Coordinator');
   ui.bishop.go.textContent = t('Talk to the Coordinator');
   ui.bishop.tab.title = t('Open the Coordinator in a new tab');

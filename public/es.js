@@ -4586,4 +4586,7 @@ export const ES = {
   'reads in the last 24 h': 'lecturas en las últimas 24 h',
   'up to #{n}': 'hasta #{n}',
   'Not connected': 'Sin conexión',
+  'Order the projects': 'Ordenar los proyectos',
+  'Drag a card, or right-click it › Move, to make your own.': 'Arrastra una tarjeta, o usa su clic derecho › Mover, para hacer el tuyo.',
+  'Your order': 'Tuyo',
 };

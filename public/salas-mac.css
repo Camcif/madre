@@ -924,3 +924,8 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 [data-tile] :is(.sm-tile-head, .sm-bishop-head) { cursor: grab; }
 [data-tile] :is(.sm-tile-head, .sm-bishop-head) :is(a, button) { cursor: pointer; }
 .sm-graph-quiet { font-size: 12.5px; line-height: 1.5; color: var(--text-3); }
+/* The order of the projects, beside the filter that chooses which of them show. */
+.sm-order { flex: none; gap: 6px; height: 36px; padding: 0 12px; }
+.sm-order svg { width: 16px; height: 16px; color: var(--s-acc); }
+.sm-menu-head + .sm-menu-item { margin-top: 2px; }
+.sm-menu .sm-menu-head:last-child { max-width: 240px; padding-bottom: 8px; font-size: 11.5px; font-weight: 450; letter-spacing: 0; text-transform: none; line-height: 1.4; }
