@@ -3852,7 +3852,7 @@ function setStatus(id) {
   }
   if (id === 'bishop') { const room = bishopRoom(); return { line: room ? stateOf(room).words : t('Reading…') }; }
   if (id === 'local') {
-    if (!localSeen) return { line: t('Reading…') };
+    if (!localSeen) return { line: localFailed ? t('Home did not answer.') : t('Reading…') };
     const on = localSeen.projects.filter((one) => one.on).length;
     return { line: `${LOCAL_MODE_WORDS[localSeen.mode]()} · ${t('{n} of {total} projects', { n: on, total: localSeen.projects.length })}`, warn: !localSeen.master ? t('Local AI is switched off for every project.') : !localSeen.ollama.running ? t('Ollama is not running') : null };
   }
@@ -4082,9 +4082,11 @@ const LOCAL_MODE_SAYS = {
   pick: () => t('Only the projects you switch on below. New projects start without it.'),
   manual: () => t('Each project decides in its own Settings › Modules › Local AI. New projects start with it.'),
 };
+let localFailed = false;        // the last read got no answer: the sheet says so instead of «Reading…» forever
 async function loadLocal() {
   const answer = await fetch('/api/salas/local-ai', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
   if (answer) localSeen = answer;
+  localFailed = !answer;
   settingsSheet?.sync({ detail: true });
   return answer;
 }
@@ -4097,6 +4099,12 @@ async function saveLocal(patch) {
 }
 const localModeSeg = () => customSeg(Object.keys(LOCAL_MODE_WORDS).map((mode) => [mode, LOCAL_MODE_WORDS[mode]()]), localSeen?.mode, (mode) => void saveLocal({ mode }));
 function fillLocal(host) {
+  if (!localSeen && localFailed) {
+    // A Home started before this setting existed has no answer for it: reloading the page reaches the one running now.
+    const block = sxBlock(host, t('Home did not answer.'), t('Home may be running an older MADRE. Reload the page; if it still does not load, restart Home.'));
+    sxRow(block, t('Try again'), null, sxButton(t('Reload'), () => location.reload(), { tone: 'primary' }));
+    return;
+  }
   if (!localSeen) { host.append(el('p', 'settings-reading', t('Reading…'))); return; }
   host.append(el('p', 'sx-intro', t('The local AI is Ollama, on this computer: it searches the memory by meaning, sums it up and answers as @madre, without spending tokens or sending anything out. Here you choose which projects use it.')));
   const mode = sxBlock(host, t('Which projects'), LOCAL_MODE_SAYS[localSeen.mode]());

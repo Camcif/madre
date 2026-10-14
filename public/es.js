@@ -4634,4 +4634,5 @@ export const ES = {
   'Choose projects': 'Elegir proyectos',
   '{n} of {target} examples this project needs to train a model of its own': '{n} de {target} ejemplos que este proyecto necesita para entrenar su propio modelo',
   'without local AI': 'sin IA local',
+  'Home may be running an older MADRE. Reload the page; if it still does not load, restart Home.': 'Puede que Inicio esté corriendo una versión anterior de MADRE. Recarga la página; si sigue sin cargar, reinicia Inicio.',
 };
