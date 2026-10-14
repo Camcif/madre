@@ -4097,7 +4097,28 @@ async function saveLocal(patch) {
   if (localSeen.later?.length) toast(t('{names} will use it when restarted: it was started before this setting existed.', { names: localSeen.later.join(', ') }));
   settingsSheet?.sync({ detail: true });
 }
-const localModeSeg = () => customSeg(Object.keys(LOCAL_MODE_WORDS).map((mode) => [mode, LOCAL_MODE_WORDS[mode]()]), localSeen?.mode, (mode) => void saveLocal({ mode }));
+// The rail every settings sheet uses (app.js, sxSeg; styles.css, .sx-seg): the mark moves when chosen.
+function sxSeg(options, current, pick, { label = null } = {}) {
+  const seg = el('div', 'sx-seg');
+  seg.setAttribute('role', 'radiogroup');
+  if (label) seg.setAttribute('aria-label', label);
+  for (const [value, words] of options) {
+    const option = button(null, words, () => {
+      if (value === current || seg.classList.contains('busy')) return;
+      for (const other of seg.children) other.setAttribute('aria-checked', String(other === option));
+      seg.classList.add('busy');
+      void Promise.resolve(pick(value)).finally(() => seg.classList.remove('busy'));
+    });
+    option.setAttribute('role', 'radio');
+    option.setAttribute('aria-checked', String(value === current));
+    seg.append(option);
+  }
+  return seg;
+}
+const localModeSeg = () => sxSeg(Object.keys(LOCAL_MODE_WORDS).map((mode) => [mode, LOCAL_MODE_WORDS[mode]()]), localSeen?.mode, (mode) => saveLocal({ mode }), { label: t('Mode') });
+// The projects in pages of eight, two to a row where they fit: the sheet never needs a scroll.
+const LOCAL_PER_PAGE = 8;
+let localPage = 0;
 function fillLocal(host) {
   if (!localSeen && localFailed) {
     // A Home started before this setting existed has no answer for it: reloading the page reaches the one running now.
@@ -4112,10 +4133,15 @@ function fillLocal(host) {
   if (!localSeen.master) sxRow(mode, t('Local AI is switched off for every project.'), t('Turn it on in a project, in Modules › Local AI.'));
   else if (!localSeen.ollama.running) sxRow(mode, t('Ollama is not running'), t('The projects keep working with their agents until it starts. Start it from a project, in Modules › Local AI.'));
   const list = sxBlock(host, t('Projects'), localSeen.mode === 'auto' ? t('All of them use it. Choose «One by one» or «Manual» to turn some off.') : t('A switch here is the same one the project shows in its Settings.'));
-  if (!localSeen.projects.length) sxRow(list, t('No projects yet'), null);
-  for (const one of localSeen.projects) {
-    const hint = one.open ? (one.on ? t('Open · using it') : t('Open · without it')) : t('Closed · applies when it opens');
-    const wrap = el('label', 'settings-switch');
+  if (!localSeen.projects.length) { sxRow(list, t('No projects yet'), null); return; }
+  const pages = Math.ceil(localSeen.projects.length / LOCAL_PER_PAGE);
+  localPage = Math.max(0, Math.min(localPage, pages - 1));
+  const grid = el('div', 'sm-local-grid');
+  for (const one of localSeen.projects.slice(localPage * LOCAL_PER_PAGE, (localPage + 1) * LOCAL_PER_PAGE)) {
+    const item = el('label', `sm-local-item${one.on ? '' : ' off'}`);
+    const words = el('span', 'sm-local-words');
+    words.append(el('b', null, one.name), el('small', null, one.open ? (one.on ? t('Open · using it') : t('Open · without it')) : t('Closed · applies when it opens')));
+    const wrap = el('span', 'settings-switch');
     const box = el('input');
     box.type = 'checkbox';
     box.checked = Boolean(one.chosen);
@@ -4123,7 +4149,27 @@ function fillLocal(host) {
     box.setAttribute('aria-label', one.name);
     box.addEventListener('change', () => { box.disabled = true; void saveLocal({ rooms: { [one.id]: box.checked } }); });
     wrap.append(box, el('i'));
-    sxRow(list, one.name, hint, wrap);
+    item.append(words, wrap);
+    grid.append(item);
+  }
+  // The last page keeps the height of a full one, so ‹ › stay under the pointer.
+  if (pages > 1) for (let gap = grid.children.length; gap < LOCAL_PER_PAGE; gap += 1) grid.append(el('span', 'sm-local-item sm-local-gap'));
+  list.rows.append(grid);
+  if (pages > 1) {
+    const foot = el('div', 'sm-local-foot');
+    const pager = el('div', 'sm-pager');
+    const turn = (step) => { localPage += step; settingsSheet?.sync({ detail: true }); };
+    const back = button('sm-icon-key sm-page', null, () => turn(-1));
+    const on = button('sm-icon-key sm-page', null, () => turn(1));
+    back.innerHTML = PAGE_BACK; // trusted: our own SVG strings
+    on.innerHTML = PAGE_ON;
+    back.setAttribute('aria-label', t('Previous'));
+    on.setAttribute('aria-label', t('Next'));
+    back.disabled = localPage === 0;
+    on.disabled = localPage >= pages - 1;
+    pager.append(back, el('span', 'sm-page-where', t('{n} of {total}', { n: localPage + 1, total: pages })), on);
+    foot.append(pager, el('small', null, t('{n} projects', { n: localSeen.projects.length })));
+    list.rows.append(foot);
   }
 }
 function fillProjects(host) {
