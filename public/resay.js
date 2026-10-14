@@ -41,6 +41,7 @@ const SAID = [
   '{n} agents are working at once. If this is not what you asked for, type STOPALL.',
   '@{agent} is already answering another turn; answers may cross.',
   ' STOPALL halts everything.',
+  'The copilot ran commands by itself {n} times in a row; the next ones wait for you. Write to it to go on.',
   'The plan by @{agent} has been running for {n} min.',
   ' STOPALL halts it.',
   '@{holder} still holds EDIT; @{agent} answers read-only this turn.',

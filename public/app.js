@@ -171,6 +171,7 @@ const PLACEHOLDERS = {
   ash: t('Compact prose. Nothing you write is altered; only the answers get shorter.'),
   ghost: t('Off the record. Ask anything; nothing is saved, nobody else will remember it.'),
   control: t('EDIT unlocked. Say what to change in the project; every action runs without asking.'),
+  copilot: t('Copilot on. Say what you want done; it edits, plans and checks on its own.'),
   airlock: t('Airlock open. Commands run; pushes and deploys leave the ship. Say exactly what should go out.'),
   expendable: t('Type here, human. MADRE is listening.'),
   memory: t('Ask what the project remembers. @madre answers from memory with citations; it does not act.'),
@@ -2520,6 +2521,7 @@ function renderPicker() {
     }
     const effortChip = renderEffortChip(current.id);
     if (effortChip) text.append(effortChip);
+    if (!current.local && !state.device) text.append(copilotChip());
     (els.pickOptions ?? els.picker).append(text);
   }
   updateCrewLabel();
@@ -2898,8 +2900,111 @@ function closeModeMenu() { modeMenu.hidden = true; modeMenuFor = null; }
 document.addEventListener('click', (event) => { if (!modeMenu.hidden && !modeMenu.contains(event.target) && !event.target.closest('.picker')) closeModeMenu(); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeModeMenu(); });
 
+// The copilot (2026-10-14): a while — up to 24 hours, opened with the #3 key — in which a message
+// at #3 needs no key, whichever agent it goes to, as long as its CLI can write. The project holds
+// the window (GET/POST /api/copilot); the page only shows it and counts it down.
+const COPILOT_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.4v2.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="3" r="1.05" fill="currentColor"/><rect x="4.2" y="6.2" width="11.6" height="9.2" rx="3.1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="7.7" cy="10.3" r="1.15" fill="currentColor"/><circle cx="12.3" cy="10.3" r="1.15" fill="currentColor"/><path d="M8.1 13h3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M2.5 9.6v2.6M17.5 9.6v2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const copilotUI = { active: false, until: 0, windows: [30, 60, 240, 480, 1440], chosen: 60, tick: null };
+const copilotOn = () => copilotUI.active && copilotUI.until > Date.now();
+const canWrite = (id) => Boolean(state.capabilities[id]?.scopes?.write?.capable);
+// The copilot's #3 for this message: the window open, this agent able to write, #3 chosen.
+const copilotSends = (id) => state.mode === 3 && copilotOn() && canWrite(id);
+const copilotWindowWords = (minutes) => (minutes >= 60 ? t('{n} h', { n: minutes / 60 }) : t('{n} min', { n: minutes }));
+function copilotLeftWords() {
+  const minutes = Math.max(1, Math.ceil((copilotUI.until - Date.now()) / 60000));
+  return minutes >= 60 ? t('{n} h', { n: Math.round(minutes / 6) / 10 }) : t('{n} min', { n: minutes });
+}
+function applyCopilot(said = {}) {
+  const was = copilotOn();
+  copilotUI.active = Boolean(said.active);
+  copilotUI.until = Number(said.until) || 0;
+  if (Array.isArray(said.windows) && said.windows.length) copilotUI.windows = said.windows;
+  clearInterval(copilotUI.tick);
+  copilotUI.tick = null;
+  if (copilotOn()) {
+    copilotUI.tick = setInterval(() => {
+      if (!copilotOn()) { applyCopilot({ active: false }); return; }
+      for (const chip of document.querySelectorAll('.copilot-chip .left')) chip.textContent = copilotLeftWords();
+    }, 30000);
+  }
+  // The mode follows: #3 while it lasts, the agent's own default after.
+  if (was !== copilotOn() && els.target?.value) { state.modeArmedFor = null; setMode(defaultModeFor(els.target.value)); }
+  else renderPicker();
+  if (!copilotMenu.hidden) toggleCopilotMenu(copilotMenu.anchor, { keep: true });
+}
+async function loadCopilot() {
+  try { applyCopilot(await (await fetch('/api/copilot')).json()); } catch { /* an older project: no copilot */ }
+}
 function ceilingFor(id) { return state.capabilities[id]?.scopes?.maxMode ?? 1; }
-function defaultModeFor(id) { return state.capabilities[id]?.scopes?.defaultMode ?? 1; }
+function defaultModeFor(id) { return copilotOn() && canWrite(id) ? 3 : state.capabilities[id]?.scopes?.defaultMode ?? 1; }
+
+// The robot beside mode · model · effort: what the copilot does, its switch and how long.
+const copilotMenu = el('div', 'model-menu copilot-menu');
+copilotMenu.hidden = true;
+copilotMenu.setAttribute('role', 'dialog');
+document.body.append(copilotMenu);
+function closeCopilotMenu() { copilotMenu.hidden = true; }
+document.addEventListener('click', (event) => { if (!copilotMenu.hidden && !copilotMenu.contains(event.target) && !event.target.closest('.copilot-chip') && !event.target.closest('#override')) closeCopilotMenu(); });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeCopilotMenu(); });
+function copilotChip() {
+  const on = copilotOn();
+  const chip = el('button', `copilot-chip${on ? ' on' : ''}`);
+  chip.type = 'button';
+  const icon = el('span', 'copilot-icon');
+  icon.innerHTML = COPILOT_ICON;
+  chip.append(icon);
+  if (on) chip.append(el('span', 'left', copilotLeftWords()));
+  chip.title = on ? t('Copilot on · {left} left. Click to see it or turn it off.', { left: copilotLeftWords() }) : t('Copilot: let the agent you write to drive the project for a while.');
+  chip.setAttribute('aria-label', on ? t('Copilot on') : t('Copilot'));
+  chip.setAttribute('aria-haspopup', 'dialog');
+  chip.addEventListener('click', (event) => { event.stopPropagation(); toggleCopilotMenu(chip); });
+  return chip;
+}
+function toggleCopilotMenu(anchor, { keep = false } = {}) {
+  if (!keep && !copilotMenu.hidden) { closeCopilotMenu(); return; }
+  closeModelMenu(); closeEffortMenu(); closeModeMenu();
+  copilotMenu.anchor = anchor;
+  const on = copilotOn();
+  const title = el('div', 'model-menu-title copilot-title');
+  const icon = el('span', 'copilot-icon');
+  icon.innerHTML = COPILOT_ICON;
+  title.append(icon, el('b', null, t('Copilot')));
+  const toggle = el('label', 'settings-switch');
+  const box = el('input');
+  box.type = 'checkbox';
+  box.checked = on;
+  box.setAttribute('aria-label', t('Copilot'));
+  box.addEventListener('change', async () => {
+    if (box.checked) { box.checked = false; openCopilotKey(copilotUI.chosen); return; }
+    try { applyCopilot(await (await fetch('/api/copilot/off', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json()); toast(t('Copilot off. Each #3 asks for its key again.'), { tone: 'done' }); } catch (error) { toast(t('Could not reach MADRE: {error}', { error: error.message })); }
+  });
+  toggle.append(box, el('i'));
+  title.append(toggle);
+  const body = el('div', 'copilot-body');
+  body.append(
+    el('p', null, t('The agent you write to drives the project: it edits, plans with the others and gives each step up to #3, and runs the safe commands — reading, tests, builds, local git — by itself.')),
+    el('p', 'copilot-never', t('It never deletes, never touches MADRE\'s folders or your secrets, and never pushes, publishes or sends anything off this computer: that stays with you.')),
+  );
+  if (on) {
+    body.append(el('p', 'copilot-state', t('On until {time} · {left} left', { time: new Date(copilotUI.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), left: copilotLeftWords() })));
+  } else {
+    const how = el('div', 'copilot-how');
+    how.append(el('span', null, t('For')), sxSeg(copilotUI.windows.map((minutes) => ({ value: String(minutes), text: copilotWindowWords(minutes) })), String(copilotUI.chosen), (value) => { copilotUI.chosen = Number(value); }, { label: t('How long the copilot lasts') }));
+    body.append(how, el('p', 'copilot-foot', t('It asks for the #3 key once. STOP ALL ends it.')));
+  }
+  copilotMenu.replaceChildren(title, body);
+  copilotMenu.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  const width = copilotMenu.offsetWidth || 320;
+  const height = copilotMenu.offsetHeight || 220;
+  copilotMenu.style.left = `${Math.max(12, Math.min(window.innerWidth - width - 12, rect.left))}px`;
+  copilotMenu.style.top = `${Math.max(12, rect.top - height - 10)}px`;
+}
+// Turning it on is the #3 key, once, in the same dialog as always.
+function openCopilotKey(minutes) {
+  closeCopilotMenu();
+  openOverride(els.target.value, { mode: 3, copilot: minutes, forceKey: true });
+}
 
 function toggleModeMenu(id, anchor) {
   if (!modeMenu.hidden && modeMenuFor === id) { closeModeMenu(); return; }
@@ -2908,7 +3013,8 @@ function toggleModeMenu(id, anchor) {
   modeMenuFor = id;
   paint(modeMenu, id);
   modeMenu.replaceChildren();
-  const cap = ceilingFor(id);
+  // Under the copilot, #3 is open for any agent whose CLI writes.
+  const cap = copilotOn() && canWrite(id) ? Math.max(ceilingFor(id), 3) : ceilingFor(id);
   const scopes = state.capabilities[id]?.scopes;
   const canRaise = Boolean(scopes?.write?.capable);
   const title = el('div', 'model-menu-title');
@@ -2943,6 +3049,7 @@ function toggleModeMenu(id, anchor) {
       : t("Above @{id}'s max mode (#{cap}). Raise it in Settings › Permissions.", { id, cap });
     option.addEventListener('click', () => {
       closeModeMenu();
+      if (n === 3 && copilotOn() && canWrite(id)) { setMode(3); return; }
       if (n >= 3) { openOverride(id, { raise, mode: n }); return; }
       setMode(n, { wink: n === 0 });
     });
@@ -2970,6 +3077,7 @@ function setMode(n, { wink = false, typed = false } = {}) {
   els.composer.classList.toggle('ghost', mode === 0);
   els.composer.classList.toggle('control', mode >= 3);
   els.composer.classList.toggle('airlock', mode === 4);
+  els.composer.classList.toggle('copilot', mode === 3 && copilotOn());
   for (const n of [0, 1, 2, 3, 4]) els.composer.classList.toggle(`m${n}`, mode === n);
   renderCreateScopes();
   updateCrewLabel(); updatePlaceholder();
@@ -3119,13 +3227,15 @@ function askOverrideKey(stage, { again = false } = {}) {
   override.form.querySelector('.k').textContent = stage === 'phrase' ? (again ? t('Type your phrase again') : t('Type your phrase')) : again ? t('Type the project name again') : t('Type the project name');
   override.input.placeholder = '';
 }
-function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null, preserveComposer = false, forceKey = false, minutes = 0 } = {}) {
+function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null, preserveComposer = false, forceKey = false, minutes = 0, copilot = 0 } = {}) {
   if (!override.dialog) return;
   // Inside the grace of an accepted key, the same mode for the same agent is not asked again —
   // unless arming would also raise the agent's ceiling, which is always asked.
   const left = raise || forceKey ? 0 : overrideGraceLeft(mode, id);
   if (left) { void grantOverride({ agent: id, raise: false, mode, then, delay: 0, left, preserveComposer }); return; }
   override.agent = id;
+  // The copilot's key: the same #3 key, opening the copilot for that long instead of one agent.
+  override.copilot = copilot || 0;
   // A window chosen on an agent's request, instead of the one set in Permissions.
   override.minutes = MODE_WINDOWS[mode]?.includes(minutes) ? minutes : 0;
   // What to do once it is armed. The chip's road arms and waits for the human to send; a #3 or #4
@@ -3138,16 +3248,16 @@ function openOverride(id, { raise = false, mode = 3, then = null, cancelled = nu
   override.preserveComposer = preserveComposer;
   override.key = overrideKeyFor(mode);
   askOverrideKey(override.key.startsWith('phrase') ? 'phrase' : override.key === 'confirm' ? 'confirm' : 'designation');
-  override.title.textContent = mode === 4 ? t('Open #4 FULL ACCESS for @{agent}', { agent: id }) : t('Unlock #3 EDIT for @{agent}', { agent: id });
-  override.arm.textContent = mode === 4 ? t('Open') : t('Unlock');
+  override.title.textContent = override.copilot ? t('Turn the copilot on for {time}', { time: copilotWindowWords(override.copilot) }) : mode === 4 ? t('Open #4 FULL ACCESS for @{agent}', { agent: id }) : t('Unlock #3 EDIT for @{agent}', { agent: id });
+  override.arm.textContent = override.copilot ? t('Turn on') : mode === 4 ? t('Open') : t('Unlock');
   override.dialog.classList.toggle('m4', mode === 4);
   if (mode === 4) {
     let slot = override.frame?.querySelector('.tour-hint-slot');
     if (!slot && override.form) { slot = el('div', 'tour-hint-slot'); override.form.before(slot); }
     if (slot) void roomTour().hint('key4', slot, { inside: true, title: t('#4 asks for your key twice'), text: t('With #4 the agent may run commands, publish and deploy: what leaves your Mac does not come back. That is why the key is typed twice.') });
   }
-  override.brief.textContent = OVERRIDE_BRIEF[mode].what(id);
-  override.safe.textContent = OVERRIDE_BRIEF[mode].safe();
+  override.brief.textContent = override.copilot ? t('The agent you write to edits the project and runs the safe commands by itself, with no key per message, until it ends.') : OVERRIDE_BRIEF[mode].what(id);
+  override.safe.textContent = override.copilot ? t('It never deletes, pushes, publishes or deploys; each change gets a restore point; STOP ALL ends it.') : OVERRIDE_BRIEF[mode].safe();
   override.raised.hidden = !raise;
   override.raised.textContent = raise ? t('This also raises its max mode to #{n}.', { n: mode }) : '';
   override.reply.textContent = '';
@@ -3188,7 +3298,9 @@ override.form?.addEventListener('submit', async (event) => {
   override.arm.disabled = true;
   let answer;
   try {
-    const response = await fetch('/api/override/arm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent: override.agent, mode: override.mode, words: override.words, minutes: override.minutes || undefined }) });
+    const response = override.copilot
+      ? await fetch('/api/copilot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ minutes: override.copilot, words: override.words }) })
+      : await fetch('/api/override/arm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent: override.agent, mode: override.mode, words: override.words, minutes: override.minutes || undefined }) });
     answer = { ok: response.ok, ...(await response.json().catch(() => ({}))) };
   } catch (error) {
     answer = { ok: false, error: t('Could not reach MADRE: {error}', { error: error.message }) };
@@ -3197,6 +3309,15 @@ override.form?.addEventListener('submit', async (event) => {
   if (!answer.ok) {
     askOverrideKey(override.key.startsWith('phrase') ? 'phrase' : override.key === 'confirm' ? 'confirm' : 'designation');
     deny(answer.error ? resay(answer.error) : undefined);
+    return;
+  }
+  if (override.copilot) {
+    override.reply.textContent = t('Copilot on.');
+    override.reply.className = 'key-reply granted';
+    override.copilot = 0;
+    override.then = null;
+    override.cancelled = null;
+    setTimeout(() => { if (override.dialog?.open) override.dialog.close(); applyCopilot(answer); toast(t('Copilot on for {time}. Write to the agent that should drive.', { time: copilotWindowWords(Math.round((answer.until - Date.now()) / 60000 / 30) * 30 || copilotUI.chosen) }), { tone: 'done' }); }, 700);
     return;
   }
   override.reply.textContent = override.mode === 4 ? t('Open for @{agent}.', { agent: override.agent }) : t('Unlocked for @{agent}.', { agent: override.agent });
@@ -3626,6 +3747,7 @@ function renderUserMessage(event) {
   const shownMode = Number.isInteger(mode) ? mode : create ? 2 : null;
   if (shownMode !== null && shownMode !== 1) who.append(el('span', `badge mode m${shownMode}`, `#${shownMode} ${MODES[shownMode].label}`));
   if (ash?.active) who.append(el('span', 'badge ash', t('TOKEN SAVER')));
+  if (event.payload.copilot) who.append(el('span', 'badge copilot', t('COPILOT')));
   col.append(who);
   const bubble = el('div', 'bubble', text);
   if (attachments.length) bubble.append(fileTiles(attachments));
@@ -3677,6 +3799,15 @@ function renderAssistantMessage(event) {
   }
   const bubble = el('div', 'bubble');
   bubble.append(renderMarkdown(text));
+  // Written as the human's copilot: a green round robot on the agent's own circle.
+  if (event.payload.copilot) {
+    node.classList.add('copilot');
+    const badge = el('span', 'copilot-badge');
+    badge.innerHTML = COPILOT_ICON;
+    badge.title = t('@{agent} answered as your copilot', { agent: sender });
+    badge.setAttribute('aria-label', badge.title);
+    node.querySelector(':scope > .avatar')?.append(badge);
+  }
   if (event.payload.artifacts?.length) bubble.append(artifactTiles(event.payload.artifacts));
   // What the reply recalled, what it cost and what can be done with it travel inside it, on a
   // foot of its own: the memory as dots on the left; rate, copy and reply (shown under the pointer)
@@ -5875,6 +6006,20 @@ function renderEventNode(event) {
       break;
     }
     case 'room.settings': return;
+    // The copilot's window opened or closed: a line in the conversation (it folds like the rest),
+    // and the robot and the mode follow when it happens now.
+    case 'copilot.started':
+    case 'copilot.ended': {
+      const started = event.type === 'copilot.started';
+      node = el('div', `system copilot${started ? ' granted' : ''}`);
+      const when = started ? new Date(event.payload.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+      node.append(el('b', null, t('copilot › ')), started
+        ? t('on until {time}: the agent you write to drives the project, with no key per message', { time: when })
+        : { time: t('off: its time ran out'), stopall: t('off: STOP ALL ended it'), human: t('off: you turned it off') }[event.payload.reason] ?? t('off'));
+      if (!replaying) void loadCopilot();
+      state.lastSender = null;
+      break;
+    }
     case 'extension.toggled':
       // A module switched on or off changes what the composer accepts.
       if (!replaying) void refreshCommands();
@@ -9959,6 +10104,8 @@ if (initial.version) {
   if (corner) corner.replaceChildren(el('b', null, `MADRE ${initial.version}`), document.createTextNode('\u00a0·\u00a0© 2026 Jossue Alcalá'));
 }
 adoptLanguage(initial.language);
+// Whether the copilot is on for this project, so the robot and the mode say so from the start.
+void loadCopilot();
 // Behind the bridge this page is on a phone (docs/MOBILE.md): it says so, offers the way back to
 // the list of rooms, and leaves the Mac's keys to the Mac.
 state.device = initial.device ?? null;
@@ -10989,8 +11136,10 @@ fetch('/api/mother').then((response) => response.json()).then((status) => { if (
 
 function updateCrewLabel() {
   const order = state.ash && state.ashInstalled;
-  const armed = state.mode >= 3;
-  els.crewLabel.textContent = state.intruder && state.mode < 3 ? t('INTRUDER ›') : armed ? `${t('DIAGNOSTICS')} · ${MODES[state.mode].label} @${(state.modeArmedFor ?? els.target.value ?? '').toUpperCase()} ›`
+  // The copilot reads as a link of the chain: HUMAN › COPILOT › TOKEN SAVER › @CODEX ›.
+  const piloting = copilotSends(els.target?.value);
+  const armed = state.mode >= 3 && !piloting;
+  els.crewLabel.textContent = piloting ? `${t('HUMAN ›')} ${t('COPILOT ›')}${order ? ` ${t('TOKEN SAVER ›')}` : ''}` : state.intruder && state.mode < 3 ? t('INTRUDER ›') : armed ? `${t('DIAGNOSTICS')} · ${MODES[state.mode].label} @${(state.modeArmedFor ?? els.target.value ?? '').toUpperCase()} ›`
     : state.mode === 0 ? t('HUMAN · INCOGNITO ›')
       : state.moduleCommand ? (state.create ? t('DIAGNOSTICS · MODULE · CREATE ›') : t('DIAGNOSTICS · MODULE · NEEDS #2 ›'))
       : order ? `${t('HUMAN ›')} ${state.create ? t('TOKEN SAVER · CREATE ›') : t('TOKEN SAVER ›')}`
@@ -10998,7 +11147,7 @@ function updateCrewLabel() {
           : state.expendable ? t('CREW · EXPENDABLE ›') : t('HUMAN ›');
   // Who the message goes to closes the line, in that agent's colour: HUMAN › TOKEN SAVER › @CODEX ›.
   const to = els.target?.value;
-  if (to && !armed && !state.intruder && typeof els.crewLabel.append === 'function') {
+  if (to && !armed && (piloting || !state.intruder) && typeof els.crewLabel.append === 'function') {
     const who = paint(el('span', 'crew-to'), to);
     who.textContent = ` @${to.toUpperCase()} ›`;
     els.crewLabel.append(who);
@@ -11006,7 +11155,7 @@ function updateCrewLabel() {
 }
 function updatePlaceholder() {
   const local = Boolean(state.agents.get(els.target.value)?.local);
-  els.input.placeholder = state.mode === 4 ? PLACEHOLDERS.airlock : state.mode === 3 ? PLACEHOLDERS.control : state.mode === 0 ? PLACEHOLDERS.ghost : local ? PLACEHOLDERS.memory : state.create ? PLACEHOLDERS.create : (state.ash && state.ashInstalled) ? PLACEHOLDERS.ash : state.expendable ? PLACEHOLDERS.expendable : PLACEHOLDERS.plain;
+  els.input.placeholder = state.mode === 4 ? PLACEHOLDERS.airlock : copilotSends(els.target.value) ? PLACEHOLDERS.copilot : state.mode === 3 ? PLACEHOLDERS.control : state.mode === 0 ? PLACEHOLDERS.ghost : local ? PLACEHOLDERS.memory : state.create ? PLACEHOLDERS.create : (state.ash && state.ashInstalled) ? PLACEHOLDERS.ash : state.expendable ? PLACEHOLDERS.expendable : PLACEHOLDERS.plain;
 }
 function setAsh(on, { wink = false } = {}) {
   state.ash = on;
@@ -11149,7 +11298,10 @@ els.composer.addEventListener('submit', async (event) => {
       toast(t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.'));
       return;
     }
-    if (wanted >= 3) {
+    if (wanted === 3 && copilotOn()) {
+      // Under the copilot #3 needs no key: written or chosen, it is the copilot's.
+      setMode(3);
+    } else if (wanted >= 3) {
       // The override names the agent that will act: the one the message is addressed to, which is
       // its leading @mention when it has one, as on sending. It used to name the chip's, so
       // «@claude #3 …» with the chip on @gemini armed CONTROL for Gemini, and «#4 @codex …» with
@@ -11170,8 +11322,7 @@ els.composer.addEventListener('submit', async (event) => {
         cancelled: () => { els.input.value = text; autosize(); els.input.focus(); },
       });
       return;
-    }
-    setMode(wanted);
+    } else setMode(wanted);
   }
   if (quoting && !text.startsWith('/')) outgoing = `${quoteHead(quoting)}${outgoing}`;
   if (text.startsWith('/')) {
@@ -11195,7 +11346,8 @@ els.composer.addEventListener('submit', async (event) => {
   const addressed = mention && state.agents.has(mention) ? mention : target;
   // CONTROL and AIRLOCK are armed for one agent. A message that ends up addressed to another one
   // is asked for again, for that one; the keys typed for @gemini never open the project to @claude.
-  if (state.mode >= 3 && state.modeArmedFor && addressed && addressed !== state.modeArmedFor) {
+  const piloted = copilotSends(addressed);
+  if (state.mode >= 3 && !piloted && state.modeArmedFor && addressed && addressed !== state.modeArmedFor) {
     const wanted = state.mode;
     const scopes = state.capabilities[addressed]?.scopes;
     if (els.target.value !== addressed) { els.target.value = addressed; renderPicker(); }
@@ -11210,7 +11362,7 @@ els.composer.addEventListener('submit', async (event) => {
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: once?.effort ?? state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash, draft: draft || undefined, key: state.mode >= 3 ? overridePass(state.mode, addressed) : undefined }),
+      body: JSON.stringify({ text: outgoing, target: addressed || null, model: state.chosenModel[addressed] ?? null, effort: once?.effort ?? state.chosenEffort[addressed] ?? null, attachments: ready.map((item) => item.id), create: state.create, mode: state.mode, ash: state.ashInstalled && state.ash, draft: draft || undefined, copilot: piloted || undefined, key: state.mode >= 3 && !piloted ? overridePass(state.mode, addressed) : undefined }),
     });
     const sentMode = state.mode;
     if (sentMode >= 3 && !overrideGraceLeft(sentMode, addressed)) overridePasses.delete(`${sentMode}:${addressed}`);
@@ -11218,6 +11370,8 @@ els.composer.addEventListener('submit', async (event) => {
       const result = await response.json().catch(() => ({ error: t('Request failed ({status}).', { status: response.status }) }));
       // The pass ran out (the project restarted, or the permission it held ended): the key is
       // asked again, and the message goes once it is in.
+      // The copilot ended while this was being written: said, and the next #3 asks for its key.
+      if (result.copilotOff) { applyCopilot({ active: false }); toast(t('The copilot ended. Send again with the #3 key, or turn it on again.')); return; }
       if (result.needsKey && sentMode >= 3 && addressed) {
         closeOverrideGrace(sentMode, addressed);
         openOverride(addressed, { mode: sentMode, then: () => els.composer.requestSubmit() });
@@ -11773,7 +11927,7 @@ function renderTerminalCard(event) {
     const status = why ? 'stopped' : run.exitCode === null || run.exitCode === undefined ? 'stopped' : run.exitCode === 0 ? 'ok' : 'failed';
     const word = why ? t('halted') : run.exitCode === null || run.exitCode === undefined ? t('did not start') : run.exitCode === 0 ? t('went fine') : t('failed · code {code}', { code: run.exitCode });
     head.append(el('span', `term-status ${status}`, `${status === 'ok' ? '✓' : status === 'failed' ? '✕' : '■'} ${word} · ${((Number(run.durationMs) || 0) / 1000).toFixed(1)}s`));
-    if (run.agent) head.append(paint(el('span', 'term-who', `@${run.agent}`), run.agent));
+    if (run.agent) head.append(paint(el('span', 'term-who', run.auto ? `@${run.agent} · ${t('copilot')}` : `@${run.agent}`), run.agent));
   } else {
     head.title = title ?? name;
     head.append(el('span', 'term-line', title ?? name));

@@ -60,6 +60,7 @@ export function injectRipleyBridge(body) {
 import { QuotaMonitor } from './quota-monitor.mjs';
 import { defaultQuotaSources } from './quota-sources.mjs';
 import { Room } from './room.mjs';
+import { COPILOT_WINDOWS } from './room/copilot.mjs';
 import { OVERRIDE_GRACE, changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, looksLikeCodePrompt, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
@@ -618,6 +619,18 @@ export async function createPulseServer({
     if (pass.once) passes.delete(token);
     return true;
   }
+  // The copilot (src/room/copilot.mjs): one window for the project, opened with the #3 key, up to
+  // 24 hours. In memory only, like the passes: a restart and STOP ALL close it. Every conversation
+  // of the project asks this one when it decides whether a message is a copilot's.
+  let copilot = null;                 // { since, until, minutes, timer }
+  const copilotNow = () => (copilot && copilot.until > Date.now() ? { since: copilot.since, until: copilot.until, minutes: copilot.minutes } : null);
+  const copilotState = () => ({ active: Boolean(copilotNow()), ...(copilotNow() ?? {}), windows: COPILOT_WINDOWS });
+  async function endCopilot(reason) {
+    if (!copilot) return;
+    clearTimeout(copilot.timer);
+    copilot = null;
+    await room.record('copilot.ended', { reason }).catch(() => null);
+  }
   let listening = null;
   const listeningPort = () => listening?.address?.()?.port ?? Number(process.env.PULSE_PORT ?? 4317);
   // One CONTROL desk for the whole project, shared by every conversation alive at once: a single
@@ -637,6 +650,7 @@ export async function createPulseServer({
     bishopForTurn: salasRoom ? async (turn) => moduleById('bishop').promptForTurn({ ...(await moduleContext()), record: (type, payload) => ((turn.turn && liveRooms().find((one) => one.runningTurn?.(turn.turn))) || room).record(type, payload) }, turn) : null,
     // Fase 3e: notes a link with automatic recall brings to a turn. Never in the room of Salas
     // (BISHOP has its own); recorded in the conversation of the turn that read them.
+    copilot: copilotNow,
     linkedForTurn: salasRoom ? null : async (turn) => recallForTurn(await moduleContext(), { ...turn, port: listeningPort(), roomDir,
       record: (type, payload) => ((turn.turn && liveRooms().find((one) => one.runningTurn?.(turn.turn))) || room).record(type, payload) }),
     softTokenBudget,
@@ -2487,6 +2501,31 @@ export async function createPulseServer({
         }
         return sendJson(response, 200, issuePass(agent, mode, Number(payload.minutes) || 0));
       }
+      // The copilot: what it is now, turning it on with the #3 key for a chosen while, turning it off.
+      if (request.method === 'GET' && url.pathname === '/api/copilot') return sendJson(response, 200, copilotState());
+      if (request.method === 'POST' && url.pathname === '/api/copilot') {
+        if (viaPhone) return sendJson(response, 403, { error: t('The copilot is turned on from the computer, not from the phone.') });
+        const payload = await body(request).catch(() => ({}));
+        const minutes = Number(payload.minutes);
+        if (!COPILOT_WINDOWS.includes(minutes)) return sendJson(response, 400, { error: t('Choose how long the copilot lasts: up to 24 hours.') });
+        const now = Date.now();
+        while (keyMisses.length && keyMisses[0] < now - 60000) keyMisses.shift();
+        if (keyMisses.length >= 8) return sendJson(response, 429, { error: t('Too many wrong keys. Wait a minute and try again.') });
+        if (!keyHolds(overrideConfig, { mode: 3, words: payload.words, designation: basename(canonicalProjectRoot) })) {
+          keyMisses.push(now);
+          return sendJson(response, 403, { error: t('That is not it. Try again, or cancel.'), denied: true });
+        }
+        if (copilot) clearTimeout(copilot.timer);
+        const until = now + minutes * 60000;
+        copilot = { since: now, until, minutes, timer: setTimeout(() => { void endCopilot('time'); }, minutes * 60000) };
+        copilot.timer.unref?.();
+        await room.record('copilot.started', { until: new Date(until).toISOString(), minutes });
+        return sendJson(response, 200, copilotState());
+      }
+      if (request.method === 'POST' && url.pathname === '/api/copilot/off') {
+        await endCopilot('human');
+        return sendJson(response, 200, copilotState());
+      }
       // This project's switch for the local AI (src/local-ai.mjs). In «auto» Home decides and the
       // switch does not move; /apply is how Home tells an open project the choice changed.
       if (request.method === 'GET' && url.pathname === '/api/local-ai') return sendJson(response, 200, { project: await localAiHere(), running: Boolean(ollama.running) });
@@ -3276,6 +3315,7 @@ export async function createPulseServer({
         // Every conversation at work, not only the one on screen: the brake is the room's, not the chat's.
         const result = await room.stopAll();
         passes.clear();
+        await endCopilot('stopall');
         for (const held of parked.values()) {
           const more = await held.room.stopAll().catch(() => ({ plans: 0, turns: 0 }));
           result.plans += more.plans ?? 0;
@@ -3450,12 +3490,20 @@ export async function createPulseServer({
         const here = await scopeOf(url);
         if (here.error) return sendJson(response, 404, here);
         const room = here.room;
+        // A copilot message at #3 goes with the copilot's window instead of a pass; from this
+        // computer only. With the window closed it is said, and the page asks for the key again.
+        if (payload.copilot === true && (viaPhone || !copilotNow())) {
+          if (!viaPhone) return sendJson(response, 409, { error: t('The copilot is off: it ended or was stopped. Turn it on again, or send with the #3 key.'), copilotOff: true });
+          delete payload.copilot;
+        }
         // Modes are checked before the turn is accepted, so the composer
         // hears "no" with a reason instead of a silent log line.
         const gate = await room.modeCheck(payload);
         if (!gate.ok) return sendJson(response, gate.status ?? 403, { error: gate.error, mode: gate.mode, maxMode: gate.maxMode });
+        const byCopilot = payload.copilot === true && gate.mode === 3;
+        if (!byCopilot) delete payload.copilot;
         // #3 and #4 go with the pass their key gave, for this agent (above).
-        if (gate.mode >= 3 && !spendPass(payload.key, gate.agent, gate.mode)) return sendJson(response, 403, { error: t('#{n} needs its key. Unlock it again and send.', { n: gate.mode }), mode: gate.mode, needsKey: true });
+        if (gate.mode >= 3 && !byCopilot && !spendPass(payload.key, gate.agent, gate.mode)) return sendJson(response, 403, { error: t('#{n} needs its key. Unlock it again and send.', { n: gate.mode }), mode: gate.mode, needsKey: true });
         delete payload.key;
         const turns = await turnsPolicy();
         if (turns.enabled) {

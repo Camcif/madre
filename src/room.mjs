@@ -41,6 +41,7 @@ import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { parseChoice, withoutChoice } from './choices.mjs';
 import { parseRunRequest, withoutRunRequest, whyText, expandHome } from './runs.mjs';
 import { runSettlement, returnedBlock } from './room/returns.mjs';
+import { copilotSafe, copilotBrief, COPILOT_MAX_ROUNDS } from './room/copilot.mjs';
 import { imageStudioFor } from './image-studio.mjs';
 import { CAPABILITIES, imageModuleState } from './capabilities.mjs';
 import { resolveReferences } from './files.mjs';
@@ -142,6 +143,11 @@ export class Room {
   #dropped = new Set();    // stopped by STOP ALL: they go back only when the human hands them back
   #returning = new Map();  // responseMessageId -> the look in progress, so two never cross
   #returnCap = new Map();  // responseMessageId -> the highest mode its results may go back at
+  // The copilot (src/room/copilot.mjs): the server's window, the command requests its turns left
+  // to run once the turn has let go of the project, and the rounds run by themselves in a row.
+  #copilotNow = () => null;
+  #copilotRuns = [];
+  #copilotRounds = 0;
   #invokers;
   #agentTimeouts;
   #maxMessageChars;
@@ -183,6 +189,7 @@ export class Room {
     toolsForTurn = null,   // async ({ agent, mode, lease, scratchDir }) => MCP server specs from the modules
     bishopForTurn = null,  // async ({ agent, mode, text, preview, turn }) => bounded BISHOP context in Salas
     linkedForTurn = null,  // async ({ agent, mode, text, preview, turn }) => { text, dynamic } notes a link recalls (3e)
+    copilot = null,        // () => { until } while the human's copilot window is open (src/room/copilot.mjs)
     historicalEvents = [],
     invokers = defaultInvokers,
     agentTimeouts = {},
@@ -223,6 +230,7 @@ export class Room {
     this.#maxConcurrentTurns = maxConcurrentTurns;
     this.#planMaxAgeMs = planMaxAgeMs;
     this.#escalation = new Escalation({ escalationMs });
+    this.#copilotNow = typeof copilot === 'function' ? copilot : () => null;
     this.#controlDesk = controlDesk ?? new ControlDesk({ projectRoot });
     this.#budget = new Budget({ softBudget: softTokenBudget });
     this.#budget.seed(historicalEvents, this.#sentinel);
@@ -732,7 +740,7 @@ export class Room {
   settleDistillation() { return this.#archivist.settle(); }
 
   // Can this message go out at this mode? Answered before the turn exists.
-  async modeCheck({ target, text, mode, create = false } = {}) {
+  async modeCheck({ target, text, mode, create = false, copilot = false } = {}) {
     const parsed = parseMessage(text ?? '', target);
     const wanted = normalizeMode(mode, create === true ? 2 : 1);
     if (!parsed.target) return { ok: true, mode: wanted };
@@ -740,8 +748,10 @@ export class Room {
     const scopes = this.scopesFor(agent);
     if (wanted >= 3) {
       // #3 CONTROL and #4 AIRLOCK: the ceiling must allow it, and there is one holder at a time.
-      // A project without git still checkpoints, in MADRE's shadow repository.
-      if (scopes.maxMode < wanted) return { ok: false, status: 403, mode: wanted, maxMode: scopes.maxMode, error: `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label}; raise its max mode to #${wanted} in Settings › Permissions to arm ${MODES[wanted].label}.` };
+      // A project without git still checkpoints, in MADRE's shadow repository. The copilot's window
+      // is the human's own #3 for a while: it reaches any agent whose CLI can write.
+      const byCopilot = copilot === true && wanted === 3 && this.copilotOn() && Boolean(scopes.write?.capable);
+      if (scopes.maxMode < wanted && !byCopilot) return { ok: false, status: 403, mode: wanted, maxMode: scopes.maxMode, error: `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label}; raise its max mode to #${wanted} in Settings › Permissions to arm ${MODES[wanted].label}.` };
       if (this.#controlDesk.holder) return { ok: false, status: 409, mode: wanted, maxMode: scopes.maxMode, error: `@${this.#controlDesk.holder.agent} already holds ${MODES[this.#controlDesk.holder.mode ?? 3].label} of this project; one holder at a time. STOPALL revokes it.` };
       return { ok: true, mode: wanted, maxMode: scopes.maxMode, agent };
     }
@@ -881,7 +891,7 @@ export class Room {
   // The human pressed one line of a ```pulse-run an agent wrote. The client names the request and
   // the line, never the command: what runs is read back from the room's own record of what the
   // agent asked, so a page cannot run anything that was not shown to the human as a button.
-  async runRequested({ responseMessageId, index, returnCap = 3 }) {
+  async runRequested({ responseMessageId, index, returnCap = 3, auto = false }) {
     if (!this.#runsEnabled) return { ok: false, status: 412, error: t('Command requests are off. Enable them in MODULES.') };
     const events = await this.#store.readAll();
     const request = events.find((event) => event.type === 'run.requested' && event.payload.responseMessageId === responseMessageId)?.payload;
@@ -894,11 +904,12 @@ export class Room {
     this.#returnCap.set(responseMessageId, Math.min(this.#returnCap.get(responseMessageId) ?? 3, Number(returnCap) || 1));
     // Taken before the first await below: two presses in a row must not both get through.
     this.#runBusy = true;
-    try { return await this.#runCommand({ request, command, responseMessageId, index }); } finally { this.#runBusy = false; }
+    try { return await this.#runCommand({ request, command, responseMessageId, index, auto }); } finally { this.#runBusy = false; }
   }
 
-  async #runCommand({ request, command, responseMessageId, index }) {
-    const run = { responseMessageId, index, agent: request.agent, line: command.line };
+  async #runCommand({ request, command, responseMessageId, index, auto = false }) {
+    // `auto`: the copilot ran it, nobody pressed it; the card says so.
+    const run = { responseMessageId, index, agent: request.agent, line: command.line, ...(auto ? { auto: 'copilot' } : {}) };
     const startedAt = Date.now();
     await this.#emit('run.started', run);
     let checkpoint = null;
@@ -942,6 +953,9 @@ export class Room {
   stopRun({ responseMessageId, index }) {
     return this.#runDesk.stop('STOP', `${responseMessageId}:${Number(index)}`);
   }
+
+  // Whether the copilot's window is open now: what the server says, nothing kept here.
+  copilotOn() { return Boolean(this.#copilotNow()); }
 
   // The human ran some of the lines and not the rest, and hands back what there is.
   returnRun({ responseMessageId, returnCap = 3 } = {}) {
@@ -994,8 +1008,11 @@ export class Room {
       const wanted = Math.min(this.#returnCap.get(responseMessageId) ?? 3, Math.max(1, normalizeMode(settlement.request.mode ?? asked?.mode, 1)));
       // The mode the asking turn had, if the project still allows it and the agent can take it; a
       // step down otherwise. A CLI that cannot write goes back at #1, not to a refused #2.
-      let mode = Math.min(wanted, Math.max(1, this.scopesFor(agentId).maxMode ?? 1));
-      while (mode > 1 && !(await this.modeCheck({ target: agentId, text: '', mode })).ok) mode -= 1;
+      // A copilot's request goes back under the copilot while the window is open: #3 for any agent
+      // whose CLI writes.
+      const underCopilot = settlement.request.copilot === true && this.copilotOn() && wanted === 3 && Boolean(this.scopesFor(agentId).write?.capable);
+      let mode = underCopilot ? 3 : Math.min(wanted, Math.max(1, this.scopesFor(agentId).maxMode ?? 1));
+      while (mode > 1 && !(await this.modeCheck({ target: agentId, text: '', mode, copilot: underCopilot && mode === 3 })).ok) mode -= 1;
       const sameAgent = asked?.target === agentId;
       const quoted = String(settlement.request.reason ?? '').replace(/\s+/g, ' ').trim();
       const n = settlement.ran;
@@ -1011,8 +1028,34 @@ export class Room {
         effort: sameAgent ? asked?.effort ?? null : null,
         ash: Boolean(asked?.ash?.requested),
         followUp: { kind: 'runs', returns: responseMessageId, block: returned },
+        copilot: underCopilot && mode === 3,
       }, null);
       return { ok: true, status: 200, returned: true, mode };
+    }
+  }
+
+  // The safe lines a copilot turn asked for, run one after another once that turn let go of the
+  // project; the rest of a request waits for the human, as always. Bounded: after a run of rounds
+  // nobody typed between, the room stops and says so instead of looping on a bill.
+  async #flushCopilotRuns() {
+    while (this.#copilotRuns.length && !this.#shuttingDown) {
+      const responseMessageId = this.#copilotRuns.shift();
+      if (!this.copilotOn() || this.#controlDesk.holder) return;
+      if (this.#copilotRounds >= COPILOT_MAX_ROUNDS) {
+        await this.#alert('copilot-rounds', `The copilot ran commands by itself ${COPILOT_MAX_ROUNDS} times in a row; the next ones wait for you. Write to it to go on.`, `copilot-rounds:${responseMessageId}`);
+        return;
+      }
+      const request = (await this.#store.readAll()).find((event) => event.type === 'run.requested' && event.payload?.responseMessageId === responseMessageId)?.payload;
+      const lines = (request?.commands ?? []).map((command, index) => ({ command, index })).filter(({ command }) => command?.argv && copilotSafe(command.argv));
+      if (!lines.length) continue;
+      this.#copilotRounds += 1;
+      for (const { index } of lines) {
+        if (!this.copilotOn()) return;
+        const ran = await this.runRequested({ responseMessageId, index, returnCap: 3, auto: true });
+        // A line that failed to start or ended badly is still an answer: the next one runs, and
+        // the agent reads both when the request goes back.
+        if (!ran.ok && ran.status === 409) return;
+      }
     }
   }
 
@@ -1126,7 +1169,7 @@ export class Room {
     return { messageId: accepted?.messageId ?? null, responseMessageId: accepted?.responseMessageId ?? null, text: reply?.text ?? null, error: reply ? null : failed?.error ?? 'The turn ended without a reply.' };
   }
 
-  async #accept({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false, via = null, followUp = null }, order) {
+  async #accept({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false, via = null, followUp = null, copilot = false }, order) {
     const parsed = parseMessage(text, target);
     const requestedMode = normalizeMode(mode, create === true ? 2 : 1);
     // This is the decision the human made when pressing Send. Capture it before modeCheck() —
@@ -1136,8 +1179,13 @@ export class Room {
     // A message that came from a phone never goes above #2, whatever reached this far (TEL-01): the
     // bridge and the route say so first; the room says it last, for any road added later.
     if (via && requestedMode > PHONE_MAX_MODE) throw new Error('#3 EDIT and #4 FULL ACCESS are opened from the Mac.');
-    const gate = await this.modeCheck({ target, text, mode: requestedMode });
+    // A copilot message: #3, from this computer, while the window is open. Anything else is a message
+    // like any other, at the mode it was sent with.
+    const asCopilot = copilot === true && requestedMode === 3 && !via && !order && this.copilotOn();
+    const gate = await this.modeCheck({ target, text, mode: requestedMode, copilot: asCopilot });
     if (!gate.ok) throw new Error(gate.error);
+    // Rounds a copilot ran by itself count from the last thing the human wrote.
+    if (!followUp) this.#copilotRounds = 0;
     create = requestedMode === 2;
     const ghost = requestedMode === 0;
     const control = requestedMode >= 3;
@@ -1193,6 +1241,7 @@ export class Room {
       // Written by MADRE on the human's behalf: the results of commands an agent asked for.
       auto: followUp?.kind ?? undefined,
       returns: followUp?.returns ?? undefined,
+      copilot: asCopilot || undefined,
     });
     // The human may say what they like; the room only says so, because every agent will read it.
     const exposed = this.#privacy?.hits(text2) ?? 0;
@@ -1260,7 +1309,7 @@ export class Room {
       allowDelegation = false;
       await this.#alert('plan-active', `A plan by @${[...this.#plans.values()][0].orchestrator} is still running. Your message will be answered, but no second plan will start. Type STOPALL to halt every agent.`, `plan-active:${messageId}`);
     }
-    const responseMessageId = await this.#track(this.#dispatch({ messageId, targetId: parsed.target, text: text2, requester: 'you', depth: order ? order.depth : 0, allowDelegation: allowDelegation && !ghost, model: chosenModel, effort: chosenEffort, attachments: files, references, lease, ash: ashActive, mode: ghost ? 0 : control ? requestedMode : (lease ? 2 : 1), returned: followUp?.block ?? null }));
+    const responseMessageId = await this.#track(this.#dispatch({ messageId, targetId: parsed.target, text: text2, requester: 'you', depth: order ? order.depth : 0, allowDelegation: allowDelegation && !ghost, model: chosenModel, effort: chosenEffort, attachments: files, references, lease, ash: ashActive, mode: ghost ? 0 : control ? requestedMode : (lease ? 2 : 1), returned: followUp?.block ?? null, copilot: asCopilot }));
     return { messageId, responseMessageId };
   }
 
@@ -1409,7 +1458,7 @@ export class Room {
 
   // One room turn for one agent. `requester` is who asked ('you' or an
   // orchestrating agent); `depth` 0 turns may delegate, deeper ones may not.
-  async #dispatch({ messageId, targetId, text, requester, depth, planId = null, allowDelegation = true, deferPlan = false, model = null, effort = null, attachments = [], references = [], lease = null, ash = false, mode = 1, escalation = null, returned = null }) {
+  async #dispatch({ messageId, targetId, text, requester, depth, planId = null, allowDelegation = true, deferPlan = false, model = null, effort = null, attachments = [], references = [], lease = null, ash = false, mode = 1, escalation = null, returned = null, copilot = false }) {
     if (this.#shuttingDown) return null;
     const agent = this.#agents.find((item) => item.id === targetId);
     if (!agent?.detected) {
@@ -1473,7 +1522,7 @@ export class Room {
     await this.#emit('agent.started', { messageId, agent: agent.id, handoffId, planId, timeoutMs: this.timeoutFor(agent.id, { writing: Number(mode) >= 2 || Boolean(lease) }) });
     const controller = new AbortController();
     const turn = { controller, promise: null, planId, agent: agent.id, startedAt: Date.now() };
-    turn.promise = this.#runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall, memories, handoffId, signal: controller.signal, model, effort, attachments, references, lease, ash, mode, escalation, returned });
+    turn.promise = this.#runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall, memories, handoffId, signal: controller.signal, model, effort, attachments, references, lease, ash, mode, escalation, returned, copilot });
     this.#turns.set(messageId, turn);
     let outcome = null;
     try {
@@ -1481,6 +1530,8 @@ export class Room {
     } finally {
       this.#turns.delete(messageId);
       if (!this.#turns.size && mode !== 0) this.#archivist.schedule();
+      // What a copilot turn asked to run, now that it has let go of the project.
+      void this.#track(this.#flushCopilotRuns()).catch((error) => console.error(`MADRE copilot could not run: ${error.message}`));
       this.#flushReturns();
     }
     // The orchestrator's turn is over before its plan starts, so it is never
@@ -1492,7 +1543,7 @@ export class Room {
       // The orchestrator may form another wave after seeing the crew's replies. Three waves
       // bound cost and time; a grant for the plan carries forward, only for its authorized scope.
       for (let round = 0; next?.steps.length && round < 3; round += 1) {
-        const continued = await this.#runPlan({ orchestrator: agent.id, parentMessageId: parent, directives: next, lease, ash, mode, grants });
+        const continued = await this.#runPlan({ orchestrator: agent.id, parentMessageId: parent, directives: next, lease, ash, mode, grants, copilot: copilot && this.copilotOn() });
         next = continued?.directives ?? null;
         parent = continued?.responseMessageId ?? parent;
         lease = continued?.lease ?? lease;
@@ -1643,7 +1694,7 @@ export class Room {
     });
   }
 
-  async #runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall = null, memories = null, handoffId, signal, model = null, effort = null, attachments = [], references = [], lease: sharedLease = null, ash = false, mode = 1, escalation = null, returned = null }) {
+  async #runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall = null, memories = null, handoffId, signal, model = null, effort = null, attachments = [], references = [], lease: sharedLease = null, ash = false, mode = 1, escalation = null, returned = null, copilot = false }) {
     // The lease is the human's; what each agent may do inside it is that
     // agent's own enabled scopes. A delegate without file creation runs
     // read-only even while the plan holds a lease.
@@ -1656,7 +1707,9 @@ export class Room {
     let controlRun = null;
     let createRun = null;
     let responseMessageId = null;
-    if (mode >= 3 && (requester === 'you' || planId) && depth <= 1 && agentScopes.maxMode >= mode && enabled.write) {
+    // The copilot's #3 reaches past an agent's max mode, never past what its CLI can write.
+    const asCopilot = copilot === true && mode === 3 && this.copilotOn() && Boolean(agentScopes.write?.capable);
+    if (mode >= 3 && (requester === 'you' || planId) && depth <= 1 && (agentScopes.maxMode >= mode || asCopilot) && (enabled.write || asCopilot)) {
       // CONTROL: the project itself is the writable root, and a checkpoint
       // taken now makes every change of this turn reversible. A plan step gets
       // it when the orchestrator, itself in #3, named #3 for that step.
@@ -1667,6 +1720,8 @@ export class Room {
         const seat = await this.#controlDesk.begin({ agent, messageId, enabledScopes: enabled, mode, signal }).catch((error) => (error?.code === 'ABORT_ERR' ? null : Promise.reject(error)));
         if (!seat) { await this.#emit('message.failed', { messageId, target: agent.id, planId, error: `Stopped while waiting for the project: another turn was writing in it.`, stopped: true }); return null; }
         controlRun = seat.run;
+        // A copilot does not delete: what it removes is put back when the turn settles.
+        if (asCopilot) controlRun.noDeletes = true;
         lease = seat.lease;
         await this.#emit('control.started', seat.announcement);
       }
@@ -1749,7 +1804,7 @@ export class Room {
         : null;
       // The prompt and the shape it was built from: one is sent, the other is kept until the CLI
       // says what it cost, so the bill can be attributed to the blocks that caused it.
-      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, bishop, linked, returned, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
+      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, bishop, linked, returned, copilot: asCopilot && controlRun ? copilotBrief(this.#copilotNow()) : null, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
       this.#promptShape.set(responseMessageId, { parts: shaped.parts, spared: shaped.spared, servers: [this.#memoryServer?.name, ...mcpServers.map((server) => server.name)].filter(Boolean) });
       // What this turn is about to read, said while it is still reading it. The size is exact;
       // only the conversion to tokens is an estimate, and it is made at this room's own rate.
@@ -1867,6 +1922,7 @@ export class Room {
         synthetic: result.synthetic || undefined,
         redacted: guarded.hits || undefined,
         mode: turnMode,
+        copilot: asCopilot && controlRun ? true : undefined,
         leaseId: lease?.leaseId,
         artifacts: artifacts.length ? artifacts : undefined,
         delegates: directives.steps.length ? directives.steps.map((step) => step.agent) : undefined,
@@ -1876,7 +1932,10 @@ export class Room {
         await this.#emit('ash.validated', { messageId, responseMessageId, agent: agent.id, ...validation });
       }
       if (asked) await this.#emit('choice.offered', { messageId, responseMessageId, agent: agent.id, question: asked.question, options: asked.options, recommended: asked.recommended ?? undefined, modes: asked.modes ?? undefined });
-      if (requested) await this.#emit('run.requested', { messageId, responseMessageId, agent: agent.id, reason: requested.reason, commands: requested.commands, mode: turnMode });
+      if (requested) {
+        await this.#emit('run.requested', { messageId, responseMessageId, agent: agent.id, reason: requested.reason, commands: requested.commands, mode: turnMode, copilot: asCopilot && controlRun ? true : undefined });
+        if (asCopilot && controlRun) this.#copilotRuns.push(responseMessageId);
+      }
       if (guarded.hits) await this.#emit('privacy.redacted', { agent: agent.id, messageId, responseMessageId, hits: guarded.hits, kinds: guarded.kinds, marker: this.#privacy.marker });
       if (artifacts.length) {
         await this.#emit('artifacts.created', { leaseId: lease.leaseId, messageId, responseMessageId, agent: agent.id, outDir: lease.relativeDir, files: artifacts });
@@ -1958,7 +2017,7 @@ export class Room {
     }
   }
 
-  async #runPlan({ orchestrator, parentMessageId, directives, lease = null, ash = false, mode = 1, grants = new Map() }) {
+  async #runPlan({ orchestrator, parentMessageId, directives, lease = null, ash = false, mode = 1, grants = new Map(), copilot = false }) {
     const planId = randomUUID();
     const closing = directives.closing ?? 'Review the delegated answers and the work completed. If more work is needed within the permission already granted by the human, finish your reply with one new pulse plan. If a command requested from the human has not run, say what is waiting. Ask the human only for a decision or a new #3/#4 key.';
     // The plan's ceiling is the human's mode: #3 when the orchestrator held CONTROL, #2 while a
@@ -1971,11 +2030,15 @@ export class Room {
     const planGrants = grants;
     const reach = (agent, asked) => Math.max(asked >= 4 ? Math.min(ceiling, 3) : ceiling, planGrants.get(agent) ?? 0);
     const askedOf = (step) => normalizeMode(step.mode, lease ? 2 : 1);
+    // Under the copilot the plan gives each step up to #3 whatever its agent's max mode, as long as
+    // its CLI can write; #4 stays the human's.
+    const underCopilot = () => copilot === true && this.copilotOn();
+    const capOf = (scopes) => (underCopilot() && scopes.write?.capable ? Math.max(scopes.maxMode, 3) : scopes.maxMode);
     const stepMode = (step) => {
       const scopes = this.scopesFor(step.agent);
       const asked = askedOf(step);
-      const granted = Math.min(asked, reach(step.agent, asked), scopes.maxMode);
-      return granted >= 2 && !scopes.write.enabled ? 1 : granted;
+      const granted = Math.min(asked, reach(step.agent, asked), capOf(scopes));
+      return granted >= 2 && !(scopes.write.enabled || (underCopilot() && scopes.write?.capable)) ? 1 : granted;
     };
     const plan = { planId, orchestrator, steps: directives.steps, closing, step: 0, stopped: null, startedAt: Date.now() };
     this.#plans.set(planId, plan);
@@ -2006,7 +2069,7 @@ export class Room {
         const askedMode = askedOf(step);
         // #3/#4 are never granted by an agent's text alone. The room waits for the human's
         // existing key, even when a lower-mode plan asked for a stronger delegate.
-        if (askedMode >= 3 && (askedMode > reach(step.agent, askedMode) || askedMode > stepScopes.maxMode)) {
+        if (askedMode >= 3 && (askedMode > reach(step.agent, askedMode) || askedMode > capOf(stepScopes))) {
           const outcome = await this.#askForMode({ planId, plan, step, index, totalSteps: directives.steps.length + 1, orchestrator, parentMessageId, mode: askedMode });
           if (outcome.scope === 'plan') planGrants.set(step.agent, askedMode);
           if (outcome.scope) wanted = Math.min(askedMode, this.scopesFor(step.agent).maxMode);
@@ -2042,7 +2105,7 @@ export class Room {
           step: index + 1,
           totalSteps: directives.steps.length + 1,
         });
-        await this.#dispatch({ messageId, targetId: step.agent, text: stepText, requester: orchestrator, depth: 1, planId, allowDelegation: false, lease: wanted >= 3 ? null : stepLease, ash, mode: wanted >= 3 ? wanted : stepLease && stepScopes.write.enabled ? 2 : 1, escalation });
+        await this.#dispatch({ messageId, targetId: step.agent, text: stepText, requester: orchestrator, depth: 1, planId, allowDelegation: false, lease: wanted >= 3 ? null : stepLease, ash, mode: wanted >= 3 ? wanted : stepLease && stepScopes.write.enabled ? 2 : 1, escalation, copilot: wanted === 3 && underCopilot() });
       }
       if (!plan.stopped) {
         plan.step = directives.steps.length + 1;

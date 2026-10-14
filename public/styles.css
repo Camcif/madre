@@ -41,6 +41,9 @@
   --text-3: #626a5f;
 
   --phosphor: #9bff66;           /* MOTHER */
+  /* MADRE's own green, which an accent never repaints: the copilot wears it (2026-10-14). */
+  --madre-green: #9bff66;
+  --madre-green-ink: #0a1405;
   --brew: #28fe14;               /* Terminal.app 'Homebrew' green */
   --brew-ink: #041004;
   --phosphor-ink: #0a1405;
@@ -121,6 +124,8 @@
     --text-2: #5a615a;
     --text-3: #767d75;
     --phosphor: #2f8a1c;
+    --madre-green: #2f8a1c;
+    --madre-green-ink: #ffffff;
     --brew: #178f0c;
     --brew-ink: #ffffff;
     --phosphor-ink: #ffffff;
@@ -157,6 +162,8 @@
     --text-2: #5a615a;
     --text-3: #767d75;
     --phosphor: #2f8a1c;
+    --madre-green: #2f8a1c;
+    --madre-green-ink: #ffffff;
     --brew: #178f0c;
     --brew-ink: #ffffff;
     --phosphor-ink: #ffffff;
@@ -829,6 +836,9 @@ textarea::placeholder { color: var(--text-3); }
 .composer.m2 { --mode: var(--mode-2); --mode-ink: var(--mode-2-ink); }
 .composer.m3 { --mode: var(--mode-3); --mode-ink: var(--mode-3-ink); }
 .composer.m4 { --mode: var(--mode-4); --mode-ink: var(--mode-4-ink); }
+/* Under the copilot #3 is MADRE's green, not EDIT's red: the chip, the send and the ring follow. */
+.composer.m3.copilot { --mode: var(--madre-green); --mode-ink: var(--madre-green-ink); }
+.composer.copilot .picker .mode-chip.m3 { --mode: var(--madre-green); }
 .field button[type="submit"] { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: var(--mode, var(--phosphor)); color: var(--mode-ink, var(--phosphor-ink)); cursor: pointer; display: grid; place-items: center; box-shadow: var(--lift-1); transition: background calc(250ms * var(--motion-scale)), box-shadow calc(250ms * var(--motion-scale)); }
 .field button[type="submit"] svg { width: 18px; height: 18px; }
 .field button[type="submit"]:hover { filter: brightness(1.06); }
@@ -5257,6 +5267,35 @@ dialog.custom-window::backdrop { display: none; }
   height: 26px; padding: 0 10px 0 12px; border: 0; border-radius: 999px; background: transparent; box-shadow: none;
 }
 :root[data-scheme] .composer > .pick-options :is(.mode-chip, .model-chip, .effort-chip):is(:hover, :focus-visible, [aria-expanded="true"]) { background: color-mix(in srgb, currentColor 12%, transparent); }
+/* THE COPILOT (2026-10-14): a robot beside mode · model · effort, in the same glass; MADRE's green
+   when it is on, with the time it has left. Its menu says what it does, its switch and how long. */
+.picker .pick-label > .copilot-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font: inherit; letter-spacing: .06em; cursor: pointer; transition: background .18s ease, color .18s ease; }
+.picker .pick-label > .copilot-chip:is(:hover, :focus-visible) { background: color-mix(in srgb, currentColor 12%, transparent); outline: none; }
+.copilot-icon { display: inline-flex; width: 16px; height: 16px; }
+.copilot-icon svg { width: 100%; height: 100%; }
+.picker .pick-label > .copilot-chip.on { color: var(--madre-green); background: color-mix(in srgb, var(--madre-green) 14%, transparent); }
+.picker .pick-label > .copilot-chip .left { font-size: 10px; }
+.copilot-menu { display: grid; gap: 8px; }
+.copilot-menu .copilot-title { display: flex; align-items: center; gap: 8px; margin: 2px 2px 0; color: var(--text); }
+.copilot-menu .copilot-title b { flex: 1; color: var(--text); font-size: 11px; }
+.copilot-menu .copilot-title .copilot-icon { color: var(--madre-green); }
+.copilot-menu .copilot-body { display: grid; gap: 8px; padding: 0 2px 2px; font-family: var(--read, inherit); letter-spacing: 0; }
+.copilot-menu .copilot-body p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+.copilot-menu .copilot-body .copilot-never { color: var(--text-3); }
+.copilot-menu .copilot-body .copilot-state { color: var(--madre-green); font-weight: 600; }
+.copilot-menu .copilot-body .copilot-foot { font-size: 11.5px; color: var(--text-3); }
+.copilot-menu .copilot-how { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+/* A message under the copilot: the box wears green, not EDIT's red. */
+.composer.copilot .field { border-color: var(--madre-green); --ring: 0 0 0 3px color-mix(in srgb, var(--madre-green) 16%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--madre-green) 16%, transparent); }
+.composer.copilot .crew-label { color: var(--madre-green); }
+/* The reply written as the copilot: a green round robot on the agent's own circle, shown on every
+   reply of a run of them, so a glance down the thread says which ones the copilot wrote. */
+#messages .row.copilot > .avatar { position: relative; overflow: visible; }
+#messages .row.copilot.compact > .avatar { visibility: visible; }
+#messages .row.copilot.compact > .avatar > :not(.copilot-badge) { visibility: hidden; }
+#messages .row.copilot > .avatar .copilot-badge { position: absolute; right: -6px; bottom: -6px; z-index: 1; visibility: visible; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 3px; border-radius: 50%; background: var(--madre-green); color: var(--madre-green-ink); box-shadow: 0 0 0 2px var(--bg), 0 2px 6px rgb(0 0 0 / .18); }
+#messages .row.copilot > .avatar .copilot-badge svg { width: 100%; height: 100%; }
+#messages .who .badge.copilot { color: var(--madre-green); background: color-mix(in srgb, var(--madre-green) 14%, transparent); }
 /* The lines of the room that carry a chip: the box's radius follows the chip it holds. */
 :is(:root[data-wallpaper] #messages, .look-preview[data-wallpaper]:not([data-wallpaper="default"])) .system:not(.mother-alert) { border-radius: 18px; padding: 8px 16px 9px; }
 

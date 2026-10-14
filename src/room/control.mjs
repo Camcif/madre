@@ -102,17 +102,21 @@ export class ControlDesk {
     const mine = (path) => Boolean(ownScratch) && path.startsWith(ownScratch);
     const toRevert = new Set(diff.forbidden.filter((path) => !mine(path)));
     if (additive) for (const file of diff.files) if (file.status !== 'A') toRevert.add(file.path);
+    // The copilot does not delete (src/room/copilot.mjs): what it removed comes back.
+    const deleted = new Set(run.noDeletes ? diff.files.filter((file) => file.status === 'D').map((file) => file.path) : []);
+    for (const path of deleted) toRevert.add(path);
     let reverted = [];
     if (toRevert.size) {
       const restored = await restoreCheckpoint(this.#projectRoot, run.checkpoint, { paths: [...toRevert] });
       reverted = [...restored.restored, ...restored.removed];
     }
     const kept = diff.files.filter((file) => !toRevert.has(file.path));
-    const changes = { checkpointId: run.checkpoint.id, agent: run.agent, messageId: run.messageId, mode: run.mode ?? 3, files: kept, stat: diff.stat, forbiddenReverted: [...controls, ...reverted.filter((path) => diff.forbidden.includes(path) && !mine(path))], existingReverted: additive ? reverted.filter((path) => !diff.forbidden.includes(path)) : [] };
+    const changes = { checkpointId: run.checkpoint.id, agent: run.agent, messageId: run.messageId, mode: run.mode ?? 3, files: kept, stat: diff.stat, forbiddenReverted: [...controls, ...reverted.filter((path) => diff.forbidden.includes(path) && !mine(path))], existingReverted: additive ? reverted.filter((path) => !diff.forbidden.includes(path)) : [], ...(deleted.size ? { deletesReverted: [...deleted] } : {}) };
     const count = changes.files.length;
     const notes = [
       changes.forbiddenReverted.length ? `${changes.forbiddenReverted.length} write(s) into forbidden zones were reverted.` : null,
       changes.existingReverted.length ? `${changes.existingReverted.length} change(s) to existing files were put back: CREATE only adds.` : null,
+      deleted.size ? `${deleted.size} deleted file(s) were put back: the copilot does not delete.` : null,
     ].filter(Boolean).join(' ');
     changes.message = `${count ? `@${run.agent} ${additive ? 'created' : 'changed'} ${count} file(s) in the project.` : `@${run.agent} ${additive ? 'created' : 'changed'} nothing in the project.`}${notes ? ` ${notes}` : ''}`;
     return changes;
