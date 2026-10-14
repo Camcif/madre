@@ -12084,10 +12084,11 @@ function drawFilesTarget() {
 // already uses, each one started and checked by MADRE before an agent gets it (src/modules/
 // mcp-connect.mjs). A row says what it is, whether it answered and with how many tools, from which
 // mode its tools that act are handed, and the one thing to do when it needs something.
-const mcpUI = { servers: null, adding: null, found: null, picked: new Set(), open: new Set(), said: null };
+const mcpUI = { servers: null, adding: null, found: null, picked: new Set(), open: new Set(), said: null, asked: false };
 function mcpStatus() {
   const servers = mcpUI.servers;
-  if (!servers) return { line: t('Reading…') };
+  // The board shows this card before anyone opens it: it reads its list once, by itself.
+  if (!servers) { if (!mcpUI.asked) { mcpUI.asked = true; void loadMcp(); } return { line: t('Reading…') }; }
   if (!servers.length) return { line: t('No servers yet') };
   const ready = servers.filter((one) => one.enabled && !one.problem && one.tools?.length).length;
   const stuck = servers.filter((one) => one.enabled && (one.problem || one.needsAuth));
