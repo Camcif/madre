@@ -10105,7 +10105,7 @@ if (initial.version) {
 }
 adoptLanguage(initial.language);
 // Whether the copilot is on for this project, so the robot and the mode say so from the start.
-void loadCopilot();
+void loadCopilot().then(() => showNewHints());
 // Behind the bridge this page is on a phone (docs/MOBILE.md): it says so, offers the way back to
 // the list of rooms, and leaves the Mac's keys to the Mac.
 state.device = initial.device ?? null;
@@ -17752,7 +17752,10 @@ function showFirstTouch(hint, button) {
     }
     const left = Math.min(window.innerWidth - width - 12, Math.max(12, box.left + box.width / 2 < window.innerWidth / 2 ? box.left : box.right - width));
     card.style.left = `${left}px`;
-    card.style.top = `${box.bottom + 12}px`;
+    // A button at the foot of the window (the robot under the box) gets its card above it.
+    const above = box.bottom + 12 + card.offsetHeight > window.innerHeight - 8;
+    card.classList.toggle('above', above);
+    card.style.top = `${above ? Math.max(12, box.top - 12 - card.offsetHeight) : box.bottom + 12}px`;
     card.style.setProperty('--arrow', `${Math.min(width - 20, Math.max(14, box.left + box.width / 2 - left))}px`);
   };
   card.style.visibility = 'hidden';
@@ -17773,6 +17776,27 @@ function showFirstTouch(hint, button) {
   ok.focus({ preventScroll: true });
 }
 for (const id of Object.keys(FIRST_TOUCH)) document.querySelector(FIRST_TOUCH[id].button)?.addEventListener('click', () => firstTouch(id));
+
+// What a small version brings is said with the same cards, once each, on their own: no welcome and
+// no tour (1.0.2: the copilot and Connect MCP). Only when the room is quiet — no dialog open, no
+// other card — one after the other, each pointing at where it lives.
+const NEW_HINTS = [
+  { id: 'new-copilot', button: '.copilot-chip', title: t('New: Copilot'), text: t('Turn it on from the robot and, for the time you choose, the agent you write to drives the project: it edits, plans and runs the safe commands by itself. It asks for the #3 key once.') },
+  { id: 'new-mcp', button: '#custom-button', panel: '#settings', title: t('New: Connect MCP'), text: t('In Settings › Connect MCP, add the tools this project\'s agents can use — a command on this computer or an address on the internet — or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.') },
+];
+function showNewHints(delay = 2500) {
+  if (state.device) return;
+  setTimeout(() => {
+    const next = NEW_HINTS.find((hint) => !hintsSeen()[hint.id] && document.querySelector(hint.button)?.getClientRects().length);
+    if (!next) return;
+    // Not over something the person is already reading: tried again later, never stacked.
+    if (document.querySelector('dialog[open], .hint-card') || !els.onboarding.hidden) { showNewHints(8000); return; }
+    try { localStorage.setItem(HINTS_KEY, JSON.stringify({ ...hintsSeen(), [next.id]: true })); } catch { return; }
+    showFirstTouch(next, document.querySelector(next.button));
+    const card = document.querySelector('.hint-card');
+    const watch = setInterval(() => { if (!card?.isConnected) { clearInterval(watch); showNewHints(600); } }, 400);
+  }, delay);
+}
 
 /* ---------- What's new: once per version, after an update. ---------- */
 

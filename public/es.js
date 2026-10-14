@@ -4874,4 +4874,10 @@ export const ES = {
   'Copilot on. Say what you want done; it edits, plans and checks on its own.': 'Copiloto encendido. Di qué quieres lograr; edita, planea y revisa por su cuenta.',
   '@madre is in the project · {version}': '@madre está en el proyecto · {version}',
   '@madre left the project: Ollama has no chat model running': '@madre salió del proyecto: Ollama no tiene un modelo de chat corriendo',
+  'New: Copilot': 'Nuevo: Copiloto',
+  'Turn it on from the robot and, for the time you choose, the agent you write to drives the project: it edits, plans and runs the safe commands by itself. It asks for the #3 key once.':
+    'Enciéndelo desde el robot y, por el tiempo que elijas, el agente al que le escribes conduce el proyecto: edita, planea y corre solo los comandos seguros. Pide la llave de #3 una sola vez.',
+  'New: Connect MCP': 'Nuevo: Conectar MCP',
+  "In Settings › Connect MCP, add the tools this project's agents can use — a command on this computer or an address on the internet — or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.":
+    'En Ajustes › Conectar MCP agrega las herramientas que pueden usar los agentes de este proyecto —un comando en esta computadora o una dirección en internet— o trae las que ya usas en Claude Code, Codex, Gemini o Cursor.',
 };

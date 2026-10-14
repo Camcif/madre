@@ -2919,6 +2919,7 @@ dialog.whats-new::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: bl
   background: var(--panel); border-left: 1px solid var(--line-2); border-top: 1px solid var(--line-2); transform: rotate(45deg);
 }
 @media (prefers-reduced-motion: reduce) { .hint-card { animation: none; } }
+.hint-card.above::before { top: auto; bottom: -7px; border-left: 0; border-top: 0; border-right: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
 .hint-card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
 .hint-card p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
 .hint-ok { margin-top: 12px; border: 0; border-radius: 10px; padding: 7px 14px; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
