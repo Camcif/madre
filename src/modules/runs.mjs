@@ -2,8 +2,8 @@
 //
 // Below #4 AIRLOCK an agent cannot run anything, and some answers turn on a command anyway: the
 // tests after a fix, a build, a linter. This gives that request a shape — a fenced block the room
-// turns into one button per command — and brings the output back to the room as a card every
-// agent reads on its next turn.
+// turns into one button per command — and brings the output back to the room as a card, and to
+// the agent that asked in a turn of its own once every line has run (src/room/returns.mjs).
 //
 // Nothing an agent writes runs by itself. Each line is pressed by the human, runs alone from the
 // project root with no shell, and is photographed first so UNDO can put the files back. What a
@@ -22,7 +22,7 @@ export default defineModule({
   name: 'Commands',
   vendor: 'MADRE',
   version: '1.0.0',
-  summary: 'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a restore point is taken first, and the output comes back to the project. Costs about 300 tokens of instruction per turn below FULL ACCESS while it is on.',
+  summary: 'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a restore point is taken first, and when it has run the output goes back to the agent that asked, which goes on. Costs about 300 tokens of instruction per turn below FULL ACCESS while it is on.',
   creates: ['nothing in the project', 'a switch in ~/.pulse/config.json'],
   async status(ctx) {
     return {

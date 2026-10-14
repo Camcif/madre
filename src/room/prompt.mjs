@@ -47,10 +47,11 @@ export const BLOCK_SOURCES = {
   abilities: { when: 'this turn may open a plan', where: 'Settings › Agents for each agent\'s abilities · Settings › Permissions for its max mode' },
   attachments: { when: 'the message carries attached files', where: null },
   references: { when: 'the message points at project files with !', where: null },
+  returned: { when: 'the human ran commands this agent asked for and MADRE hands it their output', where: 'MODULES → RUNS' },
   ask: { when: 'the human is the one asking', where: null },
 };
 
-export const PROMPT_BLOCKS = ['room', 'who', 'style', 'privacy', 'madre', 'memory-server', 'mode', 'inspect', 'ash', 'mother', 'mcp', 'bishop', 'sdk', 'lease', 'control-held', 'escalation', 'web', 'shared-lease', 'memories', 'recall', 'linked', 'context', 'delegation', 'choices', 'runs', 'abilities', 'attachments', 'references', 'ask'];
+export const PROMPT_BLOCKS = ['room', 'who', 'style', 'privacy', 'madre', 'memory-server', 'mode', 'inspect', 'ash', 'mother', 'mcp', 'bishop', 'sdk', 'lease', 'control-held', 'escalation', 'web', 'shared-lease', 'memories', 'recall', 'linked', 'context', 'delegation', 'choices', 'runs', 'abilities', 'attachments', 'references', 'returned', 'ask'];
 
 // Whether this turn could plausibly produce a MADRE module. The SDK block is long and is only
 // ever of use when the human is asking for one, so it is not carried by every leased turn. The
@@ -73,7 +74,7 @@ export function sparedChars(options) {
 export function promptParts({
   agent, text, requester, depth, allowDelegation, context, recall = null, memories = null,
   attachments = [], references = [], lease = null, scopes = null, imageStudio = null,
-  sharedLeaseHint = null, ash = false, choices = false, runs = false, mode = 1, escalation = null, mcpServers = [], bishop = null, linked = null,
+  sharedLeaseHint = null, ash = false, choices = false, runs = false, mode = 1, escalation = null, mcpServers = [], bishop = null, linked = null, returned = null,
   // What the room adds:
   others = [], delegation = true, maxPlanSteps = 4, scopesFor = () => ({}), motherLines = [], memoryServer = null, controlHolder = null, privacyMarker = '[ENTIDAD-ORG]', madreModel = null, sdk = null,
 }) {
@@ -97,7 +98,9 @@ export function promptParts({
       memoryServer
         ? `The room's memory is yours to query through the ${memoryServer.name} MCP tools: memory_search (meaning-aware search over everything said outside GHOST plus the distilled notes), memory_recall (exact text of a ledger sequence range), memory_notes, memory_timeline, project_state. Use them before saying something was never discussed or deciding something the room may already have settled; any <memories> and <memory> blocks below are only the automatic first pass. Memories are distilled automatically after the fact; only when the human explicitly asks you to remember, note or save something, call memory_note with it (kind, one sentence, sources) instead of creating a file. That works in any mode and needs no permission. Never ask @madre to save, remember or generate a memory: @madre only answers questions about what the room remembers; saving is your memory_note call.`
         : null },
-    { id: 'mode', text: `Permission mode for this turn: #${mode} ${MODES[mode]?.label ?? ''}.${mode === 0 ? ' This exchange is off the record: it is not written to the room transcript, no other agent will see it, and nothing you say here can be referred to later. Do not coordinate with other agents.' : mode === 2 ? ' You may create files, only inside the lease directory described below.' : ' Read-only: you may read the project and coordinate, not create or modify files.'}` },
+    // #3 and #4 used to fall into the last branch and read «Read-only» right above the lease that
+    // gave them the project: with #4 open, Codex answered that it would only inspect (2026-10-14).
+    { id: 'mode', text: `Permission mode for this turn: #${mode} ${MODES[mode]?.label ?? ''}.${mode === 0 ? ' This exchange is off the record: it is not written to the room transcript, no other agent will see it, and nothing you say here can be referred to later. Do not coordinate with other agents.' : mode === 2 ? ' You may create files, only inside the lease directory described below.' : mode === 3 ? ' You may read, create and modify the project\'s files as described below; you cannot run commands yourself.' : mode === 4 ? ' You may modify the project and run commands as described below.' : ' Read-only: you may read the project and coordinate, not create or modify files.'}${mode >= 1 && mode <= 3 && requester === 'you' ? ` If going on needs a higher mode, ask for it in one line with the mode and how long you need it, like "I need ${mode === 3 ? '#4 for 5 min' : '#3 for 15 min'}: <why>" (#3 holds 5, 15 or 30 min; #4 holds 5): the human gets a button for it.` : ''}` },
     { id: 'inspect', text: lease ? (lease.airlock ? 'Inspect the project as needed; the airlock is open for you this turn, as described below.' : lease.control ? 'Inspect the project as needed; you hold it for this turn, as described below.' : lease.create ? 'Inspect the project as needed; you may add new files to it as described below, never change existing ones.' : 'Inspect the project as needed; the only writable place is the creation lease directory below.') : `Inspect the project only as needed. Operate read-only and do not modify files.${scopes?.web ? '' : ' Do not access the web.'}` },
     { id: 'ash', text: ash ? 'Ash: answer in compact prose. Say it once, drop the preamble and the summary of what you are about to say, and keep names, negation, numbers, paths, safety details and any ```pulse block exactly as they are. Brevity is in how you write, never in what you leave out.' : null },
     { id: 'mother', text:
@@ -151,12 +154,14 @@ export function promptParts({
         '<why you need it, one line>',
         '$ <command>',
         '```',
-        `The reason first, then one command per line, each starting with "$", at most 5, nothing after the block. There is no shell: each line runs alone from the project root, so no pipes, &&, redirections, $VARIABLES, globs or cd; ~/ is the home folder. Quote arguments with spaces. MADRE shows each line as a button; nothing runs until the human presses it, and its output comes back to the room for your next turn. Ask only for what you cannot learn by reading the files, and never for something that changes what lives outside this machine. A server for the human to open in the room's browser must listen on 127.0.0.1 only ("python3 -m http.server 8000 --bind 127.0.0.1", "npx serve -l tcp://127.0.0.1:3000", "npx vite --host 127.0.0.1"): the room will not open one that listens on the whole network. A server keeps running until the human stops it from its card.`,
+        `The reason first, then one command per line, each starting with "$", at most 5, nothing after the block. There is no shell: each line runs alone from the project root, so no pipes, &&, redirections, $VARIABLES, globs or cd; ~/ is the home folder. Quote arguments with spaces. MADRE shows each line as a button; nothing runs until the human presses it, and once they have run MADRE hands you their output in a new turn, at this same mode, so you can go on: do not ask for them again. Ask only for what you cannot learn by reading the files, and never for something that changes what lives outside this machine. A server for the human to open in the room's browser must listen on 127.0.0.1 only ("python3 -m http.server 8000 --bind 127.0.0.1", "npx serve -l tcp://127.0.0.1:3000", "npx vite --host 127.0.0.1"): the room will not open one that listens on the whole network. A server keeps running until the human stops it from its card.`,
       ].join('\n')
       : null },
     { id: 'abilities', text: mayDelegate ? `Abilities right now (route each step to an agent that can do it):\n${[agent.id, ...others].map((id) => abilityLine(id, scopesFor(id))).join('\n')}` : null },
     { id: 'attachments', text: attached },
     { id: 'references', text: referenced },
+    // What the commands it asked for said, handed back by the room (src/room/returns.mjs).
+    { id: 'returned', text: returned },
     { id: 'ask', text:
       requester === 'you'
         ? `User message: ${text}`

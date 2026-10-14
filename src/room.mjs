@@ -40,6 +40,7 @@ import { validateAshReply } from './modules/ash-policy.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
 import { parseChoice, withoutChoice } from './choices.mjs';
 import { parseRunRequest, withoutRunRequest, whyText, expandHome } from './runs.mjs';
+import { runSettlement, returnedBlock } from './room/returns.mjs';
 import { imageStudioFor } from './image-studio.mjs';
 import { CAPABILITIES, imageModuleState } from './capabilities.mjs';
 import { resolveReferences } from './files.mjs';
@@ -134,6 +135,13 @@ export class Room {
   #mother = null;          // MotherChannel: her coded words to the crew
   #shuttingDown = false;
   #inflight = new Set();   // top-level dispatches, from send() and MOTHER, until they settle
+  // Commands an agent asked for, handed back to it once they ran (room/returns.mjs): the ones
+  // waiting for the agent to be free, the ones already handed back, and the ones being handed now.
+  #returns = new Map();    // responseMessageId -> { partial }
+  #returned = new Set();
+  #dropped = new Set();    // stopped by STOP ALL: they go back only when the human hands them back
+  #returning = new Map();  // responseMessageId -> the look in progress, so two never cross
+  #returnCap = new Map();  // responseMessageId -> the highest mode its results may go back at
   #invokers;
   #agentTimeouts;
   #maxMessageChars;
@@ -873,7 +881,7 @@ export class Room {
   // The human pressed one line of a ```pulse-run an agent wrote. The client names the request and
   // the line, never the command: what runs is read back from the room's own record of what the
   // agent asked, so a page cannot run anything that was not shown to the human as a button.
-  async runRequested({ responseMessageId, index }) {
+  async runRequested({ responseMessageId, index, returnCap = 3 }) {
     if (!this.#runsEnabled) return { ok: false, status: 412, error: 'Command requests are off. Enable them in MODULES.' };
     const events = await this.#store.readAll();
     const request = events.find((event) => event.type === 'run.requested' && event.payload.responseMessageId === responseMessageId)?.payload;
@@ -882,6 +890,8 @@ export class Room {
     if (!command.argv) return { ok: false, status: 422, error: `That line does not run: it ${whyText(command)}.` };
     if (this.#runBusy || this.#runDesk.busy) return { ok: false, status: 409, error: 'A command is already running; wait for it or STOPALL.' };
     if (this.#controlDesk.holder) return { ok: false, status: 409, error: `@${this.#controlDesk.holder.agent} holds ${MODES[this.#controlDesk.holder.mode ?? 3].label} of this project; run it when the turn ends.` };
+    // A line pressed from a phone hands its results back at #2 at most, the phone's own ceiling.
+    this.#returnCap.set(responseMessageId, Math.min(this.#returnCap.get(responseMessageId) ?? 3, Number(returnCap) || 1));
     // Taken before the first await below: two presses in a row must not both get through.
     this.#runBusy = true;
     try { return await this.#runCommand({ request, command, responseMessageId, index }); } finally { this.#runBusy = false; }
@@ -910,11 +920,14 @@ export class Room {
           args: [],
           run: { ...run, exitCode: result.exitCode, durationMs: result.durationMs, stoppedBy: result.stoppedBy, served: result.serving ?? undefined, checkpointId: checkpoint?.id, files: changes?.files.length ? changes.files.slice(0, 40) : undefined },
         });
+        // The last line of the request answered: the agent that asked hears how it went.
+        void this.#maybeReturnRun(responseMessageId).catch((error) => console.error(`MADRE could not hand the commands back: ${error.message}`));
         return { ...result, sequence: event.sequence };
       });
     const first = await Promise.race([finished.then((ended) => ({ ended })), serving.then((where) => ({ where }))]);
     if (first.where) {
       await this.#emit('run.serving', { ...run, ...first.where });
+      void this.#maybeReturnRun(responseMessageId).catch((error) => console.error(`MADRE could not hand the commands back: ${error.message}`));
       finished.catch(() => null);
       return { ok: true, status: 200, result: { serving: first.where } };
     }
@@ -924,6 +937,87 @@ export class Room {
   // The human pressed STOP on one running command's card.
   stopRun({ responseMessageId, index }) {
     return this.#runDesk.stop('STOP', `${responseMessageId}:${Number(index)}`);
+  }
+
+  // The human ran some of the lines and not the rest, and hands back what there is.
+  returnRun({ responseMessageId, returnCap = 3 } = {}) {
+    const id = String(responseMessageId ?? '');
+    this.#returnCap.set(id, Math.min(this.#returnCap.get(id) ?? 3, Number(returnCap) || 1));
+    return this.#maybeReturnRun(id, { partial: true });
+  }
+
+  // The commands an agent asked for go back to it, once: when every line that can run has an
+  // answer, or when the human hands back what ran. If that agent is still answering, or a plan is
+  // running, it waits for the room to be free (#flushReturns). The turn it starts is the human's —
+  // they pressed the lines — at the mode the asking turn had, never above #3: #4 runs its own
+  // commands and never asks.
+  async #maybeReturnRun(responseMessageId, options = {}) {
+    // One look at a time per request: a line that ends while the human presses «hand back» waits
+    // for the other look instead of being told it was already done.
+    const ahead = this.#returning.get(responseMessageId);
+    const look = (ahead ? ahead.catch(() => null) : Promise.resolve()).then(() => this.#returnRunNow(responseMessageId, options));
+    this.#returning.set(responseMessageId, look);
+    try { return await look; } finally { if (this.#returning.get(responseMessageId) === look) this.#returning.delete(responseMessageId); }
+  }
+
+  async #returnRunNow(responseMessageId, { partial = false } = {}) {
+    if (!responseMessageId || this.#shuttingDown) return { ok: false, status: 409, error: t('MADRE is closing.') };
+    if (this.#returned.has(responseMessageId)) return { ok: false, status: 409, error: t('Those results were already handed back.') };
+    if (partial) this.#dropped.delete(responseMessageId);
+    else if (this.#dropped.has(responseMessageId)) return { ok: false, status: 409, error: t('STOP ALL held these results; hand them back from their card.') };
+    {
+      const events = await this.#store.readAll();
+      if (events.some((event) => event.type === 'message.created' && event.payload?.returns === responseMessageId)) {
+        this.#returned.add(responseMessageId);
+        return { ok: false, status: 409, error: t('Those results were already handed back.') };
+      }
+      const settlement = runSettlement(events, responseMessageId);
+      if (!settlement.request) return { ok: false, status: 404, error: t('That command request is not in this room.') };
+      if (!settlement.ran) return { ok: false, status: 409, error: t('Nothing of that request has run yet.') };
+      if (!settlement.done && !partial) return { ok: true, status: 202, waiting: true };
+      if (this.#runDesk.runningFor(`${responseMessageId}:`)) return { ok: false, status: 409, error: t('A command of that request is still running; wait for it to end.') };
+      const agentId = settlement.request.agent;
+      // STOP ALL may have come while the ledger was read.
+      if (!partial && this.#dropped.has(responseMessageId)) return { ok: false, status: 409, error: t('STOP ALL held these results; hand them back from their card.') };
+      if (this.#plans.size > 0 || [...this.#turns.values()].some((turn) => turn.agent === agentId)) {
+        this.#returns.set(responseMessageId, { partial: partial || Boolean(this.#returns.get(responseMessageId)?.partial) });
+        return { ok: true, status: 202, queued: true };
+      }
+      this.#returns.delete(responseMessageId);
+      this.#returned.add(responseMessageId);
+      const asked = events.find((event) => event.type === 'message.created' && event.payload?.messageId === settlement.request.messageId)?.payload ?? null;
+      const reply = events.find((event) => event.type === 'message.created' && event.payload?.messageId === responseMessageId);
+      const wanted = Math.min(this.#returnCap.get(responseMessageId) ?? 3, Math.max(1, normalizeMode(settlement.request.mode ?? asked?.mode, 1)));
+      // The mode the asking turn had, if the project still allows it; a step down otherwise.
+      let mode = wanted;
+      while (mode > 1 && !(await this.modeCheck({ target: agentId, text: '', mode })).ok) mode -= 1;
+      const sameAgent = asked?.target === agentId;
+      const quoted = String(settlement.request.reason ?? '').replace(/\s+/g, ' ').trim();
+      const n = settlement.ran;
+      const total = settlement.runnable.length;
+      const said = settlement.done
+        ? n === 1 ? t('The command you asked for ran. Go on with what you proposed.') : t('The {n} commands you asked for ran. Go on with what you proposed.', { n })
+        : t('{n} of the {total} commands you asked for ran. Go on with what you proposed.', { n, total });
+      const text = `↩ @${agentId}${reply?.sequence ? ` #${reply.sequence}` : ''}: “${quoted.length > 120 ? `${quoted.slice(0, 119)}…` : quoted}”\n${said}`;
+      const returned = returnedBlock({ settlement, asking: asked?.text ?? null, said: reply?.payload?.text ?? null, replySequence: reply?.sequence ?? null });
+      await this.#accept({
+        text, target: agentId, mode,
+        model: sameAgent ? asked?.model ?? null : null,
+        effort: sameAgent ? asked?.effort ?? null : null,
+        ash: Boolean(asked?.ash?.requested),
+        followUp: { kind: 'runs', returns: responseMessageId, block: returned },
+      }, null);
+      return { ok: true, status: 200, returned: true, mode };
+    }
+  }
+
+  // What waited for the room to be free goes now, oldest first, one at a time.
+  #flushReturns() {
+    if (!this.#returns.size || this.#shuttingDown || this.#plans.size > 0) return;
+    for (const [responseMessageId, { partial }] of this.#returns) {
+      void this.#track(this.#maybeReturnRun(responseMessageId, { partial })).catch((error) => console.error(`MADRE could not hand the commands back: ${error.message}`));
+      return;
+    }
   }
 
   ashEnabled() {
@@ -1027,7 +1121,7 @@ export class Room {
     return { messageId: accepted?.messageId ?? null, responseMessageId: accepted?.responseMessageId ?? null, text: reply?.text ?? null, error: reply ? null : failed?.error ?? 'The turn ended without a reply.' };
   }
 
-  async #accept({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false, via = null }, order) {
+  async #accept({ text, target, model = null, effort = null, attachments = [], create = false, ash = false, mode = undefined, draft = false, via = null, followUp = null }, order) {
     const parsed = parseMessage(text, target);
     const requestedMode = normalizeMode(mode, create === true ? 2 : 1);
     // This is the decision the human made when pressing Send. Capture it before modeCheck() —
@@ -1091,6 +1185,9 @@ export class Room {
       attachments: files.length ? files.map((file) => ({ id: file.id, name: file.name, fileName: file.fileName, size: file.size, contentType: file.contentType })) : undefined,
       references: references.length ? references.map(({ excerpt, ...reference }) => reference) : undefined,
       create: create === true ? true : undefined,
+      // Written by MADRE on the human's behalf: the results of commands an agent asked for.
+      auto: followUp?.kind ?? undefined,
+      returns: followUp?.returns ?? undefined,
     });
     // The human may say what they like; the room only says so, because every agent will read it.
     const exposed = this.#privacy?.hits(text2) ?? 0;
@@ -1158,7 +1255,7 @@ export class Room {
       allowDelegation = false;
       await this.#alert('plan-active', `A plan by @${[...this.#plans.values()][0].orchestrator} is still running. Your message will be answered, but no second plan will start. Type STOPALL to halt every agent.`, `plan-active:${messageId}`);
     }
-    const responseMessageId = await this.#track(this.#dispatch({ messageId, targetId: parsed.target, text: text2, requester: 'you', depth: order ? order.depth : 0, allowDelegation: allowDelegation && !ghost, model: chosenModel, effort: chosenEffort, attachments: files, references, lease, ash: ashActive, mode: ghost ? 0 : control ? requestedMode : (lease ? 2 : 1) }));
+    const responseMessageId = await this.#track(this.#dispatch({ messageId, targetId: parsed.target, text: text2, requester: 'you', depth: order ? order.depth : 0, allowDelegation: allowDelegation && !ghost, model: chosenModel, effort: chosenEffort, attachments: files, references, lease, ash: ashActive, mode: ghost ? 0 : control ? requestedMode : (lease ? 2 : 1), returned: followUp?.block ?? null }));
     return { messageId, responseMessageId };
   }
 
@@ -1253,6 +1350,9 @@ export class Room {
     const turns = this.#turns.size;
     for (const plan of this.#plans.values()) plan.stopped = reason;
     this.#escalation.settleAll(null, 'stopped');
+    // Results waiting to go back stay with the human: STOP ALL means nothing starts by itself.
+    for (const id of [...this.#returns.keys(), ...this.#returning.keys()]) this.#dropped.add(id);
+    this.#returns.clear();
     for (const turn of this.#turns.values()) turn.controller.abort(reason);
     this.#runDesk.stop('STOPALL');
     await this.#emit('room.stopped', { reason, plans, turns, agents: [...new Set([...this.#turns.values()].map((turn) => turn.agent))] });
@@ -1304,7 +1404,7 @@ export class Room {
 
   // One room turn for one agent. `requester` is who asked ('you' or an
   // orchestrating agent); `depth` 0 turns may delegate, deeper ones may not.
-  async #dispatch({ messageId, targetId, text, requester, depth, planId = null, allowDelegation = true, deferPlan = false, model = null, effort = null, attachments = [], references = [], lease = null, ash = false, mode = 1, escalation = null }) {
+  async #dispatch({ messageId, targetId, text, requester, depth, planId = null, allowDelegation = true, deferPlan = false, model = null, effort = null, attachments = [], references = [], lease = null, ash = false, mode = 1, escalation = null, returned = null }) {
     if (this.#shuttingDown) return null;
     const agent = this.#agents.find((item) => item.id === targetId);
     if (!agent?.detected) {
@@ -1368,7 +1468,7 @@ export class Room {
     await this.#emit('agent.started', { messageId, agent: agent.id, handoffId, planId, timeoutMs: this.timeoutFor(agent.id, { writing: Number(mode) >= 2 || Boolean(lease) }) });
     const controller = new AbortController();
     const turn = { controller, promise: null, planId, agent: agent.id, startedAt: Date.now() };
-    turn.promise = this.#runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall, memories, handoffId, signal: controller.signal, model, effort, attachments, references, lease, ash, mode, escalation });
+    turn.promise = this.#runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall, memories, handoffId, signal: controller.signal, model, effort, attachments, references, lease, ash, mode, escalation, returned });
     this.#turns.set(messageId, turn);
     let outcome = null;
     try {
@@ -1376,6 +1476,7 @@ export class Room {
     } finally {
       this.#turns.delete(messageId);
       if (!this.#turns.size && mode !== 0) this.#archivist.schedule();
+      this.#flushReturns();
     }
     // The orchestrator's turn is over before its plan starts, so it is never
     // counted as in flight while the others work.
@@ -1537,7 +1638,7 @@ export class Room {
     });
   }
 
-  async #runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall = null, memories = null, handoffId, signal, model = null, effort = null, attachments = [], references = [], lease: sharedLease = null, ash = false, mode = 1, escalation = null }) {
+  async #runTurn({ messageId, agent, text, requester, depth, planId, allowDelegation, context, recall = null, memories = null, handoffId, signal, model = null, effort = null, attachments = [], references = [], lease: sharedLease = null, ash = false, mode = 1, escalation = null, returned = null }) {
     // The lease is the human's; what each agent may do inside it is that
     // agent's own enabled scopes. A delegate without file creation runs
     // read-only even while the plan holds a lease.
@@ -1642,7 +1743,7 @@ export class Room {
         : null;
       // The prompt and the shape it was built from: one is sent, the other is kept until the CLI
       // says what it cost, so the bill can be attributed to the blocks that caused it.
-      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, bishop, linked, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
+      const shaped = this.#promptFor({ agent, text, requester, depth, allowDelegation, context, recall, memories, attachments, references, lease, scopes: turnScopes, imageStudio, ash, choices: this.#choicesEnabled && turnMode !== 0, runs: this.#runsEnabled && turnMode !== 0 && turnMode < 4, mode: turnMode, escalation, mcpServers, bishop, linked, returned, sharedLeaseHint: sharedLease && !lease ? 'A creation lease is active for this plan, but file creation is not enabled for you: answer without creating files and say so if asked to create one.' : null });
       this.#promptShape.set(responseMessageId, { parts: shaped.parts, spared: shaped.spared, servers: [this.#memoryServer?.name, ...mcpServers.map((server) => server.name)].filter(Boolean) });
       // What this turn is about to read, said while it is still reading it. The size is exact;
       // only the conversion to tokens is an estimate, and it is made at this room's own rate.
@@ -1769,7 +1870,7 @@ export class Room {
         await this.#emit('ash.validated', { messageId, responseMessageId, agent: agent.id, ...validation });
       }
       if (asked) await this.#emit('choice.offered', { messageId, responseMessageId, agent: agent.id, question: asked.question, options: asked.options, recommended: asked.recommended ?? undefined, modes: asked.modes ?? undefined });
-      if (requested) await this.#emit('run.requested', { messageId, responseMessageId, agent: agent.id, reason: requested.reason, commands: requested.commands });
+      if (requested) await this.#emit('run.requested', { messageId, responseMessageId, agent: agent.id, reason: requested.reason, commands: requested.commands, mode: turnMode });
       if (guarded.hits) await this.#emit('privacy.redacted', { agent: agent.id, messageId, responseMessageId, hits: guarded.hits, kinds: guarded.kinds, marker: this.#privacy.marker });
       if (artifacts.length) {
         await this.#emit('artifacts.created', { leaseId: lease.leaseId, messageId, responseMessageId, agent: agent.id, outDir: lease.relativeDir, files: artifacts });

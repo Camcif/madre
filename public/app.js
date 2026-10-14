@@ -1,4 +1,4 @@
-import { archiveQuestion, modeAsked } from './routing.js';
+import { archiveQuestion, modeAskedWithTime, MODE_WINDOWS, windowFor } from './routing.js';
 import { calledByName, abduct } from './abduction.js';
 import { brandOf, monogram } from './brands.js';
 import { allConditions, detectPlatform, diagnose, fixesFor, PLATFORMS, searchConditions } from './troubleshooting.js';
@@ -184,10 +184,10 @@ const MAX_ROWS = 14;
 // themselves are told the modes by their old names (src/capabilities.mjs), which is the core's.
 const MODES = {
   0: { key: 'ghost', label: t('INCOGNITO'), hint: t('Off the record. Nothing is saved; gone on reload.') },
-  1: { key: 'exchange', label: t('CHAT ONLY'), hint: t('Read the project and talk about it. Writes nothing.') },
-  2: { key: 'create', label: t('CREATE'), hint: t('Add new files where they belong in the project. Existing files stay untouched.') },
-  3: { key: 'control', label: t('EDIT'), hint: t('Edit the project itself, no approval per action. Unlock required.') },
-  4: { key: 'airlock', label: t('FULL ACCESS'), hint: t('Run commands, push, deploy. What leaves the ship does not come back. Unlock, twice.') },
+  1: { key: 'exchange', label: t('CHAT ONLY'), hint: t('Read the project and talk about it, and plan with other agents. Writes nothing.') },
+  2: { key: 'create', label: t('CREATE'), hint: t('Add new files where they belong in the project, and plan with other agents. Existing files stay untouched.') },
+  3: { key: 'control', label: t('EDIT'), hint: t('Edit the project itself, no approval per action, and plan with other agents. Unlock required.') },
+  4: { key: 'airlock', label: t('FULL ACCESS'), hint: t('Run commands, push, deploy, and plan with other agents. What leaves the ship does not come back. Unlock, twice.') },
 };
 
 // A sign-in in flight. Claude's CLI opens a page and then waits to be told the code that page
@@ -228,6 +228,7 @@ const state = {
   reports: new Map(),      // id -> sentinel report (unknown conditions and crashes)
   capabilities: {},        // id -> { read, imageIn, write, imageGen, web }
   pending: [],             // attachments uploaded for the next message
+  runsReturned: new Set(), // command requests whose output already went back to the agent that asked
   projectRoot: '',
   create: false,           // creation lease armed for the next message
   moduleCommand: false,    // /module is being composed: CREATE plus the guided SDK contract
@@ -3027,6 +3028,7 @@ const override = {
   cancelled: null, // called when the human walks away from it, to put back what they wrote
   raise: false,   // the agent is capped below the mode: arming also raises its max mode in Settings › Permissions
   mode: 3,        // #3 CONTROL or #4 AIRLOCK
+  minutes: 0,     // a window chosen on an agent's request; 0 is what Permissions says
   preserveComposer: false,
   stage: 'designation',   // designation · phrase · confirm; #4 asks for the same key a second time
   again: false,           // the second time, for #4
@@ -3104,13 +3106,15 @@ function askOverrideKey(stage, { again = false } = {}) {
   override.form.querySelector('.k').textContent = stage === 'phrase' ? (again ? t('Type your phrase again') : t('Type your phrase')) : again ? t('Type the project name again') : t('Type the project name');
   override.input.placeholder = '';
 }
-function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null, preserveComposer = false, forceKey = false } = {}) {
+function openOverride(id, { raise = false, mode = 3, then = null, cancelled = null, preserveComposer = false, forceKey = false, minutes = 0 } = {}) {
   if (!override.dialog) return;
   // Inside the grace of an accepted key, the same mode for the same agent is not asked again —
   // unless arming would also raise the agent's ceiling, which is always asked.
   const left = raise || forceKey ? 0 : overrideGraceLeft(mode, id);
   if (left) { void grantOverride({ agent: id, raise: false, mode, then, delay: 0, left, preserveComposer }); return; }
   override.agent = id;
+  // A window chosen on an agent's request, instead of the one set in Permissions.
+  override.minutes = MODE_WINDOWS[mode]?.includes(minutes) ? minutes : 0;
   // What to do once it is armed. The chip's road arms and waits for the human to send; a #3 or #4
   // typed in a message that was sent, and the way up on an agent's card, send right away.
   override.then = then;
@@ -3171,7 +3175,7 @@ override.form?.addEventListener('submit', async (event) => {
   override.arm.disabled = true;
   let answer;
   try {
-    const response = await fetch('/api/override/arm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent: override.agent, mode: override.mode, words: override.words }) });
+    const response = await fetch('/api/override/arm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent: override.agent, mode: override.mode, words: override.words, minutes: override.minutes || undefined }) });
     answer = { ok: response.ok, ...(await response.json().catch(() => ({}))) };
   } catch (error) {
     answer = { ok: false, error: t('Could not reach MADRE: {error}', { error: error.message }) };
@@ -3184,13 +3188,13 @@ override.form?.addEventListener('submit', async (event) => {
   }
   override.reply.textContent = override.mode === 4 ? t('Open for @{agent}.', { agent: override.agent }) : t('Unlocked for @{agent}.', { agent: override.agent });
   override.reply.className = 'key-reply granted';
-  const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900, pass: answer.token, preserveComposer: override.preserveComposer };
+  const granted = { agent: override.agent, raise: override.raise, mode: override.mode, then: override.then, delay: 900, pass: answer.token, preserveComposer: override.preserveComposer, minutes: override.minutes };
   override.then = null;
   override.cancelled = null;
   void grantOverride(granted);
 });
 // Arms the mode for that agent: after the key, or straight away inside the grace of an earlier one.
-async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0, pass = null, preserveComposer = false }) {
+async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0, pass = null, preserveComposer = false, minutes: chosen = 0 }) {
   if (pass) overridePasses.set(`${mode}:${agent}`, pass);
   if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
   if (override.dialog?.open) override.dialog.close();
@@ -3203,7 +3207,7 @@ async function grantOverride({ agent, raise, mode, then, delay = 0, left = 0, pa
       return;
     }
   }
-  const minutes = overrideConfig().grace?.[mode] ?? 0;
+  const minutes = chosen || (overrideConfig().grace?.[mode] ?? 0);
   if (!left && minutes > 0) { overrideGrace.set(`${mode}:${agent}`, Date.now() + minutes * 60000); tickGrace(); }
   if (!preserveComposer) {
     state.modeArmedFor = agent;
@@ -3599,6 +3603,12 @@ function renderUserMessage(event) {
   } else {
     who.append(el('b', null, reviewed ? t('YOU · AGENTS (EXPENDABLE)') : t('YOU · AGENTS')));
     if (event.payload.via) who.append(el('span', 'badge via', t('from your {device}', { device: deviceLabel(event.payload.via) })));
+    // Written by MADRE for the human: the commands an agent asked for ran, and their output goes back.
+    if (event.payload.auto === 'runs') {
+      node.classList.add('auto');
+      who.append(el('span', 'badge via', t('automatic · the commands ran')));
+      settleRunReturn(event.payload.returns, target, event.sequence);
+    }
   }
   const shownMode = Number.isInteger(mode) ? mode : create ? 2 : null;
   if (shownMode !== null && shownMode !== 1) who.append(el('span', `badge mode m${shownMode}`, `#${shownMode} ${MODES[shownMode].label}`));
@@ -4260,7 +4270,8 @@ const modeAsks = [];   // { agent, wanted, card } still waiting for an answer in
 function attachModeAsk(payload, { sequence = null } = {}) {
   if (!payload || payload.role !== 'assistant' || payload.sender === 'you') return null;
   const ran = state.userMessages.get(payload.messageId)?.mode ?? payload.mode ?? 1;
-  const wanted = modeAsked(payload.text, { ran });
+  const asked = modeAskedWithTime(payload.text, { ran });
+  const wanted = asked?.mode ?? null;
   if (!wanted || wanted <= state.mode) return null;
   const agent = payload.sender;
   if (!state.agents.get(agent)?.ready) return null;
@@ -4269,24 +4280,47 @@ function attachModeAsk(payload, { sequence = null } = {}) {
   tint(card, agent);
   const what = el('div', 'mode-what');
   what.append(el('b', 'who', `@${agent}`), t(' asks for #{n} {label} to go on', { n: wanted, label }));
+  if (asked.minutes) what.append(el('span', 'mode-time', t(' · for {m} min', { m: asked.minutes })));
   const why = el('div', 'mode-why', wanted >= 3
     ? t('You will type the project name, as always. Then @{agent} gets your permission and continues.', { agent })
     : t('@{agent} gets your permission for one message and continues.', { agent }));
+  // How long the permission holds: the time the agent asked for, made one of the windows the
+  // project allows (#3: 5, 15 or 30 min; #4: 5), or this message only. The human can change it.
+  let minutes = wanted >= 3 ? windowFor(wanted, asked.minutes ?? 0) || (overrideConfig().grace?.[wanted] ?? 0) : 0;
+  const windows = wanted >= 3 ? [0, ...MODE_WINDOWS[wanted]] : [];
   const actions = el('div', 'mode-actions');
-  const go = el('button', 'mode-go', t('GRANT #{n} · LET IT GO ON', { n: wanted }));
+  const go = el('button', 'mode-go');
   go.type = 'button';
+  const goWords = () => { go.textContent = minutes ? t('GRANT #{n} · {m} MIN · LET IT GO ON', { n: wanted, m: minutes }) : t('GRANT #{n} · LET IT GO ON', { n: wanted }); };
+  goWords();
+  let time = null;
+  if (windows.length > 1) {
+    time = el('div', 'mode-windows');
+    time.setAttribute('role', 'radiogroup');
+    time.setAttribute('aria-label', t('How long the permission holds'));
+    const paintTime = () => { for (const one of time.children) one.setAttribute('aria-checked', String(Number(one.dataset.minutes) === minutes)); goWords(); };
+    for (const option of windows) {
+      const chip = el('button', 'mode-window', option ? t('{n} min', { n: option }) : t('this message'));
+      chip.type = 'button';
+      chip.setAttribute('role', 'radio');
+      chip.dataset.minutes = String(option);
+      chip.addEventListener('click', () => { minutes = option; paintTime(); });
+      time.append(chip);
+    }
+    paintTime();
+  }
   const myself = el('button', 'mode-alt', t('GRANT #{n} · GIVE IT ANOTHER INSTRUCTION', { n: wanted }));
   myself.type = 'button';
   myself.title = t('Unlocks #{n} in the box below, so you can add instructions before sending.', { n: wanted });
   const later = el('button', 'mode-alt', t('NOT NOW'));
   later.type = 'button';
   actions.append(go, myself, later);
-  card.append(what, why, actions);
+  card.append(what, why, ...(time ? [time] : []), actions);
   const quoted = { sender: agent, sequence, text: (() => { const one = String(payload.text ?? '').replace(/\s+/g, ' ').trim(); return one.length > REPLY_CLIP ? `${one.slice(0, REPLY_CLIP - 1)}…` : one; })() };
   const ask = { agent, wanted, card };
   modeAsks.push(ask);
   const arm = (then) => {
-    if (wanted >= 3) openOverride(agent, { mode: wanted, raise: wanted > ceilingFor(agent) && Boolean(state.capabilities[agent]?.scopes?.write?.capable), then });
+    if (wanted >= 3) openOverride(agent, { mode: wanted, raise: wanted > ceilingFor(agent) && Boolean(state.capabilities[agent]?.scopes?.write?.capable), then, minutes });
     else { els.target.value = agent; renderPicker(); setMode(wanted, { wink: true }); then?.(); }
   };
   go.addEventListener('click', () => arm(async () => {
@@ -5044,7 +5078,7 @@ function renderChoice(event) {
 // press sends only which request and which line, and the server runs what it recorded the agent
 // asked for. A line the parser refused is shown with its reason and no button.
 function renderRunRequest(event) {
-  const { reason, commands = [], agent, responseMessageId } = event.payload;
+  const { reason, commands = [], agent, responseMessageId, mode } = event.payload;
   if (!commands.length) return null;
   const node = el('div', 'choice run-request');
   node.dataset.run = responseMessageId;
@@ -5069,23 +5103,75 @@ function renderRunRequest(event) {
     }
     button.append(el('span', 'choice-tag', t('RUN')));
     button.title = t('Runs {command} from the project root, with no shell. A restore point is taken first.', { command: command.line });
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      markRun({ responseMessageId, index }, 'running', null, event.timestamp);
-      try {
-        const response = await fetch('/api/runs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ responseMessageId, index }) });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
-      } catch (error) {
-        toast(`${t('Diagnostics › ')}${error.message}`);
-        markRun({ responseMessageId, index }, null);
-      }
-    });
+    button.addEventListener('click', () => { void pressRun(button, { responseMessageId, index, startedAt: event.timestamp }); });
     list.append(button);
   });
-  node.append(list, el('p', 'run-summary', t('{done} of {total} commands finished', { done: 0, total: commands.filter((one) => one.argv).length })), el('p', 'choice-foot', t('Each line runs only when you press it · from the project root, no shell · the output comes back to the project')));
+  const runnable = commands.filter((one) => one.argv).length;
+  // The whole request in one press, line after line, the way a terminal would run them; and what
+  // ran, handed back without the rest. Once every line has run it goes back on its own.
+  const actions = el('div', 'run-actions');
+  if (runnable > 1) {
+    const all = el('button', 'run-all', t('RUN ALL · {n}', { n: runnable }));
+    all.type = 'button';
+    all.title = t('Runs the lines one after another; it stops at the first one that fails.');
+    all.addEventListener('click', async () => {
+      all.disabled = true;
+      for (const button of list.querySelectorAll('.run-line:not(.refused):not(.ran):not(.failed)')) {
+        if (!(await pressRun(button, { responseMessageId, index: Number(button.dataset.index) }))) break;
+      }
+      all.disabled = false;
+    });
+    actions.append(all);
+  }
+  const back = el('button', 'run-back', t('HAND BACK WHAT RAN TO @{agent}', { agent }));
+  back.type = 'button';
+  back.hidden = true;
+  back.title = t('@{agent} gets the output of the lines that ran and goes on without the rest.', { agent });
+  back.addEventListener('click', async () => {
+    back.disabled = true;
+    try {
+      const response = await fetch('/api/runs/return', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ responseMessageId }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+    } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); back.disabled = false; }
+  });
+  actions.append(back);
+  const goesBack = Number.isInteger(mode) && mode > 1
+    ? t('When they have run, the output goes back to @{agent} and it goes on at #{n} {label}.', { agent, n: mode, label: MODES[mode]?.label ?? '' })
+    : t('When they have run, the output goes back to @{agent} and it goes on.', { agent });
+  node.append(list, el('p', 'run-summary', t('{done} of {total} commands finished', { done: 0, total: runnable })), actions, el('p', 'choice-foot', `${t('Each line runs when you press it · from the project root, no shell')} · ${goesBack}`));
   state.lastSender = null;
   return node;
+}
+
+// One press of one line: the server runs what it recorded and answers when the line ends (or
+// starts serving). Says whether it went well, so RUN ALL knows to stop at a failure.
+async function pressRun(button, { responseMessageId, index, startedAt = null }) {
+  button.disabled = true;
+  markRun({ responseMessageId, index }, 'running', null, startedAt);
+  try {
+    const response = await fetch('/api/runs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ responseMessageId, index }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+    return result.serving ? true : result.ok !== false;
+  } catch (error) {
+    toast(`${t('Diagnostics › ')}${resay(error.message)}`);
+    markRun({ responseMessageId, index }, null);
+    return false;
+  }
+}
+
+// The results went back to the agent that asked: the card says so and offers nothing more to hand.
+function settleRunReturn(responseMessageId, agent, sequence) {
+  if (!responseMessageId) return;
+  state.runsReturned.add(responseMessageId);
+  const group = document.querySelector(`.run-request[data-run="${CSS.escape(String(responseMessageId))}"]`);
+  if (!group) return;
+  group.classList.add('returned');
+  const back = group.querySelector('.run-back');
+  if (back) back.hidden = true;
+  const summary = group.querySelector('.run-summary');
+  if (summary) summary.textContent = t('Output handed back to @{agent}{at}', { agent, at: sequence ? ` · #${sequence}` : '' });
 }
 
 // The state of one line of a run request, from the events that follow it: running, ran, failed.
@@ -5102,7 +5188,12 @@ function markRun({ responseMessageId, index }, status, where = null, startedAt =
   if (tag) tag.textContent = { running: t('RUNNING'), serving: t('SERVING'), ran: t('RUN AGAIN'), failed: t('RUN AGAIN') }[status] ?? t('RUN');
   const group = button.closest('.run-request');
   const summary = group?.querySelector('.run-summary');
-  if (summary) summary.textContent = t('{done} of {total} commands finished', { done: group.querySelectorAll('.run-line.ran, .run-line.failed').length, total: group.querySelectorAll('.run-line:not(.refused)').length });
+  const finished = group?.querySelectorAll('.run-line.ran, .run-line.failed').length ?? 0;
+  const lines = group?.querySelectorAll('.run-line:not(.refused)').length ?? 0;
+  const returned = state.runsReturned.has(String(responseMessageId));
+  if (summary && !returned) summary.textContent = t('{done} of {total} commands finished', { done: finished, total: lines });
+  const back = group?.querySelector('.run-back');
+  if (back) back.hidden = returned || !finished || finished >= lines || Boolean(group.querySelector('.run-line.running'));
   // While it is alive, a line of its own under it: where it serves, and the two things a person
   // does with a running command: look at it, or stop it. It goes when the command ends.
   let live = button.nextElementSibling?.classList.contains('run-live') ? button.nextElementSibling : null;
@@ -9986,6 +10077,7 @@ function connectStream() {
 function forgetConversation() {
   state.seen.clear();
   state.userMessages.clear();
+  state.runsReturned.clear();
   state.ratings.clear();
   state.ratingNodes.clear();
   state.running.clear();

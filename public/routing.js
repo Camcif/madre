@@ -59,6 +59,13 @@ export function archiveQuestion(text = '') {
 const NEEDS = /(necesit|requier|hace falta|no alcanza|insuficiente|permiso|conced|eleva|sub[ei]r|needs?|requires?|not enough|insufficient|permission|grant|raise|escalat)/i;
 
 export function modeAsked(text = '', { ran = 1 } = {}) {
+  return modeAskedWithTime(text, { ran })?.mode ?? null;
+}
+
+// The same reading, and the time it asked for beside the number, if it said one (2026-10-14:
+// agents are taught to write «I need #3 for 15 min: why»). Minutes, or null when it said none.
+const TIME = /(\d{1,4})\s*(min(?:uto)?s?\b|m\b|h(?:ora)?s?\b|hours?\b)/i;
+export function modeAskedWithTime(text = '', { ran = 1 } = {}) {
   const reply = String(text ?? '');
   if (reply.length > 8000) return null;
   let wanted = null;
@@ -68,7 +75,20 @@ export function modeAsked(text = '', { ran = 1 } = {}) {
     // The word of need has to sit beside the number, not anywhere in a long answer.
     const around = reply.slice(Math.max(0, match.index - 90), match.index + 90);
     if (!NEEDS.test(around)) continue;
-    if (wanted === null || mode > wanted) wanted = mode;
+    if (wanted === null || mode > wanted.mode) {
+      const after = reply.slice(match.index, match.index + 60).match(TIME);
+      const amount = after ? Number(after[1]) : null;
+      wanted = { mode, minutes: amount ? (/^h/i.test(after[2]) ? amount * 60 : amount) : null };
+    }
   }
   return wanted;
+}
+
+// The windows a key may open, as the project allows them (src/override.mjs): what the agent asked
+// for becomes the smallest one that covers it, or the longest there is.
+export const MODE_WINDOWS = Object.freeze({ 3: Object.freeze([5, 15, 30]), 4: Object.freeze([5]) });
+export function windowFor(mode, minutes) {
+  const allowed = MODE_WINDOWS[mode];
+  if (!allowed || !Number.isFinite(minutes) || minutes <= 0) return 0;
+  return allowed.find((one) => one >= minutes) ?? allowed.at(-1);
 }

@@ -125,6 +125,10 @@ export const ES = {
   '#{n} {label} granted · @{agent} continues': '#{n} {label} concedido · @{agent} sigue',
   '#{n} {label} granted': '#{n} {label} concedido',
   'Permission granted: #{n} {label}. Go ahead with what you proposed.': 'Permiso concedido: #{n} {label}. Sigue con lo que propusiste.',
+  ' · for {m} min': ' · por {m} min',
+  'GRANT #{n} · {m} MIN · LET IT GO ON': 'CONCEDER #{n} · {m} MIN Y CONTINUAR',
+  'How long the permission holds': 'Cuánto dura el permiso',
+  'this message': 'este mensaje',
   'YOUR SERVERS': 'TUS SERVIDORES',
   'MADRE version': 'Versión de MADRE',
   'COULD NOT READ THE PORTS': 'NO SE PUDO VER QUÉ SERVIDORES ESTÁN ACTIVOS',
@@ -285,13 +289,13 @@ export const ES = {
 
   // Los cinco modos de permiso. El nombre no se traduce; lo que hace, sí.
   'Off the record. Nothing is saved; gone on reload.': 'Incógnito. No se guarda nada y se borra al recargar la página.',
-  'Read the project and talk about it. Writes nothing.': 'Lee el proyecto y habla de él. No escribe nada.',
-  'Add new files where they belong in the project. Existing files stay untouched.':
-    'Crea archivos nuevos donde les toca en el proyecto. Los que ya existen no se tocan.',
-  'Edit the project itself, no approval per action. Unlock required.':
-    'Edita el proyecto sin pedir permiso en cada paso. Pide confirmar para activarlo.',
-  'Run commands, push, deploy. What leaves the ship does not come back. Unlock, twice.':
-    'Ejecuta comandos, sube cambios (push) y publica (deploy). Lo que sale de tu computadora no se puede deshacer. Pide confirmar dos veces.',
+  'Read the project and talk about it, and plan with other agents. Writes nothing.': 'Lee el proyecto, habla de él y arma planes con otros agentes. No escribe nada.',
+  'Add new files where they belong in the project, and plan with other agents. Existing files stay untouched.':
+    'Crea archivos nuevos donde les toca en el proyecto y arma planes con otros agentes. Los que ya existen no se tocan.',
+  'Edit the project itself, no approval per action, and plan with other agents. Unlock required.':
+    'Edita el proyecto sin pedir permiso en cada paso y arma planes con otros agentes. Pide confirmar para activarlo.',
+  'Run commands, push, deploy, and plan with other agents. What leaves the ship does not come back. Unlock, twice.':
+    'Ejecuta comandos, sube cambios (push), publica (deploy) y arma planes con otros agentes. Lo que sale de tu computadora no se puede deshacer. Pide confirmar dos veces.',
 
 
   // ── LA BARRA ──────────────────────────────────────────────────────────────
@@ -2866,8 +2870,8 @@ export const ES = {
   // Un comando que un agente te pide correr.
   'on · agents may ask you to run commands': 'encendido · los agentes pueden pedirte que corras comandos',
   'off · agents describe the command in prose': 'apagado · los agentes describen el comando en prosa',
-  'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a restore point is taken first, and the output comes back to the project. Costs about 300 tokens of instruction per turn below FULL ACCESS while it is on.':
-    'Deja que un agente te pida correr un comando que su nivel de permiso no le deja correr (pruebas, un build, un linter). Cada comando es un botón y nada corre hasta que lo presionas. Corre desde la raíz del proyecto sin shell; antes se guarda un punto de restauración y el resultado vuelve al proyecto. Mientras está encendido, cuesta unos 300 tokens por respuesta en los niveles por debajo de #4 ACCESO TOTAL.',
+  'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a restore point is taken first, and when it has run the output goes back to the agent that asked, which goes on. Costs about 300 tokens of instruction per turn below FULL ACCESS while it is on.':
+    'Deja que un agente te pida correr un comando que su nivel de permiso no le deja correr (pruebas, un build, un linter). Cada comando es un botón y nada corre hasta que lo presionas. Corre desde la raíz del proyecto sin shell; antes se guarda un punto de restauración y, al terminar, el resultado vuelve al agente que lo pidió para que siga. Mientras está encendido, cuesta unos 300 tokens por respuesta en los niveles por debajo de #4 ACCESO TOTAL.',
   'Name the request and the line to run.': 'Di qué petición y qué línea correr.',
   '@{agent} asks you to run': '@{agent} te pide correr',
   'RUNNING': 'CORRIENDO',
@@ -2876,8 +2880,30 @@ export const ES = {
   'Does not run: it {why}.': 'No corre: {why}.',
   'Runs {command} from the project root, with no shell. A restore point is taken first.':
     'Ejecuta {command} en la carpeta principal del proyecto, sin terminal (shell). Antes se guarda un punto de restauración.',
-  'Each line runs only when you press it · from the project root, no shell · the output comes back to the project':
-    'Cada línea se ejecuta solo cuando la presionas · en la carpeta principal del proyecto, sin terminal · el resultado aparece en el proyecto',
+  'Each line runs when you press it · from the project root, no shell':
+    'Cada línea se ejecuta cuando la presionas · en la carpeta principal del proyecto, sin terminal',
+  'When they have run, the output goes back to @{agent} and it goes on at #{n} {label}.':
+    'Al terminar, el resultado vuelve a @{agent} y sigue con #{n} {label}.',
+  'When they have run, the output goes back to @{agent} and it goes on.':
+    'Al terminar, el resultado vuelve a @{agent} y sigue.',
+  'RUN ALL · {n}': 'CORRER TODOS · {n}',
+  'Runs the lines one after another; it stops at the first one that fails.':
+    'Corre las líneas una tras otra; se detiene en la primera que falle.',
+  'HAND BACK WHAT RAN TO @{agent}': 'DEVOLVER LO QUE CORRIÓ A @{agent}',
+  '@{agent} gets the output of the lines that ran and goes on without the rest.':
+    '@{agent} recibe el resultado de las líneas que corrieron y sigue sin las demás.',
+  'Output handed back to @{agent}{at}': 'Resultado devuelto a @{agent}{at}',
+  'automatic · the commands ran': 'automático · ya corrieron los comandos',
+  'The command you asked for ran. Go on with what you proposed.': 'Ya corrió el comando que pediste. Sigue con lo que propusiste.',
+  'The {n} commands you asked for ran. Go on with what you proposed.': 'Ya corrieron los {n} comandos que pediste. Sigue con lo que propusiste.',
+  '{n} of the {total} commands you asked for ran. Go on with what you proposed.': 'Corrieron {n} de los {total} comandos que pediste. Sigue con lo que propusiste.',
+  'Name the request to hand back.': 'Di qué petición devolver.',
+  'MADRE is closing.': 'MADRE se está cerrando.',
+  'Those results were already handed back.': 'Ese resultado ya se devolvió.',
+  'Nothing of that request has run yet.': 'Todavía no corre nada de esa petición.',
+  'A command of that request is still running; wait for it to end.': 'Un comando de esa petición sigue corriendo; espera a que termine.',
+  'STOP ALL held these results; hand them back from their card.': 'DETENER TODO retuvo este resultado; devuélvelo desde su tarjeta.',
+  'That command request is not in this room.': 'Esa petición de comandos no está en este proyecto.',
   'Put the project files back exactly as they were before this command. What it sent off this machine does not come back.':
     'Deja los archivos del proyecto exactamente como estaban antes de este comando. Lo que haya mandado fuera de esta computadora no regresa.',
   'project restored to the restore point before the command · {restored} restored · {removed} removed':

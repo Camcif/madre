@@ -1910,6 +1910,13 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .mode-what { min-width: 0; font-size: 13px; line-height: 1.45; color: var(--text); }
 .mode-what .who { display: inline; margin: 0; padding: 0; font: inherit; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--agent, var(--text)); }
 .mode-why { font-size: 11.5px; line-height: 1.45; color: var(--text-2); }
+.mode-what .mode-time { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; color: var(--text-2); }
+/* How long the permission holds: the time the agent asked for, preselected; the human may change it. */
+.mode-windows { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--text) 5%, transparent); justify-self: start; }
+.mode-window { border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; padding: 5px 10px; cursor: pointer; transition: background .18s ease, color .18s ease; }
+.mode-window:hover { color: var(--text); }
+.mode-window[aria-checked="true"] { background: var(--panel, #fff); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / .12); }
+.mode-window:focus-visible { outline: 2px solid color-mix(in srgb, var(--warn, #e2a022) 60%, transparent); outline-offset: 1px; }
 .mode-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .mode-alt { border: 1px solid var(--line-2); border-radius: 7px; background: transparent; color: var(--text-2); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; padding: 6px 11px; cursor: pointer; }
 .mode-alt:hover { color: var(--text); border-color: var(--text-3); }
@@ -1967,6 +1974,16 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .run-request .run-line.ran .choice-tag { border-color: var(--ok, var(--phosphor)); color: var(--ok, var(--phosphor)); }
 .run-request .run-line.failed .choice-tag { border-color: var(--crit); color: var(--crit); }
 .run-request .run-summary { margin: 10px 2px 0; font-family: var(--mono); font-size: 10.5px; color: var(--text-2); }
+/* RUN ALL and the hand-back: quiet buttons in the agent's colour, under the summary. */
+.run-request .run-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 2px 0; }
+.run-request .run-actions:empty { display: none; }
+.run-request :is(.run-all, .run-back) { border: 1px solid color-mix(in srgb, var(--agent, var(--phosphor)) 55%, transparent); border-radius: 999px; background: transparent; color: var(--agent, var(--text)); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; padding: 6px 12px; cursor: pointer; transition: background .18s ease; }
+.run-request :is(.run-all, .run-back):hover:not(:disabled) { background: color-mix(in srgb, var(--agent, var(--phosphor)) 10%, transparent); }
+.run-request :is(.run-all, .run-back):disabled { opacity: .5; cursor: progress; }
+.run-request.returned .run-summary { color: var(--ok, var(--phosphor)); }
+.run-request.returned .run-all { display: none; }
+/* A message MADRE wrote for the human: the results of commands going back. Same bubble, quieter. */
+#messages .row.user.auto .bubble { opacity: .82; }
 .run-request .run-progress-track { position: relative; flex: 1 1 100%; height: 3px; overflow: hidden; border-radius: 3px; background: color-mix(in srgb, var(--agent, var(--phosphor)) 18%, transparent); }
 .run-request .run-progress-track::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 32%; border-radius: inherit; background: var(--agent, var(--phosphor)); animation: run-travel 1.6s ease-in-out infinite alternate; }
 @keyframes run-travel { from { transform: translateX(0); } to { transform: translateX(220%); } }

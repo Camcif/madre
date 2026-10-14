@@ -60,7 +60,7 @@ export function injectRipleyBridge(body) {
 import { QuotaMonitor } from './quota-monitor.mjs';
 import { defaultQuotaSources } from './quota-sources.mjs';
 import { Room } from './room.mjs';
-import { changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
+import { OVERRIDE_GRACE, changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, looksLikeCodePrompt, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
 import { applyKey, keyPlanFor, OPENCODE_PROVIDERS, readOpenCodeProviders, removeOpenCodeKey } from './credentials.mjs';
@@ -602,8 +602,10 @@ export async function createPulseServer({
   const passes = new Map();          // token -> { agent, mode, until, once }
   const keyMisses = [];              // when the last wrong keys were typed
   const PASS_ONCE_MS = 30 * 60 * 1000;
-  function issuePass(agent, mode) {
-    const minutes = overrideConfig.grace[mode] ?? 0;
+  // `asked` is a window the human chose on an agent's request for this mode (2026-10-14): one of
+  // the windows the project allows, never longer, and only for that agent and mode.
+  function issuePass(agent, mode, asked = 0) {
+    const minutes = asked > 0 && OVERRIDE_GRACE[mode]?.includes(asked) ? asked : overrideConfig.grace[mode] ?? 0;
     const token = randomBytes(24).toString('hex');
     const pass = { agent, mode, until: Date.now() + (minutes ? minutes * 60000 : PASS_ONCE_MS), once: !minutes };
     passes.set(token, pass);
@@ -2482,7 +2484,7 @@ export async function createPulseServer({
           keyMisses.push(now);
           return sendJson(response, 403, { error: t('That is not it. Try again, or cancel.'), denied: true });
         }
-        return sendJson(response, 200, issuePass(agent, mode));
+        return sendJson(response, 200, issuePass(agent, mode, Number(payload.minutes) || 0));
       }
       // This project's switch for the local AI (src/local-ai.mjs). In «auto» Home decides and the
       // switch does not move; /apply is how Home tells an open project the choice changed.
@@ -3298,8 +3300,17 @@ export async function createPulseServer({
         if (typeof payload.responseMessageId !== 'string' || !Number.isInteger(index) || index < 0) return sendJson(response, 400, { error: t('Name the request and the line to run.') });
         const here = await scopeOf(url);
         if (here.error) return sendJson(response, 404, here);
-        const outcome = await here.room.runRequested({ responseMessageId: payload.responseMessageId, index });
+        const outcome = await here.room.runRequested({ responseMessageId: payload.responseMessageId, index, returnCap: viaPhone ? PHONE_MAX_MODE : 3 });
         return sendJson(response, outcome.status, outcome.ok ? outcome.result : { error: outcome.error });
+      }
+      // The human ran some lines of a request and hands back what there is, without the rest.
+      if (request.method === 'POST' && url.pathname === '/api/runs/return') {
+        const payload = await body(request).catch(() => ({}));
+        if (typeof payload.responseMessageId !== 'string') return sendJson(response, 400, { error: t('Name the request to hand back.') });
+        const here = await scopeOf(url);
+        if (here.error) return sendJson(response, 404, here);
+        const outcome = await here.room.returnRun({ responseMessageId: payload.responseMessageId, returnCap: viaPhone ? PHONE_MAX_MODE : 3 });
+        return sendJson(response, outcome.status, outcome.ok ? outcome : { error: outcome.error });
       }
       if (request.method === 'GET' && url.pathname === '/api/commands') {
         const ctx = await moduleContext();

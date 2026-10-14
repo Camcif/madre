@@ -60,6 +60,8 @@ export class RunDesk {
   // Busy is a command still working toward its answer; a server that is serving is not in the way.
   get busy() { return [...this.#runs.values()].some((run) => !run.serving); }
   serving() { return [...this.#runs.entries()].filter(([, run]) => run.serving).map(([id, run]) => ({ id, ...run.serving })); }
+  // Whether a line whose id starts this way is still working toward its answer.
+  runningFor(prefix) { return [...this.#runs.entries()].some(([id, run]) => id.startsWith(prefix) && !run.serving); }
 
   // Resolves with what happened when the process ends; never rejects. A program that could not
   // start is an answer too. `onServing` hears, once, that the run opened a port.

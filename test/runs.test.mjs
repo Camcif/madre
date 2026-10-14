@@ -10,6 +10,16 @@ import { EventStore } from '../src/event-store.mjs';
 import { Room } from '../src/room.mjs';
 
 const block = (body) => `Lo cambié; falta ver que pase.\n\n\`\`\`pulse-run\n${body}\n\`\`\``;
+// The room hands results back on its own time: wait for the ledger to say it did.
+async function waitFor(store, find, { ms = 8000 } = {}) {
+  const until = Date.now() + ms;
+  for (;;) {
+    const found = find(await store.readAll());
+    if (found) return found;
+    if (Date.now() > until) throw new Error('waited in vain');
+    await new Promise((resolve) => setTimeout(resolve, 40));
+  }
+}
 const gitInit = (cwd) => new Promise((resolve, reject) => execFile('git', ['init', '-q'], { cwd }, (error) => (error ? reject(error) : resolve())));
 
 test('runs: a line splits into the argv sh would give it, and nothing sh would expand', () => {
@@ -155,7 +165,19 @@ test('runs: an agent asks, the human presses, the output comes back to the room 
     assert.match(card.payload.title, /exit 0 · .* · asked by @claude/);
     assert.deepEqual(card.payload.run.files.map((file) => file.path), ['made.txt']);
 
-    // The next turn reads the output, like any command card.
+    // The only line that can run has run: the agent that asked hears it, without the human
+    // writing «ya lo corrí», at the mode its turn had and with what it was answering.
+    const handed = await waitFor(store, (all) => all.find((event) => event.type === 'message.created' && event.payload.returns === responseMessageId));
+    assert.equal(handed.payload.auto, 'runs');
+    assert.equal(handed.payload.sender, 'you');
+    assert.equal(handed.payload.target, 'claude');
+    await waitFor(store, (all) => all.filter((event) => event.type === 'agent.completed').length >= 3);
+    assert.match(prompts.at(-1), /The human ran the commands you asked for/);
+    assert.match(prompts.at(-1), /Your turn was answering: arregla esto/);
+    assert.match(prompts.at(-1), /wrote it/, 'the output never reached the agent that asked');
+    assert.match(prompts.at(-1), /could not run at all \(no shell\): \$ ls \| head/);
+
+    // And the next turn of anyone reads the output, like any command card.
     await room.send({ text: '¿pasó?', target: 'claude' });
     assert.match(prompts.at(-1), /wrote it/, 'the output never reached the next turn');
 

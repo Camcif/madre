@@ -1,3 +1,15 @@
+// What a command's output may weigh in the shared window, and which part of it. It used to be the
+// first 6000 characters: five outputs filled the 16 000 of the window, the request that asked for
+// them went out of it, and the agent lost the thread (2026-10-14). Now it is the start and the end
+// — a test run says what it is at the top and how it went at the bottom — and the agent that asked
+// gets the fuller output in a turn of its own (src/room/returns.mjs).
+const COMMAND_HEAD = 300;
+const COMMAND_TAIL = 900;
+function commandEnds(text) {
+  if (text.length <= COMMAND_HEAD + COMMAND_TAIL) return text;
+  return `${text.slice(0, COMMAND_HEAD)}\n… ${text.length - COMMAND_HEAD - COMMAND_TAIL} characters left out …\n${text.slice(-COMMAND_TAIL)}`;
+}
+
 export function messageEntry(event) {
   if (event.type === 'message.failed') {
     // Failures are part of the conversation: an orchestrator closing a plan
@@ -9,7 +21,7 @@ export function messageEntry(event) {
   if (event.type === 'command.output') {
     const { name, title, text } = event.payload;
     if (typeof text !== 'string' || !text.trim()) return null;
-    return { sequence: event.sequence, messageId: `${event.id}:command`, role: 'command', sender: `/${name}`, target: 'room', text: `${title}\n${text.trim()}`.slice(0, 6000) };
+    return { sequence: event.sequence, messageId: `${event.id}:command`, role: 'command', sender: `/${name}`, target: 'room', text: `${title}\n${commandEnds(text.trim())}` };
   }
   if (event.type !== 'message.created') return null;
   const { messageId, role, sender, target, text } = event.payload;
