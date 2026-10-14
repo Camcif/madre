@@ -13260,6 +13260,16 @@ function ollamaBlock(host, item) {
   const block = sxBlock(host, t('Local brain'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
   const recheck = sxButton(t('Check again'), async () => { recheck.disabled = true; await fetch('/api/ollama/probe', { method: 'POST' }).catch(() => null); await refreshModules(); });
   sxRow(block, t('Server'), info.running ? t('Running · {host}', { host: info.host }) : t('Not running'), recheck);
+  // Whether this project uses it, beside Home's choice for all of them (src/local-ai.mjs).
+  const project = info.project;
+  if (project && !project.home) {
+    const why = !project.master ? t('Local AI is switched off for every project.')
+      : project.mode === 'auto' ? t('Home turns it on in every project, and «Active» switches it for all of them. To choose project by project, go to Home › Settings › Local AI.')
+        : project.mode === 'pick' ? t('Home chooses the projects one by one; «Active» switches this one here too.')
+          : t('Each project decides on its own: «Active» is this project’s switch.');
+    // The switch is the card's own «Active» (src/modules/ollama.mjs, toggle): this row says whose it is.
+    sxRow(block, t('In this project'), why);
+  }
   if (info.models?.length) sxRow(block, t('Models'), info.models.map((model) => model.name).join(' · '));
   if (!info.running) {
     const step = info.binary

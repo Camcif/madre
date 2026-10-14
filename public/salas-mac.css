@@ -1235,3 +1235,14 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 @container tile (max-width: 620px) {
   #sm-top > .sm-bishop[data-rows="3"] .sm-bishop-about { display: none; }
 }
+
+/* LOCAL AI in the models widget (2026-10-13): the key to Settings › Local AI on Ollama's line,
+   and a project that does not use it, dimmed and said in a quiet tag. */
+.sm-w-row .sm-w-link {
+  justify-self: end; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line, rgba(255, 255, 255, .12));
+  background: transparent; color: var(--text-2); font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap;
+}
+.sm-w-row .sm-w-link:hover, .sm-w-row .sm-w-link:focus-visible { color: var(--s-acc, var(--phosphor)); border-color: color-mix(in oklab, var(--s-acc, var(--phosphor)) 45%, transparent); }
+@container tile (max-width: 300px) { .sm-w-row .sm-w-link { grid-column: 1 / -1; justify-self: start; } }
+.sm-w-tag { flex: none; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; color: var(--text-2); background: color-mix(in oklab, var(--text-2) 14%, transparent); }
+.sm-w-off .sm-w-line b, .sm-w-off .sm-meter { opacity: .55; }

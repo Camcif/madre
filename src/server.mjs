@@ -98,6 +98,7 @@ import { PHONE_MAX_MODE, writtenMode } from './bridge/policy.mjs';
 import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
 import { changeLooks, readLooks, changeRoomLook, roomLooks } from './looks.mjs';
+import { localAiConfig, localAiFor, localAiPatch } from './local-ai.mjs';
 import { askRoom, associateProject, ensureSalasProject, forgetProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
 import { parseWork, recentWork, WORK_SYSTEM, workPrompt } from './lobby-work.mjs';
 import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, recallContract, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
@@ -388,6 +389,8 @@ export async function createPulseServer({
     weakest: (() => { const one = (answer.maturity?.signals ?? []).find((signal) => signal.id === answer.maturity?.weakest); return one ? { label: one.label ?? null, next: one.next ?? null } : null; })(),
     signals: (answer.maturity?.signals ?? []).map((one) => ({ id: one.id, label: one.label, value: one.value })),
   } : null);
+  // Each project with whether it uses the local AI, for the widget that shows Ollama (src/local-ai.mjs).
+  const withLocalAi = async (projects) => { const config = await readConfig(root); return projects.map((one) => ({ ...one, localAi: localAiFor(config, one.id).on })); };
   async function openProjects() {
     const salas = salasRoomId(root);
     return (await knownRooms(root)).filter((one) => one.open && one.id !== salas);
@@ -433,7 +436,7 @@ export async function createPulseServer({
       const projects = await Promise.all(rooms.map(async (one) => ({ id: one.id, name: one.name, ...(readinessOf(await askRoom(one.open.port, '/api/dataset', { timeoutMs: 6000 })) ?? { unreachable: true }) })));
       reading = kind === 'memory'
         ? { available: projects.some((one) => !one.unreachable), projects }
-        : { available: true, ollama: { running: Boolean(ollama.running), models: (ollama.models ?? []).map((model) => model.name).filter(Boolean) }, projects };
+        : { available: true, ollama: { running: Boolean(ollama.running), models: (ollama.models ?? []).map((model) => model.name).filter(Boolean) }, projects: await withLocalAi(projects) };
     } else if (kind === 'coordinator' && !salasRoom) {
       // Home's page is served by every project too: the Coordinator's record is its own room's.
       const coordinator = (await knownRooms(root)).find((one) => one.id === salasRoomId(root));
@@ -497,6 +500,15 @@ export async function createPulseServer({
     target.setInvoker(MADRE_ADAPTER, localWiring.madre ? madreInvoker({ memory, ollama: () => ({ ...ollama, chatModel: ollama.madreModel ?? ollama.chatModel }), fetchImpl: reportFetch }) : null);
   }
   const ollamaSettings = async () => ({ enabled: true, embeddings: true, archivist: true, agent: true, ...((await readConfig(root)).modules?.ollama ?? {}) });
+  // Whether this project uses the local AI at all, as Home decides it (src/local-ai.mjs).
+  const thisRoomId = projectRoomId(canonicalProjectRoot);
+  const localAiHere = async () => localAiFor(await readConfig(root), thisRoomId, { home: salasRoom });
+  // This project's own switch, outside «auto»; null when Home decides.
+  async function setLocalAiHere(on) {
+    if (salasRoom || !(await localAiHere()).editable) return null;
+    await updateConfig(root, localAiPatch(await readConfig(root), { rooms: { [thisRoomId]: Boolean(on) } }));
+    return wireOllama({ probe: false });
+  }
   // What the TRAIN card needs: where the recipe ships, the room, the model name @madre will pick up, a base that fits this machine.
   function trainingInfo() {
     const slug = basename(canonicalProjectRoot).toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -509,7 +521,9 @@ export async function createPulseServer({
     const slug = basename(canonicalProjectRoot).toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const trained = (ollama.models ?? []).map((model) => model.name).find((name) => name.startsWith(`madre-${slug}`)) ?? null;
     ollama = { ...ollama, madreModel: trained };
-    const settings = await ollamaSettings();
+    const project = await localAiHere();
+    // Off for this project reads exactly as the module switched off, and only here.
+    const settings = { ...(await ollamaSettings()), enabled: project.on };
     const useEmbeddings = ollama.running && settings.enabled && settings.embeddings && ollama.embedModel;
     const useArchivist = ollama.running && settings.enabled && settings.archivist && ollama.chatModel;
     if (memory) {
@@ -544,7 +558,7 @@ export async function createPulseServer({
         });
       }
     }
-    return { ...ollama, settings, embeddings: Boolean(useEmbeddings), archivist: Boolean(useArchivist), agent: fifth.ready };
+    return { ...ollama, settings, project, embeddings: Boolean(useEmbeddings), archivist: Boolean(useArchivist), agent: fifth.ready };
   }
   // Memory settings the human keeps in config.json (MU/TH/UR → MEMORY); environment still wins at launch.
   const memoryConfig = async () => ({ archivist: 'auto', archivists: null, every: 10, idleMinutes: 10, embedProvider: 'auto', recallShare: 0.3, cascade: true, ...((await readConfig(root)).memory ?? {}) });
@@ -1414,6 +1428,8 @@ export async function createPulseServer({
         }),
         ollama: {
           state: () => ollama,
+          project: () => localAiHere(),
+          setProject: (on) => setLocalAiHere(on),
           wire: (options) => wireOllama(options),
           // Getting Ollama onto this computer, with the command in plain sight, and waking it.
           install: async () => {
@@ -1747,6 +1763,39 @@ export async function createPulseServer({
         const reading = await homeWidget(String(url.searchParams.get('kind') ?? ''));
         if (!reading) return sendJson(response, 404, { error: t('Home has no widget by that name.') });
         return sendJson(response, 200, reading);
+      }
+      // Which projects use the local AI (src/local-ai.mjs): the mode and each project's switch,
+      // written once in config.json and applied at once in every open project.
+      if (url.pathname === '/api/salas/local-ai' && (request.method === 'GET' || request.method === 'POST')) {
+        if (request.method === 'POST') {
+          const patch = await body(request);
+          const before = await readConfig(root);
+          const rooms = patch?.rooms && typeof patch.rooms === 'object' ? { ...patch.rooms } : {};
+          // A new mode changes what NEW projects get; the ones already here keep what they had.
+          if (patch?.mode && patch.mode !== localAiConfig(before).mode) {
+            const salasId = salasRoomId(root);
+            const ids = (await knownRooms(root)).map((one) => one.id);
+            if (!salasRoom) ids.push(thisRoomId);
+            for (const id of ids) if (id !== salasId && !(id in rooms)) rooms[id] = localAiFor(before, id).chosen;
+          }
+          await updateConfig(root, localAiPatch(before, { mode: patch?.mode, rooms }));
+          await wireOllama({ probe: false });
+          widgetReadings.delete('models');
+        }
+        const config = await readConfig(root);
+        const salas = salasRoomId(root);
+        const known = (await knownRooms(root)).filter((one) => one.id !== salas);
+        // The project serving this page is one of them even before Home has listed it.
+        if (!salasRoom && !known.some((one) => one.id === thisRoomId)) known.push({ id: thisRoomId, name: basename(canonicalProjectRoot), open: { port: null } });
+        const later = [];
+        if (request.method === 'POST') {
+          await Promise.all(known.filter((one) => one.open && one.id !== thisRoomId).map(async (one) => {
+            const answer = await askRoom(one.open.port, '/api/local-ai/apply', { method: 'POST', timeoutMs: 6000 });
+            if (answer.unreachable || answer.outdated) later.push(one.name);
+          }));
+        }
+        const projects = known.map((one) => ({ id: one.id, name: one.name, open: Boolean(one.open), ...localAiFor(config, one.id) }));
+        return sendJson(response, 200, { ...localAiConfig(config), master: localAiFor(config).master, ollama: { running: Boolean(ollama.running), models: (ollama.models ?? []).length }, projects, later });
       }
       if (request.method === 'GET' && url.pathname === '/api/salas') {
         const rooms = await knownRooms(root);
@@ -2406,6 +2455,21 @@ export async function createPulseServer({
           return sendJson(response, 403, { error: t('That is not it. Try again, or cancel.'), denied: true });
         }
         return sendJson(response, 200, issuePass(agent, mode));
+      }
+      // This project's switch for the local AI (src/local-ai.mjs). In «auto» Home decides and the
+      // switch does not move; /apply is how Home tells an open project the choice changed.
+      if (request.method === 'GET' && url.pathname === '/api/local-ai') return sendJson(response, 200, { project: await localAiHere(), running: Boolean(ollama.running) });
+      if (request.method === 'POST' && url.pathname === '/api/local-ai/apply') {
+        const status = await wireOllama({ probe: false });
+        return sendJson(response, 200, { project: status.project });
+      }
+      if (request.method === 'POST' && url.pathname === '/api/local-ai') {
+        const patch = await body(request);
+        if (typeof patch?.on !== 'boolean') return sendJson(response, 400, { error: t('Say on or off.') });
+        if (salasRoom) return sendJson(response, 409, { error: t('The Coordinator follows the local AI switch of Modules.') });
+        const status = await setLocalAiHere(patch.on);
+        if (!status) return sendJson(response, 409, { error: t('Home turns the local AI on in every project. Change it in Home › Settings › Local AI.') });
+        return sendJson(response, 200, { project: status.project });
       }
       if (request.method === 'GET' && url.pathname === '/api/settings') {
         await refreshPrivacy();

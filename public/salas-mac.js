@@ -40,6 +40,7 @@ let data = null;
 let macro = null;              // the macroverse, while it is open
 let welcomed = false;          // the first-run wizard was offered this visit
 let agentsSeen = null;         // what /api/settings said of the agents, last time it was asked
+let localSeen = null;          // what /api/salas/local-ai said: the mode and which projects use the local AI
 let versionSeen = null;        // what /api/version said of MADRE, last time it was asked
 let work = null;               // MADRE's summary of the last work (/api/salas/work)
 let decisions = null;          // the recent decisions of the open rooms (/api/salas/decisions)
@@ -1668,6 +1669,9 @@ const WIDGET_PAINT = {
   models(body, reading) {
     const head = el('div', `sm-w-row${reading.ollama.running ? ' ok' : ' bad'}`);
     head.append(el('i', 'sm-w-dot'), el('b', null, 'Ollama'), el('span', null, reading.ollama.running ? t('{n} models on this Mac', { n: reading.ollama.models.length }) : t('not running')));
+    // Which projects use it is set in Home's Settings › Local AI.
+    const tune = button('sm-w-link', t('Choose projects'), (event) => { event.stopPropagation(); openSettings('local'); });
+    head.append(tune);
     body.append(head);
     if (reading.ollama.models.length) body.append(el('small', 'sm-w-foot mono', reading.ollama.models.slice(0, 4).join(' · ') + (reading.ollama.models.length > 4 ? ' …' : '')));
     const grid = el('div', 'sm-w-grid');
@@ -1676,7 +1680,11 @@ const WIDGET_PAINT = {
       const row = el('div', 'sm-w-project');
       const top = el('div', 'sm-w-line');
       const ready = one.pairs >= one.target;
-      top.append(el('b', null, one.name), el('small', null, one.trained ? t('trained · {name}', { name: one.trained }) : ready ? t('ready to train') : `${one.pairs}/${one.target}`));
+      const count = el('small', null, one.trained ? t('trained · {name}', { name: one.trained }) : ready ? t('ready to train') : `${one.pairs}/${one.target}`);
+      count.title = t('{n} of {target} examples this project needs to train a model of its own', { n: one.pairs, target: one.target });
+      top.append(el('b', null, one.name));
+      if (one.localAi === false) { row.classList.add('sm-w-off'); top.append(el('span', 'sm-w-tag', t('without local AI'))); }
+      top.append(count);
       row.append(top, meter(one.trained ? 1 : one.target ? one.pairs / one.target : 0));
       grid.append(row);
     }
@@ -3755,7 +3763,7 @@ function openWizard({ then = null } = {}) {
 // in that room. Nothing scrolls inside the window: the screen behind it does.
 const SET_SECTIONS = [
   ['You', 'How Home looks and what its bar holds', ['look', 'bar']],
-  ['The agents', 'Who works on this Mac', ['agents', 'bishop']],
+  ['The agents', 'Who works on this Mac', ['agents', 'bishop', 'local']],
   ['System', 'The projects of this Mac and the version', ['projects', 'release']],
 ];
 // The room's own icons where the room has the category (app.js, SETTINGS_CATS); the bar, BISHOP
@@ -3765,15 +3773,17 @@ const SET_CATS = {
   bar: { name: 'Top bar', icon: '<rect x="2.6" y="5.4" width="14.8" height="9.2" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 10h2.2M11.6 10h2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
   agents: { name: 'Agents', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   bishop: { name: 'Coordinator', icon: '<path d="M2.6 10c1.7-3.1 4.3-4.8 7.4-4.8s5.7 1.7 7.4 4.8c-1.7 3.1-4.3 4.8-7.4 4.8S4.3 13.1 2.6 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.3" fill="currentColor"/>' },
+  local: { name: 'Local AI', icon: '<rect x="5" y="5" width="10" height="10" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.6v2.4M12 2.6v2.4M8 15v2.4M12 15v2.4M2.6 8h2.4M2.6 12h2.4M15 8h2.4M15 12h2.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="10" r="1.8" fill="currentColor"/>' },
   projects: { name: 'Projects', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
   release: { name: 'Version', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
 };
-const SET_ORDER = ['look', 'bar', 'agents', 'bishop', 'projects', 'release'];
+const SET_ORDER = ['look', 'bar', 'agents', 'bishop', 'local', 'projects', 'release'];
 // The words the search knows, each pointing to the category that holds it (app.js, SETTINGS_INDEX).
 const SET_INDEX = [
   ['look', 'Preview'], ['look', 'Theme'], ['look', 'Accent'], ['look', 'Wallpaper'], ['look', 'Intensity'], ['look', 'Blur'], ['look', 'Project cards'], ['look', 'Text'], ['look', 'Project order'], ['look', 'Language'],
   ['bar', 'Arrange the bar'], ['bar', 'Back to default'],
   ['bishop', 'Talk to the Coordinator'], ['bishop', 'Open the Coordinator in a new tab'],
+  ['local', 'Ollama'], ['local', 'Automatic'], ['local', 'One by one'], ['local', 'Manual'],
   ['projects', 'Add a project'], ['projects', 'See the welcome again'], ['projects', 'The tour of MADRE 1.0'],
   ['release', 'Check now'],
 ];
@@ -3841,6 +3851,11 @@ function setStatus(id) {
     return { line: t('{n} of {total} signed in', { n: here.length - off.length, total: here.length }), warn: off.length ? t('{agents} without a session', { agents: off.map((agent) => agent.label ?? agent.id).join(', ') }) : null };
   }
   if (id === 'bishop') { const room = bishopRoom(); return { line: room ? stateOf(room).words : t('Reading…') }; }
+  if (id === 'local') {
+    if (!localSeen) return { line: t('Reading…') };
+    const on = localSeen.projects.filter((one) => one.on).length;
+    return { line: `${LOCAL_MODE_WORDS[localSeen.mode]()} · ${t('{n} of {total} projects', { n: on, total: localSeen.projects.length })}`, warn: !localSeen.master ? t('Local AI is switched off for every project.') : !localSeen.ollama.running ? t('Ollama is not running') : null };
+  }
   if (id === 'projects') {
     if (!data) return { line: t('Reading…') };
     const { all, open } = projectsInOrder();
@@ -4058,6 +4073,51 @@ function fillBishop(host) {
   sxRow(block, t('Talk to the Coordinator'), room ? stateOf(room).words : null, sxButton(t('Open'), () => { settingsSheet?.close(); openBishop(); }, { tone: 'primary' }));
   sxRow(block, t('Open the Coordinator in a new tab'), null, sxButton(t('Open'), () => openBishop({ newTab: true })));
 }
+// LOCAL AI (src/local-ai.mjs): whether every project uses Ollama, the ones picked here, or each
+// one as it decides in its own Settings. The switch of each project is the same one its Settings
+// show; Ollama itself and what it does are set in a project's Modules › Local AI.
+const LOCAL_MODE_WORDS = { auto: () => t('Automatic'), pick: () => t('One by one'), manual: () => t('Manual') };
+const LOCAL_MODE_SAYS = {
+  auto: () => t('Every project uses the local AI, new ones too.'),
+  pick: () => t('Only the projects you switch on below. New projects start without it.'),
+  manual: () => t('Each project decides in its own Settings › Modules › Local AI. New projects start with it.'),
+};
+async function loadLocal() {
+  const answer = await fetch('/api/salas/local-ai', { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+  if (answer) localSeen = answer;
+  settingsSheet?.sync({ detail: true });
+  return answer;
+}
+async function saveLocal(patch) {
+  const answer = await post('/api/salas/local-ai', patch);
+  if (!answer.ok) { toast(answer.body?.error ?? t('Home did not answer.')); return; }
+  localSeen = answer.body;
+  if (localSeen.later?.length) toast(t('{names} will use it when restarted: they run an older MADRE.', { names: localSeen.later.join(', ') }));
+  settingsSheet?.sync({ detail: true });
+}
+const localModeSeg = () => customSeg(Object.keys(LOCAL_MODE_WORDS).map((mode) => [mode, LOCAL_MODE_WORDS[mode]()]), localSeen?.mode, (mode) => void saveLocal({ mode }));
+function fillLocal(host) {
+  if (!localSeen) { host.append(el('p', 'settings-reading', t('Reading…'))); return; }
+  host.append(el('p', 'sx-intro', t('The local AI is Ollama, on this computer: it searches the memory by meaning, sums it up and answers as @madre, without spending tokens or sending anything out. Here you choose which projects use it.')));
+  const mode = sxBlock(host, t('Which projects'), LOCAL_MODE_SAYS[localSeen.mode]());
+  sxRow(mode, t('Mode'), null, localModeSeg());
+  if (!localSeen.master) sxRow(mode, t('Local AI is switched off for every project.'), t('Turn it on in a project, in Modules › Local AI.'));
+  else if (!localSeen.ollama.running) sxRow(mode, t('Ollama is not running'), t('The projects keep working with their agents until it starts. Start it from a project, in Modules › Local AI.'));
+  const list = sxBlock(host, t('Projects'), localSeen.mode === 'auto' ? t('All of them use it. Choose «One by one» or «Manual» to turn some off.') : t('A switch here is the same one the project shows in its Settings.'));
+  if (!localSeen.projects.length) sxRow(list, t('No projects yet'), null);
+  for (const one of localSeen.projects) {
+    const hint = one.open ? (one.on ? t('Open · using it') : t('Open · without it')) : t('Closed · applies when it opens');
+    const wrap = el('label', 'settings-switch');
+    const box = el('input');
+    box.type = 'checkbox';
+    box.checked = Boolean(one.chosen);
+    box.disabled = !one.editable || !localSeen.master;
+    box.setAttribute('aria-label', one.name);
+    box.addEventListener('change', () => { box.disabled = true; void saveLocal({ rooms: { [one.id]: box.checked } }); });
+    wrap.append(box, el('i'));
+    sxRow(list, one.name, hint, wrap);
+  }
+}
 function fillProjects(host) {
   const block = sxBlock(host, t('Projects'), t('A project is a folder: MADRE gives it its own conversations and its own memory. Adding it does not open it; you open it from its card.'));
   sxRow(block, t('Add a project'), null, sxButton(t('Add'), () => { settingsSheet?.close(); openAddSheet(); }, { tone: 'primary' }));
@@ -4129,10 +4189,11 @@ async function updateHome(info, key, said) {
   }
   drop(t('Home did not come back on its own. Start MADRE again from your terminal.'));
 }
-const SET_FILL = { look: fillLook, bar: fillBar, agents: fillAgents, bishop: fillBishop, projects: fillProjects, release: fillRelease };
+const SET_FILL = { look: fillLook, bar: fillBar, agents: fillAgents, bishop: fillBishop, local: fillLocal, projects: fillProjects, release: fillRelease };
 
 let settingsSheet = null;
 function openSettings(section = null) {
+  void loadLocal();
   if (settingsSheet) { settingsSheet.show(section); return; }
   const state = { open: null, query: '', stops: [] };
   const dialog = el('dialog', 'sm-sheet sm-settings');

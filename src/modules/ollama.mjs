@@ -60,14 +60,17 @@ export default defineModule({
     const binary = view.binary;
     const settings = ctx.settings;
     const roles = [settings.embeddings && probe.embedModel ? `${t('smart search')} · ${probe.embedModel}` : null, settings.archivist && probe.chatModel ? `${t('archivist')} · ${probe.chatModel}` : null, settings.agent !== false && probe.chatModel ? t('@madre in the project') : null].filter(Boolean);
+    // Home can leave this one project without the local AI while the module stays on (src/local-ai.mjs).
+    const project = await ctx.services.ollama?.project?.() ?? { on: true };
     const detail = !probe.running ? (binary ? t('installed, not running · START it here') : t('not installed · INSTALL it here'))
       : !settings.enabled ? t('off · {n} models available', { n: probe.models.length })
+        : !project.on ? t('off in this project · Home › Settings › Local AI')
         : roles.length ? `${t('on')} · ${roles.join(' · ')}` : t('on · no usable model yet · PULL one');
     return {
       runs: [{ name: 'ollama', version: probe.version ?? null }],
       models: probe.models.map((model) => model.name),
-      status: { installed: settings.enabled && probe.running && roles.length > 0, detail },
-      ollama: view,
+      status: { installed: settings.enabled && project.on && probe.running && roles.length > 0, detail },
+      ollama: { ...view, project },
       recommended: RECOMMENDED,
       preflight: probe.running ? { ok: true, problems: [] } : { ok: false, problems: ['Ollama is not running: open the Ollama app or run `ollama serve`, then RECHECK.'] },
       install: { display: settings.enabled ? 'disable Ollama' : 'enable Ollama (config.json)', platforms: [] },
@@ -82,6 +85,15 @@ export default defineModule({
     return { ...plan, note: `${plan.note} If an older Ollama is still the one answering, MADRE restarts it so the new one does.`, after: () => ctx.services.ollama.restart?.() ?? null };
   },
   async toggle(ctx) {
+    // Outside «auto» the switch on this card is this project's: it never turns the local AI off
+    // for every other project (src/local-ai.mjs). In «auto», or with it off for all, it is the
+    // switch for every project, as it always was.
+    const project = await ctx.services.ollama?.project?.();
+    if (project?.editable && project.master) {
+      const status = await ctx.services.ollama.setProject(!project.chosen);
+      await ctx.record('extension.toggled', { id: 'ollama', name: 'OLLAMA', enabled: !project.chosen, project: true });
+      return { status: 200, body: { enabled: !project.chosen, ollama: status } };
+    }
     const enabled = !(ctx.settings.enabled ?? true);
     await ctx.updateConfig({ modules: { ollama: { ...(ctx.config.modules?.ollama ?? {}), enabled } } });
     const status = await ctx.services.ollama.wire();
