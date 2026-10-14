@@ -1312,6 +1312,8 @@ function fitTile(node) {
   const own = rowsOf(node.dataset.tile);
   const chosen = own && PAIRED?.matches && spanOf(node.dataset.tile) < 12 ? Math.max(3, own) : own;
   node.classList.toggle('sm-fixed', chosen > 0);
+  // How many rows it has, for the tile's own CSS: a short tile shows what matters and leaves the rest.
+  node.dataset.rows = chosen ? String(chosen) : 'auto';
   if (chosen) { node.style.gridRow = `auto / span ${chosen}`; return; }
   // Automatic: the rows its content needs, read at its natural height and rounded up to a whole row.
   node.style.alignSelf = 'start';

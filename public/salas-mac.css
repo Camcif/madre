@@ -1224,3 +1224,14 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 /* Connections: how many more projects there are, in a quiet badge of its own, legible. */
 .sm-map-quiet { right: 0; bottom: 0; padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-2); font-size: 11.5px; font-weight: 500; line-height: 1.4; white-space: nowrap; }
 :root[data-scheme="dark"] .sm-map-quiet { background: color-mix(in srgb, #ffffff 9%, transparent); color: color-mix(in srgb, var(--text) 80%, transparent); }
+
+/* A TILE BY ITS HEIGHT (2026-10-13): fitTile writes data-rows. The Coordinator at two rows is its
+   name, its state and its keys, centred — the description and the summary need more room than two
+   rows give, and half of them showed cut. At three rows on a narrow tile the description gives
+   its place to the summary. */
+#sm-top > .sm-bishop[data-rows="2"] { justify-content: center; gap: 14px; }
+#sm-top > .sm-bishop[data-rows="2"] :is(.sm-bishop-about, .sm-work, .sm-bishop-asks, .sm-error) { display: none !important; }
+#sm-top > .sm-bishop[data-rows="2"] .sm-bishop-head { row-gap: 14px; }
+@container tile (max-width: 620px) {
+  #sm-top > .sm-bishop[data-rows="3"] .sm-bishop-about { display: none; }
+}
