@@ -49,8 +49,10 @@ test('sdk: a guarded switch refuses without confirm, an installer has no switch,
   assert.equal(matchRoute(routes, 'DELETE', '/api/r'), null);
 });
 
-test('registry: thirteen modules in MODULES order, the compat layer answers with the same objects, and Ollama serves its routes', async () => {
-  assert.deepEqual(MODULES.map((module) => module.id), ['ahp', 'image-studio', 'git-pulse', 'ash', 'intents', 'choices', 'runs', 'ripley', 'ollama', 'playwright', 'github', 'enlaces', 'bishop']);
+test('registry: fourteen modules in MODULES order, the compat layer answers with the same objects, and Ollama serves its routes', async () => {
+  // Connect MCP (2026-10-14) is the last: its settings live in each project's Settings, not on a card.
+  assert.deepEqual(MODULES.map((module) => module.id), ['ahp', 'image-studio', 'git-pulse', 'ash', 'intents', 'choices', 'runs', 'ripley', 'ollama', 'playwright', 'github', 'enlaces', 'bishop', 'mcp']);
+  assert.equal(moduleById('mcp').card, 'settings');
   // CORREO is in the lab: built, not offered. Out of MODULES unless PULSE_LABS asks for it, and
   // its id still reserved so nobody's own module can take it.
   assert.deepEqual(LAB_MODULES.map((module) => module.id), ['correo']);
@@ -83,7 +85,7 @@ test('registry: thirteen modules in MODULES order, the compat layer answers with
   assert.equal(byId.enlaces.status.detail, 'on');
   // describeModules with a fuller ctx is what the server uses.
   const { ctx } = fakeCtx({ modules: {} });
-  assert.equal((await describeModules(ctx)).length, 12);
+  assert.equal((await describeModules(ctx)).length, 13);
 });
 
 test('registry: the Ash switch needs no confirming, because nothing it does is lossy', async () => {

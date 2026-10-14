@@ -20,6 +20,15 @@ async function waitFor(store, find, { ms = 8000 } = {}) {
     await new Promise((resolve) => setTimeout(resolve, 40));
   }
 }
+// Until a condition holds in this process, without the ledger: a turn may have started and still
+// be building its prompt, so a test waits for the agent itself to be reached.
+async function until(check, { ms = 15000 } = {}) {
+  const stop = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > stop) throw new Error('waited in vain');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
 const say = (line) => `${process.execPath} -e 'console.log(${JSON.stringify(line)})'`;
 
 test('returns: a #3 turn that asked for commands hears them back at #3, with the project held again', async () => {
@@ -118,13 +127,15 @@ test('returns: the human can hand back what ran without the rest; from a phone i
 test('returns: results wait while the agent that asked is still answering, and STOP ALL drops what waits', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pulse-returns-wait-'));
   const logDir = await mkdtemp(join(tmpdir(), 'pulse-returns-wait-log-'));
+  // Out here so a failure still closes it: a turn left waiting would keep the file running forever.
+  let room = null;
   try {
     await gitInit(root);
     const store = await new EventStore(join(logDir, 'events.jsonl')).initialize();
     const agents = [{ id: 'claude', label: 'Claude', detected: true, ready: true, adapter: 'claude-readonly', path: '/x', version: '1' }];
     let release = null;
     let calls = 0;
-    const room = new Room({ store, agents, projectRoot: root, invokers: {
+    room = new Room({ store, agents, projectRoot: root, invokers: {
       'claude-readonly': async ({ signal }) => {
         calls += 1;
         if (calls === 1) return { text: `Pruébalo.\n\n\`\`\`pulse-run\nVer\n$ ${say('ok')}\n\`\`\``, usage: null };
@@ -140,27 +151,29 @@ test('returns: results wait while the agent that asked is still answering, and S
     await room.send({ text: 'arregla', target: 'claude' });
     const { responseMessageId } = (await store.readAll()).find((event) => event.type === 'run.requested').payload;
     const busy = room.send({ text: 'mientras tanto, otra cosa', target: 'claude' });
-    await waitFor(store, (all) => all.filter((event) => event.type === 'agent.started').length >= 2);
+    await until(() => release);
     await room.runRequested({ responseMessageId, index: 0 });
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal((await store.readAll()).some((event) => event.payload?.returns === responseMessageId), false, 'handed back while the agent was answering');
     release();
     await busy;
     await waitFor(store, (all) => all.find((event) => event.payload?.returns === responseMessageId));
+    await until(() => !room.activeTurns().length);
 
     // Again, and this time STOP ALL comes first: nothing starts by itself afterwards.
     calls = 0;
+    release = null;
     await room.send({ text: 'arregla otra vez', target: 'claude' });
     const second = (await store.readAll()).filter((event) => event.type === 'run.requested').at(-1).payload.responseMessageId;
     const busyAgain = room.send({ text: 'y otra', target: 'claude' });
-    await waitFor(store, (all) => all.filter((event) => event.type === 'agent.started').length >= 5);
+    await until(() => release);
     await room.runRequested({ responseMessageId: second, index: 0 });
     await room.stopAll();
     await busyAgain.catch(() => {});
     await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal((await store.readAll()).some((event) => event.payload?.returns === second), false, 'STOP ALL did not drop what was waiting');
-    await room.shutdown();
   } finally {
+    await room?.shutdown().catch(() => {});
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
     await rm(logDir, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
   }

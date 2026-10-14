@@ -2552,6 +2552,12 @@ export async function createPulseServer({
         const payload = request.method === 'POST' ? await body(request).catch(() => ({})) : {};
         // `viaPhone` (encargo §6, excepción 4): a module can refuse the phone by its own hand.
         const result = await moduleRoute.route.handler(await moduleContext(), { request, url, params: moduleRoute.params, payload, viaPhone });
+        // A page instead of JSON, for the one place a browser lands on a module's route on its
+        // own: the way back from a sign-in (Connect MCP's OAuth). Never cached.
+        if (typeof result.html === 'string') {
+          response.writeHead(result.status ?? 200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'" });
+          return response.end(result.html);
+        }
         return sendJson(response, result.status ?? 200, result.body ?? {});
       }
       // Where this room's tokens go: what each block of the briefing has cost, how much came back

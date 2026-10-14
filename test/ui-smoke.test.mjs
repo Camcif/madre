@@ -365,7 +365,7 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.equal(registry.get('settings').open, true, 'AJUSTES did not open');
   assert.equal(settingsBody.querySelectorAll('.settings-section').length, 3, 'the board is not Tú, La tripulación, Sistema');
   const cards = settingsBody.querySelectorAll('.settings-card');
-  assert.deepEqual(cards.map((card) => card.dataset.cat), ['look', 'room', 'files', 'agents', 'memory', 'permissions', 'privacy', 'release']);
+  assert.deepEqual(cards.map((card) => card.dataset.cat), ['look', 'room', 'files', 'agents', 'memory', 'mcp', 'permissions', 'privacy', 'release']);
   assert.ok(cards.every((card) => card.querySelector('.settings-line')?.textContent.trim()), 'a card does not say where it stands');
   const search = registry.get('settings-search');
   search.value = 'version';

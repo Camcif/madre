@@ -248,7 +248,7 @@ const state = {
   effortOnce: null,
   // While AJUSTES shows a category, the panel that holds it draws there too, from the same code and
   // the same answers MU/TH/UR draws from: one renderer, two places, never two copies of a rule.
-  settingsTargets: { agents: null, room: null, turns: null, memory: null, privacy: null, permissions: null, release: null, sentinel: null, files: null },
+  settingsTargets: { agents: null, room: null, turns: null, memory: null, privacy: null, permissions: null, release: null, sentinel: null, files: null, mcp: null },
   settingsWindow: null,    // AJUSTES, once its part of the file has run
 };
 try { state.chosenModel = JSON.parse(localStorage.getItem('pulse.chosenModel') ?? '{}') || {}; } catch { state.chosenModel = {}; }
@@ -6643,7 +6643,7 @@ customWindow.node?.addEventListener('close', () => { customButton?.setAttribute(
 // from the same code and the same answers (state.settingsTargets), wearing the room's ink.
 const SETTINGS_SECTIONS = [
   ['You', 'How it looks and how the project works', ['look', 'room', 'files']],
-  ['The agents', 'Who works, and what the project remembers', ['agents', 'memory']],
+  ['The agents', 'Who works, what the project remembers, and the tools they reach', ['agents', 'memory', 'mcp']],
   ['System', 'Permissions, privacy and the version', ['permissions', 'privacy', 'release']],
 ];
 const SETTINGS_CATS = {
@@ -6651,12 +6651,13 @@ const SETTINGS_CATS = {
   room: { name: 'Project and turns', color: '#d97757', icon: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
   agents: { name: 'Agents', color: '#10a37f', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   memory: { name: 'Memory', color: '#3fb6d9', icon: '<rect x="5" y="5" width="10" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="8.1" y="8.1" width="3.8" height="3.8" rx=".6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  mcp: { name: 'Connect MCP', color: '#5b8def', icon: '<path d="M7.2 3.2v3.3M12.8 3.2v3.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5.2 6.5h9.6v2.4a4.8 4.8 0 0 1-9.6 0z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 13.7v3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   files: { name: 'Files and servers', color: '#c8955a', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
   permissions: { name: 'Permissions', color: '#e5484d', icon: '<path d="M10 2.8 4.2 5v4.6c0 3.6 2.4 6.4 5.8 7.6 3.4-1.2 5.8-4 5.8-7.6V5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 10.7v2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   privacy: { name: 'Privacy', color: '#d4a72c', icon: '<rect x="4.5" y="8.5" width="11" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 8.5V6.6a3 3 0 0 1 6 0v1.9" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
   release: { name: 'Version and reports', color: '#4caf3a', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
 };
-const SETTINGS_ORDER = ['look', 'room', 'files', 'agents', 'memory', 'permissions', 'privacy', 'release'];
+const SETTINGS_ORDER = ['look', 'room', 'files', 'agents', 'memory', 'mcp', 'permissions', 'privacy', 'release'];
 // The words the search knows, each pointing to the category that holds it and to the words on the
 // screen that carry it there, so a result opens the category and lands on the setting.
 const SETTINGS_INDEX = [
@@ -6666,6 +6667,7 @@ const SETTINGS_INDEX = [
   ['room', 'Tokens per agent'], ['room', 'Default time limit'], ['room', 'Silence limit'], ['room', 'Retries'], ['room', 'Model'],
   ['agents', 'Max mode'], ['agents', 'Starting mode'], ['agents', 'Web access'], ['agents', 'Generate images'], ['agents', 'Time limit'], ['agents', 'Sign in'],
   ['memory', 'Who distils first'], ['memory', 'Who may distil'], ['memory', 'Share of the context'], ['memory', 'Related'], ['memory', 'Smart search'], ['memory', 'Dataset'], ['memory', 'Analysis and tests'],
+  ['mcp', 'Connect MCP'], ['mcp', 'Add a server'], ['mcp', 'Import from your apps'], ['mcp', 'Acts from'],
   ['permissions', 'The key of each mode'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
   ['privacy', 'Hidden data'], ['privacy', 'Replaced with'], ['privacy', 'Keys, tokens and e-mail addresses'], ['privacy', 'Your home path'], ['privacy', 'Erase private data'],
   ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'The tour of MADRE 1.0'], ['release', 'Report automatically'], ['release', 'Tell the author'],
@@ -6694,6 +6696,7 @@ function settingsStatus(id) {
     const ripley = modules.items.find((item) => item.id === 'ripley');
     return { line: `${finder} · ${ripley ? (ripley.status?.installed ? t('preview on') : t('preview off')) : t('Reading…')}` };
   }
+  if (id === 'mcp') return mcpStatus();
   if (!data) return { line: t('Reading…') };
   if (id === 'agents') {
     const here = data.agents.filter((agent) => agent.detected);
@@ -7050,12 +7053,14 @@ function settingsDetail(id) {
   if (id === 'permissions') part('permissions');
   if (id === 'release') { part('release'); part('sentinel'); }
   if (id === 'files') part('files');
+  if (id === 'mcp') part('mcp');
   return detail;
 }
 
 // Draws what each category needs, from the same calls MU/TH/UR makes.
 function fillSettingsCategory(id) {
   if (id === 'files') { drawFilesTarget(); void refreshModules(); }
+  if (id === 'mcp') { drawMcpTarget(); void loadMcp(); }
   if (['agents', 'room', 'memory', 'privacy', 'permissions'].includes(id)) { if (settingsUI.data) renderSettings(); void loadSettings(); }
   if (id === 'room' || id === 'release') { if (turnsUI.turns || sentinelUI.settings) renderMotherSentinel(); void loadTurns(); void loadSentinel(); }
   if (id === 'release') renderUpdate();
@@ -11919,6 +11924,223 @@ function drawFilesTarget() {
   target.replaceChildren();
   drawFilesSettings(target);
 }
+/* ---------- Settings › Connect MCP (2026-10-14) ---------- */
+//
+// The MCP servers of this project, and only here: added by hand or brought from the apps the person
+// already uses, each one started and checked by MADRE before an agent gets it (src/modules/
+// mcp-connect.mjs). A row says what it is, whether it answered and with how many tools, from which
+// mode its tools that act are handed, and the one thing to do when it needs something.
+const mcpUI = { servers: null, adding: null, found: null, picked: new Set(), open: new Set(), said: null };
+function mcpStatus() {
+  const servers = mcpUI.servers;
+  if (!servers) return { line: t('Reading…') };
+  if (!servers.length) return { line: t('No servers yet') };
+  const ready = servers.filter((one) => one.enabled && !one.problem && one.tools?.length).length;
+  const stuck = servers.filter((one) => one.enabled && (one.problem || one.needsAuth));
+  return { line: t('{ready} of {total} servers ready', { ready, total: servers.length }), warn: stuck.length ? t('{names} need you', { names: stuck.map((one) => one.label).join(', ') }) : null };
+}
+async function mcpCall(path, body = null, { method = body ? 'POST' : 'GET' } = {}) {
+  const response = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error ?? `HTTP ${response.status}`);
+  if (result.servers) mcpUI.servers = result.servers;
+  return result;
+}
+async function loadMcp() {
+  try { await mcpCall('/api/x/mcp/servers'); } catch (error) { mcpUI.servers = mcpUI.servers ?? []; mcpUI.said = error.message; }
+  drawMcpTarget();
+  syncSettingsCards();
+}
+function drawMcpTarget() {
+  const host = state.settingsTargets.mcp;
+  if (!host?.isConnected) return;
+  host.replaceChildren();
+  drawMcpSettings(host);
+}
+function drawMcpSettings(host) {
+  const aside = el('div', 'sx-field');
+  aside.append(
+    sxButton(t('Import from your apps'), () => void openMcpImport()),
+    sxButton(t('Add a server'), () => { mcpUI.adding = mcpUI.adding ? null : { transport: 'stdio', auth: 'none', env: [] }; drawMcpTarget(); }, { tone: 'primary' }),
+  );
+  const list = sxBlock(host, t('Connect MCP'), t('Tools from outside for the agents of this project: a program on this computer or an address on the internet. MADRE starts each one and checks it before any agent gets it; if one stops answering, the agents work without it.'), { aside, className: 'mcp-block' });
+  if (mcpUI.servers === null) sxRow(list, t('Reading…'), null);
+  else if (!mcpUI.servers.length && !mcpUI.adding) sxRow(list, t('No servers yet'), t('Add one by hand, or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.'));
+  for (const server of mcpUI.servers ?? []) list.rows.append(mcpServerRow(server));
+  if (mcpUI.said) sxFoot(list, mcpUI.said);
+  sxFoot(list, t('Tools that only read work from #1 CHAT ONLY. Tools that act — send, write, publish — are handed from the mode you choose for each server: #4 FULL ACCESS unless you lower it. Secrets stay in MADRE\'s vault, never in a file of the project.'));
+  if (mcpUI.adding) drawMcpForm(host);
+  if (mcpUI.found) drawMcpImport(host);
+}
+function mcpServerRow(server) {
+  const row = el('div', `sx-row stack mcp-row${server.enabled ? '' : ' off'}`);
+  const top = el('div', 'mcp-top');
+  const words = el('div', 'sx-words');
+  const name = el('b', null, server.label);
+  words.append(name, el('span', 'sx-hint mono mcp-where', server.transport === 'http' ? server.url : server.line ?? [server.command, ...(server.args ?? [])].join(' ')));
+  const chips = el('div', 'sx-chips');
+  chips.append(el('span', 'sx-chip', server.transport === 'http' ? t('address') : t('command')));
+  const needsSignIn = server.auth === 'oauth' && (!server.signedIn || server.needsAuth);
+  if (needsSignIn) chips.append(el('span', 'sx-chip warn', t('sign-in needed')));
+  else if (server.problem) chips.append(el('span', 'sx-chip off', t('not answering')));
+  else if (server.tools?.length) chips.append(el('span', 'sx-chip on', t('{n} tools', { n: server.tools.length })));
+  else chips.append(el('span', 'sx-chip', t('not checked yet')));
+  words.append(chips);
+  const toggle = sxSwitch(server.enabled, async (on, box) => {
+    box.disabled = true;
+    try { await mcpCall(`/api/x/mcp/servers/${server.id}/toggle`, { enabled: on }); } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
+    drawMcpTarget(); syncSettingsCards();
+  }, { label: t('Use {name} in this project', { name: server.label }) });
+  top.append(words, toggle);
+  row.append(top);
+  if (server.problem && !needsSignIn) row.append(el('p', 'mcp-problem', server.problem));
+  const acting = (server.tools ?? []).filter((tool) => !tool.readOnly).length;
+  const tools = el('div', 'mcp-actions');
+  if (needsSignIn) tools.append(sxButton(t('Sign in'), () => void mcpSignIn(server), { tone: 'primary' }));
+  tools.append(sxButton(t('Check again'), async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true; button.textContent = t('Checking…');
+    try { const result = await mcpCall(`/api/x/mcp/servers/${server.id}/check`, {}); if (!result.check?.ok && !result.check?.needsAuth) toast(t('{name} did not answer: {problem}', { name: server.label, problem: result.check?.problem ?? '' })); } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
+    drawMcpTarget(); syncSettingsCards();
+  }));
+  if (server.tools?.length) {
+    const open = mcpUI.open.has(server.id);
+    const look = sxButton(open ? t('Hide tools') : t('See tools'), () => { if (open) mcpUI.open.delete(server.id); else mcpUI.open.add(server.id); drawMcpTarget(); });
+    look.setAttribute('aria-expanded', String(open));
+    tools.append(look);
+  }
+  tools.append(sxButton(t('Remove'), async (event) => {
+    const button = event.currentTarget;
+    if (button.dataset.sure !== '1') { button.dataset.sure = '1'; button.textContent = t('Remove · sure?'); return; }
+    try { await mcpCall(`/api/x/mcp/servers/${server.id}/remove`, {}); } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
+    drawMcpTarget(); syncSettingsCards();
+  }, { tone: 'danger' }));
+  row.append(tools);
+  // From which mode its tools that act travel. Without any, there is nothing to choose.
+  if (acting) {
+    const from = el('div', 'mcp-from');
+    from.append(el('span', 'sx-hint', acting === 1 ? t('Its tool that acts works from') : t('Its {n} tools that act work from', { n: acting })), sxSeg([2, 3, 4].map((n) => ({ value: String(n), text: `#${n}`, title: `${MODES[n].label} · ${MODES[n].hint}` })), String(server.actions ?? 4), async (value) => {
+      try { await mcpCall(`/api/x/mcp/servers/${server.id}/actions`, { actions: Number(value) }); } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
+      drawMcpTarget();
+    }, { label: t('Acts from') }));
+    row.append(from);
+  }
+  if (mcpUI.open.has(server.id)) {
+    const list = el('ul', 'mcp-tools');
+    for (const tool of server.tools) {
+      const item = el('li', tool.readOnly ? 'reads' : 'acts');
+      item.append(el('code', null, tool.name), el('span', 'mcp-tool-kind', tool.readOnly ? t('reads') : t('acts')));
+      if (tool.description) item.title = tool.description;
+      list.append(item);
+    }
+    row.append(list);
+  }
+  return row;
+}
+// A server signed in to with OAuth: the address to open comes from the project, the page that
+// signs in is the server's own, and the way back lands on this room. When this tab is looked at
+// again, the list reads itself again.
+async function mcpSignIn(server) {
+  try {
+    const { open } = await mcpCall(`/api/x/mcp/servers/${server.id}/signin`, {});
+    window.open(open, '_blank', 'noopener');
+    window.addEventListener('focus', () => { void loadMcp(); }, { once: true });
+  } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
+}
+function drawMcpForm(host) {
+  const draft = mcpUI.adding;
+  const block = sxBlock(host, t('Add a server'), t('A name for it, and how MADRE reaches it. MADRE checks it as soon as you save.'), { className: 'mcp-block' });
+  const input = (value, placeholder, { mono = false, type = 'text', change } = {}) => {
+    const field = el('input', `sx-input${mono ? ' mono' : ''}`);
+    field.type = type; field.value = value ?? ''; field.placeholder = placeholder; field.spellcheck = false; field.autocomplete = 'off';
+    field.addEventListener('input', () => change(field.value));
+    return field;
+  };
+  sxRow(block, t('Name'), t('A short word: it is how the agents see it.'), input(draft.id, 'apex', { mono: true, change: (value) => { draft.id = value.trim().toLowerCase(); } }));
+  sxRow(block, t('How it runs'), null, sxSeg([{ value: 'stdio', text: t('Local command') }, { value: 'http', text: t('Web address') }], draft.transport, (value) => { draft.transport = value; drawMcpTarget(); }, { label: t('How it runs') }));
+  if (draft.transport === 'stdio') {
+    sxRow(block, t('Command'), t('The program and its arguments, as you would type them; no pipes or &&.'), input(draft.command, 'node ~/mcp/server.mjs', { mono: true, change: (value) => { draft.command = value; } }), { stack: true });
+    const vars = el('div', 'mcp-vars');
+    draft.env.forEach((row, index) => {
+      const line = el('div', 'sx-field');
+      line.append(input(row.name, 'API_KEY', { mono: true, change: (value) => { row.name = value.trim(); } }), input(row.value, t('value'), { mono: true, type: row.secret ? 'password' : 'text', change: (value) => { row.value = value; } }));
+      const secret = el('label', 'mcp-secret');
+      const box = el('input'); box.type = 'checkbox'; box.checked = row.secret !== false;
+      box.addEventListener('change', () => { row.secret = box.checked; drawMcpTarget(); });
+      secret.append(box, el('span', null, t('secret')));
+      line.append(secret, sxButton('×', () => { draft.env.splice(index, 1); drawMcpTarget(); }, { title: t('Remove') }));
+      vars.append(line);
+    });
+    vars.append(sxButton(t('Add a variable'), () => { draft.env.push({ name: '', value: '', secret: true }); drawMcpTarget(); }));
+    sxRow(block, t('Variables'), t('What it needs in its environment. A secret goes to MADRE\'s vault and never into a file.'), vars, { stack: true });
+  } else {
+    sxRow(block, t('Address'), t('The full address of its MCP endpoint, starting with https://.'), input(draft.url, 'https://example.com/mcp', { mono: true, change: (value) => { draft.url = value.trim(); } }), { stack: true });
+    sxRow(block, t('Sign-in'), t('Sign in opens the server\'s own page, the way Claude connects to it; a token is pasted once and kept in the vault.'), sxSeg([{ value: 'none', text: t('None') }, { value: 'oauth', text: t('Sign in') }, { value: 'token', text: t('Token') }], draft.auth, (value) => { draft.auth = value; drawMcpTarget(); }, { label: t('Sign-in') }));
+    if (draft.auth === 'token') sxRow(block, t('Token'), null, input(draft.token, t('paste it here'), { mono: true, type: 'password', change: (value) => { draft.token = value; } }), { stack: true });
+  }
+  const save = sxButton(draft.auth === 'oauth' && draft.transport === 'http' ? t('Save and sign in') : t('Save and check'), async () => {
+    save.disabled = true; save.textContent = t('Checking…');
+    try {
+      const result = await mcpCall('/api/x/mcp/servers', { id: draft.id, transport: draft.transport, command: draft.command, url: draft.url, auth: draft.auth, token: draft.token, env: draft.env });
+      const added = (mcpUI.servers ?? []).find((one) => one.id === draft.id);
+      mcpUI.adding = null;
+      drawMcpTarget(); syncSettingsCards();
+      if (added && added.auth === 'oauth' && result.check?.needsAuth) void mcpSignIn(added);
+      else if (result.check && !result.check.ok) toast(t('{name} did not answer: {problem}', { name: draft.id, problem: result.check.problem ?? '' }));
+      else if (result.check?.ok) toast(t('{name} is connected · {n} tools', { name: draft.id, n: result.check.tools.length }), { tone: 'done' });
+    } catch (error) {
+      toast(`${t('Diagnostics › ')}${resay(error.message)}`);
+      save.disabled = false; save.textContent = t('Save and check');
+    }
+  }, { tone: 'primary' });
+  const actions = el('div', 'mcp-actions');
+  actions.append(save, sxButton(t('Cancel'), () => { mcpUI.adding = null; drawMcpTarget(); }));
+  block.append(actions);
+}
+async function openMcpImport() {
+  try {
+    const { found } = await mcpCall('/api/x/mcp/import');
+    mcpUI.found = found;
+    // Nothing is picked for the person: an app's own internal servers are listed too.
+    mcpUI.picked = new Set();
+  } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); return; }
+  drawMcpTarget();
+}
+function drawMcpImport(host) {
+  const found = mcpUI.found;
+  const block = sxBlock(host, t('Import from your apps'), found.length
+    ? t('Servers you already set up in other apps. Only their names are read until you import them; then their values go to MADRE\'s vault and each one is checked.')
+    : t('No MCP servers were found in .mcp.json, opencode.json, Claude Code, Codex, Gemini CLI or Cursor.'), { className: 'mcp-block' });
+  for (const one of found) {
+    const box = el('input');
+    box.type = 'checkbox';
+    box.checked = mcpUI.picked.has(one.index);
+    box.disabled = one.taken;
+    box.setAttribute('aria-label', one.name);
+    box.addEventListener('change', () => { if (box.checked) mcpUI.picked.add(one.index); else mcpUI.picked.delete(one.index); });
+    const label = el('label', 'mcp-pick');
+    label.append(box);
+    const secrets = one.env.length + one.headers.length;
+    sxRow(block, `${one.name} · ${one.source}`, `${one.where}${secrets ? ` · ${t('{n} values for the vault', { n: secrets })}` : ''}${one.taken ? ` · ${t('already here')}` : one.disabled ? ` · ${t('off in that app')}` : ''}`, label);
+  }
+  const actions = el('div', 'mcp-actions');
+  if (found.length) {
+    const go = sxButton(t('Import and check'), async () => {
+      go.disabled = true; go.textContent = t('Checking…');
+      try {
+        const { results } = await mcpCall('/api/x/mcp/import', { picks: [...mcpUI.picked] });
+        const ok = results.filter((one) => one.ok).length;
+        toast(t('{ok} of {n} imported servers answered', { ok, n: results.length }), { tone: ok === results.length ? 'done' : 'look' });
+      } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
+      mcpUI.found = null;
+      drawMcpTarget(); syncSettingsCards();
+    }, { tone: 'primary' });
+    actions.append(go);
+  }
+  actions.append(sxButton(t('Close'), () => { mcpUI.found = null; drawMcpTarget(); }));
+  block.append(actions);
+}
+
 function drawFilesSettings(host) {
   const tree = surfaces.find((one) => one.key === 'tree');
   const where = sxBlock(host, t('Where they open'), t('Each one remembers how you left it. This is the same choice, without opening them.'));
@@ -13623,7 +13845,9 @@ function renderModules() {
   }
   const grid = el('div', 'mods-grid');
   // What is working for you first, what you could turn on after.
-  const ordered = [...modules.items.filter(moduleOn), ...modules.items.filter((item) => !moduleOn(item))];
+  // A module whose settings live in the project's Settings (Connect MCP) has no tile here.
+  const offered = modules.items.filter((item) => item.card !== 'settings');
+  const ordered = [...offered.filter(moduleOn), ...offered.filter((item) => !moduleOn(item))];
   const shown = ordered.filter((item) => !query || settingsFold(`${item.name} ${t(moduleFace(item).line ?? '')} ${item.summary ?? ''}`).includes(query));
   for (const item of shown) grid.append(moduleTile(item));
   if (!query) {
