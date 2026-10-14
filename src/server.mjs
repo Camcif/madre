@@ -1125,8 +1125,9 @@ export async function createPulseServer({
     // its own takes the first thing the human said in it.
     unsubscribeChats = room.subscribe((event) => {
       if (event?.type !== 'message.created' || event.ghost) return;
+      // A message MADRE wrote for the human (results going back) neither names nor previews it.
       const human = event.payload?.role === 'user';
-      chatWrites = chatWrites.then(() => touchChat(roomDir, chatId, { text: human ? saidText(event.payload) : null, counts: human })).catch(() => null);
+      chatWrites = chatWrites.then(() => touchChat(roomDir, chatId, { text: human && !event.payload?.auto ? saidText(event.payload) : null, counts: human })).catch(() => null);
     });
     unsubscribeActivity = watchActivity(room, chatId);
     sentinel.seed(historicalEvents);
@@ -1223,7 +1224,7 @@ export async function createPulseServer({
     const offTouch = target.subscribe((event) => {
       if (event?.type !== 'message.created' || event.ghost) return;
       const human = event.payload?.role === 'user';
-      chatWrites = chatWrites.then(() => touchChat(roomDir, id, { text: human ? saidText(event.payload) : null, counts: human })).catch(() => null);
+      chatWrites = chatWrites.then(() => touchChat(roomDir, id, { text: human && !event.payload?.auto ? saidText(event.payload) : null, counts: human })).catch(() => null);
     });
     const offActivity = watchActivity(target, id);
     const offModules = wireModules(target, id);

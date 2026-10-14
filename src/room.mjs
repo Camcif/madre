@@ -882,14 +882,14 @@ export class Room {
   // the line, never the command: what runs is read back from the room's own record of what the
   // agent asked, so a page cannot run anything that was not shown to the human as a button.
   async runRequested({ responseMessageId, index, returnCap = 3 }) {
-    if (!this.#runsEnabled) return { ok: false, status: 412, error: 'Command requests are off. Enable them in MODULES.' };
+    if (!this.#runsEnabled) return { ok: false, status: 412, error: t('Command requests are off. Enable them in MODULES.') };
     const events = await this.#store.readAll();
     const request = events.find((event) => event.type === 'run.requested' && event.payload.responseMessageId === responseMessageId)?.payload;
     const command = request?.commands?.[index];
     if (!command) return { ok: false, status: 404, error: 'That command request is not in this room.' };
     if (!command.argv) return { ok: false, status: 422, error: `That line does not run: it ${whyText(command)}.` };
-    if (this.#runBusy || this.#runDesk.busy) return { ok: false, status: 409, error: 'A command is already running; wait for it or STOPALL.' };
-    if (this.#controlDesk.holder) return { ok: false, status: 409, error: `@${this.#controlDesk.holder.agent} holds ${MODES[this.#controlDesk.holder.mode ?? 3].label} of this project; run it when the turn ends.` };
+    if (this.#runBusy || this.#runDesk.busy) return { ok: false, status: 409, error: t('A command is already running; wait for it or STOPALL.') };
+    if (this.#controlDesk.holder) return { ok: false, status: 409, error: t('@{agent} holds {mode} of this project; run it when the turn ends.', { agent: this.#controlDesk.holder.agent, mode: MODES[this.#controlDesk.holder.mode ?? 3].label }) };
     // A line pressed from a phone hands its results back at #2 at most, the phone's own ceiling.
     this.#returnCap.set(responseMessageId, Math.min(this.#returnCap.get(responseMessageId) ?? 3, Number(returnCap) || 1));
     // Taken before the first await below: two presses in a row must not both get through.
@@ -988,8 +988,9 @@ export class Room {
       const asked = events.find((event) => event.type === 'message.created' && event.payload?.messageId === settlement.request.messageId)?.payload ?? null;
       const reply = events.find((event) => event.type === 'message.created' && event.payload?.messageId === responseMessageId);
       const wanted = Math.min(this.#returnCap.get(responseMessageId) ?? 3, Math.max(1, normalizeMode(settlement.request.mode ?? asked?.mode, 1)));
-      // The mode the asking turn had, if the project still allows it; a step down otherwise.
-      let mode = wanted;
+      // The mode the asking turn had, if the project still allows it and the agent can take it; a
+      // step down otherwise. A CLI that cannot write goes back at #1, not to a refused #2.
+      let mode = Math.min(wanted, Math.max(1, this.scopesFor(agentId).maxMode ?? 1));
       while (mode > 1 && !(await this.modeCheck({ target: agentId, text: '', mode })).ok) mode -= 1;
       const sameAgent = asked?.target === agentId;
       const quoted = String(settlement.request.reason ?? '').replace(/\s+/g, ' ').trim();

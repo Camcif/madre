@@ -6031,8 +6031,87 @@ function renderEventNode(event) {
   if (event.type.startsWith('message.') || event.type === 'command.output' || event.type === 'run.requested') removeEmpty();
   const stickToBottom = scroller.height - scroller.top - scroller.view < 120;
   els.column.append(tidySystemLine(node));
+  scheduleFold(node);
   followTurn(event, node, stickToBottom);
 }
+
+// The room's notices fold into dots (2026-10-14). «CREATE · @codex may create…», «a plan is still
+// running», a handoff, a memory kept: each one matters the moment it happens and is clutter ten
+// seconds later, and a working session left the answers buried between them. Now a notice says
+// its piece, and after ten seconds — later if the pointer is on it — it becomes a dot in the
+// colour of its kind, beside the dots around it; a click opens it again with everything it said.
+// What still asks for something stays as it is: a failure with its RETRY, a permission waiting, a
+// module to install, the changes a turn made with their UNDO, MU/TH/UR. History folds at once.
+const NOTICE_FOLD_MS = 10000;
+const NOTICE_KEEP = '.fail, .crit, .mother-alert, .mother, .escalation, .lease.missing, .lease.refused, .module-proposed, .control.changed, .local-model, .memory.forgotten';
+function noticeTone(node) {
+  if (node.matches('.alert, .halted, .control, .login.failed, .module.failed')) return 'crit';
+  if (node.matches('.warn, .lease, .privacy, .enlace.warn')) return 'warn';
+  if (node.matches('.login, .module, .reverted, .granted, .recovered')) return 'ok';
+  return 'info';
+}
+// A notice folds only once it asks for nothing: any button still live keeps it open. STOP ALL on
+// an alert is the exception — the brake lives in the bar too.
+function noticeWaits(node) {
+  return [...node.querySelectorAll('button')].some((button) => !button.disabled && !button.hidden && !button.classList.contains('cmd'));
+}
+function foldableNotice(node) {
+  return Boolean(node?.classList?.contains('system')) && node.parentElement === els.column && !node.matches(NOTICE_KEEP);
+}
+function scheduleFold(node, tries = 0) {
+  if (!foldableNotice(node)) return;
+  if (replaying) { if (!noticeWaits(node)) foldNotice(node, { quiet: true }); return; }
+  setTimeout(() => {
+    if (!node.isConnected || node.classList.contains('folded')) return;
+    // Being read, or still waiting for a press: look again in a moment, for at most ten minutes.
+    if (node.matches(':hover, :focus-within') || noticeWaits(node)) { if (tries < 60) scheduleFold(node, tries + 1); return; }
+    foldNotice(node);
+  }, tries ? 10000 : NOTICE_FOLD_MS);
+}
+function noticeWords(node) {
+  return node.textContent.replace(/\s+/g, ' ').trim().slice(0, 220);
+}
+function foldNotice(node, { quiet = false } = {}) {
+  if (!node.isConnected || node.classList.contains('folded') || !foldableNotice(node)) return;
+  const finish = () => {
+    if (!node.isConnected) return;
+    const before = node.previousElementSibling?.classList.contains('sys-dots') ? node.previousElementSibling : null;
+    const after = node.nextElementSibling?.classList.contains('sys-dots') ? node.nextElementSibling : null;
+    let strip = before ?? after;
+    if (!strip) { strip = el('div', 'sys-dots'); node.before(strip); }
+    if (strip === after) strip.prepend(node); else strip.append(node);
+    if (before && after) { before.append(...after.children); after.remove(); }
+    node.classList.remove('folding');
+    node.classList.toggle('quiet', quiet);
+    node.classList.add('folded');
+    node.dataset.tone = noticeTone(node);
+    node.tabIndex = 0;
+    node.setAttribute('role', 'button');
+    node.setAttribute('aria-expanded', 'false');
+    node.title = noticeWords(node);
+  };
+  if (quiet || matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
+  node.classList.add('folding');
+  setTimeout(finish, 220);
+}
+// One open at a time in a row of dots; a click on the open one, or Escape, folds it again.
+function peekNotice(node, open = !node.classList.contains('peek')) {
+  if (open) for (const other of node.parentElement?.querySelectorAll('.system.peek') ?? []) if (other !== node) peekNotice(other, false);
+  node.classList.toggle('peek', open);
+  node.classList.remove('quiet');
+  node.setAttribute('aria-expanded', String(open));
+}
+els.column.addEventListener('click', (event) => {
+  const node = event.target.closest?.('.sys-dots > .system.folded');
+  if (!node || event.target.closest('a, button')) return;
+  peekNotice(node);
+});
+els.column.addEventListener('keydown', (event) => {
+  const node = event.target.closest?.('.sys-dots > .system.folded');
+  if (!node || event.target !== node) return;
+  if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); peekNotice(node); }
+  else if (event.key === 'Escape' && node.classList.contains('peek')) peekNotice(node, false);
+});
 
 // Modern chats carry the reader along: a new human message or a working
 // indicator scrolls to the end; an answer scrolls to its start so a long
@@ -11607,27 +11686,83 @@ function runOutput(text, run) {
 function renderCommandCard(event) {
   const { name, title, text, ok, args = [], run = null, bishop = null } = event.payload;
   if (name === 'bishop' && !bishop && ok !== false && args.length) return renderBishopAsk(event);
+  if (!bishop) return renderTerminalCard(event);
   const node = el('div', `command-card${ok === false ? ' failed' : ''}`);
   const head = el('div', 'head');
   // The answer to an order of BISHOP: who answered, where, and which order; the card starts no turn.
-  const said = bishop ? t('@{agent} in {room} · order {step} of {total} · plan {plan}', { agent: bishop.agent, room: bishop.name, step: bishop.step, total: bishop.total, plan: bishop.plan }) : null;
-  head.append(el('b', null, bishop ? t('Coordinator') : `/${name}`), el('span', null, said ?? (run?.line ? runTitle(run) : title ?? name)), el('span', 'args', args.join(' ')));
-  if (bishop) {
-    markBishopOrder(bishop, ok === false ? 'failed' : 'done');
-    if (bishop.link) {
-      const go = el('a', 'args', bishop.cut ? t('the rest, in the project') : t('see it in the project'));
-      go.href = bishop.link;
-      go.target = '_blank';
-      go.rel = 'noopener';
-      head.append(go);
-    }
+  const said = t('@{agent} in {room} · order {step} of {total} · plan {plan}', { agent: bishop.agent, room: bishop.name, step: bishop.step, total: bishop.total, plan: bishop.plan });
+  head.append(el('b', null, t('Coordinator')), el('span', null, said), el('span', 'args', args.join(' ')));
+  markBishopOrder(bishop, ok === false ? 'failed' : 'done');
+  if (bishop.link) {
+    const go = el('a', 'args', bishop.cut ? t('the rest, in the project') : t('see it in the project'));
+    go.href = bishop.link;
+    go.target = '_blank';
+    go.rel = 'noopener';
+    head.append(go);
   }
   const pre = el('pre');
-  for (const line of String(run?.line ? runOutput(text, run) : text ?? '').split('\n')) {
+  for (const line of String(text ?? '').split('\n')) {
     if (line.startsWith('## ')) pre.append(el('span', 'h', line.slice(3)), '\n');
     else pre.append(`${line}\n`);
   }
   node.append(head, pre);
+  state.lastSender = null;
+  return node;
+}
+
+// What a terminal said, folded (2026-10-14). A command's output used to open in full in the
+// conversation, and five of them were a wall between a question and its answer. Now the card is
+// one line — the command, how it ended, how long, who asked — with the output's last line beside
+// it, which is where a test run or a build says how it went; the rest opens on a click.
+const termOpen = new Set();   // event ids the human opened, so a redraw keeps them open
+function renderTerminalCard(event) {
+  const { name, title, text, ok, args = [], run = null } = event.payload;
+  const node = el('div', `command-card terminal${ok === false ? ' failed' : ''}`);
+  const body = String(run?.line ? runOutput(text, run) : text ?? '').replace(/\s+$/, '');
+  const lines = body ? body.split('\n') : [];
+  const head = el('button', 'term-head');
+  head.type = 'button';
+  const id = String(event.id ?? event.sequence ?? Math.random());
+  const outId = `term-${id.replace(/[^\w-]/g, '')}`;
+  head.setAttribute('aria-controls', outId);
+  head.append(el('b', 'term-tag', `/${name}`));
+  if (run?.line) {
+    head.title = runTitle(run);
+    head.append(el('code', 'term-line', `$ ${run.line}`));
+    const why = String(run.stoppedBy ?? '');
+    const status = why ? 'stopped' : run.exitCode === null || run.exitCode === undefined ? 'stopped' : run.exitCode === 0 ? 'ok' : 'failed';
+    const word = why ? t('halted') : run.exitCode === null || run.exitCode === undefined ? t('did not start') : run.exitCode === 0 ? t('went fine') : t('failed · code {code}', { code: run.exitCode });
+    head.append(el('span', `term-status ${status}`, `${status === 'ok' ? '✓' : status === 'failed' ? '✕' : '■'} ${word} · ${((Number(run.durationMs) || 0) / 1000).toFixed(1)}s`));
+    if (run.agent) head.append(paint(el('span', 'term-who', `@${run.agent}`), run.agent));
+  } else {
+    head.title = title ?? name;
+    head.append(el('span', 'term-line', title ?? name));
+    if (args.length) head.append(el('span', 'term-who', args.join(' ')));
+  }
+  head.append(el('span', 'term-count', t('{n} lines', { n: lines.length })), chevron());
+  // The line a person looks for first: the last thing it printed.
+  const last = [...lines].reverse().find((line) => line.trim() && !/^Files changed:|^Archivos cambiados:/.test(line));
+  const peek = last ? el('div', 'term-peek', last.trim().slice(0, 240)) : null;
+  const out = el('div', 'term-out');
+  out.id = outId;
+  const pre = el('pre');
+  for (const line of lines) {
+    if (line.startsWith('## ')) { pre.append(el('span', 'h', line.slice(3)), '\n'); continue; }
+    // A few words carry the verdict in any test runner or compiler; they get its colour, nothing more.
+    const tone = /^\s*(✖|✗|×|not ok\b|FAIL\b|ERR!|error\b|Error:|fatal:)/i.test(line) ? 'bad' : /^\s*(✔|✓|ok\b|PASS\b)/.test(line) ? 'good' : null;
+    pre.append(tone ? el('span', `l-${tone}`, line) : line, '\n');
+  }
+  const clip = el('div', 'term-clip');
+  clip.append(pre);
+  out.append(clip);
+  const open = (yes) => {
+    node.classList.toggle('open', yes);
+    head.setAttribute('aria-expanded', String(yes));
+    if (yes) termOpen.add(id); else termOpen.delete(id);
+  };
+  open(termOpen.has(id));
+  head.addEventListener('click', () => open(!node.classList.contains('open')));
+  node.append(head, ...(peek ? [peek] : []), out);
   if (run) {
     markRun(run, ok === false ? 'failed' : 'ran');
     // A command the human ran by hand was photographed first: the same UNDO as a CONTROL turn.
