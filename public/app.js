@@ -16967,6 +16967,9 @@ function maybeStartTour() {
   // and What's new 1.0. Once it was given, only a later version's news come, never the old tour;
   // and the first time the room is here after it, Switch project says what it is.
   void roomTour().loaded.then(async (answer) => {
+    // A new person is welcomed in Home, where the bonjour leads to connecting the agents and adding
+    // the projects before any chapter; a project does not greet them first (2026-10-14).
+    if (answer?.owed && !answer.returning && !answer.state?.path) return;
     if (answer?.owed) { await roomTour().maybeBonjour(); return; }
     if (answer?.state?.bonjourAt) {
       const shown = await maybeShowWhatsNew();

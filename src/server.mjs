@@ -1879,9 +1879,18 @@ export async function createPulseServer({
         if (!room) return sendJson(response, 404, { error: t('MADRE does not know that project on this Mac.') });
         if (room.open) return sendJson(response, 200, { room: room.id, port: room.open.port, already: true });
         if (!room.root) return sendJson(response, 404, { error: t('The folder of that project is no longer on this Mac.') });
+        // Where start.log stood before this try: only what this one wrote is read if it fails.
+        const logFrom = await stat(join(root, 'rooms', room.id, 'start.log')).then((info) => info.size, () => 0);
         startRoom({ projectRoot: room.root, roomDir: join(root, 'rooms', room.id) });
         const up = await roomComesUp(root, room.id);
-        if (!up) return sendJson(response, 504, { error: t('The project did not open. What it said on the way up is in start.log, beside its record.') });
+        if (!up) {
+          // The commonest reason, said as itself: another MADRE (another Home, `madre start`) already
+          // has this folder open, and one folder is one room. Where it is, so the person can go there.
+          const said = (await readFile(join(root, 'rooms', room.id, 'start.log'), 'utf8').catch(() => '')).slice(logFrom);
+          const there = [...said.matchAll(/already open for this project\s+(http:\/\/127\.0\.0\.1:\d+)/g)].at(-1)?.[1];
+          if (there) return sendJson(response, 409, { error: t('This project is already open in another MADRE, at {address}. Use that one, or close it there first.', { address: there }), address: there });
+          return sendJson(response, 504, { error: t('The project did not open. What it said on the way up is in start.log, beside its record.') });
+        }
         return sendJson(response, 200, { room: up.id, port: up.open.port });
       }
       // ---- The lobby adds projects (2026-10-10, src/salas.mjs). Only this page, on this Mac: a

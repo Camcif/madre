@@ -176,11 +176,12 @@ test('tour · the chapters the page tells are the ones the server keeps, in both
   const { CHAPTERS: told, GESTURES, ORDER } = await import('../public/tour-chapters.js');
   assert.deepEqual(told.map((chapter) => chapter.id), CHAPTERS, 'a chapter the server would refuse, or one it keeps that the page never tells');
   // Three tours of the same chapters: a new person never reads what moved or what was renamed;
+  // Home as a board is told inside «Home» there, and on its own only to whoever came from 1.0;
   // whoever came from 0.7.2 starts with what moved, and every other chapter tells them, in one
   // line, what is new or different; whoever came from 1.0 reads only what changed after it.
   assert.deepEqual(Object.keys(ORDER), ['new', 'back', 'since']);
-  assert.deepEqual([...ORDER.new].sort(), CHAPTERS.filter((id) => !['moved', 'renamed'].includes(id)).sort(), 'the tour of the essentials lacks a chapter, or tells one twice');
-  assert.deepEqual([...ORDER.back].sort(), CHAPTERS.filter((id) => id !== 'renamed').sort(), 'the tour of what changed lacks a chapter, or tells one twice');
+  assert.deepEqual([...ORDER.new].sort(), CHAPTERS.filter((id) => !['moved', 'renamed', 'board'].includes(id)).sort(), 'the tour of the essentials lacks a chapter, or tells one twice');
+  assert.deepEqual([...ORDER.back].sort(), CHAPTERS.filter((id) => !['renamed', 'board'].includes(id)).sort(), 'the tour of what changed lacks a chapter, or tells one twice');
   assert.equal(ORDER.back[0], 'moved');
   assert.equal(ORDER.since[0], 'renamed');
   for (const chapter of told.filter((one) => !['moved', 'renamed'].includes(one.id))) {

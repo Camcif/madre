@@ -8246,7 +8246,7 @@ dialog.tour-bonjour::backdrop { background: transparent; }
 .tour-points li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--tour-acc); }
 .tour-keys { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, max-content); gap: 6px 14px; margin: 6px 0 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--text) 4%, transparent); }
 .tour-keys dt { font-size: 12.5px; color: var(--text-2); }
-.tour-keys dd { margin: 0; max-width: 22ch; justify-self: end; font-family: var(--mono); font-size: 11.5px; line-height: 1.4; text-align: right; color: var(--text); }
+.tour-keys dd { margin: 0; max-width: 34ch; text-wrap: balance; justify-self: end; font-family: var(--mono); font-size: 11.5px; line-height: 1.4; text-align: right; color: var(--text); }
 .tour-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .tour-gap { flex: 1; }
 .tour-where { font-size: 12.5px; color: var(--text-3); }
@@ -8258,7 +8258,7 @@ dialog.tour-bonjour::backdrop { background: transparent; }
 
 /* The scenes: a few shapes, drawn small, moving slowly. */
 .tour-scene { position: relative; height: 168px; overflow: hidden; border-radius: 14px; background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--tour-acc) 14%, transparent), transparent 70%), color-mix(in srgb, var(--text) 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent); }
-.tour-scene.s-moved { height: auto; padding: 12px 14px; }
+.tour-scene.s-moved, .tour-scene.s-table { height: auto; padding: 12px 14px; }
 .ts-moved { display: grid; gap: 6px; }
 .ts-moved-row { display: grid; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1.4fr); align-items: center; gap: 8px; font-size: 12.5px; animation: tour-rise calc(420ms * var(--motion-scale, 1)) ease both; }
 .ts-moved-row:nth-child(2) { animation-delay: 60ms; } .ts-moved-row:nth-child(3) { animation-delay: 120ms; } .ts-moved-row:nth-child(4) { animation-delay: 180ms; } .ts-moved-row:nth-child(5) { animation-delay: 240ms; } .ts-moved-row:nth-child(6) { animation-delay: 300ms; } .ts-moved-row:nth-child(7) { animation-delay: 360ms; } .ts-moved-row:nth-child(8) { animation-delay: 420ms; }
@@ -8496,3 +8496,9 @@ dialog.tour-bonjour::backdrop { background: transparent; }
 }
 @keyframes ts-fill { from { background-size: 0 100%; background-repeat: no-repeat; } to { background-size: 100% 100%; background-repeat: no-repeat; } }
 .hint-card.in-modal::before { content: none; }
+
+/* The tables of what was renamed or moved: a long new name wraps under itself, never past the box. */
+.ts-moved-row .now { overflow-wrap: anywhere; line-height: 1.35; }
+
+/* The welcome and its chapters are dialogs too: their own ring is not drawn around them. */
+dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:focus, dialog.whats-new:focus-visible { outline: none; }

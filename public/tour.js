@@ -355,7 +355,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     }));
     const main = windowNode.querySelector('.tour-main');
     const page2 = el('article', `tour-chapter c-${chapter.id}`);
-    const scene = el('div', `tour-scene s-${chapter.id}`);
+    const scene = el('div', `tour-scene s-${chapter.id}${chapter.moved ? ' s-table' : ''}`);
     scene.setAttribute('aria-hidden', 'true');
     if (chapter.moved) {
       const table = el('div', 'ts-moved');

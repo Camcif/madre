@@ -18,8 +18,8 @@
 // board, its widgets, the local AI chosen project by project, the sky of connections and Settings.
 
 export const ORDER = {
-  new: ['home', 'board', 'widgets', 'project', 'talk', 'modes', 'settings', 'modules', 'local', 'coordinator', 'links', 'maps', 'phone', 'gestures'],
-  back: ['moved', 'home', 'board', 'widgets', 'coordinator', 'links', 'maps', 'project', 'settings', 'modules', 'local', 'talk', 'modes', 'phone', 'gestures'],
+  new: ['home', 'widgets', 'project', 'talk', 'modes', 'settings', 'modules', 'local', 'coordinator', 'links', 'maps', 'phone', 'gestures'],
+  back: ['moved', 'home', 'widgets', 'coordinator', 'links', 'maps', 'project', 'settings', 'modules', 'local', 'talk', 'modes', 'phone', 'gestures'],
   since: ['renamed', 'board', 'widgets', 'local', 'links', 'settings', 'gestures'],
 };
 
@@ -58,20 +58,20 @@ export const CHAPTERS = [
     news: { kind: 'new', es: 'En 0.7.2 cada proyecto se abría por su cuenta con <code>madre start</code>; Inicio los reúne a todos.', en: 'In 0.7.2 each project opened on its own with <code>madre start</code>; Home gathers them all.' },
     points: {
       es: [
-        'Agrega las carpetas de tus proyectos; ninguna se abre hasta que tú lo decidas.',
-        'Clic derecho o ⋯ en una tarjeta para anclarla a la barra, ordenarla o quitarla de MADRE. Su carpeta no se toca.',
+        'Agrega las carpetas de tus proyectos; ninguna se abre hasta que tú lo decidas. Clic derecho o ⋯ en un proyecto para anclarlo a la barra o quitarlo de MADRE; su carpeta no se toca.',
+        'Inicio es un tablero: clic derecho en cualquier tarjeta para moverla, cambiar su tamaño o quitarla, y en el fondo para agregar widgets. También puedes arrastrarlas.',
         'Te esperan, Decisiones recientes y Resumen reciente te cuentan qué pasó mientras no estabas.',
       ],
       en: [
-        'Add folders: they do not open until you want them to.',
-        'Right-click or ⋯ on a card: pin it to the bar, order it, or remove it from MADRE. Its folder is not touched.',
+        'Add folders: they do not open until you want them to. Right-click or ⋯ on a project to pin it to the bar or remove it from MADRE; its folder is not touched.',
+        'Home is a board: right-click any card to move it, resize it or take it off, and the background to add widgets. You can drag them too.',
         'Waiting for you, Recent decisions and the Recent summary tell you what happened while you were away.',
       ],
     },
     keys: [
       [{ es: 'Menú de un proyecto', en: 'A project\'s menu' }, { es: 'clic derecho · ⋯', en: 'right-click · ⋯' }],
-      [{ es: 'Anclarlo a la barra', en: 'Pin it to the bar' }, { es: 'arrastrar la tarjeta', en: 'drag the card' }],
-      [{ es: 'Los que no caben', en: 'Those that do not fit' }, '+n'],
+      [{ es: 'Acomodar una tarjeta', en: 'Arrange a card' }, { es: 'clic derecho · arrastrar', en: 'right-click · drag' }],
+      [{ es: 'Agregar widgets', en: 'Add widgets' }, { es: 'clic derecho en el fondo', en: 'right-click the background' }],
     ],
     where: ['home'],
   },
@@ -120,7 +120,7 @@ export const CHAPTERS = [
     keys: [
       [{ es: 'Menú de una tarjeta', en: 'A card\'s menu' }, { es: 'clic derecho', en: 'right-click' }],
       [{ es: 'Moverla', en: 'Move it' }, { es: 'arrastrar', en: 'drag' }],
-      [{ es: 'Agregar tarjetas', en: 'Add cards' }, { es: 'clic derecho en un espacio vacío', en: 'right-click an empty spot' }],
+      [{ es: 'Agregar tarjetas', en: 'Add cards' }, { es: 'clic derecho en el fondo', en: 'right-click the background' }],
     ],
     where: ['home'],
   },
@@ -147,8 +147,8 @@ export const CHAPTERS = [
       ],
     },
     keys: [
-      [{ es: 'Agregar uno', en: 'Add one' }, { es: 'clic derecho › Agregar a Inicio', en: 'right-click › Add to Home' }],
-      [{ es: 'Su tamaño', en: 'Its size' }, { es: 'clic derecho en el widget', en: 'right-click the widget' }],
+      [{ es: 'Agregar uno', en: 'Add one' }, { es: 'clic derecho › Agregar', en: 'right-click › Add' }],
+      [{ es: 'Cambiar su tamaño', en: 'Change its size' }, { es: 'clic derecho en él', en: 'right-click it' }],
     ],
     where: ['home'],
   },
@@ -350,7 +350,7 @@ export const CHAPTERS = [
         'A project without the local AI keeps working with its agents; it only stops using search by meaning, the memory summary and @madre.',
       ],
     },
-    keys: [[{ es: 'Elegir proyectos', en: 'Choose projects' }, { es: 'Inicio › Ajustes › IA local', en: 'Home › Settings › Local AI' }]],
+    keys: [[{ es: 'Elegir proyectos', en: 'Choose projects' }, { es: 'Ajustes › IA local', en: 'Settings › Local AI' }]],
     where: ['home'],
   },
   {
@@ -439,7 +439,7 @@ export const GESTURES = [
   [{ es: 'Inicio', en: 'Home' }, [
     [{ es: 'Menú de una tarjeta', en: 'A card\'s menu' }, { es: 'clic derecho', en: 'right-click' }],
     [{ es: 'Mover una tarjeta', en: 'Move a card' }, { es: 'arrastrar', en: 'drag' }],
-    [{ es: 'Agregar tarjetas y widgets', en: 'Add cards and widgets' }, { es: 'clic derecho en un espacio vacío', en: 'right-click an empty spot' }],
+    [{ es: 'Agregar tarjetas y widgets', en: 'Add cards and widgets' }, { es: 'clic derecho en el fondo', en: 'right-click the background' }],
     [{ es: 'Menú de un proyecto', en: 'A project\'s menu' }, { es: 'clic derecho · ⋯', en: 'right-click · ⋯' }],
     [{ es: 'Anclarlo', en: 'Pin it' }, { es: 'arrastrar a la barra', en: 'drag to the bar' }],
     [{ es: 'Los que no caben', en: 'Those that do not fit' }, '+n'],

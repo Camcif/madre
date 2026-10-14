@@ -1274,3 +1274,8 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 .sm-usage-lines { display: grid; gap: 6px; }
 .sm-usage-lines .sm-w-line b { flex: none; min-width: 84px; font-size: 12.5px; font-weight: 600; }
 .sm-usage-lines .sm-w-line small { margin-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+
+/* A sheet of Home is a dialog the size of the screen with its card inside; focused itself (as a
+   modal is when it opens), the browser drew its ring around the whole page. Focus moves to what is
+   inside it; the dialog itself draws no ring. */
+dialog.sm-sheet:focus, dialog.sm-sheet:focus-visible { outline: none; }

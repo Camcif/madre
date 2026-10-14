@@ -4704,4 +4704,5 @@ export const ES = {
   'What changed, at your pace': 'Qué cambió, a tu paso',
   'New since 1.0': 'Nuevo desde 1.0',
   'Changed since 1.0': 'Cambió desde 1.0',
+  'This project is already open in another MADRE, at {address}. Use that one, or close it there first.': 'Este proyecto ya está abierto en otro MADRE, en {address}. Usa ese, o ciérralo ahí primero.',
 };
