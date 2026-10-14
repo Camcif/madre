@@ -132,7 +132,7 @@ export function resolveOrder(order, step, { rooms, contracts, salas, agents }) {
   const contract = contracts.find((one) => receivesOrders(one, salas) === named[0].id) ?? null;
   if (!contract) return { ...base, status: 'blocked', why: 'No signed connection lets the Coordinator give orders to that project.' };
   const maxMode = Math.min(contract.orders.maxMode, MAX_ORDER_MODE);
-  if (order.mode >= 3) return { ...base, contract: contract.id, maxMode, status: 'proposal', why: '#3 and #4 never travel: unlock it yourself in that project.' };
+  if (order.mode >= 3) return { ...base, contract: contract.id, maxMode, status: 'proposal', why: '#3 and #4 are never sent as orders: unlock it yourself in that project.' };
   if (order.mode > maxMode) return { ...base, contract: contract.id, maxMode, status: 'blocked', why: 'That connection allows orders up to #{n}.', whyArgs: { n: maxMode } };
   return { ...base, contract: contract.id, maxMode, status: 'ready', why: null };
 }
@@ -148,12 +148,12 @@ export function resolveLinks({ links, rooms, contracts, salas }) {
     const base = { index, from: from[0]?.id ?? null, fromName: from[0]?.name ?? link.from, to: to[0]?.id ?? null, toName: to[0]?.name ?? link.to, direction: link.both ? 'both' : 'a→b', kinds: link.kinds, days: link.days, orders: null, receives: null };
     if (from.length !== 1 || to.length !== 1) return { ...base, status: 'blocked', why: from.length > 1 || to.length > 1 ? 'Two projects on this Mac have that name; use the project id.' : 'MADRE does not know that project on this Mac.' };
     if (base.from === base.to) return { ...base, status: 'blocked', why: 'A project cannot be connected to itself.' };
-    if (base.from === salas || (link.both && base.to === salas)) return { ...base, status: 'blocked', why: 'The Coordinator\'s project never hands its notes over.' };
+    if (base.from === salas || (link.both && base.to === salas)) return { ...base, status: 'blocked', why: 'The Coordinator does not share its notes with other projects.' };
     if (!link.kinds.length || link.unknown.length) return { ...base, status: 'blocked', why: 'Name what crosses: decision, fact, preference or question.' };
     if (!link.kinds.every((kind) => LINK_KINDS.includes(kind))) return { ...base, status: 'blocked', why: 'Name what crosses: decision, fact, preference or question.' };
     let orders = null;
     if (link.orders !== null) {
-      if (base.from !== salas && base.to !== salas) return { ...base, status: 'blocked', why: 'Orders go only on a connection with the Coordinator\'s project.' };
+      if (base.from !== salas && base.to !== salas) return { ...base, status: 'blocked', why: 'Orders go only on a connection with the Coordinator.' };
       orders = { allowed: true, maxMode: Math.min(link.orders, MAX_ORDER_MODE), perHour: 6 };
     }
     const receives = orders ? (base.from === salas ? base.to : base.from) : null;

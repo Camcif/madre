@@ -174,9 +174,9 @@ export function consistencyExam({ findings = [], notes = [], now = Date.now() } 
     open, refuted, standing: standing.length, aberrations: aberrations.length, trend,
     passed,
     says: open
-      ? t('EYECAT is holding {n} contradictions nobody has settled.', { n: open })
+      ? t('The memory reviewer found {n} contradictions nobody has settled.', { n: open })
       : trend === 'rising'
-        ? t('Nothing is open, but aberrations are being filed more often lately than they used to be.')
+        ? t('Nothing is open, but doubtful memories are being filed more often lately than they used to be.')
         : t('Nothing contradicts anything: {standing} notes stand, {refuted} were taken out of circulation.', { standing: standing.length, refuted }),
   };
 }
@@ -231,9 +231,9 @@ export function saysFor(result) {
   }
   if (result.id === 'consistency' && Number.isFinite(result.open)) {
     return result.open
-      ? t('EYECAT is holding {n} contradictions nobody has settled.', { n: result.open })
+      ? t('The memory reviewer found {n} contradictions nobody has settled.', { n: result.open })
       : result.trend === 'rising'
-        ? t('Nothing is open, but aberrations are being filed more often lately than they used to be.')
+        ? t('Nothing is open, but doubtful memories are being filed more often lately than they used to be.')
         : t('Nothing contradicts anything: {standing} notes stand, {refuted} were taken out of circulation.', { standing: result.standing, refuted: result.refuted });
   }
   return result.says ?? null;

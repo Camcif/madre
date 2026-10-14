@@ -48,7 +48,7 @@ const modeOf = (ctx) => (BISHOP_MODES.includes(ctx.config?.modules?.bishop?.mode
 // D-S13: who signs a link that only reads. By default BISHOP; the human can keep them all.
 export const LINK_SIGNERS = ['bishop', 'you'];
 // What a person reads for each setting's value; the value is what is saved.
-const ORDER_CHOICES = { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
+const ORDER_CHOICES = { manual: 'Manual: every order waits for you to send it', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
 const SIGNER_CHOICES = { bishop: 'The Coordinator signs them, for 7 days at most', you: 'You sign them' };
 const ORDER_WORDS = { manual: 'manual orders', hybrid: 'hybrid orders', auto: 'automatic orders' };
 const SIGNER_WORDS = { bishop: 'The Coordinator signs connections to read', you: 'you sign every connection' };
@@ -121,7 +121,7 @@ async function sendOrder(ctx, planId, step, { auto = false } = {}) {
   const target = (await knownRooms(ctx.stateRoot)).find((room) => room.id === order.room);
   if (!target?.open) return back(409, t('That project is asleep. Wake it from Home to send it orders.'));
   const key = await channelKey(ctx.stateRoot).catch(() => null);
-  if (!key) return back(500, t('The channel has no key.'));
+  if (!key) return back(500, t('The internal key that connects the projects is missing.'));
   const sent = await post(target.open.port, '/api/x/bishop/order', { contract: contract.id, plan: plan.id, step: order.step, total: plan.orders.length, agent: order.agent, mode: order.mode, text: order.text, from: salas, auto: Boolean(auto) }, key);
   if (!sent.ok) { const why = refusal(sent, t('That project runs an older MADRE. Update it to send it orders.')); return back(why.status, why.error); }
   await changePlans(ctx.stateRoot, (data) => { const one = data.plans[plan.id]?.orders.find((item) => item.step === order.step); if (one) { one.status = 'sent'; one.sentAt = new Date().toISOString(); one.held = null; } });
@@ -142,7 +142,7 @@ async function deliverProposal(ctx, planId, step, { auto = false } = {}) {
   const target = (await knownRooms(ctx.stateRoot)).find((room) => room.id === order.room);
   if (!target?.open) return reply(409, { error: t('That project is asleep. Wake it from Home to send it orders.') });
   const key = await channelKey(ctx.stateRoot).catch(() => null);
-  if (!key) return reply(500, { error: t('The channel has no key.') });
+  if (!key) return reply(500, { error: t('The internal key that connects the projects is missing.') });
   const sent = await post(target.open.port, '/api/x/bishop/proposal', { contract: contract.id, plan: plan.id, step: order.step, total: plan.orders.length, agent: order.agent, mode: order.mode, text: order.text, from: salas }, key);
   if (!sent.ok) { const why = refusal(sent, t('That project runs an older MADRE. Update it to send it orders.')); return reply(why.status, { error: why.error }); }
   const closed = await changePlans(ctx.stateRoot, (data) => { const one = data.plans[plan.id]; const item = one?.orders.find((it) => it.step === order.step); if (item) item.status = 'delivered'; return one ? closing(one) : null; });
@@ -200,7 +200,7 @@ async function signLink(ctx, planId, index, { designation = null, by = 'you' } =
   if (by === 'bishop' && link.orders) return reply(403, { error: t('The Coordinator signs only connections to read; a connection with orders is signed by you.') });
   const salas = salasRoomId(ctx.stateRoot);
   const home = (await knownRooms(ctx.stateRoot)).find((room) => room.id === salas && room.open);
-  if (!home) return reply(409, { error: t('The Coordinator\'s project did not open. Open it with madre salas and ask again.') });
+  if (!home) return reply(409, { error: t('The Coordinator did not wake up. Go back to Home and ask again.') });
   const days = by === 'bishop' ? Math.min(link.days ?? BISHOP_SIGN_DAYS, BISHOP_SIGN_DAYS) : link.days;
   const expires = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
   const signed = await askRoom(home.open.port, '/api/salas/enlaces', { method: 'POST', timeoutMs: 6000, body: { a: link.from, b: link.to, direction: link.direction, kinds: link.kinds, expires, orders: link.orders ?? { allowed: false, maxMode: 0, perHour: 6 }, designation, ...(by === 'bishop' ? { by: 'bishop' } : {}) } });
@@ -233,7 +233,7 @@ const base = defineModule({
   id: 'bishop', configKey: 'bishop', name: 'Coordinator', vendor: 'MADRE', version: '1.0.0',
   summary: 'The guardian of your projects, in Home. It answers about every connected project, proposes orders and connections, and you decide what leaves and what is signed. Any project can raise it with /bishop.',
   creates: ['a setting in config.json; no project files'],
-  requires: ['the Coordinator\'s project', 'a ready agent; @madre is selected by default when ready'],
+  requires: ['Home', 'a ready agent; @madre is selected by default when ready'],
   settings: { enabled: true, agent: null, mode: 'manual', links: 'bishop' },
   async status(ctx) {
     const agent = chosen(ctx);
@@ -264,13 +264,13 @@ const base = defineModule({
         await roomComesUp(ctx.stateRoot, salas).catch(() => null);
         home = (await knownRooms(ctx.stateRoot)).find((room) => room.id === salas && room.open);
       }
-      if (!home) return { ok: false, title: 'Coordinator', text: t('The Coordinator\'s project did not open. Open it with madre salas and ask again.') };
+      if (!home) return { ok: false, title: 'Coordinator', text: t('The Coordinator did not wake up. Go back to Home and ask again.') };
       const key = await channelKey(ctx.stateRoot).catch(() => null);
       const here = projectRoomId(ctx.projectRoot);
       const name = (await knownRooms(ctx.stateRoot)).find((room) => room.id === here)?.name ?? here;
-      const sent = key ? await post(home.open.port, '/api/x/bishop/consult', { from: here, name, question }, key) : { ok: false, answer: { error: t('The channel has no key.') } };
+      const sent = key ? await post(home.open.port, '/api/x/bishop/consult', { from: here, name, question }, key) : { ok: false, answer: { error: t('The internal key that connects the projects is missing.') } };
       if (!sent.ok) return { ok: false, title: 'Coordinator', text: sent.answer?.error ?? t('That project did not answer.') };
-      return { ok: true, title: 'Coordinator', text: t('Asked the Coordinator in its project. The answer comes here, for you only: the agents of this project do not read it without a connection.') };
+      return { ok: true, title: 'Coordinator', text: t('Asked the Coordinator in Home. The answer comes here, for you only: the agents of this project do not read it without a connection.') };
     },
   }],
   // Every event of every room. Outside Salas: the order turns, so one can be stopped. In Salas:
@@ -363,7 +363,7 @@ const base = defineModule({
       const refused = await channelDoor(ctx, request, viaPhone);
       if (refused) return refused;
       if (!enabled(ctx)) return reply(412, { error: t('The Coordinator is off. Turn it on in MODULES.') });
-      if (inSalas(ctx)) return reply(403, { error: t('The Coordinator\'s project gives orders; it does not receive them.') });
+      if (inSalas(ctx)) return reply(403, { error: t('The Coordinator gives orders; it does not receive them.') });
       const here = projectRoomId(ctx.projectRoot);
       const salas = salasRoomId(ctx.stateRoot);
       const contract = activeContracts(ctx.config, { salas }).find((one) => one.id === payload?.contract) ?? null;
@@ -408,7 +408,7 @@ const base = defineModule({
       const refused = await channelDoor(ctx, request, viaPhone);
       if (refused) return refused;
       if (!enabled(ctx)) return reply(412, { error: t('The Coordinator is off. Turn it on in MODULES.') });
-      if (inSalas(ctx)) return reply(403, { error: t('The Coordinator\'s project gives orders; it does not receive them.') });
+      if (inSalas(ctx)) return reply(403, { error: t('The Coordinator gives orders; it does not receive them.') });
       const here = projectRoomId(ctx.projectRoot);
       const salas = salasRoomId(ctx.stateRoot);
       const contract = activeContracts(ctx.config, { salas }).find((one) => one.id === payload?.contract) ?? null;
@@ -526,7 +526,7 @@ const bishop = Object.freeze({
       controls.push({
         key: 'mode', label: 'ORDERS', type: 'select', options: BISHOP_MODES, value: modeOf(ctx),
         choices: BISHOP_MODES.map((value) => ({ value, label: ORDER_CHOICES[value] })),
-        note: 'Always within the connection. #3 and #4 always wait for your key in their project; a failure or STOP ALL stops what leaves on its own.',
+        note: 'Always within the connection. #3 and #4 always wait for your confirmation in their project; a failure or STOP ALL stops what leaves on its own.',
       });
       controls.push({
         key: 'links', label: 'CONNECTIONS TO READ', type: 'select', options: LINK_SIGNERS, value: signerOf(ctx),

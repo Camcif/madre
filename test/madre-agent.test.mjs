@@ -76,7 +76,7 @@ test('@madre: answers from the whole archive with a grounded system prompt, and 
     let state = running;
     const flaky = madreInvoker({ memory, ollama: () => state, fetchImpl });
     state = down;
-    await assert.rejects(flaky({ prompt: 'p', text: 'q' }), /left the room: Ollama is not running/);
+    await assert.rejects(flaky({ prompt: 'p', text: 'q' }), /left the project: Ollama is not running/);
     memory.close();
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });
@@ -120,7 +120,7 @@ test('@madre: joins the roster when Ollama is up, answers a turn, is never the a
     const updates = (await store.readAll()).filter((event) => event.type === 'agents.updated');
     assert.ok(updates.length >= 1);
     assert.deepEqual(updates.at(-1).payload.removed, ['madre']);
-    assert.match(updates.at(-1).payload.reason, /left the room/);
+    assert.match(updates.at(-1).payload.reason, /left the project/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
     await rm(root, { recursive: true, force: true, maxRetries: 6, retryDelay: 60 });

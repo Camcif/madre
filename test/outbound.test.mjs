@@ -211,7 +211,7 @@ test('outbound: the view answers for each address and admits what it cannot see'
   assert.equal(by.image.inside, true);
   // And an address nobody declared is reported rather than buried.
   assert.equal(view.undeclared, 1);
-  assert.match(view.says, /went to an address nothing here declares/);
+  assert.match(view.says, /went to an address not on this list/);
 });
 
 test('outbound: the room answers for what left it, and the log holds what it did', async () => {

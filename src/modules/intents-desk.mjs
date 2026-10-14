@@ -386,7 +386,7 @@ export class IntentsDesk {
     if (!subject?.ready || !invoke) return { error: t('@{agent} is not ready to answer.', { agent }) };
 
     const gate = mayCalibrate({ kind, usage: usageOf(await this.#events(), agent), byHuman: true });
-    if (!gate.ok) return { error: t('@{agent} is too close to the end of its window to spend turns on a test.', { agent }) };
+    if (!gate.ok) return { error: t('@{agent} is too close to its usage limit for this period to spend turns on a test.', { agent }) };
 
     let judge;
     if (kind === 'quick') {
@@ -412,7 +412,7 @@ export class IntentsDesk {
     const focus = kind === 'quick' && READ_ONLY_INTENTS.includes(intent) ? intent : null;
     const version = subject.version ?? null;
     const plan = planRound({ kind, cases, agent, model, reference, version, records, effort: aimed, intent: focus });
-    if (!plan.length) return { error: t('Nothing left to ask @{agent} at this rung: the ledger has no new questions of the kinds this test reads.', { agent }) };
+    if (!plan.length) return { error: t('Nothing left to ask @{agent} at this level: the history has no new questions of the kinds this test uses.', { agent }) };
 
     this.#controller = new AbortController();
     this.#stopping = false;

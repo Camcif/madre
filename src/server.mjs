@@ -558,7 +558,7 @@ export async function createPulseServer({
     wireLocal(room);
     for (const held of parked.values()) wireLocal(held.room);
     if (room) {
-      if (changed) await room.record('agents.updated', { agents: agents.map((agent) => ({ id: agent.id, label: agent.label, detected: agent.detected, ready: agent.ready, version: agent.version, local: Boolean(agent.local), route: agent.route ?? null })), removed: fifth.ready ? [] : [MADRE_AGENT_ID], reason: fifth.ready ? `@madre is in the room · ${fifth.version}` : '@madre left the room: Ollama has no chat model running' });
+      if (changed) await room.record('agents.updated', { agents: agents.map((agent) => ({ id: agent.id, label: agent.label, detected: agent.detected, ready: agent.ready, version: agent.version, local: Boolean(agent.local), route: agent.route ?? null })), removed: fifth.ready ? [] : [MADRE_AGENT_ID], reason: fifth.ready ? `@madre is in the project · ${fifth.version}` : '@madre left the project: Ollama has no chat model running' });
       // That a local model is running is not the same as it being of use on this project, and
       // the second thing is the one a person needs told. Said once per model, in the room, with
       // the one button that settles it — the crew line above fires only when the crew CHANGES,
@@ -2178,7 +2178,7 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/salas/enlaces/recall') {
         const payload = await body(request).catch(() => ({}));
         if (request.headers.origin === undefined) return sendJson(response, 403, { error: t('This is changed by you, from Home.') });
-        if (typeof payload.recall !== 'boolean') return sendJson(response, 422, { error: t('recall is on or off.') });
+        if (typeof payload.recall !== 'boolean') return sendJson(response, 422, { error: t('recall can only be on or off.') });
         const contract = await recallContract(root, String(payload.id ?? ''), payload.recall, { salas: salasRoomId(root) });
         if (!contract) return sendJson(response, 404, { error: NO_SUCH_LINK });
         return sendJson(response, 200, { contract });
@@ -2494,7 +2494,7 @@ export async function createPulseServer({
         if ((mode !== 3 && mode !== 4) || !agents.some((one) => one.id === agent)) return sendJson(response, 400, { error: t('Unlock #3 or #4 for an agent of this project.') });
         const now = Date.now();
         while (keyMisses.length && keyMisses[0] < now - 60000) keyMisses.shift();
-        if (keyMisses.length >= 8) return sendJson(response, 429, { error: t('Too many wrong keys. Wait a minute and try again.') });
+        if (keyMisses.length >= 8) return sendJson(response, 429, { error: t('Too many wrong confirmations. Wait a minute and try again.') });
         if (!keyHolds(overrideConfig, { mode, words: payload.words, designation: basename(canonicalProjectRoot) })) {
           keyMisses.push(now);
           return sendJson(response, 403, { error: t('That is not it. Try again, or cancel.'), denied: true });
@@ -2510,7 +2510,7 @@ export async function createPulseServer({
         if (!COPILOT_WINDOWS.includes(minutes)) return sendJson(response, 400, { error: t('Choose how long the copilot lasts: up to 24 hours.') });
         const now = Date.now();
         while (keyMisses.length && keyMisses[0] < now - 60000) keyMisses.shift();
-        if (keyMisses.length >= 8) return sendJson(response, 429, { error: t('Too many wrong keys. Wait a minute and try again.') });
+        if (keyMisses.length >= 8) return sendJson(response, 429, { error: t('Too many wrong confirmations. Wait a minute and try again.') });
         if (!keyHolds(overrideConfig, { mode: 3, words: payload.words, designation: basename(canonicalProjectRoot) })) {
           keyMisses.push(now);
           return sendJson(response, 403, { error: t('That is not it. Try again, or cancel.'), denied: true });
@@ -2555,7 +2555,7 @@ export async function createPulseServer({
           const proof = patch.override.proof;
           delete patch.override.proof;
           if (changeNeedsPhrase(overrideConfig) && !(typeof proof === 'string' && proof.trim() && phraseHash(overrideConfig.phrase.salt, proof) === overrideConfig.phrase.hash)) {
-            return sendJson(response, 403, { error: t('Type your current phrase to change the keys.'), needsPhrase: true });
+            return sendJson(response, 403, { error: t('Type your current phrase to change how modes are confirmed.'), needsPhrase: true });
           }
         }
         return sendJson(response, 200, { settings: await applySettings(patch) });
@@ -2931,7 +2931,7 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         if (!designationOk(payload.designation)) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
         const result = await room.code000({ strikes: Number(payload.strikes) || CODE000_STRIKES });
-        return result ? sendJson(response, 200, { code: result.code, lockedForMs: result.lockedForMs, n: result.n }) : sendJson(response, 503, { error: t('Security is silent.') });
+        return result ? sendJson(response, 200, { code: result.code, lockedForMs: result.lockedForMs, n: result.n }) : sendJson(response, 503, { error: t('The Security module did not respond.') });
       }
       if (request.method === 'GET' && url.pathname === '/api/memory') {
         if (!designationOk(url.searchParams.get('designation'))) return sendJson(response, 403, { error: t('UNABLE TO COMPUTE. UNABLE TO CLARIFY.') });
@@ -3470,7 +3470,7 @@ export async function createPulseServer({
         if (!asked) return sendJson(response, 409, { error: t('That request is no longer pending.') });
         if (decision !== 'deny' && asked.mode > PHONE_MAX_MODE) {
           if (viaPhone) return sendJson(response, 403, { error: t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.') });
-          if (!spendPass(key, asked.agent, asked.mode)) return sendJson(response, 403, { error: t('#{n} needs its key. Unlock it again and send.', { n: asked.mode }), needsKey: true });
+          if (!spendPass(key, asked.agent, asked.mode)) return sendJson(response, 403, { error: t('#{n} needs your confirmation. Unlock it again and send.', { n: asked.mode }), needsKey: true });
         }
         const result = here.room.decideMode(requestId, decision);
         return sendJson(response, result.ok ? 200 : 409, result);
@@ -3503,7 +3503,7 @@ export async function createPulseServer({
         const byCopilot = payload.copilot === true && gate.mode === 3;
         if (!byCopilot) delete payload.copilot;
         // #3 and #4 go with the pass their key gave, for this agent (above).
-        if (gate.mode >= 3 && !byCopilot && !spendPass(payload.key, gate.agent, gate.mode)) return sendJson(response, 403, { error: t('#{n} needs its key. Unlock it again and send.', { n: gate.mode }), mode: gate.mode, needsKey: true });
+        if (gate.mode >= 3 && !byCopilot && !spendPass(payload.key, gate.agent, gate.mode)) return sendJson(response, 403, { error: t('#{n} needs your confirmation. Unlock it again and send.', { n: gate.mode }), mode: gate.mode, needsKey: true });
         delete payload.key;
         const turns = await turnsPolicy();
         if (turns.enabled) {

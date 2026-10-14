@@ -108,7 +108,7 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   if (!Array.isArray(raw.kinds) || !raw.kinds.length) fail('A connection names the kinds that may cross.');
   const kinds = [...new Set(raw.kinds.map(String))];
   for (const kind of kinds) {
-    if (kind === 'aberration') fail('An aberration never crosses a connection.');
+    if (kind === 'aberration') fail('A doubtful memory never crosses a connection.');
     if (!LINK_KINDS.includes(kind)) fail(`"${kind}" is not a kind of memory.`);
   }
   kinds.sort((x, y) => LINK_KINDS.indexOf(x) - LINK_KINDS.indexOf(y));
@@ -124,7 +124,7 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   const revoked = isoOrNull(raw.revoked, 'revoked');
   // Fase 3e: the room that reads also gets, on each turn, up to RECALL_NOTES of these notes without
   // asking. Off unless the human ticks it; a reading like any other, counted against `perHour`.
-  if (raw.recall !== undefined && raw.recall !== null && typeof raw.recall !== 'boolean') fail('recall is on or off.');
+  if (raw.recall !== undefined && raw.recall !== null && typeof raw.recall !== 'boolean') fail('recall can only be on or off.');
   const recall = raw.recall === true;
 
   const orders = raw.orders && typeof raw.orders === 'object' ? raw.orders : {};
@@ -136,8 +136,8 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   const allowed = Boolean(orders.allowed);
   if (salas) {
     const serves = direction === 'both' ? [a, b] : direction === 'a→b' ? [a] : [b];
-    if (serves.includes(salas)) fail('The Coordinator\'s project never serves a connection: the Coordinator gathers every project and is nobody\'s source.');
-    if (allowed && a !== salas && b !== salas) fail('Orders need the Coordinator\'s project at one end of the connection.');
+    if (serves.includes(salas)) fail('The Coordinator never shares through a connection: it gathers every project and is nobody\'s source.');
+    if (allowed && a !== salas && b !== salas) fail('Orders need the Coordinator at one end of the connection.');
   }
 
   // Who signed it (D-S13): the human always may; BISHOP only a link to read, with no orders, that

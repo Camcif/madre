@@ -95,7 +95,7 @@ test('exam: consistency fails while a contradiction is open, and notices aberrat
   const held = consistencyExam({ findings: [{ id: 'f1', settled: false }, { id: 'f2', settled: true }], notes });
   assert.equal(held.open, 1);
   assert.equal(held.passed, false);
-  assert.match(held.says, /holding 1 contradiction/);
+  assert.match(held.says, /found 1 contradiction/);
 });
 
 test('exam: the match test never grades the local model against itself, and can be stopped', async () => {

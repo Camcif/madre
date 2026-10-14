@@ -689,10 +689,11 @@ test('nostromo: the legend shows a real star for each class, not a swatch', asyn
   const classes = new Function('t', `return ${named[1]}`)((text) => text);
   assert.deepEqual(Object.keys(classes).sort(), ['aberration', 'decision', 'fact', 'preference', 'question']);
   for (const [kind, label] of Object.entries(classes)) {
-    // Every class is a dwarf but one. The aberration is a collapsed body: naming it as a star
-    // would say it burns, and the whole point of it is that it does not.
+    // Every class is a star but one, said with the kind of memory it is (since 2026-10-14, as
+    // the Spanish says it). The aberration is a collapsed body: naming it as a star would say it
+    // burns, and the whole point of it is that it does not.
     if (kind === 'aberration') assert.equal(label, 'COLLAPSED', 'an aberration is being named as a star');
-    else assert.match(label, /DWARF$/, `${kind} is not named as a star`);
+    else assert.match(label, /STAR$/, `${kind} is not named as a star`);
     // The class belongs on hover, not on the chip: the drawn star already says which it is, and
     // writing it out beside the star says the same thing twice.
     if (kind === 'aberration') continue;   // the legend markup is a placeholder; paintLegend fills it

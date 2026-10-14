@@ -43,7 +43,7 @@ test('enlaces · a contract is whole or it is nothing: two rooms, a direction, s
   assert.deepEqual(Object.keys(contract), ['id', 'rooms', 'direction', 'kinds', 'zones', 'expires', 'revoked', 'orders', 'signed', 'recall']);
   assert.equal(contract.recall, false, '3e: off unless ticked');
   assert.equal(normalizeContract({ rooms, direction: 'both', kinds: ['fact'], recall: true }).recall, true);
-  assert.throws(() => normalizeContract({ rooms, direction: 'both', kinds: ['fact'], recall: 'yes' }), /recall is on or off/);
+  assert.throws(() => normalizeContract({ rooms, direction: 'both', kinds: ['fact'], recall: 'yes' }), /recall can only be on or off/);
   // Defaults: orders off, #1, six an hour. The zones may be stated only as they are.
   const plain = normalizeContract({ rooms, direction: 'both', kinds: ['question'], zones: ['bridge', 'hold'] });
   assert.deepEqual(plain.orders, { allowed: false, maxMode: 1, perHour: 6 });
@@ -56,7 +56,7 @@ test('enlaces · a contract is whole or it is nothing: two rooms, a direction, s
     [{ rooms: { a: rooms.a }, direction: 'both', kinds: ['fact'] }, /two rooms/],
     [{ rooms, direction: 'sideways', kinds: ['fact'] }, /direction/],
     [{ rooms, direction: 'both', kinds: [] }, /kinds/],
-    [{ rooms, direction: 'both', kinds: ['fact', 'aberration'] }, /aberration never crosses/],
+    [{ rooms, direction: 'both', kinds: ['fact', 'aberration'] }, /doubtful memory never crosses/],
     [{ rooms, direction: 'both', kinds: ['rumour'] }, /not a kind/],
     [{ rooms, direction: 'both', kinds: ['fact'], zones: ['hold'] }, /not configurable/],
     [{ rooms, direction: 'both', kinds: ['fact'], zones: ['hold', 'bridge', 'medbay'] }, /not configurable/],
@@ -119,14 +119,14 @@ test('enlaces · the room of Salas never serves, orders need it at one end, and 
   assert.equal(normalizeContract({ rooms: { a: salas, b }, direction: 'a→b', kinds: ['fact'], orders: { allowed: true } }, { now }).orders.allowed, true);
   // With it: that room serves nobody, whichever end it sits at, whichever way the arrow points.
   for (const [rooms, direction] of [[{ a: salas, b }, 'a→b'], [{ a: salas, b }, 'both'], [{ a, b: salas }, 'b→a'], [{ a, b: salas }, 'both']]) {
-    assert.throws(() => normalizeContract({ rooms, direction, kinds: ['fact'] }, { now, salas }), /never serves/, `${direction} from ${rooms.a === salas ? 'a' : 'b'}`);
+    assert.throws(() => normalizeContract({ rooms, direction, kinds: ['fact'] }, { now, salas }), /never shares through a connection/, `${direction} from ${rooms.a === salas ? 'a' : 'b'}`);
   }
   // It may read from anyone.
   const reads = normalizeContract({ rooms: { a, b: salas }, direction: 'a→b', kinds: ['decision', 'fact'] }, { now, salas });
   assert.deepEqual(servingRooms(reads), [a]);
   assert.equal(receivesOrders(reads, salas), null, 'orders not allowed, yet a room would take them');
   // Orders only on a link with that room at one end, and then the other end is the one that takes them.
-  assert.throws(() => normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), /need the Coordinator's project/);
+  assert.throws(() => normalizeContract({ rooms: { a, b }, direction: 'both', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), /need the Coordinator at one end/);
   const ordered = normalizeContract({ rooms: { a: salas, b }, direction: 'b→a', kinds: ['fact'], orders: { allowed: true, maxMode: 2 } }, { now, salas });
   assert.equal(receivesOrders(ordered, salas), b);
   assert.equal(receivesOrders(normalizeContract({ rooms: { a, b: salas }, direction: 'a→b', kinds: ['fact'], orders: { allowed: true } }, { now, salas }), salas), a);
@@ -160,7 +160,7 @@ test('enlaces · the room of Salas never serves, orders need it at one end, and 
   const noOrders = await signContract(state, { rooms: { a, b: salas }, direction: 'a→b', kinds: ['fact'] }, { salas });
   assert.equal(noOrders.orders.allowed, false);
   await assert.rejects(signContract(state, { rooms: { a, b: 'nowhere-0123456789abcdef' }, direction: 'a→b', kinds: ['fact'] }, { salas }), { code: 'UNKNOWN_ROOM' });
-  await assert.rejects(signContract(state, { rooms: { a: salas, b }, direction: 'both', kinds: ['fact'] }, { salas }), /never serves/);
+  await assert.rejects(signContract(state, { rooms: { a: salas, b }, direction: 'both', kinds: ['fact'] }, { salas }), /never shares through a connection/);
   // The rooms may be handed in as `knownRooms` lists them, names included, or as bare ids (3b).
   const rooms = [{ id: a, name: 'Phobos' }, { id: salas, name: 'salas' }];
   // Two projects are connected once (2026-10-11): the pair is freed before it is signed again.

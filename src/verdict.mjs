@@ -28,7 +28,7 @@ export function verdictFor({ maturity = null, exams = {}, cold = null, asks = 0 
     return {
       headline: stage?.label ?? null,
       says: consistency.says,
-      next: { text: t('Settle the {n} contradictions EYECAT is holding. Until they are settled, everything built on this archive inherits them.', { n: consistency.open }), where: where('nostromo') },
+      next: { text: t('Settle the {n} contradictions the memory reviewer found. Until they are settled, everything built on this memory inherits them.', { n: consistency.open }), where: where('nostromo') },
     };
   }
 

@@ -230,8 +230,8 @@ const modeName = (n) => [t('INCOGNITO'), t('CHAT ONLY'), t('CREATE'), t('EDIT'),
 function askLine(ask) {
   if (ask.kind === 'mode') return t('@{agent} asks for #{n} {label}', { agent: ask.agent, n: ask.mode, label: modeName(ask.mode) });
   if (ask.kind === 'run') return ask.text ? t('@{agent} wants to run {line}', { agent: ask.agent, line: ask.text }) : t('@{agent} wants to run a command', { agent: ask.agent });
-  if (ask.kind === 'bishop') return t('The Coordinator proposes #{n} to @{agent}: unlock it with your key', { n: ask.mode, agent: ask.agent });
-  if (ask.kind === 'plan') return ask.text ? t('The Coordinator waits for your press: {reason}', { reason: ask.text }) : t('The Coordinator waits for your press');
+  if (ask.kind === 'bishop') return t('The Coordinator proposes #{n} to @{agent}: confirm it to unlock it', { n: ask.mode, agent: ask.agent });
+  if (ask.kind === 'plan') return ask.text ? t('The Coordinator waits for you to confirm: {reason}', { reason: ask.text }) : t('The Coordinator waits for you to confirm');
   return ask.text ? t('@{agent} asks you: {question}', { agent: ask.agent, question: ask.text }) : t('@{agent} asks you to choose', { agent: ask.agent });
 }
 // The folder, as a person writes it: the home folder is ~.
@@ -241,7 +241,7 @@ const addressOf = (room) => (room.here ? '/' : `http://127.0.0.1:${room.open.por
 
 // The memory kinds, in the colours NOSTROMO gives them (styles.css, --mem-*).
 const KINDS = ['decision', 'fact', 'preference', 'question', 'aberration'];
-const KIND_WORDS = { decision: t('DECISION'), fact: t('FACT'), preference: t('PREFERENCE'), question: t('QUESTION'), aberration: t('ABERRATION') };
+const KIND_WORDS = { decision: t('DECISION'), fact: t('FACT'), preference: t('PREFERENCE'), question: t('QUESTION'), aberration: t('DOUBTFUL MEMORY') };
 // A kind as a sentence says it: «Decisión», not «DECISIÓN».
 const kindWord = (kind) => { const word = String(KIND_WORDS[kind] ?? kind).toLowerCase(); return word.charAt(0).toUpperCase() + word.slice(1); };
 
@@ -338,7 +338,7 @@ function card(room) {
   if (room.open && glance.census) {
     node.append(memoryStrip(glance.census));
     const counts = [conversationsCount(glance.chats ?? 0), memoriesCount(glance.census.memories)];
-    if (glance.census.memories) counts.push(t('{n} travel', { n: glance.census.travelling }));
+    if (glance.census.memories) counts.push(t('{n} in use', { n: glance.census.travelling }));
     node.append(el('p', 'sm-counts', counts.join(' · ')));
   }
 
@@ -563,7 +563,7 @@ function drawMemory() {
     const item = el('span', `k-${kind}`, `${kindWord(kind)} · ${sum.kinds[kind]}`);
     legend.append(item);
   }
-  ui.memory.body.append(legend, el('p', 'sm-hint', [sum.memories ? t('{n} travel', { n: sum.travelling }) : null, t('Counted in the open projects.')].filter(Boolean).join(' · ')));
+  ui.memory.body.append(legend, el('p', 'sm-hint', [sum.memories ? t('{n} in use', { n: sum.travelling }) : null, t('Counted in the open projects.')].filter(Boolean).join(' · ')));
 }
 
 // AGENTS: the ones on this computer, with the session each has. Connected once, every project
@@ -777,7 +777,7 @@ function drawWork() {
   w.note.textContent = state === 'working' ? t('MADRE is summarising your latest conversations…')
     : state === 'unavailable' ? (bullets.length ? t('MADRE\'s local model is off: this is the last summary it wrote.') : t('MADRE\'s local model is off: these are your latest conversations, as they are.'))
     : state === 'failed' ? t('MADRE could not summarise them this time: these are your latest conversations, as they are.')
-    : work.stale ? t('There is newer work than this summary: it is written again in a few minutes, or now if you ask.')
+    : work.stale ? t('There is newer work than this summary: it is written again in a few minutes, or now if you press Summarise again.')
     : t('Written by MADRE on this Mac from your latest conversations.');
   if (typeof fitTiles === 'function') fitTiles();
 }
@@ -843,7 +843,7 @@ function drawLinks(projects) {
   ui.linksSum.textContent = enlaces.length
     ? [enlaces.length === 1 ? t('1 in force') : t('{n} in force', { n: enlaces.length }), t('{n} reads in 24 h', { n: reads })].join(' · ')
     : enough ? t('No connections yet.') : t('Add a project to connect it.');
-  ui.linksNote.textContent = t('A connection lets one project read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes that travel into turns cross.');
+  ui.linksNote.textContent = t('A connection lets one project read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes already used in answers are shared.');
   ui.links.replaceChildren(...enlaces.map(linkRow));
   if (!enlaces.length && ui.linksSheet.open) ui.linksSheet.close();
   drawMap(projects, enlaces);
@@ -1247,7 +1247,7 @@ const SIZES = [[4, () => t('Small')], [6, () => t('Medium')], [8, () => t('Large
 // not fit in a chosen height scrolls inside the tile.
 const HEIGHTS = [[0, () => t('Automatic')], [2, () => t('2 rows')], [3, () => t('3 rows')], [4, () => t('4 rows')], [5, () => t('5 rows')]];
 const HOME_TILES = {
-  bishop: { id: 'sm-bishop', name: () => t('Coordinator'), about: () => t('Your coordinator, its state and its recent summary.'), size: 8, rows: 5 },
+  bishop: { id: 'sm-bishop', name: () => t('Coordinator'), about: () => t('Your Coordinator, its state and its recent summary.'), size: 8, rows: 5 },
   waiting: { id: 'sm-waiting', name: () => t('Waiting for you'), about: () => t('The questions and permissions an agent is waiting on.'), size: 4, rows: 2 },
   links: { id: 'sm-links-tile', name: () => t('Connections'), about: () => t('The map of who looks up whom.'), size: 4, rows: 3 },
   projects: { id: 'sm-drawer', name: () => t('Projects'), about: () => t('Every project, open or asleep, three rows at a time.'), size: 12, sizes: [12], kept: true },
@@ -1259,7 +1259,7 @@ const WIDGETS = {
   'w-system': { kind: 'system', name: () => t('System resources'), about: () => t('How busy this Mac\'s processor is, and how much memory is free.'), size: 4, rows: 3 },
   'w-servers': { kind: 'servers', name: () => t('Servers'), about: () => t('The servers running in your open projects, and whether they answer.'), size: 4, rows: 3, needs: () => t('Turn on Preview in a project\'s Modules to see its servers.') },
   'w-memory': { kind: 'memory', name: () => t('Memory quality'), about: () => t('How grown each open project\'s memory is, and its weakest side.'), size: 4, rows: 3, needs: () => t('Open a project to read its memory.') },
-  'w-coordinator': { kind: 'coordinator', name: () => t('Coordinator training'), about: () => t('How far the Coordinator\'s own record is from a model of its own.'), size: 4, rows: 3 },
+  'w-coordinator': { kind: 'coordinator', name: () => t('Coordinator training'), about: () => t('How far the Coordinator\'s own record is from training a model of its own.'), size: 4, rows: 3 },
   // Only for MADRE's author, in a copy run from source with the author's token (src/server.mjs, homeWidget):
   // anywhere else the server has no such widget and Home never offers it.
   'w-usage': { kind: 'usage', owner: true, name: () => t('MADRE usage'), about: () => t('How many copies of MADRE are on, which versions and whether people come back. Only you see this.'), size: 8, rows: 3 },
@@ -1727,7 +1727,7 @@ const WIDGET_PAINT = {
       const top = el('div', 'sm-w-line');
       top.append(el('b', null, one.name), el('span', 'sm-w-stage', one.stage ?? '—'), el('small', null, pct(one.score)));
       row.append(top, meter(one.score));
-      const notes = [one.weakest?.label ? t('weakest: {what}', { what: one.weakest.label.toLowerCase() }) : null, one.aberrations ? t('{n} odd memories', { n: one.aberrations }) : null].filter(Boolean);
+      const notes = [one.weakest?.label ? t('weakest: {what}', { what: one.weakest.label.toLowerCase() }) : null, one.aberrations ? t('{n} doubtful memories', { n: one.aberrations }) : null].filter(Boolean);
       if (notes.length) row.append(el('small', null, notes.join(' · ')));
       grid.append(row);
     }
@@ -2206,7 +2206,7 @@ function openLinkSheet({ reader = null, source = null } = {}) {
       actions.append(next());
     } else if (kind === 'orders') {
       const name = nameOf(ordersInto());
-      intro(t('Orders from the coordinator'), sayBold('With orders, the Coordinator can ask {room} for a task, and its agents do it there. Without them, it only reads. Edit (#3) and Full access (#4) never go this way: they arrive as a proposal you unlock in that project.', { room: name }));
+      intro(t('Orders from the Coordinator'), sayBold('With orders, the Coordinator can ask {room} for a task, and its agents do it there. Without them, it only reads. #3 EDIT and #4 FULL ACCESS never go this way: they arrive as a proposal you unlock in that project.', { room: name }));
       const box = card();
       box.append(row(sayBold('Allow orders into {room}', { room: name }), sayBold('Leave it off unless you need the Coordinator to act in {room}.', { room: name }), toggle(pick.orders, (on) => { pick.orders = on; render(); }, t('Allow orders into {room}', { room: name })), { recommended: !pick.orders }));
       if (pick.orders) {
@@ -2387,7 +2387,7 @@ function macroWords() {
     back: t('Back to Home'),
     hint: t('Drag the space to move it · wheel to come closer · click a project to look at it · drag it to turn it · carry one onto the Coordinator for the Coordinator to read it, or onto another to connect them · ← → from one to the next · Esc to come back'),
     bishop: t('Coordinator'),
-    bishopAbout: t('Your coordinator. It reads across your projects, signs the connections between them and carries an order from one to another.'),
+    bishopAbout: t('Your Coordinator. It reads across your projects, signs the connections between them and carries an order from one to another.'),
     bishopReads: (n) => (n ? (n === 1 ? t('It reads 1 project by a connection') : t('It reads {n} projects by connections', { n })) : t('It reads no project yet: each one it reads is a connection you sign.')),
     notLinked: t('Not connected yet: touch one to connect it'),
     talk: t('Talk to the Coordinator'),
@@ -2395,7 +2395,7 @@ function macroWords() {
     recenter: t('RECENTER'),
     // The legend under its name, in the Memory map's words.
     legend: t('Memory kinds'),
-    kinds: { ...Object.fromEntries(KINDS.map((kind) => [kind, kindWord(kind)])), dim: t('OUT OF CIRCULATION') },
+    kinds: { ...Object.fromEntries(KINDS.map((kind) => [kind, kindWord(kind)])), dim: t('NOT USED') },
     veins: (n) => t('{n} connections', { n }),
     links: t('Connections'),
     link: t('Connect…'),
@@ -4128,7 +4128,7 @@ function fillLook(host) {
     paperBox.append(tune);
   }
   sxBlock(page, t('Wallpaper'), photo
-    ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+    ? t('The project\'s background can be a photograph, as a layer or as a mesh of its own colours: choose how strong it looks and how much the photograph blurs.')
     : t('Behind Home, and behind the conversation of the project served at this address. Light and dark each have their own.')).rows.append(paperBox);
 
   // Home's own: its cards, its text, the order of its projects. The conversation's bubbles and text
@@ -4544,7 +4544,7 @@ function translateStatic() {
   ui.bishop.go.textContent = t('Talk to the Coordinator');
   ui.bishop.tab.title = t('Open the Coordinator in a new tab');
   ui.bishop.tab.setAttribute('aria-label', t('Open the Coordinator in a new tab'));
-  ui.bishop.about.textContent = t('Your coordinator. It reads across your projects, signs the connections between them and carries an order from one to another.');
+  ui.bishop.about.textContent = t('Your Coordinator. It reads across your projects, signs the connections between them and carries an order from one to another.');
   ui.work.title.textContent = t('Recent summary');
   ui.work.again.textContent = t('Summarise again');
   ui.waiting.title.textContent = t('Waiting on you');

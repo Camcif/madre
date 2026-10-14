@@ -105,7 +105,7 @@ test('bishop · its card says its settings and its state in words, never in the 
     const withCodex = await card({ enabled: true, agent: 'codex', mode: 'hybrid', links: 'bishop' });
     const words = (key) => Object.fromEntries(withCodex.controls.find((control) => control.key === key).choices.map((choice) => [choice.value, choice.label]));
     assert.deepEqual(words('agent'), { madre: '@madre · only answers', codex: '@codex' });
-    assert.deepEqual(words('mode'), { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' });
+    assert.deepEqual(words('mode'), { manual: 'Manual: every order waits for you to send it', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' });
     assert.deepEqual(words('links'), { bishop: 'The Coordinator signs them, for 7 days at most', you: 'You sign them' });
     assert.equal(withCodex.status.detail, 'on · @codex · hybrid orders · The Coordinator signs connections to read');
     assert.equal((await card({ enabled: true, agent: null })).status.detail, 'on · @madre · only answers');
@@ -131,9 +131,9 @@ test('bishop · the link wizard reads links and checks them like the sheet of Sa
   const checked = resolveLinks({ links: lines, rooms, contracts, salas });
   assert.deepEqual(checked.map((link) => link.status), ['ready', 'blocked', 'exists', 'blocked', 'blocked']);
   assert.equal(checked[0].receives, 'boreal-2222222222222222', 'orders go to the room that is not Salas');
-  assert.match(checked[1].why, /never hands its notes over/);
+  assert.match(checked[1].why, /does not share its notes with other projects/);
   assert.match(checked[3].why, /Name what crosses/);
-  assert.match(checked[4].why, /only on a connection with the Coordinator's project/);
+  assert.match(checked[4].why, /only on a connection with the Coordinator/);
   // A pair is connected once: the other way round of a link in force is the link there is.
   const oneWay = [{ ...contracts[0], direction: 'a→b' }];
   assert.equal(resolveLinks({ links: parsePlan('x\n\n```pulse-salas\nm\nenlace boreal → aurora: fact\n```').links, rooms, contracts: oneWay, salas })[0].status, 'exists');

@@ -48,7 +48,7 @@ export const DESTINATIONS = [
     inside: false,
   },
   {
-    id: 'embeddings', host: 'generativelanguage.googleapis.com', match: (url) => /batchEmbedContents/.test(url.pathname), to: 'Google · Gemini embeddings',
+    id: 'embeddings', host: 'generativelanguage.googleapis.com', match: (url) => /batchEmbedContents/.test(url.pathname), to: 'Google · Gemini search by meaning',
     what: 'The text of what is being embedded: the first 2000 characters of each memory, and the question a recall is made of.',
     when: 'a memory is written or recalled, while embeddings are set to Gemini',
     where: 'Settings › Memory › Smart search · Ollama keeps it on this computer, off drops back to words',
@@ -57,7 +57,7 @@ export const DESTINATIONS = [
   {
     id: 'image', host: 'generativelanguage.googleapis.com', match: (url) => /generateContent/.test(url.pathname), to: 'Google · Gemini image model',
     what: 'The prompt an agent wrote for an image.',
-    when: 'an agent calls the image tool during a lease',
+    when: 'an agent uses the image tool during a permission to create',
     where: 'Modules › Images',
     // It runs in a process of its own and writes its own line into this same log, so it is here.
     inside: true,
@@ -65,7 +65,7 @@ export const DESTINATIONS = [
   {
     id: 'npm', host: 'registry.npmjs.org', to: 'the npm registry',
     what: 'The name of a package, to read the version of its latest release. Nothing about you or your project.',
-    when: 'at most once a day per package, while the release channel is on',
+    when: 'at most once a day per package, while Look for new versions is on',
     where: 'Settings › Version and reports › Look for new versions · or PULSE_UPDATE_CHECK=0',
     inside: true,
   },
@@ -73,7 +73,7 @@ export const DESTINATIONS = [
     // Only the release read: the rest of api.github.com is the GitHub module's, and says so itself.
     id: 'github', host: 'api.github.com', match: (url) => /\/releases\/latest$/.test(url.pathname), to: 'GitHub',
     what: 'The name of a repository, to read the tag of its latest release. Nothing about you or your project.',
-    when: 'at most once a day per repository, while the release channel is on',
+    when: 'at most once a day per repository, while Look for new versions is on',
     where: 'Settings › Version and reports › Look for new versions · or PULSE_UPDATE_CHECK=0',
     inside: true,
   },
@@ -344,7 +344,7 @@ export function outboundView({ log = null, state = {}, agents = [] } = {}) {
     recent: log?.recent({ limit: 40 }) ?? [],
     undeclared,
     says: undeclared
-      ? (undeclared === 1 ? t('1 request went to an address nothing here declares. A module can do that; nothing can do it unlogged.') : t('{n} requests went to an address nothing here declares. A module can do that; nothing can do it unlogged.', { n: undeclared }))
+      ? (undeclared === 1 ? t('1 request went to an address not on this list. A module can do that, but it is always logged.') : t('{n} requests went to addresses not on this list. A module can do that, but it is always logged.', { n: undeclared }))
       : t('Every request this process made went to an address declared above.'),
   };
 }

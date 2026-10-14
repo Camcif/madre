@@ -98,7 +98,7 @@ test('core: the door is the star itself, and what is behind it is read and never
   // Nothing is stored and nothing is sent, and the counters are not touched by looking.
   assert.match(app, /BUILT NOW AND SENT NOWHERE/);
   assert.match(page, /Built now · stored nowhere · sent nowhere/);
-  assert.match(app, /NONE OF THEM WAS COUNTED AS RECALLED/);
+  assert.match(app, /NONE OF THEM COUNTS AS USED/);
 
   // The backdrop lets the star through rather than covering it.
   assert.match(css, /\.core::backdrop \{[^}]*rgba\(30, 2, 0, \.58\)/);

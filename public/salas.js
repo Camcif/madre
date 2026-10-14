@@ -64,8 +64,8 @@ const modeName = (n) => [t('INCOGNITO'), t('CHAT ONLY'), t('CREATE'), t('EDIT'),
 function askLine(ask) {
   if (ask.kind === 'mode') return t('@{agent} asks for #{n} {label}', { agent: ask.agent, n: ask.mode, label: modeName(ask.mode) });
   if (ask.kind === 'run') return ask.text ? t('@{agent} wants to run {line}', { agent: ask.agent, line: ask.text }) : t('@{agent} wants to run a command', { agent: ask.agent });
-  if (ask.kind === 'bishop') return t('The Coordinator proposes #{n} to @{agent}: unlock it with your key', { n: ask.mode, agent: ask.agent });
-  if (ask.kind === 'plan') return ask.text ? t('The Coordinator waits for your press: {reason}', { reason: ask.text }) : t('The Coordinator waits for your press');
+  if (ask.kind === 'bishop') return t('The Coordinator proposes #{n} to @{agent}: confirm it to unlock it', { n: ask.mode, agent: ask.agent });
+  if (ask.kind === 'plan') return ask.text ? t('The Coordinator waits for you to confirm: {reason}', { reason: ask.text }) : t('The Coordinator waits for you to confirm');
   return ask.text ? t('@{agent} asks you: {question}', { agent: ask.agent, question: ask.text }) : t('@{agent} asks you to choose', { agent: ask.agent });
 }
 

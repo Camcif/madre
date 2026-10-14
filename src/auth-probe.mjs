@@ -121,7 +121,7 @@ export const AGENT_SETUP = {
   gemini: {
     install: ['npm install -g @google/gemini-cli'],
     login: [],
-    loginNote: 'Gemini signs in from its own prompt: run `gemini`, type /auth, pick "Use Gemini API key" (get one at aistudio.google.com/app/apikey) or Google login.',
+    loginNote: 'Gemini signs in from your terminal: run `gemini`, type /auth, pick "Use Gemini API key" (get one at aistudio.google.com/app/apikey) or Google login.',
     interactive: true,
     vendor: 'Google',
     account: 'Signs in with a Google account and has a free tier. A Gemini API key from AI Studio works too.',

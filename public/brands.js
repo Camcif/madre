@@ -72,7 +72,7 @@ BRANDS.ollama = {
 // the same hue lifted; on a light ground the plum itself reads.
 BRANDS.bishop = {
   label: 'Coordinator',
-  vendor: 'the Coordinator\'s project',
+  vendor: 'Home',
   color: '#D598D7',
   colorLight: '#5C255E',
   solid: '#5C255E',

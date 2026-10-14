@@ -288,7 +288,7 @@ export function diagnoseGeminiStderr(stderr) {
   if (/Unauthorized tool call:\s*'?invoke_agent'?|Blocked call:[^\n]*invoke_agent/i.test(text)) {
     return {
       code: 'SUBAGENT_BLOCKED',
-      message: t('Gemini tried to hand this turn to one of its own subagents. MADRE does not allow that: a subagent answers outside the lease, so nothing it wrote would be checked, shown or undoable.'),
+      message: t('Gemini tried to hand this turn to one of its own subagents. MADRE does not allow that: a subagent answers outside the permission MADRE controls, so nothing it wrote would be checked, shown or undoable.'),
       hint: t('Ask again saying it should do the work itself, without subagents.'),
     };
   }

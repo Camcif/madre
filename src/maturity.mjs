@@ -45,7 +45,7 @@ export function maturity({ readiness = null, notes = [], links = [], stats = nul
       next: t('Memories nobody has needed may be noise, or may simply not have come up yet. Ask the project about older decisions and see which ones answer.'),
     },
     {
-      id: 'weave', label: t('HOW WOVEN IT IS'),
+      id: 'weave', label: t('HOW CONNECTED IT IS'),
       value: round(share(connected, standing.length)),
       detail: t('{connected} of {total} memories share a subject with another', { connected, total: standing.length }),
       next: t('An archive of unrelated notes is a list. Depth comes from returning to the same subjects.'),

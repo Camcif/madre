@@ -169,10 +169,10 @@ const PLACEHOLDERS = {
   plain: t('Type here, human. Ask the project…'),
   create: t('CREATE on: what to make. New files land where they belong in the project; nothing existing changes.'),
   ash: t('Compact prose. Nothing you write is altered; only the answers get shorter.'),
-  ghost: t('Off the record. Ask anything; nothing is saved, nobody else will remember it.'),
+  ghost: t('Incognito. Ask anything; nothing is saved and the project will not remember it.'),
   control: t('EDIT unlocked. Say what to change in the project; every action runs without asking.'),
   copilot: t('Copilot on. Say what you want done; it edits, plans and checks on its own.'),
-  airlock: t('Airlock open. Commands run; pushes and deploys leave the ship. Say exactly what should go out.'),
+  airlock: t('#4 FULL ACCESS unlocked. Commands run here, and changes are pushed or deployed outside your computer. Say exactly what should go out.'),
   expendable: t('Type here, human. MADRE is listening.'),
   memory: t('Ask what the project remembers. @madre answers from memory with citations; it does not act.'),
 };
@@ -184,11 +184,11 @@ const MAX_ROWS = 14;
 // Plain names, in the reader's language (2026-10-10): what each one lets an agent do. The agents
 // themselves are told the modes by their old names (src/capabilities.mjs), which is the core's.
 const MODES = {
-  0: { key: 'ghost', label: t('INCOGNITO'), hint: t('Off the record. Nothing is saved; gone on reload.') },
+  0: { key: 'ghost', label: t('INCOGNITO'), hint: t('Incognito. Nothing is saved; it is gone when you reload the page.') },
   1: { key: 'exchange', label: t('CHAT ONLY'), hint: t('Read the project and talk about it, and plan with other agents. Writes nothing.') },
   2: { key: 'create', label: t('CREATE'), hint: t('Add new files where they belong in the project, and plan with other agents. Existing files stay untouched.') },
   3: { key: 'control', label: t('EDIT'), hint: t('Edit the project itself, no approval per action, and plan with other agents. Unlock required.') },
-  4: { key: 'airlock', label: t('FULL ACCESS'), hint: t('Run commands, push, deploy, and plan with other agents. What leaves the ship does not come back. Unlock, twice.') },
+  4: { key: 'airlock', label: t('FULL ACCESS'), hint: t('Run commands, push, deploy, and plan with other agents. What leaves your computer cannot be undone. Confirm twice.') },
 };
 
 // A sign-in in flight. Claude's CLI opens a page and then waits to be told the code that page
@@ -276,8 +276,8 @@ const vendorWord = (id) => { const said = brandOf(id).vendor ?? ''; return VENDO
 // the top of this file, long before half of it has run: `renderLease` reached for these while
 // they were still in their dead zone, the try around it swallowed the error, and every CREATE
 // strip in the history simply never appeared.
-const CAP_LABELS = { read: t('read'), imageIn: t('image in'), write: t('create'), imageGen: t('image gen'), web: t('web') };
-const CAP_VERBS = { read: t('read the project'), imageIn: t('take images'), write: t('create files'), imageGen: t('generate images'), web: t('reach the web') };
+const CAP_LABELS = { read: t('read'), imageIn: t('sees images'), write: t('create'), imageGen: t('image gen'), web: t('web') };
+const CAP_VERBS = { read: t('read the project'), imageIn: t('receive images'), write: t('create files'), imageGen: t('generate images'), web: t('reach the web') };
 const capVerb = (scope) => CAP_VERBS[scope] ?? CAP_LABELS[scope] ?? scope;
 
 // MODULES' own handles. Up here with the rest of the module's state because the transcript is
@@ -380,19 +380,19 @@ const tokensFor = (chars) => Math.round((Number(chars) || 0) / CH_PER_TOKEN);
 // room's language: what was written down never moves. Declared one by one, so the catalogue's
 // guard sees all five and an id nobody translated cannot slip past as itself. Up here with the
 // colours and for the same reason: the first replay prints the word before NOSTROMO is evaluated.
-const KIND_WORDS = { decision: t('DECISION'), fact: t('FACT'), preference: t('PREFERENCE'), question: t('QUESTION'), aberration: t('ABERRATION') };
+const KIND_WORDS = { decision: t('DECISION'), fact: t('FACT'), preference: t('PREFERENCE'), question: t('QUESTION'), aberration: t('DOUBTFUL MEMORY') };
 const kindWord = (kind) => KIND_WORDS[kind] ?? String(kind).toUpperCase();
 
 // Where a memory stands aboard, which is a different question from what it is — so it is said in
 // words and not in a second hue: the map already spends colour on the kind, and two palettes on
 // one dot is how a map stops being readable. What a zone changes on the map is whether the star
 // is lit at all, because that is what the zone means.
-const ZONE_WORDS = { hold: t('HOLD'), bridge: t('BRIDGE'), medbay: t('MED BAY'), jettisoned: t('JETTISONED') };
+const ZONE_WORDS = { hold: t('UNCONFIRMED'), bridge: t('CONFIRMED'), medbay: t('QUARANTINED'), jettisoned: t('DISCARDED') };
 const ZONE_NOTE = {
-  hold: t('Distilled and nobody has judged it. It travels into turns.'),
-  bridge: t('You marked the reply it came from as good. It travels, confirmed.'),
-  medbay: t('Quarantined: it is false, or it came from a reply you marked bad. It never travels.'),
-  jettisoned: t('Put out of circulation and kept so it is not learned again. It never travels.'),
+  hold: t('A summarized note nobody has reviewed yet. It is used in answers.'),
+  bridge: t('You marked the reply it came from as good. Confirmed: it is used in answers.'),
+  medbay: t('Quarantined: it is false, or it came from a reply you marked bad. It is never used in answers.'),
+  jettisoned: t('Discarded: kept only so it is not learned again. It is never used in answers.'),
 };
 const zoneWord = (zone) => ZONE_WORDS[zone] ?? String(zone ?? '').toUpperCase();
 
@@ -1133,8 +1133,8 @@ const editorDirty = () => Boolean(editing.editor?.dirty());
 let lastAsk = null;
 const askLeaveEdits = () => roomAsk({
   title: t('UNSAVED CHANGES'),
-  body: t('There are unsaved changes in this file. Leave them?'),
-  choices: [{ value: 'stay', label: t('KEEP EDITING'), focus: true }, { value: 'leave', label: t('LEAVE THEM'), tone: 'danger' }],
+  body: t('There are unsaved changes in this file. Discard them?'),
+  choices: [{ value: 'stay', label: t('KEEP EDITING'), focus: true }, { value: 'leave', label: t('DISCARD THEM'), tone: 'danger' }],
 });
 async function leaveEditor({ ask = true } = {}) {
   if (!editing.editor) return true;
@@ -1174,7 +1174,7 @@ function syncEditButton() {
   if (!viewer.dialog || !viewer.body) return;
   const bar = el('div', 'viewer-status');
   const mod = /Mac|iPhone|iPad/.test(navigator.platform ?? '') ? '⌘' : 'Ctrl';
-  if (viewerUI.hintSelect) viewerUI.hintSelect.textContent = t('Click a number to pick a line · drag for a run · Shift for a range · {mod} for one more', { mod });
+  if (viewerUI.hintSelect) viewerUI.hintSelect.textContent = t('Click a number to pick a line · drag to pick several · Shift for a range · {mod} to add one more', { mod });
   for (const part of [viewerUI.selection, viewerUI.review, viewerUI.hintSelect]) if (part) bar.append(part);
   viewer.body.after?.(bar);
 })();
@@ -1512,7 +1512,7 @@ function browserCloseTab(id) {
 function browserRefused(url, { why } = {}) {
   if (!browser.body) return;
   const box = el('div', 'browser-refused');
-  box.append(el('h4', null, t('{host} will not be framed', { host: browserTitleFor(url) })));
+  box.append(el('h4', null, t('{host} does not allow being shown inside MADRE', { host: browserTitleFor(url) })));
   box.append(el('p', null, why ?? t('The site answers with a rule that forbids any page from putting it inside a frame. It is the standard defence against clickjacking, and PREVIEW neither can nor should override it.')));
   const open = el('button', 'browser-go', t('OPEN IN A TAB'));
   open.type = 'button';
@@ -1617,7 +1617,7 @@ async function browserServers() {
   portsMenuShown(true);
   let read;
   try { read = await fetch('/api/ports').then((response) => response.json()); }
-  catch { menu.replaceChildren(el('div', 'ports-note', t('COULD NOT READ THE PORTS'))); browser.servers?.setAttribute('data-live', 'no'); return; }
+  catch { menu.replaceChildren(el('div', 'ports-note', t('COULD NOT SEE WHICH SERVERS ARE RUNNING'))); browser.servers?.setAttribute('data-live', 'no'); return; }
   paintPorts(read);
 }
 async function refreshBrowserServers(button) {
@@ -1694,7 +1694,7 @@ function paintPorts(read) {
     // A server that sends no Content-Type used to leave the separator hanging: «:5173 node · 200 · ».
     const kind = found.html ? '' : (found.contentType ?? '').trim();
     const what = `${found.command} · ${found.status}${kind ? ` · ${kind}` : ''}`;
-    row.append(el('i', 'ports-lamp'), el('b', null, `:${found.port}`), el('span', null, found.framable === false ? t('{what} · refuses to be framed', { what }) : what));
+    row.append(el('i', 'ports-lamp'), el('b', null, `:${found.port}`), el('span', null, found.framable === false ? t('{what} · cannot be shown in here', { what }) : what));
     row.addEventListener('click', () => openPort(found));
     menu.append(row);
   }
@@ -1702,12 +1702,12 @@ function paintPorts(read) {
   // about it made a running server read as no server at all.
   for (const one of wider) {
     const row = el('div', 'ports-row wider');
-    row.append(el('i', 'ports-lamp'), el('b', null, `:${one.port}`), el('span', null, t('{command} · listens on the whole network · start it on 127.0.0.1 to open it here', { command: one.command })));
+    row.append(el('i', 'ports-lamp'), el('b', null, `:${one.port}`), el('span', null, t('{command} · open to your whole network · start it on 127.0.0.1 to open it here', { command: one.command })));
     menu.append(row);
   }
   const foot = read?.others
     ? t('{n} more listening on this computer, from other folders · not shown', { n: read.others })
-    : t('ONLY WHAT THIS PROJECT STARTED · THE SENTINEL WATCHES IT');
+    : t('ONLY WHAT THIS PROJECT STARTED · THE FAILURE MONITOR WATCHES IT');
   menu.append(el('div', 'ports-note', foot));
 }
 
@@ -1741,7 +1741,7 @@ function pointTool(id) {
   pointClear();
   for (const button of pointing.layer?.querySelectorAll('.point-tool') ?? []) button.setAttribute('aria-pressed', String(button.dataset.tool === id));
   pointing.layer?.classList.toggle('area', id === 'area');
-  if (pointing.hint) pointing.hint.textContent = id === 'dot' ? t('Press on the page where you mean') : t('Drag over the part you mean');
+  if (pointing.hint) pointing.hint.textContent = id === 'dot' ? t('Click on the page where you want to point') : t('Drag over the part you mean');
 }
 function setPointing(on) {
   if (on === pointing.on) return;
@@ -1949,7 +1949,7 @@ function serverStopped({ port, command }) {
   browser.body.querySelector('.browser-down')?.remove();
   const card = el('div', 'browser-down');
   const inner = el('div', 'browser-down-card');
-  inner.append(el('i', 'ports-lamp off'), el('h4', null, t(':{port} stopped', { port })), el('p', null, t('The sentinel saw {command} stop answering. Start it again and this page comes back on its own.', { command })));
+  inner.append(el('i', 'ports-lamp off'), el('h4', null, t(':{port} stopped', { port })), el('p', null, t('The failure monitor saw {command} stop answering. Start it again and this page comes back on its own.', { command })));
   card.append(inner);
   browser.body.append(card);
 }
@@ -2397,7 +2397,7 @@ function renderAgents() {
     });
     node.title = [
       `${agent.label}${vendorWord(agent.id) ? ` · ${vendorWord(agent.id)}` : ''}`,
-      agent.ready ? t('Ready') : agent.detected ? t('Detected, adapter pending') : t('Not installed'),
+      agent.ready ? t('Ready') : agent.detected ? t('Detected, but MADRE cannot use it yet') : t('Not installed'),
       agent.version ? agent.version : null,
       official === null
         ? (agent.tokens ? t('Usage: local 5h window · {pct}% of {total} budget tokens', { pct: Math.round(percent), total: formatTokens(state.budget ?? 0) }) : t('Usage: local window · nothing used yet'))
@@ -2477,7 +2477,7 @@ function renderPicker() {
     if (current.local) {
       const note = el('span', 'pick-note', t('memory · never writes'));
       const measured = state.localModel?.checked;
-      note.title = `${t('@madre runs on this machine and speaks for what the project remembers. "@madre, ask the agents …" opens a round with every agent online. To change files, write to a CLI agent.')}${
+      note.title = `${t('@madre runs on this machine and speaks for what the project remembers. "@madre, ask the agents …" opens a round with every agent online. To change files, write to one of the coding agents.')}${
         measured ? `\n\n${t('Measured against this project {when}: it landed where the agents landed on {matched} of {n} real questions{verdict}', { when: agoWords(measured.at), matched: measured.matched, n: measured.n, verdict: measured.passed ? t('. Ready to be worked in.') : t(' — not yet.') })}` : `\n\n${t('Nobody has measured it against this project yet: Diagnostics → Memory review, or the line in the project when it joined.')}`}`;
       text.append(note);
     }
@@ -2488,7 +2488,7 @@ function renderPicker() {
     modeChip.type = 'button';
     modeChip.append(el('b', null, `#${shown}`), el('span', 'word', MODES[shown].label), chevron());
     modeChip.title = state.typedPending
-      ? t('#{n} {label} is written in the message: its keys are asked for when you send it.', { n: shown, label: MODES[shown].label })
+      ? t('#{n} {label} is written in the message: you will be asked to confirm it when you send it.', { n: shown, label: MODES[shown].label })
       : t('Permission mode for this message · {hint}', { hint: MODES[state.mode].hint });
     modeChip.addEventListener('click', (event) => { event.stopPropagation(); toggleModeMenu(current.id, modeChip); });
     text.append(modeChip);
@@ -2500,9 +2500,9 @@ function renderPicker() {
       grace.type = 'button';
       grace.dataset.mode = String(mode);
       grace.dataset.agent = current.id;
-      grace.title = t('{label} does not ask for its key again for @{agent} until this runs out. Click to close it now.', { label: MODES[mode].label, agent: current.id });
+      grace.title = t('{label} does not ask you to confirm again for @{agent} until this runs out. Click to close it now.', { label: MODES[mode].label, agent: current.id });
       grace.append(el('b', null, `#${mode}`), el('span', null, t('open')), el('span', 'left', graceWords(left)), el('i', null, '×'));
-      grace.addEventListener('click', (event) => { event.stopPropagation(); closeOverrideGrace(mode, current.id); toast(t('Diagnostics › {label} closed for @{agent}: the next one asks for its key.', { label: MODES[mode].label, agent: current.id }), { tone: 'done' }); });
+      grace.addEventListener('click', (event) => { event.stopPropagation(); closeOverrideGrace(mode, current.id); toast(t('Diagnostics › {label} closed for @{agent}: the next message asks you to confirm again.', { label: MODES[mode].label, agent: current.id }), { tone: 'done' }); });
       text.append(grace);
       break;
     }
@@ -3021,7 +3021,7 @@ function toggleModeMenu(id, anchor) {
   // Short enough to sit on one line at any width the menu takes. That it applies to this message
   // and not to every one after it is the mode chip's own tooltip, and the list below is literally
   // the modes — so the header carries the two facts nothing else here does: who, and how far.
-  title.append(el('b', null, `@${id}`), t(' · ceiling #{cap}', { cap }));
+  title.append(el('b', null, `@${id}`), t(' · max mode #{cap}', { cap }));
   title.title = t('Permission mode for this message · {hint}', { hint: MODES[cap].hint });
   modeMenu.append(title);
   const ladder = el('div', 'mode-ladder');
@@ -3037,7 +3037,7 @@ function toggleModeMenu(id, anchor) {
     body.append(el('span', 'name', MODES[n].label), el('span', 'hint', MODES[n].hint));
     option.append(el('span', 'n', `#${n}`), body);
     if (onTheMac) option.title = t('#3 EDIT and #4 FULL ACCESS are opened from the Mac.');
-    const tag = state.mode === n ? t('NOW') : onTheMac ? t('ON THE MAC') : raise ? t('RAISE TO #{n} ›', { n }) : locked ? t('LOCKED') : n === 4 ? t('KEY ×2') : n === 3 ? t('KEY') : n === defaultModeFor(id) ? t('DEFAULT') : '';
+    const tag = state.mode === n ? t('NOW') : onTheMac ? t('ON THE MAC') : raise ? t('RAISE TO #{n} ›', { n }) : locked ? t('LOCKED') : n === 4 ? t('CONFIRM ×2') : n === 3 ? t('CONFIRM') : n === defaultModeFor(id) ? t('DEFAULT') : '';
     if (tag) {
       const label = el('span', `tag${raise ? ' raise' : ''}`, tag);
       if (state.mode === n) label.append(el('span', 'dot'));
@@ -3254,7 +3254,7 @@ function openOverride(id, { raise = false, mode = 3, then = null, cancelled = nu
   if (mode === 4) {
     let slot = override.frame?.querySelector('.tour-hint-slot');
     if (!slot && override.form) { slot = el('div', 'tour-hint-slot'); override.form.before(slot); }
-    if (slot) void roomTour().hint('key4', slot, { inside: true, title: t('#4 asks for your key twice'), text: t('With #4 the agent may run commands, publish and deploy: what leaves your Mac does not come back. That is why the key is typed twice.') });
+    if (slot) void roomTour().hint('key4', slot, { inside: true, title: t('#4 asks you to confirm twice'), text: t('With #4 the agent may run commands, publish and deploy: what leaves your Mac does not come back. That is why the confirmation is typed twice.') });
   }
   override.brief.textContent = override.copilot ? t('The agent you write to edits the project and runs the safe commands by itself, with no key per message, until it ends.') : OVERRIDE_BRIEF[mode].what(id);
   override.safe.textContent = override.copilot ? t('It never deletes, pushes, publishes or deploys; each change gets a restore point; STOP ALL ends it.') : OVERRIDE_BRIEF[mode].safe();
@@ -3495,7 +3495,7 @@ function bridgeCard(agent) {
   // What is behind this door: the account it needs, and whether there is a way in without paying.
   if (agent.account) {
     const account = el('div', 'account');
-    if (agent.paid === false) account.append(el('span', 'free', t('FREE WAY IN')));
+    if (agent.paid === false) account.append(el('span', 'free', t('HAS A FREE OPTION')));
     account.append(agent.account);
     card.append(account);
   }
@@ -3507,9 +3507,9 @@ function bridgeCard(agent) {
     // Every door the CLI has, not just the first one. Claude sells two accounts and MADRE used
     // to open only the subscription, which left whoever pays for the API with no way in.
     if (agent.login?.headless) for (const door of loginDoors(agent, stage === 'ready')) actions.append(bridgeSignInButton(agent, door, stage === 'ready'));
-    else if (!agent.key && agent.login) actions.append(el('span', 'note', t('signs in from its own prompt:')));
+    else if (!agent.key && agent.login) actions.append(el('span', 'note', t('signs in from your terminal:')));
     if (agent.key) {
-      reveal = el('button', agent.login?.headless ? null : 'primary', t('PASTE KEY'));
+      reveal = el('button', agent.login?.headless ? null : 'primary', t('PASTE API KEY'));
       reveal.type = 'button';
       actions.append(reveal);
     }
@@ -3860,7 +3860,7 @@ function ratingButtons(messageId, sender) {
   const good = iconButton(ICON_GOOD, t('Good reply · keep it for your model'), 'rate good');
   const prefer = iconButton(ICON_PREFER, t('This is how I want it done · the project keeps it as a preference'), 'rate prefer');
   const bad = iconButton(ICON_BAD, t('Bad reply · keep it out of the dataset'), 'rate bad');
-  const never = iconButton(ICON_NEVER, t('Never do this again · what the project remembers from it is put out'), 'rate never');
+  const never = iconButton(ICON_NEVER, t('Never do this again · the project stops using what it remembers from this'), 'rate never');
   const apply = (rating) => {
     for (const [button, verdict] of [[good, 'good'], [prefer, 'preference'], [bad, 'bad'], [never, 'never']]) button.classList.toggle('on', rating === verdict);
     prefer.hidden = !(rating === 'good' || rating === 'preference');
@@ -4008,7 +4008,7 @@ const WORKING_VOICE = {
     long: [t('Deep in the code…'), t('Composing the answer…'), t('Almost there…')],
   },
   claude: {
-    early: [t('Reading…'), t('Grepping the project…'), t('Mapping the files…')],
+    early: [t('Reading…'), t('Searching the project…'), t('Mapping the files…')],
     middle: [t('Thinking…'), t('Pondering…'), t('Connecting the pieces…'), t('Reading the relevant files…')],
     late: [t('Ruminating…'), t('Considering the edge cases…'), t('Checking the details…'), t('Musing…')],
     long: [t('Synthesizing…'), t('Drafting the reply…'), t('Finishing the thought…')],
@@ -4096,7 +4096,7 @@ function settleReading(event) {
   badge.classList.toggle('ash', cost.ash === true);
   const seen = rememberAsh(cost);
   if (seen) {
-    badge.title += ` ${t('In this project: {on} output tokens is the middle turn with TOKEN SAVER ({onTurns} turns), {off} without it ({offTurns}). You choose when to ask for compact prose, so these are different tasks, not the same task twice.', { on: seen.on.toLocaleString(), onTurns: seen.onTurns, off: seen.off.toLocaleString(), offTurns: seen.offTurns })}`;
+    badge.title += ` ${t('In this project, a typical answer uses {on} output tokens with TOKEN SAVER ({onTurns} answers) and {off} without it ({offTurns}). You choose when to ask for compact answers, so these are different tasks, not the same task twice.', { on: seen.on.toLocaleString(), onTurns: seen.onTurns, off: seen.off.toLocaleString(), offTurns: seen.offTurns })}`;
   }
   if (!badge.isConnected) who.append(badge);
   paintUncharged(cost);
@@ -4120,7 +4120,7 @@ function paintUncharged(cost) {
   if (total <= 0) return;
   const span = stamp.querySelector('.uncharged') ?? el('span', 'uncharged');
   span.textContent = t('{n} uncharged', { n: formatTokens(total) });
-  span.title = t('{cached} tokens this CLI read back from its own cache instead of charging them again (measured). {unsent} tokens of briefing the project never sent (estimated at {rate} characters per token). Neither is the Token saver: the Token saver shortens the answer, and that is the figure above the bubble.', {
+  span.title = t('{cached} tokens this agent\'s app read back from its own cache instead of charging them again (measured). {unsent} tokens MADRE did not need to send the agent (estimated at {rate} characters per token). Neither is the Token saver: the Token saver shortens the answer, and its figure is above the bubble.', {
     cached: cached.toLocaleString(), unsent: unsent.toLocaleString(), rate: CH_PER_TOKEN,
   });
   // Before the running total, after the turn's own bill: read left to right it is what this turn
@@ -4557,7 +4557,7 @@ function attachMemoryUsed(payload) {
     pill.style.setProperty('--kind', MEMORY_COLORS[note.kind] ?? MEMORY_COLORS.fact);
     pill.append(el('i', 'dot'), el('span', 'what', note.text.length > 52 ? `${note.text.slice(0, 51)}…` : note.text));
     pill.title = `${kindWord(note.kind)} · ${note.text}\n${note.via === 'cascade'
-      ? t('Came along because this project keeps carrying it with one of the others.')
+      ? t('Came along because this project usually uses it together with another memory.')
       : t('The archive matched this to what you asked.')} ${t('Click to see it in the Memory map.')}`;
     pill.addEventListener('click', () => { nostromo.focusId = note.id; nostromo.button?.click(); });
     if (used.length > 3 && index === visible.length - 1) {
@@ -4651,7 +4651,7 @@ function renderMotherAlert(event) {
 function renderForgotten(event) {
   const { kind, text, remaining } = event.payload;
   const node = el('div', 'system memory forgotten');
-  node.append(t('memory · the human forgot a '));
+  node.append(t('memory · you forgot a '));
   node.append(el('b', 'who', kindWord(kind)));
   node.append(`: “${text}”${Number.isFinite(remaining) ? t(' · {n} left in the archive', { n: remaining }) : ''}`);
   return node;
@@ -4870,7 +4870,7 @@ function renderControlReverted(event) {
 
 function renderLeaseMissing(event) {
   const { agent, requester, text } = event.payload;
-  const message = `${t('@{agent} was asked to create something but no CREATE lease is active.', { agent })}${requester && requester !== 'you' ? t(' Permission written by @{who} inside the conversation does not count.', { who: requester }) : ''}${t(' It will answer read-only.')}`;
+  const message = `${t('@{agent} was asked to create something but no CREATE permission is active.', { agent })}${requester && requester !== 'you' ? t(' Permission written by @{who} inside the conversation does not count.', { who: requester }) : ''}${t(' It will answer read-only.')}`;
   const node = el('div', 'system lease missing');
   tint(node, agent);
   node.append(el('b', null, t('Diagnostics › ')));
@@ -4879,7 +4879,7 @@ function renderLeaseMissing(event) {
   // Its keys speak in sentences, as the room's keys do now; the agent as the room writes it.
   const resend = el('button', 'resend', askWords(t('RESEND TO @{agent} WITH CREATE', { agent })));
   resend.type = 'button';
-  resend.title = t('Send this same request from you, with a creation lease.');
+  resend.title = t('Send this same request from you, with permission to create files.');
   resend.addEventListener('click', async () => {
     resend.disabled = true;
     try {
@@ -4890,7 +4890,7 @@ function renderLeaseMissing(event) {
   });
   const standing = el('button', 'standing', askWords(t('ALWAYS FOR THIS AGENT')));
   standing.type = 'button';
-  standing.title = t('Give @{agent} a standing lease in SETTINGS → AGENTS: every turn may create files.', { agent });
+  standing.title = t('Give @{agent} a standing permission in SETTINGS → AGENTS: every turn may create files.', { agent });
   standing.addEventListener('click', () => openSettingsOn('agents', { agent }));
   actions.append(resend, standing);
   node.append(actions);
@@ -4934,7 +4934,7 @@ function renderModeRequest(event) {
     }
   };
   const once = el('button', 'grant', t('GRANT ONCE')); once.type = 'button'; once.title = mode >= 3 ? t('Unlock #{mode} for this step only.', { mode }) : t('Allow creation for this step only.');
-  const plan = el('button', 'grant plan', t('GRANT FOR PLAN')); plan.type = 'button'; plan.title = mode >= 3 ? t('Unlock #{mode} for the remaining steps of this plan.', { mode }) : t('Every remaining writable step of this plan shares one lease directory.');
+  const plan = el('button', 'grant plan', t('GRANT FOR PLAN')); plan.type = 'button'; plan.title = mode >= 3 ? t('Unlock #{mode} for the remaining steps of this plan.', { mode }) : t('Every remaining step of this plan that can write shares one create-permission folder.');
   const deny = el('button', 'deny', t('DENY')); deny.type = 'button'; deny.title = t('The step continues in read-only mode.');
   once.addEventListener('click', () => decide('once', once));
   plan.addEventListener('click', () => decide('plan', plan));
@@ -5213,7 +5213,7 @@ function renderChoice(event) {
     });
     list.append(button);
   });
-  node.append(list, el('p', 'choice-foot', t('Pressing one sends it to @{agent} · #3 and #4 ask for your keys first', { agent })));
+  node.append(list, el('p', 'choice-foot', t('Pressing one sends it to @{agent} · #3 and #4 ask you to confirm first', { agent })));
   state.lastSender = null;
   return node;
 }
@@ -5353,7 +5353,7 @@ function markRun({ responseMessageId, index }, status, where = null, startedAt =
   }
   if (status === 'serving' && where?.port) {
     live.append(el('span', 'where', where.network
-      ? t('serving on :{port} · listens on the whole network, so the project will not open it', { port: where.port })
+      ? t('serving on :{port} · open to your whole network, so the project will not open it', { port: where.port })
       : t('serving on :{port}', { port: where.port })));
     if (!where.network) {
       const open = el('button', 'run-open', t('OPEN IN YOUR SERVERS'));
@@ -5388,9 +5388,9 @@ runClock.unref?.();
 // BISHOP proposed a plan in the room of Salas (docs/MACROVERSO.md, fases 4b y 4c). One row per
 // order with the room, the agent and the mode in sight, and one per link it proposes. What a press
 // sends is what the server recorded: the press names the plan and the row, never the order.
-const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL', delivered: 'IN ITS PROJECT · WAITING FOR YOUR KEY' };
+const BISHOP_STATES = { ready: null, sending: 'SENDING', sent: 'SENT · WAITING FOR THE ANSWER', done: 'ANSWERED', failed: 'FAILED', skipped: 'SKIPPED', blocked: 'WILL NOT LEAVE', proposal: 'PROPOSAL', delivered: 'IN ITS PROJECT · WAITING FOR YOUR CONFIRMATION' };
 const BISHOP_MODE_WORDS = { manual: 'MANUAL', hybrid: 'HYBRID', auto: 'AUTOMATIC' };
-const BISHOP_MODE_NOTES = { manual: 'Manual: every order waits for your press', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
+const BISHOP_MODE_NOTES = { manual: 'Manual: every order waits for you to send it', hybrid: 'Hybrid: #0 and #1 leave on their own', auto: 'Automatic: up to #2 leave on their own' };
 async function bishopPress(path, body, buttons) {
   for (const one of buttons) one.disabled = true;
   try {
@@ -5566,7 +5566,7 @@ function markBishopPlan(event) {
     card.querySelector('.bishop-halt')?.remove();
   } else {
     card.querySelector('.bishop-halt')?.remove();
-    const note = el('p', 'run-why bishop-halt', t('Stopped leaving on its own ({why}). What is left waits for your press.', { why: t(said.why) }));
+    const note = el('p', 'run-why bishop-halt', t('Stopped sending orders on its own ({why}). The rest wait for you to send them.', { why: t(said.why) }));
     card.querySelector('.choice-list')?.before(note);
     if (!replaying) toast(t('Diagnostics › the Coordinator stopped sending on its own ({why}).', { why: t(said.why) }));
   }
@@ -5579,7 +5579,7 @@ function renderBishopLine(event) {
   node.append(el('b', null, t('Coordinator')));
   const said = event.payload;
   if (event.type === 'bishop.plan.closed') node.append(t(' · plan {plan} closed · {done} answered · {failed} failed · {skipped} skipped', { plan: said.plan, done: said.done ?? 0, failed: said.failed ?? 0, skipped: said.skipped ?? 0 }));
-  else if (event.type === 'bishop.plan.halted') node.append(t(' · plan {plan} stops leaving on its own ({why}); what is left waits for your press', { plan: said.plan, why: t(said.why) }));
+  else if (event.type === 'bishop.plan.halted') node.append(t(' · plan {plan} stopped sending orders on its own ({why}); the rest wait for you to send them', { plan: said.plan, why: t(said.why) }));
   else node.append(t(' · the block of orders could not be read: {why}', { why: (said.reasons ?? []).map((why) => t(why)).join('; ') }));
   return node;
 }
@@ -5598,11 +5598,11 @@ function renderBishopProposal(event) {
       els.input.value = `@${agent} #${mode} ${text}`;
       els.input.dispatchEvent(new Event('input', { bubbles: true }));
       els.input.focus();
-      toast(t('Diagnostics › written in the Write box. Sending it asks for your key, as always.'));
+      toast(t('Diagnostics › written in the Write box. Sending it asks you to confirm, as always.'));
     });
     node.append(arm);
   }
-  node.append(el('p', 'choice-foot', t('It runs only if you send it, with your key.')));
+  node.append(el('p', 'choice-foot', t('It runs only if you send it and confirm it.')));
   state.lastSender = null;
   return node;
 }
@@ -5886,7 +5886,7 @@ function retryLonger({ messageId, target, timeout, partial }) {
     els.input.value = [asked?.text ?? '', note].filter(Boolean).join('\n\n');
     // CREATE comes back by itself; CONTROL and AIRLOCK ask for their keys again, from the chip.
     if ((asked?.mode ?? 1) === 2) setMode(2);
-    else if ((asked?.mode ?? 1) >= 3) toast(t('Diagnostics › #{n} needs its keys again: choose it on the mode chip before sending.', { n: asked.mode }));
+    else if ((asked?.mode ?? 1) >= 3) toast(t('Diagnostics › #{n} needs you to confirm again: choose it on the mode chip before sending.', { n: asked.mode }));
     autosize();
     els.input.focus();
     retry.textContent = t('IN THE BOX · SEND IT WHEN READY');
@@ -6091,7 +6091,7 @@ function renderEventNode(event) {
       }
       for (const id of event.payload.removed ?? []) { state.agents.delete(id); [...els.target.options].find((item) => item.value === id)?.remove(); }
       renderAgents(); renderPicker(); renderOnboarding();
-      if (!replaying && event.payload.reason) toast(`${t('Diagnostics › ')}${event.payload.reason}`);
+      if (!replaying && event.payload.reason) toast(`${t('Diagnostics › ')}${resay(event.payload.reason)}`);
       return;
     }
     case 'local.present': {
@@ -6106,7 +6106,7 @@ function renderEventNode(event) {
       break;
     }
     case 'mother.alert': node = renderMotherAlert(event); break;
-    case 'sentinel.report': state.reports.set(event.payload.id, { ...event.payload }); if (!replaying) { renderMotherSentinel(); toast(t('Diagnostics › {what} was recorded by the sentinel. Open Diagnostics to report it.', { what: event.payload.kind === 'crash' ? t('a crash') : t('an unknown condition') })); } return;
+    case 'sentinel.report': state.reports.set(event.payload.id, { ...event.payload }); if (!replaying) { renderMotherSentinel(); toast(t('Diagnostics › {what} was recorded by the failure monitor. Open Diagnostics to report it.', { what: event.payload.kind === 'crash' ? t('a crash') : t('an unexpected problem') })); } return;
     case 'servers.changed': paintPorts(event.payload); return;
     case 'server.stopped': if (!replaying) serverStopped(event.payload); return;
     case 'server.started': if (!replaying) serverStarted(event.payload); return;
@@ -6640,7 +6640,7 @@ function drawCustom() {
     section(t('LANGUAGE'), null, languages, t('The whole interface. The page reloads in it when you accept.')),
     section(t('THEME'), null, themes, t('Automatic follows your system. The whole project changes, not only the conversation.')),
     section(t('WALLPAPER'), null, (() => { const box = el('div', 'paper-box'); box.append(papers); if (paperTune.children.length) box.append(paperTune); return box; })(), PHOTO_WALLPAPERS.has(draft.wallpaper)
-      ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+      ? t('The project\'s background can be a photograph, as a layer or as a mesh of its own colours: choose how strong it looks and how much the photograph blurs.')
       : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.')),
     section(t('ACCENT'), named, swatches, t('Each colour in dark (top) and in light (bottom): on a light ground it deepens so it can be read. The conversation and the buttons wear it; the permission modes keep their own.')),
     section(t('BUBBLES'), null, segmented('bubbles')),
@@ -6669,7 +6669,7 @@ function drawCustom() {
     paperBox.append(papers);
     if (paperTune.children.length) paperBox.append(paperTune);
     const paperBlock = sxBlock(page, t('Wallpaper'), PHOTO_WALLPAPERS.has(draft.wallpaper)
-      ? t('A photograph wears the project\'s ground as a layer or as a mesh of its own colours: choose how strong it is and how much the photograph blurs.')
+      ? t('The project\'s background can be a photograph, as a layer or as a mesh of its own colours: choose how strong it looks and how much the photograph blurs.')
       : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.'));
     paperBlock.rows.append(paperBox);
     const talk = sxBlock(page, t('Conversation'));
@@ -6813,7 +6813,7 @@ const SETTINGS_INDEX = [
   ['agents', 'Max mode'], ['agents', 'Starting mode'], ['agents', 'Web access'], ['agents', 'Generate images'], ['agents', 'Time limit'], ['agents', 'Sign in'],
   ['memory', 'Who distils first'], ['memory', 'Who may distil'], ['memory', 'Share of the context'], ['memory', 'Related'], ['memory', 'Smart search'], ['memory', 'Dataset'], ['memory', 'Analysis and tests'],
   ['mcp', 'Connect MCP'], ['mcp', 'Add a server'], ['mcp', 'Import from your apps'], ['mcp', 'Acts from'],
-  ['permissions', 'The key of each mode'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
+  ['permissions', 'How each mode is confirmed'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
   ['privacy', 'Hidden data'], ['privacy', 'Replaced with'], ['privacy', 'Keys, tokens and e-mail addresses'], ['privacy', 'Your home path'], ['privacy', 'Erase private data'],
   ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'The tour of MADRE 1.0'], ['release', 'Report automatically'], ['release', 'Tell the author'],
 ];
@@ -6853,7 +6853,7 @@ function settingsStatus(id) {
     const mem = data.settings.memory;
     if (!mem) return { line: t('This project has no memory index') };
     const who = mem.archivist === 'auto' || !mem.archivist ? t('the cheapest agent') : `@${mem.archivist}`;
-    return { line: t('Archived by {who} · smart search {how}', { who, how: (mem.embedProvider ?? 'auto').toUpperCase() }) };
+    return { line: t('Memory summarized by {who} · smart search {how}', { who, how: (mem.embedProvider ?? 'auto').toUpperCase() }) };
   }
   if (id === 'permissions') {
     const config = data.settings.override ?? OVERRIDE_DEFAULT;
@@ -7688,7 +7688,7 @@ function finderRefresh(landed) {
 async function finderRun(body, { say }) {
   const guarded = [body.from, body.to].filter(Boolean).find((path) => finderGuarded(path));
   if (guarded) {
-    const typed = await finderAsk({ label: t('PROJECT DESIGNATION'), hint: t('{path} is a place MADRE guards.', { path: guarded }) });
+    const typed = await finderAsk({ label: t('CONFIRM WITH THE PROJECT NAME'), hint: t('{path} is a location MADRE protects. Type the project name to confirm.', { path: guarded }) });
     if (!typed) return false;
     body.designation = typed;
   }
@@ -7754,7 +7754,7 @@ function finderMenu(event, path, entry) {
   if (finder.held && entry.kind === 'file') add(t('Paste beside it'), () => void finderPaste(here));
   add(t('New file'), () => void finderCreate(here, 'new-file'));
   add(t('New folder'), () => void finderCreate(here, 'new-folder'));
-  if (!entry.root && finderGuarded(path)) menu.append(el('div', 'note', t('MADRE GUARDS THIS PATH · IT WILL ASK FOR THE DESIGNATION')));
+  if (!entry.root && finderGuarded(path)) menu.append(el('div', 'note', t('PROTECTED LOCATION · CONFIRM WITH THE PROJECT NAME')));
   menu.hidden = false;
   // Opened where the hand is, and kept inside the panel: a menu that spills across the room is a
   // menu the human has to go looking for.
@@ -10051,7 +10051,7 @@ function stepsDraw() {
     stepsSave();
     stepsClose();
     stepsPaint();
-    toast(t('The list comes back from ? in Diagnostics.'));
+    toast(t('You can reopen the list with the ? button in Diagnostics.'));
   });
   foot.append(el('span', null, t('Each step ticks itself when you do it.')), hide);
   card.replaceChildren(head, list, foot);
@@ -11144,7 +11144,7 @@ function updateCrewLabel() {
       : state.moduleCommand ? (state.create ? t('DIAGNOSTICS · MODULE · CREATE ›') : t('DIAGNOSTICS · MODULE · NEEDS #2 ›'))
       : order ? `${t('HUMAN ›')} ${state.create ? t('TOKEN SAVER · CREATE ›') : t('TOKEN SAVER ›')}`
         : state.create ? t('HUMAN · CREATE ›')
-          : state.expendable ? t('CREW · EXPENDABLE ›') : t('HUMAN ›');
+          : state.expendable ? t('EXPENDABLE ›') : t('HUMAN ›');
   // Who the message goes to closes the line, in that agent's colour: HUMAN › TOKEN SAVER › @CODEX ›.
   const to = els.target?.value;
   if (to && !armed && (piloting || !state.intruder) && typeof els.crewLabel.append === 'function') {
@@ -11745,7 +11745,7 @@ function bootMother() {
   mother.boot.textContent = [
     t('{n} agents · {ready} ready', { n: state.agents.size, ready: online }),
     `/${els.project.textContent}`,
-    open === 1 ? t('1 condition in this project') : open ? t('{n} conditions in this project', { n: open }) : t('nothing open'),
+    open === 1 ? t('1 problem in this project') : open ? t('{n} problems in this project', { n: open }) : t('nothing open'),
   ].join(' · ');
 }
 
@@ -11989,7 +11989,7 @@ function renderEyecat(event) {
   const node = el('div', 'command-card eyecat');
   node.dataset.eyecat = finding.key;
   const head = el('div', 'head');
-  head.append(el('b', null, t('◉ EYECAT')), el('span', null, finding.kind === 'unsupported' ? t('a note its own sources do not support') : t('two memories that cannot both be true')));
+  head.append(el('b', null, t('◉ MEMORY REVIEWER')), el('span', null, finding.kind === 'unsupported' ? t('a note its own sources do not support') : t('two memories that cannot both be true')));
   if (finding.confidence !== null && finding.confidence !== undefined) head.append(el('span', 'args', t('{pct}% · judged by @{judge}', { pct: Math.round(finding.confidence * 100), judge: finding.judge })));
   else head.append(el('span', 'args', t('judged by @{judge}', { judge: finding.judge })));
   node.append(head);
@@ -12017,14 +12017,14 @@ function renderEyecat(event) {
     }).then((res) => res.json()).catch(() => null);
     if (!response || response.error) {
       for (const button of actions.querySelectorAll('button')) button.disabled = false;
-      toast(response?.error ?? t('EYECAT could not be answered.'));
+      toast(response?.error ?? t('The memory reviewer could not be answered.'));
     }
   };
   const confirm = el('button', 'primary', t('IT IS FALSE'));
-  confirm.title = t('Files it as an aberration and takes the memory out of every turn. Reversible from the memory map.');
+  confirm.title = t('Marks it as a doubtful memory and stops using it in answers. Reversible from the memory map.');
   confirm.addEventListener('click', () => { void answer('confirm'); });
   const dismiss = el('button', null, t('IT STANDS'));
-  dismiss.title = t('The project was right. This pair is never raised again.');
+  dismiss.title = t('The project was right. This contradiction is never flagged again.');
   dismiss.addEventListener('click', () => { void answer('dismiss'); });
   actions.append(confirm, dismiss);
   node.append(actions);
@@ -12039,7 +12039,7 @@ function settleEyecat(event) {
   if (!card) return;
   card.querySelector('.eyecat-actions')?.remove();
   const settled = el('div', 'eyecat-settled');
-  settled.textContent = verdict === 'aberration' ? t('FILED AS AN ABERRATION · THE MEMORY IT REFUTES NO LONGER TRAVELS') : t('THE PROJECT STANDS BY IT');
+  settled.textContent = verdict === 'aberration' ? t('FILED AS A DOUBTFUL MEMORY · THE MEMORY IT REFUTES IS NO LONGER USED IN ANSWERS') : t('THE PROJECT STANDS BY IT');
   card.classList.add(verdict === 'aberration' ? 'filed' : 'stands');
   card.append(settled);
 }
@@ -12061,7 +12061,7 @@ function appendModuleOutput(event) {
 async function switchModule(item) {
   const response = await fetch(`/api/extensions/${item.id}/install`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm: true }) });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error ?? t('{name} could not be switched.', { name: item.name }));
+  if (!response.ok) throw new Error(result.error ?? t('{name} could not be turned on or off.', { name: item.name }));
   if (item.id === 'ripley') { state.ripley = Boolean(result.enabled); syncViewerMode(); }
   if (item.id === 'ash') syncAshUI(Boolean(result.enabled));
   if (result.capabilities) { state.capabilities = result.capabilities; renderCreateScopes(); }
@@ -12404,7 +12404,7 @@ function updateNote(item, update) {
   if (update.available) return t('{what} {latest} is out; this computer has {current}.', { what, latest: update.latest, current: update.current });
   if (update.latest && !update.current) return t('{what} {latest} is the newest release. It is not on this computer yet.', { what, latest: update.latest });
   if (update.latest) return t('{what} {latest} is the newest, and it is what this computer has.', { what, latest: update.latest });
-  return t('MADRE could not reach the place that knows about {what}.', { what });
+  return t('MADRE could not check whether there is a newer {what}.', { what });
 }
 
 // A fold inside a card. It remembers whether it was left open, like every other fold in MADRE,
@@ -12882,7 +12882,7 @@ async function renderEconomy(box) {
   catch { box.replaceChildren(el('p', 'note', t('SPENDING UNAVAILABLE'))); return; }
   box.replaceChildren();
   if (!read?.turns) {
-    box.append(el('p', 'note', t('NO TURNS WEIGHED YET · SEND A MESSAGE AND THIS FILLS')));
+    box.append(el('p', 'note', t('NO SPENDING RECORDED YET · SEND A MESSAGE AND THIS FILLS')));
     return;
   }
   const saved = read.saved ?? {};
@@ -12892,12 +12892,12 @@ async function renderEconomy(box) {
   // different kinds have no shape to draw, and drawing one anyway is how a panel starts lying.
   const strip = el('div', 'economy-strip');
   for (const [value, label, hint] of [
-    [count(read.billed ?? read.turns), t('TURNS WEIGHED'), t('every turn this project has been billed for')],
+    [count(read.billed ?? read.turns), t('TURNS BILLED'), t('every turn this project has been billed for')],
     [count((totals.input ?? 0) + (totals.created ?? 0)), t('INPUT CHARGED'), t('fresh reading, plus what was written into a cache (billed too) · the cache read back is apart')],
-    [count(totals.output), t('OUTPUT CHARGED'), t('tokens written back · the dearer half')],
+    [count(totals.output), t('OUTPUT CHARGED'), t('tokens the agent writes in its answer · the more expensive part')],
     [count(saved.tokens), t('NOT CHARGED IN FULL'), t('read back from a cache (a fraction of the price, or of the plan) plus what was never sent')],
     [pct(totals.cacheShare), t('CAME FROM CACHE'), t('of everything read, the share nobody charged twice')],
-    [totals.charsPerInputToken ? totals.charsPerInputToken.toFixed(2) : '—', t('CHARACTERS PER TOKEN'), t('what MADRE wrote against what the CLIs were charged for reading · not a tokenizer')],
+    [totals.charsPerInputToken ? totals.charsPerInputToken.toFixed(2) : '—', t('CHARACTERS PER TOKEN'), t('what MADRE wrote compared with what the agents were charged for reading · a ratio, not an exact count')],
   ]) {
     const cell = el('div', 'economy-stat');
     cell.title = hint;
@@ -12913,7 +12913,7 @@ async function renderEconomy(box) {
   first.append(el('p', 'unit-note', t('tokens read back from a cache at a fraction of their price, or never sent at all')));
   metrics(first, [
     [t('FROM THE CACHE'), count(saved.cachedTokens), t('the CLI said it read these back instead of charging them again · measured')],
-    [t('NEVER SENT'), count(saved.unsentTokens), t('briefing a turn had no use for · estimated from characters, not measured')],
+    [t('NEVER SENT'), count(saved.unsentTokens), t('part of what MADRE sends the agent that this answer did not need · estimated from characters, not measured')],
     [t('OF THE INPUT'), pct(saved.cachedShare), t('the share of everything read that came back from a cache')],
   ]);
   first.append(el('p', 'note', t('One half is measured and the other is estimated, and they are never added without saying so. Neither of them is the Token saver: the Token saver shortens the answer, which is the next reading.')));
@@ -12926,8 +12926,8 @@ async function renderEconomy(box) {
     free.append(cardHead('home', t('TURNS THE PROJECT ANSWERED ITSELF')));
     metrics(free, [
       [t('FREE TURNS'), count(read.free.turns), t('answered by @madre on this computer · no provider, no bill')],
-      [t('OF EVERY TURN'), pct(read.free.share), t('of the turns weighed in this project')],
-      [t('A PAID TURN'), read.free.paidOutputMedian ? `${count(read.free.paidOutputMedian)}↑` : '—', t('the middle paid turn here · what the others cost, not what these would have')],
+      [t('OF EVERY TURN'), pct(read.free.share), t('of the turns measured in this project')],
+      [t('A PAID TURN'), read.free.paidOutputMedian ? `${count(read.free.paidOutputMedian)}↑` : '—', t('the typical (median) paid answer here · what the others cost, not what these would have')],
     ]);
     free.append(el('p', 'note', t('These turns have no bill because nothing left this computer to answer them. MADRE does not say what they would have cost somewhere else: nobody measured that.')));
     box.append(free);
@@ -12943,25 +12943,25 @@ async function renderEconomy(box) {
   const block = read.blocks.find((one) => one.id === 'ash');
   if (block) {
     metrics(second, [
-      [t('TOKEN SAVER ADDS'), t('{n} characters', { n: block.perTurn }), t('to every prompt it is on · measured, not estimated')],
+      [t('TOKEN SAVER ADDS'), t('{n} characters', { n: block.perTurn }), t('to every prompt while it is on · measured, not estimated')],
       [t('IN TOKENS'), `≈${Math.round(block.perTurn / CH_PER_TOKEN)}`, t('at {rate} characters per token · an estimate', { rate: CH_PER_TOKEN })],
-      [t('TURNS CARRYING IT'), count(block.turns), t('of the {n} weighed in this project', { n: count(read.turns) })],
+      [t('TURNS CARRYING IT'), count(block.turns), t('of the {n} measured in this project', { n: count(read.turns) })],
     ]);
     second.append(el('p', 'note', t('What the Token saver costs is certain and measured here. What it saves is not: the shorter answer below is observed, never promised. Output is the dearer half of every bill, so the trade is usually favourable — MADRE does not turn it into money because it does not know your prices.')));
   }
   if (read.ash?.agents?.length) ashComparison(second, read.ash);
-  else second.append(el('p', 'note', t('No turns with the switch recorded yet. Leave the Token saver on for a few turns and off for a few more, and this fills.')));
+  else second.append(el('p', 'note', t('No answers recorded yet with the Token saver on and off. Leave it on for a few answers and off for a few more, and the comparison shows here.')));
   box.append(second);
 
   // 3 · Where what WAS paid for went.
   const third = el('div', 'card-block');
-  third.append(cardHead('bars', t('WHERE EACH PROMPT GOES')));
+  third.append(cardHead('bars', t('HOW EACH PROMPT IS SPLIT')));
   economyBlocks(third, read);
-  third.append(el('p', 'note', t('{pct} of each prompt is the unchanging head a cache can match. MADRE wrote {chars} characters of the {input} input tokens you were charged for; the rest is what the CLIs read on their own.', { pct: pct(read.totals.prefixShare), chars: count(read.totals.chars), input: count(read.totals.input) })));
+  third.append(el('p', 'note', t('{pct} of each prompt is a fixed header the cache can reuse. MADRE wrote {chars} characters of the {input} input tokens you were charged for; the rest is what the agents\' apps read on their own.', { pct: pct(read.totals.prefixShare), chars: count(read.totals.chars), input: count(read.totals.input) })));
   // The tools a turn carried. A server's tool list goes into every call a CLI makes inside a turn;
   // the middle turn with it against the middle turn without it, per agent, with the counts behind.
   if (read.servers?.length) {
-    third.append(el('p', 'unit-note', t('Fresh input of the middle turn with each tool server attached, against without it.')));
+    third.append(el('p', 'unit-note', t('Fresh input tokens of a typical (median) turn with each tool server attached, and without it.')));
     for (const one of read.servers) {
       third.append(el('p', 'note', t('@{agent} · {server}: {with} with it ({nWith} turns) · {without} without it ({nWithout} turns)', { agent: one.agent, server: one.server, with: count(one.medianWith), nWith: one.with, without: count(one.medianWithout), nWithout: one.without })));
     }
@@ -13038,7 +13038,7 @@ function ashComparison(box, ash) {
         group.append(row);
       }
     } else {
-      group.append(el('p', 'ash-waiting', t('{n} turns with TOKEN SAVER, {m} without · {min} of each before this can be read', {
+      group.append(el('p', 'ash-waiting', t('{n} turns with TOKEN SAVER, {m} without · {min} of each are needed to compare', {
         n: agent.on.turns, m: agent.off.turns, min: ash.minTurns,
       })));
     }
@@ -13046,13 +13046,13 @@ function ashComparison(box, ash) {
     // vary anyway, the honest thing on the screen is that there is nothing to read here yet.
     if (agent.comparable) {
       group.append(el('p', agent.readable ? 'ash-verdict' : 'ash-verdict noise', agent.readable
-        ? t('{pct} shorter with TOKEN SAVER, wider than this agent varies here (±{on} and ±{off})', { pct: `${Math.round(Math.abs(agent.share) * 100)}%`, on: agent.on.spread.toLocaleString(), off: agent.off.spread.toLocaleString() })
-        : t('the difference fits inside how much this agent varies anyway (±{on} and ±{off}) · nothing to read yet', { on: agent.on.spread.toLocaleString(), off: agent.off.spread.toLocaleString() })));
+        ? t('{pct} shorter with TOKEN SAVER: more than this agent\'s normal variation here (±{on} and ±{off})', { pct: `${Math.round(Math.abs(agent.share) * 100)}%`, on: agent.on.spread.toLocaleString(), off: agent.off.spread.toLocaleString() })
+        : t('the difference fits inside how much this agent varies anyway (±{on} and ±{off}) · no conclusion yet', { on: agent.on.spread.toLocaleString(), off: agent.off.spread.toLocaleString() })));
     }
     list.append(group);
   }
   box.append(list);
-  box.append(el('p', 'note', t('The middle turn of each side, not an average. You choose when to ask for compact prose, so the two sides are different tasks, not the same task twice — MADRE does not claim a percentage saved.')));
+  box.append(el('p', 'note', t('The median answer of each group, not an average. You choose when to ask for compact answers, so the two groups are different tasks, not the same task twice — MADRE does not claim a percentage saved.')));
 }
 
 // The economy, on the card of the thing it is about. It fills as the room is used, because it
@@ -13074,7 +13074,7 @@ function paintAshEconomy(box) {
   return fetch('/api/economy').then((response) => response.json()).then((read) => {
     box.replaceChildren(el('h5', null, t('SPENDING · THIS PROJECT')));
     if (!read?.turns) {
-      box.append(el('p', 'note', t('NO TURNS WEIGHED YET · SEND A MESSAGE AND THIS FILLS')));
+      box.append(el('p', 'note', t('NO SPENDING RECORDED YET · SEND A MESSAGE AND THIS FILLS')));
       return;
     }
     const totals = read.totals;
@@ -13082,10 +13082,10 @@ function paintAshEconomy(box) {
     metrics(box, [
       [t('TOKENS SAVED'), count(saved.tokens), t('read back from the CLI cache, plus what was never sent')],
       [t('FROM CACHE'), count(saved.cachedTokens), t('input the CLI did not charge again · {pct} of the input', { pct: pct(saved.cachedShare) })],
-      [t('NEVER SENT'), `${count(saved.unsentChars)} CH`, t('briefing a turn had no use for')],
-      [t('SPENT IN'), count(totals.input), t('input tokens actually charged')],
-      [t('SPENT OUT'), count(totals.output), t('output tokens, the dearer half')],
-      [t('TURNS'), count(read.turns), t('weighed so far')],
+      [t('NEVER SENT'), `${count(saved.unsentChars)} CH`, t('part of what MADRE sends the agent that this answer did not need')],
+      [t('SPENT ON INPUT'), count(totals.input), t('input tokens actually charged')],
+      [t('SPENT ON OUTPUT'), count(totals.output), t('output tokens, the dearer half')],
+      [t('TURNS'), count(read.turns), t('measured so far')],
     ]);
   }).catch(() => { box.replaceChildren(el('h5', null, t('SPENDING · THIS PROJECT')), el('p', 'note', t('SPENDING UNAVAILABLE'))); });
 }
@@ -13420,7 +13420,7 @@ function builtinCard(item) {
     const status = el('dl', 'ollama-status');
     const put = (k, v) => { status.append(el('dt', null, k), el('dd', null, v)); };
     put(t('SERVER'), info.running ? t('running · {host}', { host: info.host }) : t('not running'));
-    put(t('EMBEDDINGS'), info.embedModel ? `${info.embedModel}${info.settings.embeddings === false ? t(' · off') : ''}` : t('no embedding model'));
+    put(t('SMART SEARCH'), info.embedModel ? `${info.embedModel}${info.settings.embeddings === false ? t(' · off') : ''}` : t('no embedding model'));
     put(t('ARCHIVIST'), info.chatModel ? `${info.chatModel}${info.settings.archivist === false ? t(' · off') : ''}` : t('no chat model'));
     if (info.models?.length) put(t('MODELS'), info.models.map((model) => model.name).join(', '));
     read.append(status);
@@ -13433,7 +13433,7 @@ function builtinCard(item) {
       const roles = cardBlock(panel, t('ROLES'));
       const row = el('div', 'card-toggles');
       for (const [role, model, present, label] of [
-        ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('EMBEDDINGS')],
+        ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('SMART SEARCH')],
         ['archivist', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('ARCHIVIST')],
         ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the project')],
       ]) {
@@ -13567,7 +13567,7 @@ function builtinCard(item) {
   }
 
   if (fixed) {
-    actions.append(el('span', 'note', item.install?.display ? item.install.display.toUpperCase() : t('NO SWITCH')));
+    actions.append(el('span', 'note', item.install?.display ? item.install.display.toUpperCase() : t('CANNOT BE TURNED OFF')));
     return card;
   }
 
@@ -13582,7 +13582,7 @@ function builtinCard(item) {
     const response = await reach(`/api/extensions/${item.id}/install`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirm: true }) });
     clearTimeout(trying);
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) toast(result.error ?? t('{name} could not be switched.', { name: item.name }));
+    if (!response.ok) toast(result.error ?? t('{name} could not be turned on or off.', { name: item.name }));
     else {
       toast(`${t('Diagnostics › ')}${t(result.enabled ? '{name} enabled' : '{name} disabled', { name: t(item.name) })}${result.enabled && result.model ? ` · ${result.model}` : ''}.`);
       if (result.capabilities) { state.capabilities = result.capabilities; renderCreateScopes(); }
@@ -13744,8 +13744,8 @@ function moduleGlance(item) {
     strip.classList.add('loading');
     fetch('/api/economy').then((response) => response.json()).then((read) => {
       strip.classList.remove('loading');
-      if (!read?.turns) { fill([[t('Tokens not charged'), '0', t('nothing weighed yet')], [t('State'), standing]]); return; }
-      fill([[t('Tokens not charged'), Number(read.saved?.tokens ?? 0).toLocaleString(), t('read back from a cache, or never sent')], [t('Turns weighed'), String(read.turns)], [t('Read from cache'), Number.isFinite(read.saved?.cachedShare) ? `${Math.round(read.saved.cachedShare * 100)}%` : '—'], [t('State'), standing]]);
+      if (!read?.turns) { fill([[t('Tokens not charged'), '0', t('nothing measured yet')], [t('State'), standing]]); return; }
+      fill([[t('Tokens not charged'), Number(read.saved?.tokens ?? 0).toLocaleString(), t('read back from a cache, or never sent')], [t('Turns measured'), String(read.turns)], [t('Read from cache'), Number.isFinite(read.saved?.cachedShare) ? `${Math.round(read.saved.cachedShare * 100)}%` : '—'], [t('State'), standing]]);
     }).catch(() => { strip.classList.remove('loading'); fill([[t('State'), standing]]); });
   } else if (item.id === 'intents') {
     strip.classList.add('loading');
@@ -13895,7 +13895,7 @@ function moduleSheet(host, item) {
 // Ollama's local brain as rows: the server, its models, the roles it takes in this room.
 function ollamaBlock(host, item) {
   const info = item.ollama ?? { running: false, models: [], settings: {} };
-  const block = sxBlock(host, t('Local brain'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
+  const block = sxBlock(host, t('Local AI'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
   const recheck = sxButton(t('Check again'), async () => { recheck.disabled = true; await fetch('/api/ollama/probe', { method: 'POST' }).catch(() => null); await refreshModules(); });
   sxRow(block, t('Server'), info.running ? t('Running · {host}', { host: info.host }) : t('Not running'), recheck);
   // Whether this project uses it, beside Home's choice for all of them (src/local-ai.mjs).
@@ -14167,7 +14167,7 @@ function renderModulesDev() {
       renderModules();
     } catch (error) { toast(t('The reload failed: {error}', { error: error.message })); } finally { reload.disabled = false; }
   }, { title: t('Load your module files again without restarting the project') });
-  step(t('Load it'), t('Press reload and it appears on the board with its own card, no restart.'), reload);
+  step(t('Load it'), t('Press Reload modules and it appears on the board with its own card, no restart.'), reload);
   step(t('If it talks to a service'), t('Connecting to a service from outside is almost always possible, if that service lets you get your own key in minutes and revoke it. Your module declares the key it needs, where it reaches and which of its tools send; MADRE draws the field, answers for the traffic and holds sending until #4 FULL ACCESS.'));
   section.append(steps);
   const yours = modules.items.filter((item) => item.external);
@@ -14799,7 +14799,7 @@ async function fillCoreBoard() {
   board.append(brewHead(t('YOU'), projectDesignation() || null));
   const you = el('div', 'mem-kpis');
   memTile(you, { label: t('SIGNED IN'), value: `${signed.length}/${crew.length}`, sub: signed.length ? signed.map((agent) => `@${agent.id}`).join(' · ') : t('NOBODY YET') });
-  memTile(you, { label: t('PROJECT WINDOW'), value: formatTokens(spent) || '0', sub: state.budget ? t('OF {budget} TOKENS · 5H', { budget: formatTokens(state.budget) }) : t('NO BUDGET SET'), meter: state.budget ? Math.min(1, spent / state.budget) : null });
+  memTile(you, { label: t('PROJECT USAGE'), value: formatTokens(spent) || '0', sub: state.budget ? t('OF {budget} TOKENS · 5H', { budget: formatTokens(state.budget) }) : t('NO BUDGET SET'), meter: state.budget ? Math.min(1, spent / state.budget) : null });
   memTile(you, { label: t('ALL-TIME IN PROJECT'), value: formatTokens(ever) || '0', sub: t('TOKENS THE AGENTS HAVE SPENT HERE') });
   board.append(you);
   if (crew.length) {
@@ -14846,7 +14846,7 @@ async function fillCoreBoard() {
     const local = el('div', 'mem-kpis');
     memTile(local, { label: t('SERVER'), value: o.running ? (o.version ? `v${o.version}` : t('ON')) : t('OFF'), sub: o.running ? o.host : (o.error ?? t('not running')) });
     memTile(local, { label: t('CHAT'), value: o.madreModel ?? o.chatModel ?? '—', sub: o.madreModel ? t('TRAINED FOR THIS PROJECT') : t('NOT TRAINED FOR THIS PROJECT YET') }).classList.add('word');
-    memTile(local, { label: t('EMBEDDINGS'), value: o.embedModel ?? '—', sub: d?.vectors ? t('{n} WITH A VECTOR', { n: memFmt((d.vectors.memories ?? 0) + (d.vectors.entries ?? 0)) }) : t('RECALL MATCHES WORDS ONLY') }).classList.add('word');
+    memTile(local, { label: t('SMART SEARCH'), value: o.embedModel ?? '—', sub: d?.vectors ? t('{n} SEARCHABLE BY MEANING', { n: memFmt((d.vectors.memories ?? 0) + (d.vectors.entries ?? 0)) }) : t('RECALL MATCHES WORDS ONLY') }).classList.add('word');
     const measured = state.localModel?.checked;
     memTile(local, { label: t('MEASURED HERE'), value: measured ? `${measured.matched}/${measured.n}` : '—', sub: measured ? t('LANDED WHERE THE AGENTS DID · {verdict}', { verdict: measured.passed ? t('READY') : t('NOT YET') }) : t('NOT MEASURED YET'), meter: measured?.n ? measured.matched / measured.n : null });
     board.append(local);
@@ -14860,7 +14860,7 @@ async function fillCoreBoard() {
         const row = el('div', 'mem-signal');
         const top = el('div', 'top');
         top.append(el('b', null, model.name), el('span', null, formatSize(model.size || 0)));
-        const role = [model.name === o.madreModel ? '@MADRE' : null, model.name === o.chatModel ? t('CHAT') : null, model.name === o.embedModel ? t('EMBEDDINGS') : null].filter(Boolean);
+        const role = [model.name === o.madreModel ? '@MADRE' : null, model.name === o.chatModel ? t('CHAT') : null, model.name === o.embedModel ? t('SMART SEARCH') : null].filter(Boolean);
         const facts = [...role, model.details?.parameter_size, model.details?.quantization_level, model.family].filter(Boolean);
         row.append(top, memMeter((model.size || 0) / largest));
         if (facts.length) row.append(el('span', 'detail', facts.join(' · ')));
@@ -14908,7 +14908,7 @@ async function fillCoreBoard() {
       return label;
     };
     does.append(
-      role('embeddings', t('EMBEDDINGS'), t('Turns each memory into a vector, so recall finds it by meaning.')),
+      role('embeddings', t('SMART SEARCH'), t('Prepares each memory so recall can find it by meaning.')),
       role('archivist', t('ARCHIVIST'), t('Distils the exchanges into memories, on this computer.')),
       role('agent', '@MADRE', t('Answers in the project as the fifth agent.')),
     );
@@ -14934,7 +14934,7 @@ async function fillCoreBoard() {
     }
     embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('smart search: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
     const field = (word, control) => { const label = el('label', 'core-field'); label.append(el('span', 'k', word), control); return label; };
-    reads.append(field(t('ARCHIVIST'), archivist), field(t('EMBEDDINGS'), embed));
+    reads.append(field(t('ARCHIVIST'), archivist), field(t('SMART SEARCH'), embed));
     if (mem.envWins) reads.append(el('p', 'note', t('AN ENVIRONMENT VARIABLE IS SETTING SOME OF THIS, AND IT WINS OVER WHAT YOU CHOOSE HERE.')));
   }
   if (grid.childElementCount) board.append(grid);
@@ -14983,7 +14983,7 @@ function renderCoreStrip() {
   const field = el('textarea');
   field.id = 'core-text';
   field.rows = 1;
-  field.placeholder = t('the question you would send — the document rebuilds around it');
+  field.placeholder = t('type the question you would send, and see here what MADRE would send the agent');
   field.value = core.text ?? '';
   field.addEventListener('input', () => {
     core.text = field.value;
@@ -15130,7 +15130,7 @@ function renderCoreDoc(briefing) {
     : t('THE WHOLE PROJECT STILL FITS')));
   if (window.omitted) carried.append(brewRow(t('LEFT BEHIND'), t('{n} OLDER MESSAGES · WHICH IS WHAT RECALL IS FOR', { n: window.omitted })));
   carried.append(brewRow(t('READ TO BUILD IT'), t('{m} MEMORIES · {q} EXACT QUOTES', { m: briefing.recalled, q: briefing.quoted })));
-  carried.append(brewRow(t('NOT COUNTED'), t('NONE OF THEM WAS COUNTED AS RECALLED: ASKING WHAT THE PROJECT WOULD SAY IS NOT THE PROJECT SAYING IT')));
+  carried.append(brewRow(t('NOT COUNTED'), t('NONE OF THEM COUNTS AS USED: THIS IS A PREVIEW, NOT A REAL ANSWER')));
   carried.append(brewRow(t('WEIGHT'), t('{ch} CH · ≈{tokens} TOKENS · ESTIMATED AT {rate} CH/TOKEN, NOT MEASURED: MADRE DOES NOT HAVE THE PROVIDER\'S TOKENIZER', { ch: briefing.chars.toLocaleString(), tokens: tokensFor(briefing.chars).toLocaleString(), rate: CH_PER_TOKEN })));
   if (briefing.spared) carried.append(brewRow(t('LEFT OUT'), t('{n} CHARACTERS THIS TURN HAS NO USE FOR', { n: briefing.spared.toLocaleString() })));
   doc.append(carried);
@@ -15184,7 +15184,7 @@ function renderCoreLaunch(launch) {
   const servers = [...(launch.memoryServer ? [{ ...launch.memoryServer, brief: t('the archive of this project, read and written through MADRE') }] : []), ...(launch.mcpServers ?? [])]
     .filter((server, at, all) => all.findIndex((other) => other.name === server.name) === at);
   if (servers.length) {
-    floor.append(brewHead(t('SERVERS IT CAN CALL'), `${servers.length}`));
+    floor.append(brewHead(t('CONNECTED TOOLS (MCP) IT CAN USE'), `${servers.length}`));
     const rows = el('div', 'brew-rows');
     for (const server of servers) {
       const value = el('span');
@@ -15601,16 +15601,16 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
   memSignals(memCard(grid, t('What the archive is made of'), 'span-12'), m);
   memBars(memCard(grid, t('By kind'), 'span-4'), Object.entries(dash.kinds).map(([kind, n]) => ({ label: kindWord(kind), n, swatch: `var(--mem-${kind}, var(--ph))` })));
   memBars(memCard(grid, t('By archivist'), 'span-4'), Object.entries(dash.agents).map(([agent, n]) => ({ label: `@${agent}`, n })));
-  memBars(memCard(grid, t('By zone'), 'span-4'), Object.entries(dash.zones).map(([zone, n]) => ({ label: zoneWord(zone), n, title: ZONE_NOTE[zone] ?? null })));
+  memBars(memCard(grid, t('By status'), 'span-4'), Object.entries(dash.zones).map(([zone, n]) => ({ label: zoneWord(zone), n, title: ZONE_NOTE[zone] ?? null })));
   const recall = memCard(grid, t('Recall and smart search'), 'span-12');
   const carried = dash.via.search + dash.via.cascade;
   if (carried) {
     const split = el('div', 'mem-split');
-    split.title = t('How recalled memories arrived: found by the search, or carried along by the company they keep.');
+    split.title = t('How recalled memories arrived: found by the search, or brought along with related memories.');
     for (const [id, n] of [['search', dash.via.search], ['cascade', dash.via.cascade]]) { const part = el('i', id); part.style.flexGrow = String(n); split.append(part); }
     recall.append(split);
     const legend = el('div', 'mem-legend');
-    for (const [id, label, n] of [['search', t('Search'), dash.via.search], ['cascade', t('Company'), dash.via.cascade]]) {
+    for (const [id, label, n] of [['search', t('Search'), dash.via.search], ['cascade', t('Related'), dash.via.cascade]]) {
       const key = el('span', `k ${id}`);
       key.append(el('i'), `${label} `, el('b', null, `${memFmt(n)} · ${memPct(n / carried)}`));
       legend.append(key);
@@ -15618,7 +15618,7 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
     recall.append(legend);
   } else recall.append(el('p', 'note', t('Nothing yet.')));
   if (dash.vectors) {
-    for (const [label, have, of] of [[t('Memories with a vector'), dash.vectors.memories, dash.totals.memories], [t('Exchanges with a vector'), dash.vectors.entries, dash.totals.entries]]) {
+    for (const [label, have, of] of [[t('Memories searchable by meaning'), dash.vectors.memories, dash.totals.memories], [t('Exchanges searchable by meaning'), dash.vectors.entries, dash.totals.entries]]) {
       const row = el('div', 'mem-signal');
       const head = el('div', 'top');
       head.append(el('b', null, label), el('span', null, `${memFmt(have)} / ${memFmt(of)}`));
@@ -15640,8 +15640,8 @@ const EXAM_NAMES = {
 };
 const EXAM_ABOUT = {
   coverage: t('Real questions from this project, recall run at the moment each one was asked, scored against the reply that was actually given. It asks whether the answer was already in the archive, not whether it was right.'),
-  consistency: t('Contradictions EYECAT is still holding, what has been taken out of circulation, and whether aberrations are being filed more often lately than they used to be.'),
-  match: t('Real questions answered here by a frontier CLI, asked again of the local model with this archive behind it, and compared against the answer given at the time. It takes minutes and spends nothing.'),
+  consistency: t('Contradictions the memory reviewer has not settled yet, memories taken out of use, and whether doubtful memories are being filed more often lately than they used to be.'),
+  match: t('Real questions answered here by one of your agents, asked again of the local model with this project\'s memory behind it, and compared against the answer given at the time. It takes minutes and spends nothing.'),
 };
 
 function examRow(id, state, run, pass = null) {
@@ -15817,7 +15817,7 @@ function connectionCard(agent) {
   const where = el('code', null, agent.detected ? `${agent.version ?? t('version unknown')} · ${agent.path}` : (agent.login?.install ?? []).join(' · '));
   where.title = where.textContent;
   meta.append(where);
-  const facts = [session?.detail ? t('Session {detail}', { detail: session.detail }) : null, agent.account ? `${agent.paid === false ? `${t('Free way in')} · ` : ''}${agent.account}` : null].filter(Boolean);
+  const facts = [session?.detail ? t('Session {detail}', { detail: session.detail }) : null, agent.account ? `${agent.paid === false ? `${t('Free plan')} · ` : ''}${agent.account}` : null].filter(Boolean);
   if (facts.length) meta.append(el('span', null, facts.join(' · ')));
   card.append(meta);
   const body = el('div', 'sx-agent-body');
@@ -15867,12 +15867,12 @@ function connectionCard(agent) {
   const currentStart = agentScopes.defaultMode ?? 1;
   sxRow(modes, t('Starting mode'), currentStart === 2 ? t('Every turn may create files, plan steps too.') : t('Read-only until you unlock CREATE.'), sxSeg([1, 2].map((n) => ({
     value: n, text: `#${n}`, className: `o${n}`, disabled: n > currentCap,
-    title: n === 2 ? t('Every message to this agent starts in CREATE: new files where they belong, existing files untouched. Plan steps to it too.') : t('Messages start read-only; unlock CREATE when you want files.'),
+    title: n === 2 ? t('Every message to this agent starts in #2 CREATE: it may add new files, but existing files stay untouched. Plan steps sent to it too.') : t('Messages start in #1 CHAT ONLY; turn on #2 CREATE when you want files.'),
   })), currentStart, async (n, seg) => {
     try {
-      await saveSettingNow({ scopes: { [agent.id]: { defaultMode: n } } }, n === 2 ? t('@{agent} starts in #2 CREATE: every turn may add files to the project.', { agent: agent.id }) : t('@{agent} starts read-only; unlock CREATE when you want files.', { agent: agent.id }));
+      await saveSettingNow({ scopes: { [agent.id]: { defaultMode: n } } }, n === 2 ? t('@{agent} starts in #2 CREATE: every turn may add files to the project.', { agent: agent.id }) : t('@{agent} starts in #1 CHAT ONLY; turn on #2 CREATE when you want files.', { agent: agent.id }));
       await loadSettings();
-    } catch (error) { toast(t('The default mode was not saved: {error}', { error: error.message })); await loadSettings(); }
+    } catch (error) { toast(t('The starting mode was not saved: {error}', { error: error.message })); await loadSettings(); }
   }, { label: t('Starting mode') }));
   const seconds = Math.round((settingsUI.data.settings.timeouts[agent.id] ?? 180000) / 1000);
   sxRow(card, t('Time limit'), t('How long the project waits for its answer.'), sxNumber(seconds, 's', {
@@ -15921,7 +15921,7 @@ function connectionCard(agent) {
   if (agent.detected && agent.key && agent.id !== 'opencode') slot.append(keyForm(agent, { onDone: () => { void loadSettings(); renderOnboarding(); } }));
   // Signed in, OpenCode's providers are added in its block below; the terminal is for a first sign-in.
   if (agent.detected && agent.login && !agent.login.headless && !(agent.id === 'opencode' && session?.state === 'signed-in')) {
-    slot.append(el('p', 'sx-hint', t('It signs in from its own prompt:')));
+    slot.append(el('p', 'sx-hint', t('It signs in from its own app, in your terminal:')));
     slot.append(commandBlock([agent.login.display, `# ${t(agent.login.note)}`]));
   }
   if (agent.detected && agent.login?.headless) slot.append(loginAskSlot(agent.id));
@@ -15990,14 +15990,14 @@ function drawMemory(host, data) {
     });
     who.append(chip);
   }
-  sxRow(keep, t('Who may distil'), t('The lit ones may keep the archive.'), who, { stack: true });
+  sxRow(keep, t('Who may distil'), t('The agents switched on may summarize the memory.'), who, { stack: true });
   sxRow(keep, t('Every'), t('Exchanges between one distillation and the next.'), sxNumber(mem.every, t('exchanges'), { min: 1, label: t('Every'), wire: { toPatch: (value) => ({ memory: { every: value } }), describe: (value) => t('distil every {n} exchanges.', { n: value }) } }));
   sxRow(keep, t('Or after'), t('Quiet minutes that also start a distillation.'), sxNumber(mem.idleMinutes, t('min'), { min: 1, label: t('Or after'), wire: { toPatch: (value) => ({ memory: { idleMinutes: value } }), describe: (value) => t('or after {n} quiet minutes.', { n: value }) } }));
 
   const recall = sxBlock(host, t('Recall'), t('What each turn carries from the archive, and how it finds it.'));
   sxRow(recall, t('Share of the context'), t('The most each turn may spend on memories.'), sxNumber(Math.round(mem.recallShare * 100), '%', { min: 0, step: 5, label: t('Share of the context'), wire: { toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("recall may take {n}% of each turn's context.", { n: Math.min(60, value) }) } }));
-  const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('recall also carries what a memory keeps arriving with.') : t('recall carries only what the words and the meaning match.')), { label: t('Related') });
-  sxRow(recall, t('Related'), t('Two memories that keep arriving in the same turn travel together, however differently they read.'), cascade);
+  const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('recall also brings the memories that usually come along with it.') : t('recall carries only what the words and the meaning match.')), { label: t('Related') });
+  sxRow(recall, t('Related'), t('Two memories that keep showing up in the same turn are used together, however differently they read.'), cascade);
   const embedNow = mem.embedder ? mem.embedder : t('off');
   sxRow(recall, t('Smart search'), t('Find by meaning, not only by words. Now: {what}.', { what: embedNow }), select([
     ['auto', t('Automatic · Ollama if running, else Gemini')],
@@ -16257,7 +16257,7 @@ function overrideKeyHint(mode, key) {
   if (key === 'phrase') return t('Your phrase, typed when you unlock it.');
   if (key === 'phrase-airlock') return t('Your phrase, typed twice.');
   if (key === 'designation-airlock') return t('The folder name of the project ({name}), typed twice.', { name: projectDesignation() });
-  return mode === 4 ? t('The folder name of the project ({name}), with no second key.', { name: projectDesignation() }) : t('The folder name of the project ({name}).', { name: projectDesignation() });
+  return mode === 4 ? t('The folder name of the project ({name}), with no second confirmation.', { name: projectDesignation() }) : t('The folder name of the project ({name}).', { name: projectDesignation() });
 }
 // While a phrase guards a mode, a change to the keys shows it first (the project checks it): a
 // program that could change the key could also take the phrase away.
@@ -16276,7 +16276,7 @@ function drawPermissions(host, data) {
   }
   const config = data.settings.override ?? OVERRIDE_DEFAULT;
   const canHash = Boolean(globalThis.crypto?.subtle);
-  const keys = sxBlock(host, t('The key of each mode'), t('What you type to unlock #3 EDIT and #4 FULL ACCESS. It is asked for each message, unless a remembered permission below still holds.'), { className: 'perm-keys' });
+  const keys = sxBlock(host, t('How each mode is confirmed'), t('What you type to unlock #3 EDIT and #4 FULL ACCESS. It is asked for each message, unless a remembered permission below still holds.'), { className: 'perm-keys' });
   overrideProof = null;
   if (config.phrase && [3, 4].some((mode) => config.keys[mode].startsWith('phrase'))) {
     overrideProof = el('input', 'sx-input');
@@ -16293,7 +16293,7 @@ function drawPermissions(host, data) {
       title: key.startsWith('phrase') && !config.phrase ? t('Save a phrase below first.') : overrideKeyHint(mode, key),
     })), current, (key) => saveOverride({ keys: { [mode]: key } }, t('#{n} {label} now asks for: {key}.', { n: mode, label: MODES[mode].label, key: OVERRIDE_KEY_WORDS[key]().toLowerCase() })), { label: `#${mode} ${MODES[mode].label}` }), { stack: true });
   }
-  sxFoot(keys, t('#4 always asks for something: it runs commands, and what leaves the machine does not come back.'));
+  sxFoot(keys, t('#4 always asks you to confirm: it runs commands, and what leaves the machine does not come back.'));
 
   const phrase = sxBlock(host, t('Your phrase'), t('Only its fingerprint is kept (a salted SHA-256). When you type it to unlock, this Mac checks it and forgets it; it never leaves the Mac.'));
   const field = el('input', 'sx-input');
@@ -16319,18 +16319,18 @@ function drawPermissions(host, data) {
   }
   field.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); keep.click(); } });
 
-  const grace = sxBlock(host, t('Remember permission'), t('Once a key is accepted, the same mode for the same agent is not asked again for a while. Only in this page: reloading, STOP ALL or the × on its chip closes it.'));
+  const grace = sxBlock(host, t('Remember permission'), t('Once you confirm, the same mode for the same agent is not asked again for a while. Only in this page: reloading, STOP ALL or the × on its chip closes it.'));
   for (const mode of [3, 4]) {
     const options = mode === 3 ? [0, 5, 15, 30] : [0, 5];
     sxRow(grace, `#${mode} ${MODES[mode].label}`, mode === 4 ? t('Never longer than 5 minutes.') : t('Raising an agent\'s max mode always asks, remembered permission or not.'), sxSeg(options.map((minutes) => ({ value: minutes, text: minutes ? t('{n} min', { n: minutes }) : t('Off') })), config.grace[mode] ?? 0, (minutes) => {
       if (!minutes) closeOverrideGrace(mode);
-      return saveOverride({ grace: { [mode]: minutes } }, minutes ? t('#{n} {label} holds {minutes} min after its key.', { n: mode, label: MODES[mode].label, minutes }) : t('#{n} {label} asks for its key every message.', { n: mode, label: MODES[mode].label }));
+      return saveOverride({ grace: { [mode]: minutes } }, minutes ? t('#{n} {label} holds {minutes} min after you confirm it.', { n: mode, label: MODES[mode].label, minutes }) : t('#{n} {label} asks you to confirm every message.', { n: mode, label: MODES[mode].label }));
     }, { label: t('Remember permission for #{n}', { n: mode }) }));
   }
 
   // Who may reach which mode: the ceiling of every agent in one table. The mode a message starts in
   // stays on each agent's sheet.
-  const who = sxBlock(host, t('Who may do what'), t('The highest mode each agent may reach. Each mode wears its colour; #3 and #4 still ask for their key.'), { className: 'perm-who' });
+  const who = sxBlock(host, t('Who may do what'), t('The highest mode each agent may reach. Each mode wears its colour; #3 and #4 still ask you to confirm.'), { className: 'perm-who' });
   for (const agent of data.agents.filter((one) => one.detected)) {
     const scopes = data.settings.capabilities?.[agent.id]?.scopes ?? {};
     const cap = scopes.maxMode ?? 1;
@@ -16387,7 +16387,7 @@ function drawPrivacy(host, data) {
   // Two guards that need no list, because what they catch has a shape rather than a name.
   const shaped = sxBlock(host, t('Caught by their shape'), t('Two guards that need no list.'));
   const guard = (key, label, hint, describe) => sxRow(shaped, label, hint, sxSwitch(priv[key] !== false, (on) => savePrivacy({ [key]: on }, () => `${describe} ${on ? t('on') : t('off')}.`), { label }));
-  guard('secrets', t('Keys, tokens and e-mail addresses'), t('API keys, GitHub and npm tokens, JWTs and e-mail addresses are struck out wherever they appear.'), t('redaction of keys and addresses'));
+  guard('secrets', t('Keys, tokens and e-mail addresses'), t('API keys, GitHub and npm tokens, JWTs and e-mail addresses are struck out wherever they appear.'), t('redaction of keys and e-mail addresses'));
   guard('paths', t('Your home path'), t('/Users/yourname becomes ~: a quoted path still reads, it just stops naming you.'), t('hiding of home paths'));
 
   const already = sxBlock(host, t('Already in the project'), t('What was recorded before a term was named stays as it was until you erase it.'));
@@ -16577,7 +16577,8 @@ nostromo.gate.form?.addEventListener('submit', (event) => {
 });
 
 // What each class of memory is called as a star, for the legend above the constellation.
-const DWARF_CLASS = { decision: t('YELLOW DWARF'), fact: t('WHITE DWARF'), preference: t('GREEN DWARF'), question: t('BLUE DWARF'), aberration: t('COLLAPSED') };
+// The star each kind burns as; its title adds the kind, so the label does not repeat it.
+const DWARF_CLASS = { decision: t('YELLOW STAR'), fact: t('WHITE STAR'), preference: t('GREEN STAR'), question: t('BLUE STAR'), aberration: t('COLLAPSED') };
 
 // The legend's stars (nostromo-engine.js: dwarfChip, collapsedChip) are the Project map's too.
 // The legend: one real star per class, with the kind of memory that burns as that class.
@@ -16596,8 +16597,8 @@ function paintLegend() {
   // say so. What a zone changes is whether the star is lit, which is one more thing to name here
   // rather than a second legend to read.
   const dim = el('span', 'k dim');
-  dim.append(dwarfChip(hexMix(MEMORY_COLORS.fact, '#0b0f16', 0.52), 14), el('i', null, t('OUT OF CIRCULATION')));
-  dim.title = t('A faded star is in MED BAY or JETTISONED: the archive keeps it and never hands it to a turn.');
+  dim.append(dwarfChip(hexMix(MEMORY_COLORS.fact, '#0b0f16', 0.52), 14), el('i', null, t('NOT USED')));
+  dim.title = t('A faded star is a quarantined or discarded memory: it is kept, but never used in answers.');
   chips.push(dim);
   host.replaceChildren(...chips);
   host.dataset.lit = 'yes';
@@ -16744,7 +16745,7 @@ function buildNostromo(data) {
 }
 
 // Written out here and not inside the renderer, where `t` is the clock and not the language.
-const lockedLabel = (memory) => `${t('TARGET LOCKED')} · #${memory.id}`;
+const lockedLabel = (memory) => `${t('MEMORY SELECTED')} · #${memory.id}`;
 
 // ---- NOSTROMO on a phone: the chart.
 //
@@ -17455,14 +17456,14 @@ function showNostromoCard(node) {
   links.replaceChildren();
   if (!neighbours.length) links.append(el('li', 'none', t('No theme shared with another memory yet.')));
   for (const { link, node: other } of neighbours) {
-    links.append(wireRow(other, `${Math.round(link.weight * 100)}%`, { link, title: `${kindWord(other.memory.kind)} · ${t('{pct}% of the same meaning', { pct: Math.round(link.weight * 100) })}\n${other.memory.text}` }));
+    links.append(wireRow(other, `${Math.round(link.weight * 100)}%`, { link, title: `${kindWord(other.memory.kind)} · ${t('{pct}% similar in meaning', { pct: Math.round(link.weight * 100) })}\n${other.memory.text}` }));
   }
 
   // And what has actually passed between it and the room. Filled from the archive, then kept up.
   cardPart(card, 'exchange').textContent = t('READING…');
   cardPart(card, 'fired').replaceChildren();
   const forget = cardPart(card, 'forget');
-  forget.textContent = memory.kind === 'aberration' ? t('CLEAR THIS ABERRATION') : t('FORGET THIS MEMORY');
+  forget.textContent = memory.kind === 'aberration' ? t('REMOVE THIS DOUBTFUL MEMORY') : t('FORGET THIS MEMORY');
   forget.classList.remove('confirm');
   forget.disabled = false;
   void nostromoTraffic(card);
@@ -17503,7 +17504,7 @@ async function nostromoTraffic(card = frontCard()) {
     said.push(t('last turn: {who} · {when}', { who: last.agent ? `@${last.agent}` : t('the project'), when: agoWords(last.at) }));
   } else if (traffic.recalled && traffic.since) {
     // The counters are older than the trail. Saying nothing here would read as "always alone".
-    said.push(t('company recorded since {when} · nothing since', { when: new Date(traffic.since).toLocaleDateString() }));
+    said.push(t('MADRE has tracked what it is used with since {when} · nothing yet', { when: new Date(traffic.since).toLocaleDateString() }));
   }
   cardPart(card, 'exchange').textContent = said.join('\n');
 
@@ -17516,12 +17517,12 @@ async function nostromoTraffic(card = frontCard()) {
     const other = byId.get(mate.id);
     if (!other) continue;
     const link = nostromo.links.find((one) => (one.a === id && one.b === mate.id) || (one.b === id && one.a === mate.id)) ?? null;
-    const row = wireRow(other, `×${mate.times}`, { link, title: `${t('Travelled into the same turn {n} {times} · last {when}', { n: mate.times, times: mate.times === 1 ? t('time') : t('times'), when: agoWords(mate.last) })}${mate.cascades ? `\n${t('Strong enough that recalling this one now brings it along ({pct}%).', { pct: Math.round(mate.strength * 100) })}` : ''}\n${other.memory.text}` });
+    const row = wireRow(other, `×${mate.times}`, { link, title: `${t('Used together in the same turn {n} {times} · last {when}', { n: mate.times, times: mate.times === 1 ? t('time') : t('times'), when: agoWords(mate.last) })}${mate.cascades ? `\n${t('Strong enough that recalling this one now brings it along ({pct}%).', { pct: Math.round(mate.strength * 100) })}` : ''}\n${other.memory.text}` });
     if (mate.cascades) row.classList.add('carries');
     fired.append(row);
   }
   if (!(traffic.fired ?? []).length && traffic.recalled) {
-    fired.append(el('li', 'none', traffic.recent?.length ? t('It has always travelled alone.') : t('No turn has carried it since the project started keeping this trail.')));
+    fired.append(el('li', 'none', traffic.recent?.length ? t('It has always been used alone.') : t('No turn has carried it since the project started keeping this trail.')));
   }
   // What a refutation did, from whichever end this memory is on.
   for (const taken of traffic.refutes ?? []) {
@@ -17530,7 +17531,7 @@ async function nostromoTraffic(card = frontCard()) {
     const dot = el('i');
     dot.style.setProperty('--kind', MEMORY_COLORS[taken.kind] ?? MEMORY_COLORS.fact);
     row.append(dot, el('span', 'what', taken.text), el('b', null, t('TAKEN DOWN')));
-    row.title = t('This aberration took that memory out of every future turn.');
+    row.title = t('This doubtful memory took that memory out of every future turn.');
     if (other) row.addEventListener('click', () => showNostromoCard(other));
     fired.append(row);
   }
@@ -17540,7 +17541,7 @@ async function nostromoTraffic(card = frontCard()) {
     const dot = el('i');
     dot.style.setProperty('--kind', MEMORY_COLORS[traffic.refutedBy.kind] ?? MEMORY_COLORS.aberration);
     row.append(dot, el('span', 'what', traffic.refutedBy.text), el('b', null, t('REFUTES IT')));
-    row.title = t('An aberration took this memory out of every future turn.');
+    row.title = t('A doubtful memory took this memory out of every future turn.');
     if (other) row.addEventListener('click', () => showNostromoCard(other));
     fired.append(row);
   }
@@ -17672,7 +17673,7 @@ const FIRST_TOUCH = {
     button: '#mother-button',
     panel: '#mother',
     title: t('Diagnostics'),
-    text: t('When something fails, describe it in your own words: Diagnostics says what is going on and gives you the key that fixes it.'),
+    text: t('When something fails, describe it in your own words: Diagnostics says what is going on and gives you the button that fixes it.'),
   },
   memory: {
     button: '#nostromo-bar',
@@ -18020,7 +18021,7 @@ function drawRelease(section, info) {
   const when = info.checkedAt ? new Date(info.checkedAt).toLocaleString() : null;
   const check = sxSwitch(info.enabled, async (on, box) => {
     box.disabled = true;
-    try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: on }) }); toast(on ? t('Diagnostics › release channel on: one check a day.') : t('Diagnostics › release channel off: no request leaves for npm.')); await loadVersion(); }
+    try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: on }) }); toast(on ? t('Diagnostics › Look for new versions on: one check a day.') : t('Diagnostics › Look for new versions off: no request leaves for npm.')); await loadVersion(); }
     catch (error) { box.checked = !on; box.disabled = false; toast(t('The setting was not saved: {error}', { error: error.message })); }
   }, { disabled: Boolean(info.envWins), label: t('Look for new versions') });
   sxRow(block, t('Look for new versions'), t('Once a day MADRE asks npm for the latest version: only the package name travels, the same request npx makes.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
@@ -18137,7 +18138,7 @@ function drawSentinel(section) {
   const reports = [...state.reports.values()].sort((a, b) => (a.at < b.at ? 1 : -1));
   const unsent = reports.filter((report) => !report.sent?.ok).length;
   const settings = sentinelUI.settings ?? { autoReport: false, canSend: false, repo: null };
-  const block = sxBlock(section, t('Sentinel'), t('It keeps the failures Diagnostics cannot explain, and crashes, with paths, names and keys removed. Nothing leaves this machine unless you send it.'), {
+  const block = sxBlock(section, t('Failure monitor'), t('It keeps the failures Diagnostics cannot explain, and crashes, with paths, names and keys removed. Nothing leaves this machine unless you send it.'), {
     aside: reports.length ? sxChip(t('{n} reports · {unsent} not sent', { n: reports.length, unsent }), unsent ? 'warn' : '') : sxChip(t('Nothing to report'), 'on'),
   });
   sxRow(block, t('Report automatically'), settings.canSend ? t("New unknown conditions go to the author's collector, redacted.") : t('No collector is configured (PULSE_REPORT_URL).'), sxSwitch(settings.autoReport, async (on, box) => {

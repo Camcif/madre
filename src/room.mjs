@@ -751,7 +751,7 @@ export class Room {
       // A project without git still checkpoints, in MADRE's shadow repository. The copilot's window
       // is the human's own #3 for a while: it reaches any agent whose CLI can write.
       const byCopilot = copilot === true && wanted === 3 && this.copilotOn() && Boolean(scopes.write?.capable);
-      if (scopes.maxMode < wanted && !byCopilot) return { ok: false, status: 403, mode: wanted, maxMode: scopes.maxMode, error: `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label}; raise its max mode to #${wanted} in Settings › Permissions to arm ${MODES[wanted].label}.` };
+      if (scopes.maxMode < wanted && !byCopilot) return { ok: false, status: 403, mode: wanted, maxMode: scopes.maxMode, error: `@${parsed.target} is capped at #${scopes.maxMode} ${MODES[scopes.maxMode].label}; raise its max mode to #${wanted} in Settings › Permissions to unlock ${MODES[wanted].label}.` };
       if (this.#controlDesk.holder) return { ok: false, status: 409, mode: wanted, maxMode: scopes.maxMode, error: `@${this.#controlDesk.holder.agent} already holds ${MODES[this.#controlDesk.holder.mode ?? 3].label} of this project; one holder at a time. STOPALL revokes it.` };
       return { ok: true, mode: wanted, maxMode: scopes.maxMode, agent };
     }
@@ -896,7 +896,7 @@ export class Room {
     const events = await this.#store.readAll();
     const request = events.find((event) => event.type === 'run.requested' && event.payload.responseMessageId === responseMessageId)?.payload;
     const command = request?.commands?.[index];
-    if (!command) return { ok: false, status: 404, error: 'That command request is not in this room.' };
+    if (!command) return { ok: false, status: 404, error: t('That command request is not in this project.') };
     if (!command.argv) return { ok: false, status: 422, error: `That line does not run: it ${whyText(command)}.` };
     if (this.#runBusy || this.#runDesk.busy) return { ok: false, status: 409, error: t('A command is already running; wait for it or STOPALL.') };
     if (this.#controlDesk.holder) return { ok: false, status: 409, error: t('@{agent} holds {mode} of this project; run it when the turn ends.', { agent: this.#controlDesk.holder.agent, mode: MODES[this.#controlDesk.holder.mode ?? 3].label }) };
@@ -990,7 +990,7 @@ export class Room {
         return { ok: false, status: 409, error: t('Those results were already handed back.') };
       }
       const settlement = runSettlement(events, responseMessageId);
-      if (!settlement.request) return { ok: false, status: 404, error: t('That command request is not in this room.') };
+      if (!settlement.request) return { ok: false, status: 404, error: t('That command request is not in this project.') };
       if (!settlement.ran) return { ok: false, status: 409, error: t('Nothing of that request has run yet.') };
       if (!settlement.done && !partial) return { ok: true, status: 202, waiting: true };
       if (this.#runDesk.runningFor(`${responseMessageId}:`)) return { ok: false, status: 409, error: t('A command of that request is still running; wait for it to end.') };
@@ -1465,7 +1465,7 @@ export class Room {
       // @madre is not a CLI to install: it is the room's local agent, here while Ollama runs with a
       // chat model. Saying "not installed" sent people to install something that does not exist.
       const error = agent?.local || targetId === 'madre'
-        ? `@${targetId} left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.`
+        ? `@${targetId} left the project: Ollama is not running. Start Ollama, or open Local AI in Modules.`
         : `${targetId} is not installed on this computer.`;
       await this.#emit('message.failed', { messageId, target: targetId, planId, error });
       return null;
@@ -1714,7 +1714,7 @@ export class Room {
       // taken now makes every change of this turn reversible. A plan step gets
       // it when the orchestrator, itself in #3, named #3 for that step.
       if (this.#controlDesk.holder) {
-        await this.#alert('control-busy', `@${this.#controlDesk.holder.agent} still holds CONTROL; @${agent.id} answers read-only this turn.`, `control-busy:${agent.id}`);
+        await this.#alert('control-busy', `@${this.#controlDesk.holder.agent} still holds EDIT; @${agent.id} answers read-only this turn.`, `control-busy:${agent.id}`);
       } else {
         await this.#sayWaitingToWrite({ messageId, agent });
         const seat = await this.#controlDesk.begin({ agent, messageId, enabledScopes: enabled, mode, signal }).catch((error) => (error?.code === 'ABORT_ERR' ? null : Promise.reject(error)));
@@ -1896,7 +1896,7 @@ export class Room {
       // Only a ```pulse fence is a plan, read the way src/directives.mjs reads it; ```pulse-run,
       // ```pulse-ask and ```pulse-salas are not (S-029 in docs/MACROVERSO.md).
       if (depth > 0 && /```pulse\s*\n/i.test(result.text)) {
-        await this.#alert('nested-delegation', `@${agent.id} tried to open a plan from inside a plan. It was ignored; the sequence stays under @${requester}. STOPALL if the room drifts.`, `nested:${agent.id}`);
+        await this.#alert('nested-delegation', `@${agent.id} tried to open a plan from inside a plan. It was ignored; the sequence stays under @${requester}. STOPALL if the project drifts.`, `nested:${agent.id}`);
       }
       // A question the agent put to the human: it leaves the text and comes back as buttons.
       const asked = this.#choicesEnabled && turnMode !== 0 ? parseChoice(result.text) : null;

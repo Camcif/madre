@@ -216,7 +216,7 @@ test('intenciones desk: it refuses, with the reason, whatever it should not star
   assert.match((await (await room(t, { ready: false })).desk.start({ kind: 'quick', agent: 'claude' })).error, /not ready/);
   assert.match((await (await room(t)).desk.start({ kind: 'weird', agent: 'claude' })).error, /No such test/);
   const full = conversation({ extra: [{ type: 'quota.updated', payload: { agent: 'claude', usedPercent: 85 } }] });
-  assert.match((await (await room(t, { events: full })).desk.start({ kind: 'quick', agent: 'claude' })).error, /end of its window/);
+  assert.match((await (await room(t, { events: full })).desk.start({ kind: 'quick', agent: 'claude' })).error, /usage limit for this period/);
   assert.match((await (await room(t, { judge: false })).desk.start({ kind: 'full', agent: 'claude' })).error, /impartial judge/);
   assert.match((await (await room(t, { events: [] })).desk.start({ kind: 'quick', agent: 'claude' })).error, /Nothing left to ask/);
 });

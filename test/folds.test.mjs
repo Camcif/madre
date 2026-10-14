@@ -190,7 +190,7 @@ test('mother: one door to the crew, and the bridge is first contact and nothing 
   assert.ok(!readme.includes('⚑ CREW'), 'the README still sends people to a button that is gone');
   assert.match(page, /id="mother-settings-button" class="surface-gear"/);
   // MU/TH/UR's gear opens MU/TH/UR's own settings — the sentinel — and the report lives on each remedy.
-  assert.match(page, /title="Diagnostics settings: what the sentinel keeps and whether it reports"/);
+  assert.match(page, /title="Diagnostics settings: what the failure monitor keeps and whether it reports"/);
   assert.match(app, /settingsUI\.button\?\.addEventListener\('click', \(\) => openSettingsOn\('release', \{ part: 'sentinel' \}\)\);/);
   assert.ok(!page.includes('id="feedback-button"'), 'a second report button is back in the head');
 
@@ -431,7 +431,7 @@ test('bar: right-click opens it for editing, AJUSTES stays last, and the choice 
 test('@madre gone is not a missing install: the room says Ollama, MU/TH/UR opens Ollama, and every icon wears the accent', async () => {
   const { diagnose } = await import('../public/troubleshooting.js');
   const [room, app] = await Promise.all([readFile(join(import.meta.dirname, '..', 'src', 'room.mjs'), 'utf8'), read('app.js')]);
-  assert.match(room, /@\$\{targetId\} left the room: Ollama is not running\. Start Ollama, or open Ollama in Modules\./);
+  assert.match(room, /@\$\{targetId\} left the project: Ollama is not running\. Start Ollama, or open Local AI in Modules\./);
   assert.equal(diagnose('@madre left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.')[0].id, 'madre-agent');
   // Rooms that recorded the old sentence get the right remedy too, and never the install one.
   assert.deepEqual(diagnose('madre is not installed on this computer.').map((one) => one.id), ['madre-agent']);

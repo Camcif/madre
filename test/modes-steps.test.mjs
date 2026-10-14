@@ -153,7 +153,7 @@ test('#4 AIRLOCK: CONTROL plus commands, one holder, only where the ceiling reac
     const room = new Room({ store, agents, projectRoot: root, invokers });
     assert.equal((await room.modeCheck({ target: 'opencode', text: 'x', mode: 4 })).status, 403, 'capped at #2: no airlock');
     room.setScopes({ opencode: { maxMode: 3 } });
-    assert.match((await room.modeCheck({ target: 'opencode', text: 'x', mode: 4 })).error, /raise its max mode to #4 in Settings › Permissions to arm AIRLOCK/);
+    assert.match((await room.modeCheck({ target: 'opencode', text: 'x', mode: 4 })).error, /raise its max mode to #4 in Settings › Permissions to unlock AIRLOCK/);
     room.setScopes({ opencode: { maxMode: 4 }, codex: { maxMode: 4 } });
     assert.equal((await room.modeCheck({ target: 'opencode', text: 'x', mode: 4 })).ok, true, 'no git repository is not an obstacle any more');
     await room.send({ text: 'deploy to preview', target: 'opencode', mode: 4 });

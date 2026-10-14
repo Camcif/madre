@@ -92,10 +92,10 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.match((await sideways.json()).error, /direction/);
     const fromSalas = await post(portA, '/api/salas/enlaces', { a: salas, b: idB, direction: 'a→b', kinds: ['fact'] }, page(portA));
     assert.equal(fromSalas.status, 422, 'the room of Salas served');
-    assert.match((await fromSalas.json()).error, /never serves/);
+    assert.match((await fromSalas.json()).error, /never shares through a connection/);
     const ordersAlone = await post(portA, '/api/salas/enlaces', { a: idA, b: idB, direction: 'a→b', kinds: ['fact'], orders: { allowed: true, maxMode: 1, perHour: 6 } }, page(portA));
     assert.equal(ordersAlone.status, 422, 'orders without the room of Salas');
-    assert.match((await ordersAlone.json()).error, /need the Coordinator's project/);
+    assert.match((await ordersAlone.json()).error, /need the Coordinator at one end/);
     const toSalas = { a: salas, b: idB, direction: 'b→a', kinds: ['fact'], orders: { allowed: true, maxMode: 2, perHour: 4 } };
     assert.equal((await post(portA, '/api/salas/enlaces', toSalas, page(portA))).status, 403, 'orders signed with no designation');
     assert.equal((await post(portA, '/api/salas/enlaces', { ...toSalas, designation: nameA }, page(portA))).status, 403, 'orders signed with the wrong room\'s name');

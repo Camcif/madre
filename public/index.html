@@ -140,7 +140,7 @@
           </form>
           <div id="mother-os" class="sx-seg mother-os" role="radiogroup" aria-label="Operating system"></div>
           <span class="mother-tools">
-            <button id="mother-settings-button" class="surface-gear" type="button" title="Diagnostics settings: what the sentinel keeps and whether it reports" aria-label="Diagnostics settings"><svg class="gear-glyph" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M8.65 3.85L8.92 1.97L11.08 1.97L11.35 3.85L13.40 4.69L14.91 3.56L16.44 5.09L15.31 6.60L16.15 8.65L18.03 8.92L18.03 11.08L16.15 11.35L15.31 13.40L16.44 14.91L14.91 16.44L13.40 15.31L11.35 16.15L11.08 18.03L8.92 18.03L8.65 16.15L6.60 15.31L5.09 16.44L3.56 14.91L4.69 13.40L3.85 11.35L1.97 11.08L1.97 8.92L3.85 8.65L4.69 6.60L3.56 5.09L5.09 3.56L6.60 4.69ZM12.6 10a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 1 1 5.2 0Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            <button id="mother-settings-button" class="surface-gear" type="button" title="Diagnostics settings: what the failure monitor keeps and whether it reports" aria-label="Diagnostics settings"><svg class="gear-glyph" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M8.65 3.85L8.92 1.97L11.08 1.97L11.35 3.85L13.40 4.69L14.91 3.56L16.44 5.09L15.31 6.60L16.15 8.65L18.03 8.92L18.03 11.08L16.15 11.35L15.31 13.40L16.44 14.91L14.91 16.44L13.40 15.31L11.35 16.15L11.08 18.03L8.92 18.03L8.65 16.15L6.60 15.31L5.09 16.44L3.56 14.91L4.69 13.40L3.85 11.35L1.97 11.08L1.97 8.92L3.85 8.65L4.69 6.60L3.56 5.09L5.09 3.56L6.60 4.69ZM12.6 10a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 1 1 5.2 0Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
             <button id="nostromo-button" class="surface-gear nostromo-button" type="button" title="Memory map · memory research · needs the project name" aria-label="Memory map"><svg viewBox="0 0 20 20" aria-hidden="true"><path class="ic-f" d="M9.2 4.6A2.5 2.5 0 0 0 4.9 5.9a2.6 2.6 0 0 0-1.4 4.2 2.7 2.7 0 0 0 1.6 4.1 2.5 2.5 0 0 0 4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path class="ic-f" d="M10.8 4.6a2.5 2.5 0 0 1 4.3 1.3 2.6 2.6 0 0 1 1.4 4.2 2.7 2.7 0 0 1-1.6 4.1 2.5 2.5 0 0 1-4.1 1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 9.4c.9 0 1.6.6 1.8 1.4M13.8 9.4c-.9 0-1.6.6-1.8 1.4M7.2 6.6c.5.2.9.6 1 1.1M12.8 6.6c-.5.2-.9.6-1 1.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
             <button id="tour-button" class="surface-gear tour-button" type="button" title="The tour of MADRE" aria-label="Tour">?</button>
           </span>
@@ -148,7 +148,7 @@
         </header>
         <p id="mother-boot" class="mother-status" aria-live="polite"></p>
         <div id="mother-body" class="mother-body">
-          <section id="mother-list" class="mother-list" aria-label="Conditions"></section>
+          <section id="mother-list" class="mother-list" aria-label="Problems"></section>
           <section id="mother-answer" class="mother-detail" aria-live="polite"></section>
         </div>
       </dialog>
@@ -193,7 +193,7 @@
             <textarea id="message" rows="1" placeholder="Type here, human. Ask the project…"></textarea>
             <div id="slash-menu" class="slash-menu" role="listbox" hidden></div>
           </div>
-          <button id="create-toggle" type="button" class="create-toggle" aria-pressed="false" title="Creation lease: let the agent create files for this request, only inside .pulse/out/" hidden>
+          <button id="create-toggle" type="button" class="create-toggle" aria-pressed="false" title="Permission to create: let the agent create files for this request, only inside .pulse/out/" hidden>
             <svg class="lock closed" viewBox="0 0 20 20" aria-hidden="true"><path d="M6.8 8.6V6.7a3.2 3.2 0 0 1 6.4 0v1.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="4.4" y="8.6" width="11.2" height="8.2" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="12.7" r="1.1" fill="currentColor"/></svg>
             <svg class="lock open" viewBox="0 0 20 20" aria-hidden="true"><path d="M13.2 8.6V6.5a3.2 3.2 0 0 0-6.2-1.15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="4.4" y="8.6" width="11.2" height="8.2" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="12.7" r="1.1" fill="currentColor"/></svg>
             <span class="create-word">CREATE</span>
@@ -237,7 +237,7 @@
           <form id="nostromo-gate-form" class="key-form" autocomplete="off">
             <label class="room-ask-field"><span class="k">Type the project name</span><input id="nostromo-gate-input" autocomplete="off" spellcheck="false"></label>
             <p class="key-reply" id="nostromo-gate-reply" aria-live="polite"></p>
-            <div class="room-ask-actions"><button id="nostromo-gate-cancel" class="room-ask-choice" type="button">Cancel</button><button type="submit" class="room-ask-choice primary">Board</button></div>
+            <div class="room-ask-actions"><button id="nostromo-gate-cancel" class="room-ask-choice" type="button">Cancel</button><button type="submit" class="room-ask-choice primary">Enter</button></div>
           </form>
         </div>
       </dialog>
@@ -247,7 +247,7 @@
             <span class="mother-title">MEMORY MAP</span>
             <span id="nostromo-sub" class="mother-sub">MEMORY RESEARCH · LOADING…</span>
             <span class="nostromo-legend" aria-label="Memory kinds">
-              <span class="k decision" title="YELLOW DWARF · DECISION"><i>DECISION</i></span><span class="k fact" title="WHITE DWARF · FACT"><i>FACT</i></span><span class="k preference" title="GREEN DWARF · PREFERENCE"><i>PREFERENCE</i></span><span class="k question" title="BLUE DWARF · QUESTION"><i>QUESTION</i></span>
+              <span class="k decision" title="YELLOW STAR · DECISION"><i>DECISION</i></span><span class="k fact" title="WHITE STAR · FACT"><i>FACT</i></span><span class="k preference" title="GREEN STAR · PREFERENCE"><i>PREFERENCE</i></span><span class="k question" title="BLUE STAR · QUESTION"><i>QUESTION</i></span>
             </span>
             <span class="nostromo-actions">
               <button id="nostromo-cold" class="mother-close cold" type="button" hidden aria-pressed="false" title="The memories nothing has ever reached for, that share a subject with nothing, and that have had their chances">UNUSED · 0</button>
@@ -286,7 +286,7 @@
               <dt>SOURCE</dt><dd id="nostromo-card-span" data-part="span"></dd>
               <dt>ARCHIVIST</dt><dd id="nostromo-card-agent" data-part="agent"></dd>
               <dt>DISTILLED</dt><dd id="nostromo-card-when" data-part="when"></dd>
-              <dt>ZONE</dt><dd id="nostromo-card-zone" data-part="zone"></dd>
+              <dt>STATUS</dt><dd id="nostromo-card-zone" data-part="zone"></dd>
             </dl>
             <section class="wire">
               <h6>LINKS <span id="nostromo-card-degree" data-part="degree" class="n"></span></h6>
