@@ -277,3 +277,10 @@ test('a report has two doors, and the one a person sees is the one they can open
     assert.ok(url.startsWith(`${HOME_SITE}/`), `the ${id} form is not under the product's own house`);
   }
 });
+
+test('outbound: madre.run is three declarations, told apart by path', () => {
+  assert.equal(classify('https://madre.run/api/ping', { reportHost: 'madre.run' }).id, 'alive');
+  assert.equal(classify('https://madre.run/api/usage', { reportHost: 'madre.run' }).id, 'usage');
+  assert.equal(classify('https://madre.run/v1/reports', { reportHost: 'madre.run' }).id, 'reports');
+  assert.equal(outboundView({ state: { alive: true } }).destinations.find((one) => one.id === 'alive').on, true);
+});

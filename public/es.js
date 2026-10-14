@@ -4635,4 +4635,33 @@ export const ES = {
   '{n} of {target} examples this project needs to train a model of its own': '{n} de {target} ejemplos que este proyecto necesita para entrenar su propio modelo',
   'without local AI': 'sin IA local',
   'The project serving this page was started before this setting existed. Restart it, or open Home from another project.': 'El proyecto que muestra esta página se abrió antes de que existiera este ajuste. Reinícialo, o abre Inicio desde otro proyecto.',
+  // Uso de MADRE: el widget del autor (src/heartbeat.mjs, madre.run/api/usage).
+  'MADRE usage': 'Uso de MADRE',
+  'How many copies of MADRE are on, which versions and whether people come back. Only you see this.': 'Cuántas copias de MADRE están encendidas, qué versiones usan y si la gente regresa. Solo tú lo ves.',
+  'madre.run answered {status}.': 'madre.run respondió {status}.',
+  'madre.run could not be reached.': 'No se pudo llegar a madre.run.',
+  'Today': 'Hoy',
+  '7 days': '7 días',
+  'Ever': 'Siempre',
+  'copies on': 'copias encendidas',
+  'active copies': 'copias activas',
+  'copies seen': 'copias vistas',
+  'Copies on each day, last 30 days': 'Copias encendidas cada día, últimos 30 días',
+  '{day}: {n} on · {fresh} new': '{day}: {n} encendidas · {fresh} nuevas',
+  'Versions': 'Versiones',
+  'Systems': 'Sistemas',
+  'Came back': 'Regresaron',
+  'after 1 day {d1} · 7 days {d7} · 30 days {d30}': 'después de 1 día {d1} · 7 días {d7} · 30 días {d30}',
+  'other': 'otro',
+  // Lo que sale de la máquina: el aviso diario y los números del autor (src/outbound.mjs).
+  'madre.run · still in use': 'madre.run · sigue en uso',
+  'A random identifier this copy made for itself, the MADRE version, the system and the Node version. No name, no email, no IP kept, nothing from your projects.':
+    'Un identificador al azar que esta copia creó para sí, la versión de MADRE, el sistema y la versión de Node. Sin nombre, sin correo, sin guardar la IP y nada de tus proyectos.',
+  'once a day': 'una vez al día',
+  'Always on: it is how the author knows how many people use MADRE': 'Siempre encendido: así sabe el autor cuántas personas usan MADRE',
+  "madre.run · the author's usage figures": 'madre.run · los números de uso del autor',
+  "The author's token, to read how many copies are on. Only in the author's own copy, run from source.":
+    'El token del autor, para leer cuántas copias están encendidas. Solo en la copia del autor, corrida desde el código fuente.',
+  'while the «MADRE usage» widget is on Home': 'mientras el widget «Uso de MADRE» esté en Inicio',
+  "Only in the author's copy": 'Solo en la copia del autor',
 };

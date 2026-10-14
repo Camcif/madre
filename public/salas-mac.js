@@ -1233,6 +1233,9 @@ const WIDGETS = {
   'w-servers': { kind: 'servers', name: () => t('Servers'), about: () => t('The servers running in your open projects, and whether they answer.'), size: 4, rows: 3, needs: () => t('Turn on Preview in a project\'s Modules to see its servers.') },
   'w-memory': { kind: 'memory', name: () => t('Memory quality'), about: () => t('How grown each open project\'s memory is, and its weakest side.'), size: 4, rows: 3, needs: () => t('Open a project to read its memory.') },
   'w-coordinator': { kind: 'coordinator', name: () => t('Coordinator training'), about: () => t('How far the Coordinator\'s own record is from a model of its own.'), size: 4, rows: 3 },
+  // Only for MADRE's author, in a copy run from source with the author's token (src/server.mjs, homeWidget):
+  // anywhere else the server has no such widget and Home never offers it.
+  'w-usage': { kind: 'usage', owner: true, name: () => t('MADRE usage'), about: () => t('How many copies of MADRE are on, which versions and whether people come back. Only you see this.'), size: 8, rows: 3 },
   'w-models': { kind: 'models', name: () => t('Local models'), about: () => t('Ollama, its models, and how close each project is to its own.'), size: 4, rows: 3 },
 };
 const DEFAULT_LAYOUT = { order: ['bishop', 'waiting', 'links', 'projects', 'decisions', 'attention', 'memory'], size: {}, rows: {} };
@@ -1250,6 +1253,7 @@ const TILE_ICONS = {
   'w-memory': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.8 13.5a6.2 6.2 0 1 1 12.4 0"/><path d="m10 13.5 3-4"/><path d="M10 13.5h.01" stroke-width="2.4"/></svg>',
   'w-coordinator': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 16.5h13"/><path d="M5 13.5l3.2-3.2 2.6 2.4 4.2-5.2"/><path d="M12.4 7.5H15v2.6"/></svg>',
   'w-models': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.2 16 6.6v6.8L10 16.8 4 13.4V6.6z"/><path d="M4 6.6 10 10l6-3.4M10 10v6.8"/></svg>',
+  'w-usage': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 16.5h13"/><path d="M5.5 13.5v-3M9 13.5V7M12.5 13.5v-4.5M16 13.5V4.5"/></svg>',
 };
 const tileIcon = (id) => { const box = el('span', 'sm-tile-icon'); box.innerHTML = TILE_ICONS[id] ?? ''; return box; }; // trusted: our own SVG strings
 const known = (id) => Object.hasOwn(HOME_TILES, id) || Object.hasOwn(WIDGETS, id);
@@ -1576,9 +1580,15 @@ async function openHomeAdd() {
   homeAddSheet.addEventListener('close', () => { homeAddSheet?.remove(); homeAddSheet = null; });
   document.body.append(homeAddSheet);
   homeAddSheet.showModal();
+  // The author's widget is asked about before the list is drawn: where it cannot be read, it is not listed at all.
+  const ownerOk = new Set();
+  for (const [id, spec] of Object.entries(WIDGETS).filter(([id, spec]) => spec.owner && !placed(id))) {
+    if (await fetch(`/api/salas/widget?kind=${spec.kind}`, { cache: 'no-store' }).then((response) => response.ok).catch(() => false)) ownerOk.add(id);
+  }
+  if (!homeAddSheet) return;
   const entries = [
     ...Object.entries(HOME_TILES).filter(([id]) => !placed(id)).map(([id, spec]) => ({ id, spec, ready: true })),
-    ...Object.entries(WIDGETS).filter(([id]) => !placed(id)).map(([id, spec]) => ({ id, spec, ready: null })),
+    ...Object.entries(WIDGETS).filter(([id, spec]) => !placed(id) && (!spec.owner || ownerOk.has(id))).map(([id, spec]) => ({ id, spec, ready: null })),
   ];
   if (!entries.length) { list.append(el('p', 'sm-hint', t('Everything is already on Home.'))); return; }
   for (const entry of entries) {
@@ -1617,7 +1627,44 @@ function meter(value, tone = null) {
   return bar;
 }
 const toneFor = (share) => (share >= 0.85 ? 'hot' : share >= 0.6 ? 'warm' : null);
+const OS_WORDS = { darwin: 'macOS', linux: 'Linux', win32: 'Windows', other: () => t('other') };
 const WIDGET_PAINT = {
+  usage(body, reading) {
+    if (!reading.available) { body.append(el('p', 'sm-hint', reading.status ? t('madre.run answered {status}.', { status: reading.status }) : t('madre.run could not be reached.'))); return; }
+    const grid = el('div', 'sm-w-grid sm-usage-figures');
+    for (const [label, n, line] of [[t('Today'), reading.active.day, t('copies on')], [t('7 days'), reading.active.week, t('active copies')], [t('30 days'), reading.active.month, t('active copies')], [t('Ever'), reading.active.ever, t('copies seen')]]) {
+      const cell = el('div', 'sm-w-metric');
+      cell.append(el('span', 'sm-w-label', label), el('b', 'sm-w-big', Number(n).toLocaleString()), el('small', null, line));
+      grid.append(cell);
+    }
+    body.append(grid);
+    // The last 30 days: copies on each day, and the part of them seen for the first time.
+    const top = Math.max(1, ...reading.days.map((one) => one.active));
+    const days = el('div', 'sm-usage-days');
+    days.setAttribute('role', 'img');
+    days.setAttribute('aria-label', t('Copies on each day, last 30 days'));
+    for (const one of reading.days) {
+      const bar = el('i');
+      bar.style.setProperty('--h', String(one.active / top));
+      bar.style.setProperty('--new', String(one.active ? one.new / one.active : 0));
+      bar.title = t('{day}: {n} on · {fresh} new', { day: one.day, n: one.active, fresh: one.new });
+      days.append(bar);
+    }
+    body.append(days);
+    const share = (list, word = (name) => name) => list.slice(0, 4).map((one) => `${typeof word(one.name) === 'function' ? word(one.name)() : word(one.name)} ${one.n}`).join(' · ') || '—';
+    const back = (part) => (part.cohort ? `${Math.round((part.back / part.cohort) * 100)}%` : '—');
+    const lines = el('div', 'sm-usage-lines');
+    for (const [label, said] of [
+      [t('Versions'), share(reading.versions)],
+      [t('Systems'), share(reading.os, (name) => OS_WORDS[name] ?? name)],
+      [t('Came back'), t('after 1 day {d1} · 7 days {d7} · 30 days {d30}', { d1: back(reading.retention.d1), d7: back(reading.retention.d7), d30: back(reading.retention.d30) })],
+    ]) {
+      const row = el('div', 'sm-w-line');
+      row.append(el('b', null, label), el('small', null, said));
+      lines.append(row);
+    }
+    body.append(lines);
+  },
   system(body, reading) {
     const cpu = el('div', 'sm-w-metric');
     cpu.append(el('span', 'sm-w-label', t('Processor')), el('b', 'sm-w-big', pct(reading.cpu.busy)), meter(reading.cpu.busy, toneFor(reading.cpu.busy ?? 0)), el('small', null, t('{n} cores · load {load}', { n: reading.cpu.cores, load: reading.cpu.load[0] })));
@@ -1705,6 +1752,8 @@ function makeWidget(id) {
     const reading = await fetch(`/api/salas/widget?kind=${spec.kind}`, { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null);
     if (!node.isConnected) return;
     body.replaceChildren();
+    // The author's widget is not there at all for a copy that cannot read it (no token, not from source).
+    if (spec.owner) node.hidden = !reading;
     if (!reading) { body.append(el('p', 'sm-hint', t('It could not be read just now.'))); return; }
     WIDGET_PAINT[spec.kind](body, reading);
     fitTile(node);

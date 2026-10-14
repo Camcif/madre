@@ -33,6 +33,9 @@ const PACKAGE = JSON.parse(await readFile(new URL('../package.json', import.meta
 // run from its source, where the repository's `.git` sits beside `src/`. What npm installs never
 // carries a `.git` (`files` in package.json), so there no setting and no variable opens it.
 const FROM_SOURCE = existsSync(new URL('../.git', import.meta.url));
+// Where the author's token for the usage widget is kept: a vault name no module can take (module
+// ids are kebab-case, src/modules/sdk.mjs), so no module ever reads it.
+export const OWNER_VAULT = 'madre_owner';
 let crashHandlersInstalled = false;
 
 // RIPLEY's bridge, injected into every page it renders: reports the page's path
@@ -61,7 +64,7 @@ import { changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHas
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, looksLikeCodePrompt, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
 import { applyKey, keyPlanFor, OPENCODE_PROVIDERS, readOpenCodeProviders, removeOpenCodeKey } from './credentials.mjs';
-import { forgetSecret, summary as vaultSummary, writeSecret } from './vault.mjs';
+import { forgetSecret, readSecret, summary as vaultSummary, writeSecret } from './vault.mjs';
 import { applyConfigToEnv, loadConfig as readConfig, updateConfig } from './config.mjs';
 import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
 import { checkForUpdate, detectInstall, updateCommand, releaseUrl, applyCommand, fetchCommand } from './updates.mjs';
@@ -99,6 +102,7 @@ import { qrSvg } from './bridge/qr.mjs';
 import { readHandoff, writeHandoff } from './bridge/handoff.mjs';
 import { changeLooks, readLooks, changeRoomLook, roomLooks } from './looks.mjs';
 import { localAiConfig, localAiFor, localAiPatch } from './local-ai.mjs';
+import { heartbeat } from './heartbeat.mjs';
 import { askRoom, associateProject, ensureSalasProject, forgetProject, isSalasRoom, knownRooms, listFolders, markProject, projectRoomId, roomComesUp, salasRoomId, startRoom, suggestProjects, universeOf } from './salas.mjs';
 import { parseWork, recentWork, WORK_SYSTEM, workPrompt } from './lobby-work.mjs';
 import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as ENLACE_NOTICES, activeContracts, askEnlace, channelKey, countRecent, linkTraffic, mayServe, noteCrossing, noticeEnlace, readsFrom, recallContract, revokeContract, sameKey, servingRooms, signContract } from './enlaces.mjs';
@@ -416,7 +420,8 @@ export async function createPulseServer({
   }
   async function homeWidget(kind) {
     const kept = widgetReadings.get(kind);
-    if (kept && Date.now() - kept.at < 30000) return kept.reading;
+    // madre.run's count moves once a day: the author's reading is kept ten minutes, the Mac's thirty seconds.
+    if (kept && Date.now() - kept.at < (kind === 'usage' ? 600000 : 30000)) return kept.reading;
     let reading;
     if (kind === 'system') {
       const total = totalmem();
@@ -437,6 +442,15 @@ export async function createPulseServer({
       reading = kind === 'memory'
         ? { available: projects.some((one) => !one.unreachable), projects }
         : { available: true, ollama: { running: Boolean(ollama.running), models: (ollama.models ?? []).map((model) => model.name).filter(Boolean) }, projects: await withLocalAi(projects) };
+    } else if (kind === 'usage') {
+      // The author's own reading of how many copies are on (src/heartbeat.mjs, madre.run's
+      // /api/usage). It exists only in a copy run from source that holds the author's token
+      // (scripts/owner-usage.mjs); anywhere else there is no such widget.
+      const token = FROM_SOURCE ? await readSecret(root, OWNER_VAULT, 'usage') : null;
+      if (!token) return null;
+      const answer = await reportFetch(process.env.PULSE_USAGE_URL ?? 'https://madre.run/api/usage', { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) }).catch(() => null);
+      const body = answer?.ok ? await answer.json().catch(() => null) : null;
+      reading = body?.ok ? { available: true, ...body } : { available: false, status: answer?.status ?? 0 };
     } else if (kind === 'coordinator' && !salasRoom) {
       // Home's page is served by every project too: the Coordinator's record is its own room's.
       const coordinator = (await knownRooms(root)).find((one) => one.id === salasRoomId(root));
@@ -1165,6 +1179,11 @@ export async function createPulseServer({
     active: async () => clients.size > 0 && await ripleyOn(),
   });
   if (!testMode) serverSentinel.start();
+  // «Still in use», once a day per copy (src/heartbeat.mjs): a little after start, then looked at
+  // every few hours; the day it was already said, nothing goes.
+  const sayAlive = () => { void heartbeat({ root, version: PACKAGE.version, fetchImpl: reportFetch }); };
+  const aliveTimers = testMode ? [] : [setTimeout(sayAlive, 20_000), setInterval(sayAlive, 6 * 60 * 60 * 1000)];
+  for (const timer of aliveTimers) timer.unref?.();
   const endClients = (feed) => { for (const client of [...feed.clients.keys()]) { feed.clients.delete(client); try { client.end(); } catch { /* already gone */ } } };
   async function closeHeld(id) {
     const held = parked.get(id);
@@ -2609,6 +2628,8 @@ export async function createPulseServer({
             reports: Boolean(sentinel.settings().autoReport),
             anthropic: agents.some((agent) => agent.id === 'claude' && agent.ready),
             ollama: Boolean(ollama.running),
+            alive: true,
+            usage: FROM_SOURCE && Boolean(await readSecret(root, OWNER_VAULT, 'usage')),
           },
         }));
       }
@@ -3470,6 +3491,7 @@ export async function createPulseServer({
     return server;
   };
   server.on('close', () => quotaMonitor.stop());
+  server.on('close', () => { for (const timer of aliveTimers) clearTimeout(timer); });
 
   server.on('close', () => { void phone.stop(); });
   return { server, store, agents, quotaMonitor, markOpen, releaseOpen, phone };

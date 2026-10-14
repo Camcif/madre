@@ -1262,3 +1262,15 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
 .sm-local-foot { display: flex; align-items: center; gap: 12px; padding: 0 16px 14px; flex-wrap: wrap; }
 .sm-local-foot small { white-space: nowrap; font-size: 12px; color: var(--text-2); }
 .sm-local-gap { visibility: hidden; }
+
+/* MADRE usage (the author's widget, 2026-10-13): four figures, the last 30 days as bars — each bar
+   the copies on that day, its lit top the share seen for the first time — and three lines. */
+.sm-usage-figures { --w-col: 120px; }
+.sm-usage-days { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); align-items: end; gap: 3px; height: 56px; }
+.sm-usage-days i {
+  height: calc(4px + var(--h) * 52px); border-radius: 3px;
+  background: linear-gradient(to bottom, var(--s-acc, var(--phosphor)) calc(var(--new) * 100%), color-mix(in srgb, var(--s-acc, var(--phosphor)) 38%, transparent) 0);
+}
+.sm-usage-lines { display: grid; gap: 6px; }
+.sm-usage-lines .sm-w-line b { flex: none; min-width: 84px; font-size: 12.5px; font-weight: 600; }
+.sm-usage-lines .sm-w-line small { margin-left: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }

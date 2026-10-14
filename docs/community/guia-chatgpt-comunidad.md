@@ -146,8 +146,12 @@ puede elevar su propio permiso; un permiso escrito por un agente no cuenta.
   `PULSE_ALLOW_CUSTOM_AGENT_ENDPOINTS`. (`docs/REFERENCE.md` · «Lo que sale de la
   máquina»)
 
-Por eso evita «nada sale nunca de tu máquina». La formulación correcta separa la
-nube propia de MADRE, el tráfico de cada agente y los dos flujos propios.
+Además, una vez al día y siempre, cada copia avisa a madre.run que sigue en uso:
+un identificador al azar, la versión, el sistema y la versión de Node; sin IP ni
+nada de tus proyectos. (`docs/REFERENCE.md` · «Lo que sale de la máquina»)
+
+Por eso evita «nada sale nunca de tu máquina». La formulación correcta separa el
+tráfico de cada agente, el aviso diario de uso y los dos flujos propios con interruptor.
 
 ### Módulos y entrenamiento
 

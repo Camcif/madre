@@ -33,3 +33,39 @@ test('home widgets: the machine is read from the system, a reading is kept, and 
     for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('home widgets: «MADRE usage» exists only with the author\'s token, and reads madre.run with it', async () => {
+  const { createServer } = await import('node:http');
+  const { writeSecret } = await import('../src/vault.mjs');
+  const { OWNER_VAULT } = await import('../src/server.mjs');
+  const state = await mkdtemp(join(tmpdir(), 'madre-usage-'));
+  const project = await mkdtemp(join(tmpdir(), 'madre-usage-project-'));
+  const heard = [];
+  const fake = createServer((request, response) => {
+    heard.push(request.headers.authorization ?? null);
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, today: '2026-10-13', active: { day: 2, week: 3, month: 3, ever: 4 }, days: [], versions: [], os: [], node: [], retention: {} }));
+  });
+  const fakePort = await new Promise((resolve) => fake.listen(0, '127.0.0.1', () => resolve(fake.address().port)));
+  const before = process.env.PULSE_USAGE_URL;
+  process.env.PULSE_USAGE_URL = `http://127.0.0.1:${fakePort}/api/usage`;
+  let server;
+  try {
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: [], invokers: {}, testMode: true }));
+    const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+    const read = () => fetch(`http://127.0.0.1:${port}/api/salas/widget?kind=usage`).then(async (response) => ({ status: response.status, body: await response.json() }));
+    assert.equal((await read()).status, 404, 'no token: there is no such widget');
+    assert.equal(heard.length, 0, 'and madre.run is not asked');
+    assert.equal((await writeSecret(state, OWNER_VAULT, 'usage', 'f'.repeat(64))).ok, true);
+    const owner = await read();
+    assert.equal(owner.status, 200);
+    assert.equal(owner.body.available, true);
+    assert.deepEqual(owner.body.active, { day: 2, week: 3, month: 3, ever: 4 });
+    assert.deepEqual(heard, [`Bearer ${'f'.repeat(64)}`]);
+  } finally {
+    if (before === undefined) delete process.env.PULSE_USAGE_URL; else process.env.PULSE_USAGE_URL = before;
+    if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    await new Promise((resolve) => fake.close(() => resolve()));
+    for (const dir of [state, project]) await rm(dir, { recursive: true, force: true });
+  }
+});

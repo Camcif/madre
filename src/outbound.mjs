@@ -78,6 +78,21 @@ export const DESTINATIONS = [
     inside: true,
   },
   {
+    // «Still in use» (src/heartbeat.mjs): the only request MADRE makes on its own that has no switch.
+    id: 'alive', host: 'madre.run', match: (url) => url.pathname === '/api/ping', to: 'madre.run · still in use',
+    what: 'A random identifier this copy made for itself, the MADRE version, the system and the Node version. No name, no email, no IP kept, nothing from your projects.',
+    when: 'once a day',
+    where: 'Always on: it is how the author knows how many people use MADRE',
+    inside: true,
+  },
+  {
+    id: 'usage', host: 'madre.run', match: (url) => url.pathname === '/api/usage', to: "madre.run · the author's usage figures",
+    what: "The author's token, to read how many copies are on. Only in the author's own copy, run from source.",
+    when: 'while the «MADRE usage» widget is on Home',
+    where: "Only in the author's copy",
+    inside: true,
+  },
+  {
     id: 'reports', host: new URL(DEFAULT_REPORT_URL).hostname, to: "the author's error collector",
     what: 'An unknown condition: what broke, where in MADRE, and the version. Paths are cut back and your words are not in it.',
     when: 'you press SEND — or on its own, only while auto-report is on',
@@ -140,6 +155,8 @@ export function classify(rawUrl, { reportHost = null } = {}) {
   try { url = new URL(rawUrl); } catch { return { id: 'unknown', to: String(rawUrl).slice(0, 80), local: false }; }
   const host = url.hostname.replace(/^\[|\]$/g, '');
   if (LOCAL.has(host)) return { id: url.port === '11434' ? 'ollama' : 'room', to: `${host}:${url.port || '80'}`, local: true };
+  // madre.run carries more than the collector: a declaration that names its path is asked first.
+  for (const one of DESTINATIONS) if (one.match && one.host === host && one.match(url)) return { id: one.id, to: one.to, local: false };
   if (reportHost && host === reportHost) return { id: 'reports', to: byId.get('reports').to, local: false };
   for (const one of [...DESTINATIONS, ...declaredById.values()]) {
     if (!one.host || one.host !== host) continue;
