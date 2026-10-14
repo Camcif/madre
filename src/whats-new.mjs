@@ -51,9 +51,9 @@ export const NOTES = {
         id: 'mother',
         icon: 'check',
         image: '/assets/news/1.0/mother.webp',
-        title: { es: 'Diagnóstico te da el remedio', en: 'Diagnostics gives you the remedy' },
+        title: { es: 'Diagnóstico te da la solución', en: 'Diagnostics gives you the remedy' },
         body: {
-          es: 'Escribe lo que pasa con tus palabras y ves qué hacer, con la tecla que lo resuelve sin salir del proyecto. Lo que falló en este proyecto aparece primero y marcado, para que no tengas que adivinar.',
+          es: 'Describe con tus palabras lo que pasa y te dice qué hacer, con la tecla que lo resuelve sin salir del proyecto. Lo que falló en este proyecto aparece primero y marcado, para que no tengas que adivinar.',
           en: 'Describe what is happening in your own words and you see what to do, with the key that fixes it without leaving the project. What failed in this project shows first and marked, so you do not have to guess.',
         },
         where: { es: 'El botón DIAGNÓSTICO de la barra', en: 'The DIAGNOSTICS button in the bar' },
@@ -65,7 +65,7 @@ export const NOTES = {
         image: '/assets/news/1.0/intents.webp',
         title: { es: 'Intenciones aprende de tu uso', en: 'Intenciones learns from how you work' },
         body: {
-          es: 'Mientras escribes, sugiere cuánto debe pensar cada agente para lo que pides, a partir de tus propios turnos y sin gastar tokens. Puede proponerte un nivel más bajo para un solo mensaje, y si se quedó corto vuelve a subir.',
+          es: 'Mientras escribes, sugiere cuánto debe pensar cada agente para lo que pides, según cómo has trabajado y sin gastar tokens. Puede proponerte un nivel más bajo para un solo mensaje y, si se quedó corto, vuelve a subir.',
           en: 'As you write, it suggests how hard each agent should think for what you ask, learned from your own turns at no token cost. It can offer a lower level for a single message, and if that fell short it goes back up.',
         },
         where: { es: 'Bajo la caja de texto · Módulos › Intenciones', en: 'Under the message box · Modules › Intenciones' },
@@ -77,7 +77,7 @@ export const NOTES = {
         image: '/assets/news/1.0/permissions.webp',
         title: { es: 'Permisos a tu manera', en: 'Permissions your way' },
         body: {
-          es: 'Elige qué abre #3 y #4: el nombre del proyecto, una frase tuya o, en #3, solo confirmar. Una llave aceptada puede valer unos minutos, y el modo máximo de cada agente cabe en una sola tabla.',
+          es: 'Elige cómo confirmas #3 y #4: con el nombre del proyecto, con una frase tuya o, en #3, solo confirmando. Una confirmación puede valer unos minutos, y el permiso máximo de cada agente cabe en una sola tabla.',
           en: 'Choose what unlocks #3 and #4: the project name, a phrase of your own or, for #3, just a confirmation. An accepted key can hold for a few minutes, and every agent’s highest mode fits in one table.',
         },
         where: { es: 'Ajustes › Permisos', en: 'Settings › Permissions' },
@@ -89,7 +89,7 @@ export const NOTES = {
         image: '/assets/news/1.0/github.webp',
         title: { es: 'GitHub en el proyecto', en: 'GitHub in the project' },
         body: {
-          es: 'Revisa pull requests, CI e issues con /gh, usando la sesión de gh que ya tienes. Antes de publicar algo te enseña qué saldría y te pregunta, y los agentes solo publican en #4.',
+          es: 'Revisa pull requests, pruebas automáticas (CI) e issues con /gh, usando la sesión de gh que ya tienes. Antes de publicar algo te muestra qué saldría y te pregunta; los agentes solo publican en #4.',
           en: 'Check pull requests, CI and issues with /gh, using the gh session you already have. Before anything is posted it shows you what would go out and asks, and agents only post in #4.',
         },
         where: { es: 'Módulos › GitHub · luego /gh en la caja', en: 'Modules › GitHub · then /gh in the box' },
@@ -125,7 +125,7 @@ export const NOTES = {
         image: '/assets/news/1.0/nostromo.webp',
         title: { es: 'El Mapa de memoria a un clic', en: 'The Memory map one click away' },
         body: {
-          es: 'El cerebro de la memoria tiene su propio botón en la barra. Las conexiones entre memorias se ven aunque Ollama esté apagado.',
+          es: 'El Mapa de memoria tiene su propio botón en la barra. Los vínculos entre memorias se ven aunque Ollama esté apagado.',
           en: 'The memory brain has its own button in the bar. The links between memories show even with Ollama off.',
         },
         where: { es: 'El botón Mapa de memoria de la barra', en: 'The Memory map button in the bar' },
@@ -137,17 +137,17 @@ export const NOTES = {
         image: '/assets/news/1.0/room.webp',
         title: { es: 'El proyecto, acomodado a tu gusto', en: 'The project, arranged your way' },
         body: {
-          es: 'Cada panel se abre al lado o en una ventana que mueves. Varias conversaciones trabajan a la vez, los servidores de tu proyecto viven dentro del proyecto y el visor edita código.',
+          es: 'Cada panel se abre al lado o en una ventana que mueves. Varias conversaciones trabajan a la vez, los servidores de tu proyecto corren dentro del proyecto y el visor también edita código.',
           en: 'Every panel opens beside you or in a window you move. Several conversations work at once, your project’s servers live inside the project, and the viewer edits code.',
         },
-        where: { es: 'El encabezado de cada panel · Ajustes › Proyecto y turnos', en: 'The header of every panel · Settings › Project and turns' },
+        where: { es: 'El encabezado de cada panel · Ajustes › Proyecto y respuestas', en: 'The header of every panel · Settings › Project and turns' },
         action: 'room',
       },
       {
         id: 'looks',
         icon: 'star',
         image: '/assets/news/1.0/looks.webp',
-        title: { es: '17 acentos y 12 fondos', en: '17 accents and 12 wallpapers' },
+        title: { es: '17 colores de acento y 12 fondos', en: '17 accents and 12 wallpapers' },
         body: {
           es: 'Cada uno pensado para tema claro y oscuro. Las respuestas se leen sobre vidrio esmerilado encima de tu fondo, y las tarjetas tienen un relieve suave.',
           en: 'Each one made for light and dark themes. Replies read on frosted glass over your wallpaper, and cards stand out in soft relief.',
@@ -161,7 +161,7 @@ export const NOTES = {
         image: '/assets/news/1.0/alerts.webp',
         title: { es: 'Alertas más claras', en: 'Clearer alerts' },
         body: {
-          es: 'Las confirmaciones y las llaves de #3 y #4 llegan en una sola hoja clara, con lo que vas a aprobar a la vista. El menú «revisarlo con» ya no se corta.',
+          es: 'Las confirmaciones de #3 y #4 llegan en una sola hoja clara, con lo que vas a aprobar a la vista. El menú «revisarlo con» ya no se corta.',
           en: 'Confirmations and the keys for #3 and #4 arrive as one clear sheet, with what you are approving in view. The “review it with” menu is no longer cut off.',
         },
         where: { es: 'Aparecen solas cuando el proyecto necesita tu palabra', en: 'They appear on their own when the project needs your word' },

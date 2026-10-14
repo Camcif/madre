@@ -247,10 +247,10 @@ test('i18n: a failure recorded in another language is read in this one', async (
   // The ledger keeps the sentence MADRE wrote at the time; the screen says it again, now.
   const old = "PULSE exhausted: @claude has used 99% of its local room token budget (MADRE's own soft limit, not the provider's quota; cache reads count a tenth) and another turn like the last one would reach 103%. Continue with @codex or @gemini.";
   const said = resay(old, { when: 'es' });
-  assert.match(said, /^MADRE agotada: @claude lleva 99% de su presupuesto local/);
-  assert.match(said, /otro turno como el anterior llegaría a 103%/);
+  assert.match(said, /^MADRE agotada: @claude lleva 99% de su límite de uso local/);
+  assert.match(said, /otra respuesta como la anterior lo llevaría a 103%/);
   assert.match(said, /Sigue con @codex o @gemini\./, 'the joiner between agents stayed English');
-  assert.match(resay('Gemini was interrupted: STOPALL by the human.', { when: 'es' }), /Gemini se interrumpió: STOPALL por la humana\./);
+  assert.match(resay('Gemini was interrupted: STOPALL by the human.', { when: 'es' }), /Gemini se interrumpió: STOPALL hecho por ti\./);
 
   // What a CLI printed is not MADRE's to translate: a person may need to search for it word for
   // word, and it was never MADRE's sentence.

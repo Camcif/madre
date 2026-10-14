@@ -250,7 +250,7 @@ test('the room UI boots against a real transcript without throwing', async () =>
   // And the whole pipe, on a rendered page rather than on the catalogue alone: what the page
   // itself builds comes out in Spanish. (The markup's own words are walked through the catalogue
   // in a browser; this toy DOM never parses them, so the catalogue's own test covers those.)
-  assert.match(registry.get('message').placeholder, /Respuestas compactas|Escribe aquí/, 'the composer prompts the human in English');
+  assert.match(registry.get('message').placeholder, /Respuestas más cortas|Escribe aquí/, 'the composer prompts the human in English');
   const ashToggle = registry.get('ash-toggle');
   assert.equal(ashToggle.hidden, false, 'enabled beta module exposes ORDER 937 in the composer');
   assert.equal(ashToggle.getAttribute('aria-pressed'), 'true', 'historical module state overwrote /api/state');
@@ -273,7 +273,7 @@ test('the room UI boots against a real transcript without throwing', async () =>
   clickHandler({ target: { closest: () => sphere } });
   assert.equal(popup.hidden, false);
   assert.match(popup.textContent, /del límite de [0-9]*[hd] del proveedor|tokens de presupuesto · ventana local/);
-  assert.match(popup.textContent, /turnos/);
+  assert.match(popup.textContent, /respuestas/);
   const statsText = popup.textContent;
   assert.ok(/\d+/.test(statsText));
 
@@ -336,7 +336,7 @@ test('the room UI boots against a real transcript without throwing', async () =>
   // Each one filled from the room, and each one with its own `==>` sections.
   // In the language MADRE speaks, which is the point of reading it here rather than in the
   // catalogue: the page, the panes and the words all came up together.
-  assert.match(panes.children[1].textContent, /EL DOCUMENTO[\s\S]*MEMORIES[\s\S]*LO QUE CARGA/);
+  assert.match(panes.children[1].textContent, /EL DOCUMENTO[\s\S]*MEMORIES[\s\S]*LO QUE INCLUYE/);
   assert.match(panes.children[2].textContent, /EL LANZAMIENTO[\s\S]*\/usr\/local\/bin\/codex/);
   assert.match(panes.children[3].textContent, /ENVÍOS[\s\S]*the npm registry/);
   // An inquiry that is already a pane opens it rather than printing it twice.
@@ -648,7 +648,7 @@ test('a connector\'s card asks for its key and never shows it back', () => {
   walk(card);
   const text = all.map((node) => node.textContent ?? '').join(' ');
   assert.match(text, /LLAVES/, 'the keys floor did not draw at all');
-  assert.match(text, /OLVIDARLA/, 'a key that is held cannot be taken out again');
+  assert.match(text, /BORRARLA/, 'a key that is held cannot be taken out again');
   assert.match(text, /DÓNDE SACARLA/, 'the card does not say where to get the key');
 
   const field = all.find((node) => node.tagName === 'INPUT' && node.type === 'password');
@@ -869,7 +869,7 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     registry.get('message').value = 'explica cómo funciona el destilador de la memoria';
     await syncIntentOffer();
     assert.equal(offer.hidden, false);
-    assert.match(offer.textContent, /Parece una explicación · MEDIO alcanzó en 14 de tus turnos · cerca de 40% menos tokens/);
+    assert.match(offer.textContent, /Parece una explicación · MEDIO alcanzó en 14 de tus respuestas · cerca de 40% menos tokens/);
     assert.ok(offer.children.some((child) => child.className === 'intent-basis observed' && child.textContent === 'De tu uso'), 'the offer does not say it came from your use');
     assert.ok(!offer.classList.contains('up'), 'a lower level from real use is drawn as a raise');
     // With no level known to start from, it names the level and is still not a warning.
@@ -900,22 +900,22 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     await syncIntentOffer();
     assert.equal(offer.hidden, false);
     assert.equal(posted.at(-1)[1].mode, 1, 'the mode did not reach the suggestion');
-    assert.match(offer.textContent, /Parece una búsqueda · podría bastar BAJO · pruébalo en esta y Intenciones lo nota/);
+    assert.match(offer.textContent, /Parece una búsqueda · podría bastar BAJO · pruébalo en esta pregunta e Intenciones lo tendrá en cuenta/);
     assert.ok(offer.children.some((child) => child.className === 'intent-basis trial' && child.textContent === 'Prueba'), 'a try carries no badge');
     assert.ok(!offer.classList.contains('up'));
     const tryKey = offer.children.find((child) => child.className === 'free-go');
-    assert.equal(tryKey.textContent, 'Probar bajo en esta');
+    assert.equal(tryKey.textContent, 'Probar bajo en esta pregunta');
     assert.equal(offer.children.find((child) => child.className === 'free-later').textContent, 'Ahora no');
     tryKey.listeners.click[0]();
     assert.deepEqual(state.effortOnce, { agent: 'codex', model: null, intent: 'lookup', effort: 'low', from: 'medium' });
     assert.equal(state.chosenEffort.codex, undefined, 'a try was remembered for every message');
     assert.ok(!String(localStorage.getItem('pulse.chosenEffort')).includes('"codex":"low"'));
-    assert.match(offer.textContent, /Esta va con BAJO · si no alcanza, lo notará y volverá a MEDIO/);
+    assert.match(offer.textContent, /Esta pregunta va con BAJO · si no alcanza, Intenciones lo notará y volverá a MEDIO/);
     // Edited, still the same kind of request: the try stays.
     registry.get('message').value = '¿dónde está definido el puerto por defecto del servidor?';
     await syncIntentOffer();
     assert.equal(state.effortOnce?.effort, 'low');
-    assert.match(offer.textContent, /Esta va con BAJO/);
+    assert.match(offer.textContent, /Esta pregunta va con BAJO/);
     // Sent: it goes at BAJO, it is counted as a try taken, and the next message is back where it was.
     for (const listener of registry.get('composer').listeners.submit) {
       try { await listener({ preventDefault() {} }); } catch { /* the rest of the room's submit is not under test here */ }
@@ -981,7 +981,7 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     const card = moduleCard(item);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const text = card.textContent;
-    for (const said of ['LO QUE SE MIDIÓ AQUÍ', '@codex', 'Búsqueda', 'BAJO', 'Diseño', 'medido · lo necesita', 'Cambio', 'MEDIO', 'visto en 9 turnos', 'BAJO no alcanzó · en pausa hasta', 'probando BAJO · 3 de 8 turnos', 'ninguno alcanzó las veces suficientes · 10 turnos', 'Medir más rápido', 'contra alto', 'Hay 10 preguntas listas para hacer.', 'EL JUEZ ATRAPÓ 6 DE 6 CONTROLES · confiable', 'PRUEBA RÁPIDA · 12 TURNOS', 'PRUEBA COMPLETA · ~40 TURNOS', 'SUGERENCIAS TOMADAS · 3 DE 4']) {
+    for (const said of ['LO QUE SE MIDIÓ AQUÍ', '@codex', 'Búsqueda', 'BAJO', 'Diseño', 'medido · lo necesita', 'Cambio', 'MEDIO', 'visto en 9 respuestas', 'BAJO no fue suficiente · en pausa hasta', 'probando BAJO · 3 de 8 respuestas', 'ninguno fue suficiente las veces necesarias · 10 respuestas', 'Medir más rápido', 'proyecto con alto', 'Hay 10 preguntas listas para hacer.', 'EL JUEZ DETECTÓ 6 DE 6 PRUEBAS DE CONTROL · confiable', 'PRUEBA RÁPIDA · 12 RESPUESTAS', 'PRUEBA COMPLETA · ~40 RESPUESTAS', 'SUGERENCIAS ACEPTADAS · 3 DE 4']) {
       assert.ok(text.includes(said), `the card does not say "${said}"`);
     }
     // A kind the calibration settled says so, over what real use saw; a short reply nobody sent is left out.
@@ -991,7 +991,7 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     // The figures lead with real use: turns, how often the level was enough, and the estimate.
     const glance = moduleGlance(item);
     for (let i = 0; i < 3; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
-    for (const said of ['Turnos observados', '20', 'Le alcanzó', '85%', '17 de 20 turnos', 'Tokens que habrías ahorrado', 'una estimación', 'Estado']) {
+    for (const said of ['Respuestas observadas', '20', 'Fue suficiente', '85%', '17 de 20 respuestas', 'Tokens que habrías ahorrado', 'una estimación', 'Estado']) {
       assert.ok(glance.textContent.includes(said), `the figures do not say "${said}"`);
     }
     assert.ok(!glance.textContent.includes('Preguntas por hacer'));
@@ -1000,8 +1000,8 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     view = reading({ running: { kind: 'quick', agent: 'codex', reference: 'xhigh', effort: 'high', turns: 4, estimate: 12 }, pending: { step: 3, total: 6, intent: 'lookup', question: '¿dónde está el puerto?', first: 'En src/ports.mjs.', second: 'En la configuración.' } });
     const live = moduleCard(item);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.match(live.textContent, /PRUEBA RÁPIDA EN CURSO · @codex · 4 DE ~12 TURNOS/);
-    assert.match(live.textContent, /UN PAR TE ESPERA · ABRIR LA PRUEBA/);
+    assert.match(live.textContent, /PRUEBA RÁPIDA EN CURSO · @codex · 4 DE ~12 RESPUESTAS/);
+    assert.match(live.textContent, /UN PAR DE RESPUESTAS TE ESPERA · ABRIR LA PRUEBA/);
     assert.doesNotMatch(live.textContent, /PREGUNTA 3 DE 6/, 'the pair is judged in the window, not in MU/TH/UR');
 
     // The window, over the room: what is being compared in words a person reads, then the pair.
