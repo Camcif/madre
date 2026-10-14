@@ -4,7 +4,9 @@ Todas las versiones publicadas de `@jossuealcala/madre`. Fechas en ISO.
 
 Una versión se cierra cuando está en npm: hasta entonces su sección se llama **Sin publicar** y puede crecer. Cada versión publicada tiene exactamente una etiqueta `vX.Y.Z`, una release en GitHub y una sección aquí; el parche puede llegar a dos dígitos (`0.2.10`) antes de subir el menor. Ver `docs/ROADMAP.md` para el criterio de qué sube cada número.
 
-## 1.0.1 · Sin publicar
+## 1.0.2 · Sin publicar
+
+## 1.0.1 · 2026-10-14
 
 - **MADRE habla más claro.** Se revisaron los textos de toda la interfaz, del recorrido y de «Qué hay de nuevo» para que se entiendan aunque no sepas de IA ni de programación: 1,157 cambios, solo de palabras. *Turno* ahora es *respuesta*; los estados de una memoria son SIN CONFIRMAR, CONFIRMADA, EN CUARENTENA y DESCARTADA; Diagnóstico habla de *problema* y *solución*; la llave de #3 y #4 es *confirmar* y la de un proveedor, *llave de API*. Los comandos de la consola siguen en inglés y los guiños a Alien siguen ahí.
 - **IA local por proyecto.** En **Inicio › Ajustes › IA local** eliges qué proyectos usan Ollama: **Automático** (todos, como antes), **Uno a uno** (solo los que enciendes) o **Manual** (cada proyecto decide en sus Ajustes). Cambiar de modo no toca a los proyectos que ya existen, solo cómo empiezan los nuevos; el cambio llega al instante a los proyectos abiertos. En un proyecto, «Activo» de Módulos › IA local ya no apaga la IA local de los demás. El widget Modelos locales marca los proyectos sin ella y lleva a estos ajustes.
