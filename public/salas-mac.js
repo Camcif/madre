@@ -619,6 +619,31 @@ async function restartRoom(room) {
   await startRoom(room);
 }
 
+// Every project still on the older MADRE, one after the other (1.0.1). Only the quiet ones: a
+// project with an agent working or a question waiting for the person is left as it is, and said.
+const roomQuiet = (room) => !room.glance?.working?.length && !room.glance?.waitingCount;
+let restartingAll = false;
+async function restartAll() {
+  if (restartingAll) return;
+  const behind = behindRooms();
+  const quiet = behind.filter(roomQuiet);
+  const left = behind.filter((room) => !roomQuiet(room));
+  if (!quiet.length) { toast(t('Every project on the older MADRE is busy now: restart them when they finish.'), 'look'); return; }
+  restartingAll = true;
+  try {
+    for (const [index, room] of quiet.entries()) {
+      toast(t('Restarting {room} · {n} of {total}', { room: roomLabel(room), n: index + 1, total: quiet.length }));
+      await restartRoom(room);
+    }
+  } finally {
+    restartingAll = false;
+  }
+  toast(left.length
+    ? t('{n} restarted. Left as they are, because they are busy: {rooms}.', { n: quiet.length, rooms: left.map(roomLabel).join(', ') })
+    : t('{n} restarted with MADRE {version}.', { n: quiet.length, version: data?.version ?? '' }), left.length ? 'look' : 'done');
+  settingsSheet?.sync({ detail: true });
+}
+
 // NEEDS YOU: what the person would want to know before anything else, from what the rooms, the
 // agents and MADRE itself say: a room on an older MADRE or not answering, an agent without a
 // session, a link about to expire, a newer MADRE. Nothing listed is a guess.
@@ -642,7 +667,9 @@ function attentionItems() {
   }
   if (versionSeen?.available && versionSeen.latest) items.push({ tone: 'ok', words: t('MADRE {version} is out.', { version: versionSeen.latest }), hint: t('You run {version}. Home restarts with it from here.', { version: versionSeen.current }), act: () => openSettings('release'), go: t('Update') });
   // After Home updated, the projects that stayed open still run the version they started with.
-  for (const room of behindRooms()) items.push({ tone: 'wait', words: t('{room} runs MADRE {version}.', { room: roomLabel(room), version: room.open.version }), hint: t('Restart it to bring it to {latest}: what is running stops.', { latest: data.version }), act: () => void restartRoom(room), go: t('Restart') });
+  const behind = behindRooms();
+  if (behind.length > 1) items.push({ tone: 'wait', words: t('{n} projects run an older MADRE.', { n: behind.length }), hint: t('Restart them all to bring them to {latest}. A project that is working or waiting for you is left for later.', { latest: data.version }), act: () => void restartAll(), go: t('Restart all') });
+  else for (const room of behind) items.push({ tone: 'wait', words: t('{room} runs MADRE {version}.', { room: roomLabel(room), version: room.open.version }), hint: t('Restart it to bring it to {latest}: what is running stops.', { latest: data.version }), act: () => void restartRoom(room), go: t('Restart') });
   return items;
 }
 function drawAttention() {
@@ -4298,7 +4325,7 @@ function fillRelease(host) {
   // Home already runs the newer one: the projects still on the older one, each with its restart.
   const behind = behindRooms();
   if (behind.length) {
-    const late = sxBlock(host, t('Projects on an older MADRE'), t('They keep running the version they started with until you restart them. What is running in them stops.'));
+    const late = sxBlock(host, t('Projects on an older MADRE'), t('They keep running the version they started with until you restart them. What is running in them stops.'), { aside: behind.length > 1 ? sxButton(t('Restart all'), () => void restartAll(), { tone: 'primary' }) : null });
     for (const room of behind) sxRow(late, roomLabel(room), `MADRE ${room.open.version}`, sxButton(t('Restart'), () => { settingsSheet?.close(); void restartRoom(room); }));
   }
 }

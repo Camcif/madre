@@ -4705,4 +4705,12 @@ export const ES = {
   'New since 1.0': 'Nuevo desde 1.0',
   'Changed since 1.0': 'Cambió desde 1.0',
   'This project is already open in another MADRE, at {address}. Use that one, or close it there first.': 'Este proyecto ya está abierto en otro MADRE, en {address}. Usa ese, o ciérralo ahí primero.',
+  // Reiniciar todos (1.0.1): los proyectos que siguen con un MADRE anterior.
+  'Restart all': 'Reiniciar todos',
+  '{n} projects run an older MADRE.': '{n} proyectos usan un MADRE anterior.',
+  'Restart them all to bring them to {latest}. A project that is working or waiting for you is left for later.': 'Reinícialos todos para pasarlos a {latest}. Los que estén trabajando o esperándote se dejan para después.',
+  'Every project on the older MADRE is busy now: restart them when they finish.': 'Todos los proyectos con el MADRE anterior están ocupados: reinícialos cuando terminen.',
+  'Restarting {room} · {n} of {total}': 'Reiniciando {room} · {n} de {total}',
+  '{n} restarted. Left as they are, because they are busy: {rooms}.': '{n} reiniciados. Se quedaron como estaban porque están ocupados: {rooms}.',
+  '{n} restarted with MADRE {version}.': '{n} reiniciados con MADRE {version}.',
 };
