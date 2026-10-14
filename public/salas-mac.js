@@ -4094,14 +4094,14 @@ async function saveLocal(patch) {
   const answer = await post('/api/salas/local-ai', patch);
   if (!answer.ok) { toast(answer.body?.error ?? t('Home did not answer.')); return; }
   localSeen = answer.body;
-  if (localSeen.later?.length) toast(t('{names} will use it when restarted: they run an older MADRE.', { names: localSeen.later.join(', ') }));
+  if (localSeen.later?.length) toast(t('{names} will use it when restarted: it was started before this setting existed.', { names: localSeen.later.join(', ') }));
   settingsSheet?.sync({ detail: true });
 }
 const localModeSeg = () => customSeg(Object.keys(LOCAL_MODE_WORDS).map((mode) => [mode, LOCAL_MODE_WORDS[mode]()]), localSeen?.mode, (mode) => void saveLocal({ mode }));
 function fillLocal(host) {
   if (!localSeen && localFailed) {
     // A Home started before this setting existed has no answer for it: reloading the page reaches the one running now.
-    const block = sxBlock(host, t('Home did not answer.'), t('Home may be running an older MADRE. Reload the page; if it still does not load, restart Home.'));
+    const block = sxBlock(host, t('Home did not answer.'), t('The project serving this page was started before this setting existed. Restart it, or open Home from another project.'));
     sxRow(block, t('Try again'), null, sxButton(t('Reload'), () => location.reload(), { tone: 'primary' }));
     return;
   }

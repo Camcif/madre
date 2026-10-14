@@ -4618,7 +4618,7 @@ export const ES = {
   'Only the projects you switch on below. New projects start without it.': 'Solo los proyectos que enciendas abajo. Los proyectos nuevos empiezan sin ella.',
   'Each project decides in its own Settings › Modules › Local AI. New projects start with it.': 'Cada proyecto lo decide en sus Ajustes › Módulos › IA local. Los proyectos nuevos empiezan con ella.',
   'Home did not answer.': 'Inicio no respondió.',
-  '{names} will use it when restarted: they run an older MADRE.': '{names} tomará el cambio al reiniciarse: usa una versión anterior de MADRE.',
+  '{names} will use it when restarted: it was started before this setting existed.': '{names} tomará el cambio al reiniciarse: se abrió antes de que existiera este ajuste.',
   'The local AI is Ollama, on this computer: it searches the memory by meaning, sums it up and answers as @madre, without spending tokens or sending anything out. Here you choose which projects use it.':
     'La IA local es Ollama, en esta computadora: busca en la memoria por significado, la resume y contesta como @madre, sin gastar tokens ni enviar nada fuera. Aquí eliges qué proyectos la usan.',
   'Which projects': 'Qué proyectos',
@@ -4634,5 +4634,5 @@ export const ES = {
   'Choose projects': 'Elegir proyectos',
   '{n} of {target} examples this project needs to train a model of its own': '{n} de {target} ejemplos que este proyecto necesita para entrenar su propio modelo',
   'without local AI': 'sin IA local',
-  'Home may be running an older MADRE. Reload the page; if it still does not load, restart Home.': 'Puede que Inicio esté corriendo una versión anterior de MADRE. Recarga la página; si sigue sin cargar, reinicia Inicio.',
+  'The project serving this page was started before this setting existed. Restart it, or open Home from another project.': 'El proyecto que muestra esta página se abrió antes de que existiera este ajuste. Reinícialo, o abre Inicio desde otro proyecto.',
 };
