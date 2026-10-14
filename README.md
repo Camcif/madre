@@ -224,7 +224,12 @@ MADRE es gratis y seguirá siéndolo. Si te ahorra tiempo y quieres que siga cre
 puedes [apadrinarla](https://github.com/sponsors/jossuealcacao-exe). Nada del producto
 cambia según lo que hagas con ese enlace.
 
-Apache-2.0 · [Jossué Alcalá](https://jossuealcala.com/en/)
+Apache-2.0 · [Jossue Alcalá](https://jossuealcala.com/en/)
+
+El código es libre: úsalo, modifícalo y haz forks. El nombre **MADRE**, su logo y madre.run son
+marcas de Jossue Alcalá. Un fork que se distribuya conserva el archivo [`NOTICE`](NOTICE) con la línea
+«Based on MADRE by Jossue Alcalá», y si cambia el código lleva otro nombre. Qué sí y qué no:
+[TRADEMARKS.md](TRADEMARKS.md).
 
 <br>
 

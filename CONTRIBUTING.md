@@ -12,6 +12,10 @@ node ./bin/madre.mjs doctor --catalog   # what MU/TH/UR already knows
 node ./bin/madre.mjs start --no-open    # the room from source, URL in the terminal
 ```
 
+## Sign your work
+
+Every commit carries a `Signed-off-by:` line (`git commit -s`). It is the [Developer Certificate of Origin](https://developercertificate.org): you wrote the change, or have the right to submit it, and it goes in under the project's [Apache 2.0](LICENSE) licence. Contributions are credited in the history; MADRE's name, logo and NOTICE stay as they are ([TRADEMARKS.md](TRADEMARKS.md)).
+
 ## What a good change looks like
 
 - One idea per commit, in the imperative voice the log already speaks.

@@ -32,7 +32,7 @@
     "url": "https://github.com/jossuealcacao-exe/madre/issues"
   },
   "author": {
-    "name": "Jossué Alcalá",
+    "name": "Jossue Alcalá",
     "url": "https://jossuealcala.com/en/"
   },
   "type": "module",
@@ -45,6 +45,7 @@
     "CHANGELOG.md",
     "LICENSE",
     "NOTICE",
+    "TRADEMARKS.md",
     "docs/madre-banner.png",
     "docs/room.png",
     "docs/training",
