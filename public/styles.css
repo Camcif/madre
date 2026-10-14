@@ -8138,7 +8138,7 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
   border-left: 3px solid var(--dot) !important;
   animation: notice-peek .2s ease;
 }
-#messages#messages .sys-dots > .system.folded.peek:is(.alert, .halted, .control) { background: color-mix(in srgb, currentColor 7%, var(--plane-solid, var(--panel))) !important; }
+#messages#messages .sys-dots > .system.folded.peek:is(.alert, .crit, .warn, .halted, .control) { background: color-mix(in srgb, currentColor 7%, var(--plane-solid, var(--panel))) !important; }
 #messages#messages .sys-dots > .system.folded.peek:focus-visible { outline: 2px solid color-mix(in srgb, var(--dot) 55%, transparent); outline-offset: 2px; }
 @keyframes notice-peek { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {

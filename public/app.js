@@ -6208,9 +6208,10 @@ function renderEventNode(event) {
 // What still asks for something stays as it is: a failure with its RETRY, a permission waiting, a
 // module to install, the changes a turn made with their UNDO, MU/TH/UR. History folds at once.
 const NOTICE_FOLD_MS = 10000;
-const NOTICE_KEEP = '.fail, .crit, .mother-alert, .mother, .escalation, .lease.missing, .lease.refused, .module-proposed, .control.changed, .local-model, .memory.forgotten';
+// A limit warning folds too (2026-10-14): the agent's ring in the bar already says it, in red.
+const NOTICE_KEEP = '.fail, .mother-alert, .mother, .escalation, .lease.missing, .lease.refused, .module-proposed, .control.changed, .local-model, .memory.forgotten';
 function noticeTone(node) {
-  if (node.matches('.alert, .halted, .control, .login.failed, .module.failed')) return 'crit';
+  if (node.matches('.alert, .crit, .halted, .control, .login.failed, .module.failed')) return 'crit';
   if (node.matches('.warn, .lease, .privacy, .enlace.warn')) return 'warn';
   if (node.matches('.login, .module, .reverted, .granted, .recovered')) return 'ok';
   return 'info';
@@ -18706,6 +18707,11 @@ function barSpills(bar) {
   const left = bar.querySelector?.(':scope > .bar-left');
   const name = left?.querySelector?.('#project');
   if (left && name?.getClientRects?.().length && name.getBoundingClientRect().right > left.getBoundingClientRect().right + 0.5) return true;
+  // And the open conversation's name beside it (2026-10-14): when a pill appeared (a new version
+  // on npm) it was the one to give way, down to a sliver, and the bar said nothing spilled. It may
+  // be cut short with an ellipsis, never below a readable width.
+  const chat = [...(left?.querySelectorAll?.('.project') ?? [])].at(-1);
+  if (chat && chat !== name && chat.getClientRects?.().length && chat.scrollWidth > chat.clientWidth + 1 && chat.clientWidth < Math.min(120, chat.scrollWidth)) return true;
   if (typeof getComputedStyle !== 'function') return false;
   const end = bar.getBoundingClientRect().right - (parseFloat(getComputedStyle(bar).paddingRight) || 0);
   for (const node of bar.children ?? []) {
