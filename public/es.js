@@ -4594,4 +4594,10 @@ export const ES = {
   '{n} asleep': '{n} dormidos',
   '{n} more projects: {parts}': '{n} proyectos más: {parts}',
   '{n} open': '{n} abiertos',
+  '2 rows': '2 filas',
+  '3 rows': '3 filas',
+  '4 rows': '4 filas',
+  '5 rows': '5 filas',
+  'Width': 'Ancho',
+  'Height': 'Alto',
 };

@@ -1143,3 +1143,32 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
    upward, where a project's state dot and its halo stand above its key. */
 .sm-tb-open { overflow-x: clip; overflow-y: visible; padding: 8px 7px; margin: -8px -7px; }
 .sm-tb-open.is-editing { padding: 8px 7px; margin: -8px -7px; }
+
+/* ==========================================================================================
+   THE GRID · 13 OCT
+   12 columns, rows of 96 px, 16 px apart (salas-mac.js, ROW_UNIT · ROW_GAP): every tile takes whole
+   columns and whole rows, so every edge meets another on the same line. A tile with a chosen
+   height fills it exactly; what does not fit scrolls inside it, under its head. On a narrower
+   screen the widths step up — a third becomes a half, two thirds the whole — and the grid fills
+   any hole a step leaves; on a phone-wide one, every tile takes the whole row.
+   ========================================================================================== */
+#sm-top.sm-bento { grid-auto-rows: 96px; row-gap: 16px; column-gap: 16px; align-items: stretch; }
+#sm-top > .sm-tile { align-self: stretch; min-height: 0; }
+#sm-top > .sm-tile.sm-fixed { overflow: hidden; }
+#sm-top > .sm-tile.sm-fixed > :not(.sm-tile-head):not(.sm-bishop-head):not(.sm-tile-foot):not(header):not(footer) { min-height: 0; }
+#sm-top > .sm-tile.sm-fixed > :is(.sm-w-body, .sm-decisions, .sm-attention, .sm-memory-body) { flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+#sm-top > .sm-bishop.sm-fixed .sm-work { flex: 1; min-height: 0; overflow: hidden; }
+#sm-top > .sm-bishop.sm-fixed .sm-work-list { overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; min-height: 0; }
+#sm-top > .sm-links-tile.sm-fixed .sm-map { flex: 1; min-height: 150px; }
+#sm-top > .sm-tile.sm-fixed .sm-tile-head, #sm-top > .sm-tile.sm-fixed .sm-tile-foot { flex: none; }
+@media (max-width: 1180px) {
+  #sm-top.sm-bento { grid-auto-flow: row dense; }
+  #sm-top > .c-4 { grid-column: span 6; }
+  #sm-top > .c-8 { grid-column: span 12; }
+}
+@media (max-width: 760px) {
+  #sm-top > [class*="c-"] { grid-column: 1 / -1; }
+}
+/* In a tile taller than what it holds, the content sits at the top, as written; it never stretches. */
+#sm-top > .sm-tile.sm-fixed > :is(.sm-w-body, .sm-decisions, .sm-attention, .sm-memory-body) { align-content: start; justify-content: start; }
+#sm-top > .sm-tile.sm-fixed .sm-memory-body { gap: 9px; }

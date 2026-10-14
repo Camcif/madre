@@ -1212,23 +1212,29 @@ const LAYOUT_KEY = 'pulse.home.layout';
 // One board (2026-10-13): every tile of Home in one order, the projects' drawer among them.
 const BOARD = 'sm-top';
 const SIZES = [[4, () => t('Small')], [6, () => t('Medium')], [8, () => t('Large')], [12, () => t('Full width')]];
+// THE GRID (2026-10-13): 12 columns across and rows of 96 px down, 16 px between them. Every tile
+// takes whole columns and whole rows, so every edge falls on the same lines and tiles fit side by
+// side exactly: a 5-row tile beside a 2-row and a 3-row one ends where they end. A tile's height is
+// its default, «Automatic» (the rows its content needs), or the rows the person chose; what does
+// not fit in a chosen height scrolls inside the tile.
+const HEIGHTS = [[0, () => t('Automatic')], [2, () => t('2 rows')], [3, () => t('3 rows')], [4, () => t('4 rows')], [5, () => t('5 rows')]];
 const HOME_TILES = {
-  bishop: { id: 'sm-bishop', name: () => t('Coordinator'), about: () => t('Your coordinator, its state and its recent summary.'), size: 8 },
-  waiting: { id: 'sm-waiting', name: () => t('Waiting for you'), about: () => t('The questions and permissions an agent is waiting on.'), size: 4 },
-  links: { id: 'sm-links-tile', name: () => t('Connections'), about: () => t('The map of who looks up whom.'), size: 4 },
+  bishop: { id: 'sm-bishop', name: () => t('Coordinator'), about: () => t('Your coordinator, its state and its recent summary.'), size: 8, rows: 5 },
+  waiting: { id: 'sm-waiting', name: () => t('Waiting for you'), about: () => t('The questions and permissions an agent is waiting on.'), size: 4, rows: 2 },
+  links: { id: 'sm-links-tile', name: () => t('Connections'), about: () => t('The map of who looks up whom.'), size: 4, rows: 3 },
   projects: { id: 'sm-drawer', name: () => t('Projects'), about: () => t('Every project, open or asleep, three rows at a time.'), size: 12, sizes: [12], kept: true },
-  decisions: { id: 'sm-decisions', name: () => t('Recent decisions'), about: () => t('What your projects decided lately.'), size: 4 },
-  attention: { id: 'sm-attention', name: () => t('Needs you'), about: () => t('What Home noticed that needs a hand.'), size: 4 },
-  memory: { id: 'sm-memory', name: () => t('Memory'), about: () => t('What your projects remember, by kind.'), size: 4 },
+  decisions: { id: 'sm-decisions', name: () => t('Recent decisions'), about: () => t('What your projects decided lately.'), size: 4, rows: 3 },
+  attention: { id: 'sm-attention', name: () => t('Needs you'), about: () => t('What Home noticed that needs a hand.'), size: 4, rows: 3 },
+  memory: { id: 'sm-memory', name: () => t('Memory'), about: () => t('What your projects remember, by kind.'), size: 4, rows: 3 },
 };
 const WIDGETS = {
-  'w-system': { kind: 'system', name: () => t('System resources'), about: () => t('How busy this Mac\'s processor is, and how much memory is free.'), size: 4 },
-  'w-servers': { kind: 'servers', name: () => t('Servers'), about: () => t('The servers running in your open projects, and whether they answer.'), size: 4, needs: () => t('Turn on Preview in a project\'s Modules to see its servers.') },
-  'w-memory': { kind: 'memory', name: () => t('Memory quality'), about: () => t('How grown each open project\'s memory is, and its weakest side.'), size: 4, needs: () => t('Open a project to read its memory.') },
-  'w-coordinator': { kind: 'coordinator', name: () => t('Coordinator training'), about: () => t('How far the Coordinator\'s own record is from a model of its own.'), size: 4 },
-  'w-models': { kind: 'models', name: () => t('Local models'), about: () => t('Ollama, its models, and how close each project is to its own.'), size: 4 },
+  'w-system': { kind: 'system', name: () => t('System resources'), about: () => t('How busy this Mac\'s processor is, and how much memory is free.'), size: 4, rows: 3 },
+  'w-servers': { kind: 'servers', name: () => t('Servers'), about: () => t('The servers running in your open projects, and whether they answer.'), size: 4, rows: 3, needs: () => t('Turn on Preview in a project\'s Modules to see its servers.') },
+  'w-memory': { kind: 'memory', name: () => t('Memory quality'), about: () => t('How grown each open project\'s memory is, and its weakest side.'), size: 4, rows: 3, needs: () => t('Open a project to read its memory.') },
+  'w-coordinator': { kind: 'coordinator', name: () => t('Coordinator training'), about: () => t('How far the Coordinator\'s own record is from a model of its own.'), size: 4, rows: 3 },
+  'w-models': { kind: 'models', name: () => t('Local models'), about: () => t('Ollama, its models, and how close each project is to its own.'), size: 4, rows: 3 },
 };
-const DEFAULT_LAYOUT = { order: ['bishop', 'waiting', 'links', 'projects', 'decisions', 'attention', 'memory'], size: {} };
+const DEFAULT_LAYOUT = { order: ['bishop', 'waiting', 'links', 'projects', 'decisions', 'attention', 'memory'], size: {}, rows: {} };
 // What each tile is, drawn in the accent the person chose (the same line as the room's AJUSTES icons).
 const TILE_ICONS = {
   'bishop': '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><circle cx="10" cy="3.6" r="1.4"/><circle cx="4.4" cy="14" r="1.4"/><circle cx="15.6" cy="14" r="1.4"/><path d="M10 5v2.4M8 11.6 5.6 13.2M12 11.6l2.4 1.6"/></svg>',
@@ -1257,7 +1263,8 @@ function readLayout() {
   // The drawer is never taken off: a list that lost it gets it back where the projects were.
   if (!order.includes('projects')) order.splice(Math.min(order.length, 3), 0, 'projects');
   const size = Object.fromEntries(Object.entries(raw.size ?? {}).filter(([id, span]) => known(id) && SIZES.some(([one]) => one === span)));
-  return { order, size };
+  const rows = Object.fromEntries(Object.entries(raw.rows ?? {}).filter(([id, count]) => known(id) && HEIGHTS.some(([one]) => one === count)));
+  return { order, size, rows };
 }
 let layout = readLayout();
 function saveLayout() {
@@ -1294,14 +1301,24 @@ function applyLayout() {
 // Each tile is as tall as what it holds (2026-10-13): the board's rows are 4 px and a tile spans as
 // many as its content needs, plus the gap under it. A tile made wider or narrower grows or shrinks
 // with its content instead of stretching to a height chosen for another size.
-const ROW_UNIT = 4;
+const ROW_UNIT = 96;
 const ROW_GAP = 16;
+const rowsOf = (id) => layout.rows?.[id] ?? (HOME_TILES[id] ?? WIDGETS[id])?.rows ?? 0;
+// On a middle-width screen the tiles go in pairs, half and half: a pair ends level only if both
+// are as tall, so there a short tile takes at least the three rows the others take.
+const PAIRED = window.matchMedia?.('(max-width: 1180px) and (min-width: 761px)');
+PAIRED?.addEventListener?.('change', () => fitTiles());
 function fitTile(node) {
+  const own = rowsOf(node.dataset.tile);
+  const chosen = own && PAIRED?.matches && spanOf(node.dataset.tile) < 12 ? Math.max(3, own) : own;
+  node.classList.toggle('sm-fixed', chosen > 0);
+  if (chosen) { node.style.gridRow = `auto / span ${chosen}`; return; }
+  // Automatic: the rows its content needs, read at its natural height and rounded up to a whole row.
+  node.style.alignSelf = 'start';
   const height = node.getBoundingClientRect().height;
-  if (height) node.style.gridRow = `auto / span ${Math.ceil((height + ROW_GAP) / ROW_UNIT)}`;
+  node.style.alignSelf = '';
+  if (height) node.style.gridRow = `auto / span ${Math.max(1, Math.ceil((height + ROW_GAP) / (ROW_UNIT + ROW_GAP)))}`;
 }
-// Measured whenever what a tile holds changes (drawn, read, opened) and whenever it resizes; the
-// observer alone is not enough where the page is not being painted.
 function fitTiles() { for (const node of $(BOARD)?.querySelectorAll(':scope > [data-tile]') ?? []) fitTile(node); }
 const tileFits = typeof ResizeObserver === 'function' ? new ResizeObserver((entries) => { for (const entry of entries) fitTile(entry.target); }) : { observe() {}, unobserve() {} };
 function moveTile(id, where) {
@@ -1331,6 +1348,8 @@ function addTile(id) {
 const MOVE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v13M5.5 8 10 3.5 14.5 8M5.5 12 10 16.5 14.5 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const BEFORE_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const AFTER_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// A height is drawn as the rows it takes, out of five; «Automatic» as rows that follow the content.
+const heightIcon = (count) => `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5.2" y="2.8" width="9.6" height="14.4" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".45"/>${count ? `<rect x="7" y="${(15.4 - 10.8 * count / 5).toFixed(2)}" width="6" height="${(10.8 * count / 5).toFixed(2)}" rx="1.2" fill="currentColor"/>` : '<path d="M7.2 8.6 10 6l2.8 2.6M7.2 11.4 10 14l2.8-2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'}</svg>`;
 // A size is drawn as the share of the row it takes: a third, a half, two thirds, all of it.
 const sizeIcon = (span) => `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.8" y="5.2" width="14.4" height="9.6" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".45"/><rect x="4.6" y="7" width="${(10.8 * span / 12).toFixed(2)}" height="6" rx="1.2" fill="currentColor"/></svg>`;
 const ADD_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
@@ -1381,7 +1400,8 @@ function tileMenu(event, id) {
     { words: t('Move after'), icon: AFTER_ICON, disabled: at >= list.length - 1, act: () => moveTile(id, 1) },
     { words: t('Move to the start'), icon: MOVE_ICON, disabled: at <= 0, act: () => moveTile(id, 'first') },
     { words: t('Move to the end'), icon: MOVE_ICON, disabled: at >= list.length - 1, act: () => moveTile(id, 'last') },
-    ...(sizes.length > 1 ? ['sep', ...sizes.map(([span, words]) => ({ words: words(), icon: sizeIcon(span), checked: spanOf(id) === span, act: () => { if (span === spec.size) delete layout.size[id]; else layout.size[id] = span; saveLayout(); } }))] : []),
+    ...(sizes.length > 1 ? ['sep', { heading: t('Width') }, ...sizes.map(([span, words]) => ({ words: words(), icon: sizeIcon(span), checked: spanOf(id) === span, act: () => { if (span === spec.size) delete layout.size[id]; else layout.size[id] = span; saveLayout(); } }))] : []),
+    ...(spec.kept ? [] : ['sep', { heading: t('Height') }, ...HEIGHTS.map(([count, words]) => ({ words: words(), icon: heightIcon(count), checked: rowsOf(id) === count, act: () => { layout.rows ??= {}; if (count === (spec.rows ?? 0)) delete layout.rows[id]; else layout.rows[id] = count; saveLayout(); } }))]),
     'sep',
     ...(spec.kept ? [] : [{ words: t('Take off Home'), icon: HIDE_ICON, act: () => removeTile(id) }]),
     ...addEntries(),
