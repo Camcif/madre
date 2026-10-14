@@ -1496,6 +1496,33 @@ document.addEventListener('dragend', () => {
   key?.addEventListener('pointerleave', () => { for (const one of orbits) one.endElement?.(); });
 }
 
+// CARRIED TO THE EDGE (2026-10-13): while a tile or a project is carried, the page scrolls when the
+// pointer nears its top or its bottom — faster the closer it gets — so a tile goes anywhere on the
+// board without being let go. The browser's own scrolling while dragging is too slow to rely on.
+{
+  const EDGE = 96;
+  const FASTEST = 22;
+  let pointerY = null;
+  let frame = 0;
+  const carrying = () => Boolean(carried || projectCarried);
+  const step = () => {
+    frame = 0;
+    if (!carrying() || pointerY === null) return;
+    const room = window.innerHeight;
+    const near = pointerY < EDGE ? -(EDGE - pointerY) / EDGE : pointerY > room - EDGE ? (pointerY - (room - EDGE)) / EDGE : 0;
+    if (near) window.scrollBy(0, Math.round(Math.sign(near) * Math.max(2, Math.abs(near) ** 1.6 * FASTEST)));
+    frame = requestAnimationFrame(step);
+  };
+  document.addEventListener('dragover', (event) => {
+    if (!carrying()) return;
+    pointerY = event.clientY;
+    if (!frame) frame = requestAnimationFrame(step);
+  });
+  const stop = () => { pointerY = null; cancelAnimationFrame(frame); frame = 0; };
+  document.addEventListener('drop', stop);
+  document.addEventListener('dragend', stop);
+}
+
 // The space around the projects, right-clicked, offers the same.
 document.querySelector('.sm-main')?.addEventListener('contextmenu', (event) => {
   if (event.defaultPrevented || event.target.closest('.sm-tile, .sm-card, input, textarea, select, a, button, dialog')) return;

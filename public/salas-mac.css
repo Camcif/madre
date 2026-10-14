@@ -1138,3 +1138,8 @@ dialog.sm-sheet.sm-graph { --sm-sheet-w: min(1120px, 94vw); }
   .sm-attention-item > :is(.sm-btn, a.sm-btn) { grid-column: 3; justify-self: end; }
 }
 .sm-attention > .sm-hint { padding: 2px 4px; }
+
+/* The bar's projects (2026-10-13): the row is clipped across, where too many would spill, never
+   upward, where a project's state dot and its halo stand above its key. */
+.sm-tb-open { overflow-x: clip; overflow-y: visible; padding: 8px 7px; margin: -8px -7px; }
+.sm-tb-open.is-editing { padding: 8px 7px; margin: -8px -7px; }
