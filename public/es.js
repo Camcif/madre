@@ -1521,7 +1521,7 @@ export const ES = {
   'Pick an agent and ask, or start with a mention such as': 'Elige un agente y pregunta, o empieza con una mención como',
   'UNLOCK': 'DESBLOQUEAR',
   'BACK': 'ATRÁS',
-  'BOARD': 'TABLERO',
+  'BOARD': 'ENTRAR',
   'DECISION': 'DECISIÓN',
   'FACT': 'HECHO',
   'PREFERENCE': 'PREFERENCIA',
@@ -3577,7 +3577,7 @@ export const ES = {
   'Open the memory': 'Abrir la memoria',
   'The archive of this project: every memory the agents distilled, linked by what they share.': 'La memoria de este proyecto: cada nota que resumieron los agentes, conectada con las que tratan temas en común.',
   'Reading is free; forgetting is forever.': 'Leer no cambia nada; lo que olvides se borra para siempre.',
-  'Board': 'Tablero',
+  'Board': 'Entrar',
   'Open Ollama': 'Abrir Ollama',
   'Start it, download its models and choose what it does in this project.': 'Enciéndelo, descarga sus modelos y elige qué hace en este proyecto.',
   '@{agent} left the project: Ollama is not running. Start Ollama, or open Local AI in Modules.': '@{agent} salió del proyecto: Ollama no está corriendo. Enciende Ollama o abre IA local en Módulos.',
@@ -4664,4 +4664,44 @@ export const ES = {
     'El token del autor, para leer cuántas copias están encendidas. Solo en la copia del autor, corrida desde el código fuente.',
   'while the «MADRE usage» widget is on Home': 'mientras el widget «Uso de MADRE» esté en Inicio',
   "Only in the author's copy": 'Solo en la copia del autor',
+  // Recorrido 1.1: quien ya tenía 1.0, los avisos de la primera vez y las guías de los widgets.
+  'Everything this project uses, in one window: appearance, agents, memory, permissions, privacy and version. Press / to search any setting.':
+    'Todo lo que usa este proyecto, en una ventana: apariencia, agentes, memoria, permisos, privacidad y versión. Presiona / para buscar cualquier ajuste.',
+  'Extra features for this project, like apps. Each tile says what it does and what it needs; nothing is installed until you ask.':
+    'Funciones extra para este proyecto, como apps. Cada mosaico dice qué hace y qué necesita; nada se instala hasta que lo pidas.',
+  'When something fails, describe it in your own words: Diagnostics says what is going on and gives you the key that fixes it.':
+    'Cuando algo falla, descríbelo con tus palabras: Diagnóstico te dice qué pasa y te da la tecla que lo resuelve.',
+  'Everything MADRE remembers about this project, as stars. Drag to turn it, use the wheel to zoom in, and click a star to read that memory.':
+    'Todo lo que MADRE recuerda de este proyecto, como estrellas. Arrastra para girarlo, usa la rueda para acercarte y haz clic en una estrella para leer esa memoria.',
+  'The agents this project can call, and whether each one is ready. Their sessions are set in Settings › Agents.':
+    'Los agentes que este proyecto puede llamar y si cada uno está listo. Sus sesiones se configuran en Ajustes › Agentes.',
+  'A short list to get the most out of MADRE. Each step is checked off on its own when you do it, and the pill goes away when you are done.':
+    'Una lista corta para sacarle provecho a MADRE. Cada paso se marca solo cuando lo haces, y la píldora desaparece cuando terminas.',
+  'The tiles you took off, and the widgets. A widget is offered only when something on this Mac feeds it; right-click any tile to move it, resize it or take it off.':
+    'Las tarjetas que quitaste y los widgets. Un widget solo se ofrece si algo en esta Mac lo alimenta; haz clic derecho en cualquier tarjeta para moverla, cambiar su tamaño o quitarla.',
+  'Which projects can look up what another learned, and the contract each one signed. Nothing is shared without your signature, and you can cancel any connection here.':
+    'Qué proyectos pueden consultar lo que otro aprendió y el acuerdo que firmó cada uno. Nada se comparte sin tu firma, y aquí puedes cancelar cualquier conexión.',
+  'Your projects as a map. Drag one onto another to connect them, click one to go to it, and press Esc to come back.':
+    'Tus proyectos como un mapa. Arrastra uno sobre otro para conectarlos, haz clic en uno para ir a él y presiona Esc para volver.',
+  'How Home looks and what its bar holds, your agents, the Coordinator, which projects use the local AI, your projects and the version. ⌘ , opens it from anywhere.':
+    'Cómo se ve Inicio y qué lleva su barra, tus agentes, el Coordinador, qué proyectos usan la IA local, tus proyectos y la versión. ⌘ , lo abre desde cualquier lugar.',
+  "How busy this Mac's processor is and how much memory is free. It updates on its own.":
+    'Qué tan ocupado está el procesador de esta Mac y cuánta memoria queda libre. Se actualiza solo.',
+  'The servers running in your open projects and whether they answer. A project shows here when its Preview is on.':
+    'Los servidores que corren en tus proyectos abiertos y si responden. Un proyecto aparece aquí cuando tiene la Vista previa encendida.',
+  "How grown each open project's memory is, and its weakest side: the one thing that would improve it most.":
+    'Qué tan madura está la memoria de cada proyecto abierto y su punto más débil: lo que más la mejoraría.',
+  "How far the Coordinator's own record is from training a model of its own.":
+    'Cuánto le falta a la memoria del Coordinador para entrenar un modelo propio.',
+  'Ollama and its models, and how many examples each project has toward a model of its own (8/300 is 8 of 300). «Choose projects» sets which ones use the local AI.':
+    'Ollama y sus modelos, y cuántos ejemplos lleva cada proyecto para entrenar el suyo (8/300 son 8 de 300). «Elegir proyectos» decide cuáles usan la IA local.',
+  'Right-click it to change its size or take it off.': 'Haz clic derecho en él para cambiar su tamaño o quitarlo.',
+  'Since 1.0, Home became a board you arrange, with widgets; the local AI is chosen project by project, and MADRE speaks more plainly. I tell you what changed, at your own pace.':
+    'Desde 1.0, Inicio es un tablero que acomodas, con widgets; la IA local se elige proyecto por proyecto, y MADRE habla más claro. Te cuento qué cambió, a tu paso.',
+  'Nothing you set up changed: your projects, agents and permissions are as you left them.':
+    'Nada de lo que configuraste cambió: tus proyectos, agentes y permisos siguen como los dejaste.',
+  'What is new since 1.0': 'Lo nuevo desde 1.0',
+  'What changed, at your pace': 'Qué cambió, a tu paso',
+  'New since 1.0': 'Nuevo desde 1.0',
+  'Changed since 1.0': 'Cambió desde 1.0',
 };

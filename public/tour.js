@@ -69,6 +69,9 @@ const SCENES = {
   phone: () => `<span class="ts-mac"><i></i></span><svg class="ts-wires" viewBox="0 0 320 150" preserveAspectRatio="none" aria-hidden="true"><path id="ts-p1" class="ts-dash" d="M206 80C178 62 150 62 124 76"/>
     ${still() ? '' : '<path d="M0 0h0" class="ts-note"><animateMotion dur="2.4s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;.5;1" calcMode="linear"><mpath href="#ts-p1"/></animateMotion></path>'}</svg>
     <span class="ts-phone"><i class="ts-qr"></i></span>`,
+  board: () => SCENES.home(),
+  widgets: () => `<div class="ts-grid ts-widgets"><span class="ts-card"><i style="--w:.62"></i><i style="--w:.34"></i></span><span class="ts-card"><i style="--w:.8"></i><i style="--w:.5"></i></span><span class="ts-card"><i style="--w:.4"></i><i style="--w:.7"></i></span><span class="ts-card ts-dim"><i style="--w:.25"></i><i style="--w:.55"></i></span></div>`,
+  local: () => SCENES.modules(),
   gestures: () => `<div class="ts-caps"><span class="ts-cap c0">⌘ ,</span><span class="ts-cap c1">Esc</span><span class="ts-cap c2">?</span></div>`,
 };
 
@@ -97,8 +100,9 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     onChange?.(state);
     return state;
   };
-  const path = () => state?.path ?? (info?.returning ? 'back' : 'new');
-  const chapters = () => (ORDER[path()] ?? ORDER.new).filter((id) => !hidden().includes(id)).map((id) => CHAPTERS.find((chapter) => chapter.id === id)).filter(Boolean);
+  // Three people (src/tour.mjs): new, back from 0.7.2, or back from 1.0 (`since`).
+  const path = () => state?.path ?? (info?.from === '1.0' ? 'since' : info?.returning ? 'back' : 'new');
+  const chapters = () => (ORDER[path()] ?? ORDER.new).filter((id) => !hidden().includes(id)).map((id) => CHAPTERS.find((chapter) => chapter.id === id)).filter((chapter) => chapter && (!chapter.only || chapter.only === language()));
   const busyWith = () => Boolean(windowNode?.open || sheetNode?.open || document.querySelector('dialog.tour-bonjour[open]'));
 
   // ---- One tab at a time. The tab that shows the bonjour or the chapters holds the tour and says
@@ -201,19 +205,23 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
   }
   function showBonjour() {
     hold();
+    const since = path() === 'since';
     const back = path() === 'back';
     const node = el('dialog', 'tour-bonjour');
     node.setAttribute('aria-labelledby', 'tour-bonjour-title');
     const stage = el('div', 'tour-bonjour-stage');
     const mark = el('span', 'madre-loader-mark tour-hello-mark');
     mark.innerHTML = LOADER_MARK; // trusted: our own SVG string
-    const title = el('h1', 'tour-hello', back ? t('Hello again.') : t('Hello.'));
+    const title = el('h1', 'tour-hello', back || since ? t('Hello again.') : t('Hello.'));
     title.id = 'tour-bonjour-title';
-    const body = el('p', 'tour-hello-says', back
-      ? t('MADRE changed a lot since 0.7.2. First I bring your projects to Home; then I tell you what is new, at your own pace.')
-      : t('This is MADRE: all your AI agents in one place, with your projects, their memory and your permissions.'));
+    const body = el('p', 'tour-hello-says', since
+      ? t('Since 1.0, Home became a board you arrange, with widgets; the local AI is chosen project by project, and MADRE speaks more plainly. I tell you what changed, at your own pace.')
+      : back
+        ? t('MADRE changed a lot since 0.7.2. First I bring your projects to Home; then I tell you what is new, at your own pace.')
+        : t('This is MADRE: all your AI agents in one place, with your projects, their memory and your permissions.'));
     const note = el('p', 'tour-hello-note');
-    if (back) note.innerHTML = t('<code>madre</code> now opens Home; <code>madre start</code> still opens the project in the folder.'); // trusted: our own catalogue
+    if (since) note.textContent = t('Nothing you set up changed: your projects, agents and permissions are as you left them.');
+    else if (back) note.innerHTML = t('<code>madre</code> now opens Home; <code>madre start</code> still opens the project in the folder.'); // trusted: our own catalogue
     else note.textContent = page === 'home' && welcome?.needed?.() ? t('First we get an agent and a project ready; then I tell you the essentials, at your own pace.') : t('I tell you the essentials in a few short chapters, at your own pace.');
     const acts = el('div', 'tour-hello-acts');
     const later = key('tour-btn quiet', t('Later'), async () => {
@@ -223,12 +231,13 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
       // 0.7.2 found Home empty and nothing offered to bring them again. They come quietly.
       if (back) void recoverProjects().then(({ found }) => { if (found.length) onProjects?.(); });
     });
-    const onward = key('tour-btn primary', back ? t('Continue') : t('Start'), async () => {
+    const onward = key('tour-btn primary', back || since ? t('Continue') : t('Start'), async () => {
       later.disabled = true; onward.disabled = true;
       await keep({ path: path(), bonjour: true });
       void fetch('/api/whats-new/seen', { method: 'POST' }).catch(() => null); // the chapters replace What's new 1.0
       if (back) { await bringProjects(stage); return; }
       node.close();
+      if (since) { openChapters(chapters()[0]?.id ?? null); return; }
       if (page === 'home' && welcome?.needed?.()) welcome.open(() => openChapters('home'));
       else openChapters(page === 'home' ? 'home' : 'project');
     });
@@ -328,8 +337,9 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const chapter = shown;
     current = shown;
     const back = path() === 'back';
-    windowNode.querySelector('.tour-head .wn-eyebrow').textContent = back ? t('The tour of MADRE 1.0') : t('Getting to know MADRE');
-    windowNode.querySelector('#tour-window-title').textContent = back ? t('Everything new, at your pace') : t('The essentials, at your pace');
+    const since = path() === 'since';
+    windowNode.querySelector('.tour-head .wn-eyebrow').textContent = since ? t('What is new since 1.0') : back ? t('The tour of MADRE 1.0') : t('Getting to know MADRE');
+    windowNode.querySelector('#tour-window-title').textContent = since ? t('What changed, at your pace') : back ? t('Everything new, at your pace') : t('The essentials, at your pace');
     void keep({ chapter: chapter.id, at: chapter.id });
     if (!state.done.includes(chapter.id)) state.done = [...state.done, chapter.id];
     const list = chapters();
@@ -347,7 +357,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const page2 = el('article', `tour-chapter c-${chapter.id}`);
     const scene = el('div', `tour-scene s-${chapter.id}`);
     scene.setAttribute('aria-hidden', 'true');
-    if (chapter.id === 'moved') {
+    if (chapter.moved) {
       const table = el('div', 'ts-moved');
       for (const [was, now] of chapter.moved) {
         const line = el('div', 'ts-moved-row');
@@ -364,6 +374,14 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
       const said = el('span');
       said.innerHTML = say(chapter.news); // trusted: our own copy
       news.append(el('b', 'tour-news-tag', chapter.news.kind === 'new' ? t('New in 1.0') : t('Changed in 1.0')), said);
+      words.append(news);
+    }
+    // Whoever came from 1.0 reads first what is new or different since.
+    if (since && chapter.since) {
+      const news = el('p', `tour-news ${chapter.since.kind}`);
+      const said = el('span');
+      said.innerHTML = say(chapter.since); // trusted: our own copy
+      news.append(el('b', 'tour-news-tag', chapter.since.kind === 'new' ? t('New since 1.0') : t('Changed since 1.0')), said);
       words.append(news);
     }
     words.append(el('p', 'tour-lead', say(chapter.lead)));
@@ -495,8 +513,26 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     return true;
   }
 
+  // ---- What a key opens, said the first time it opens (1.1): one line beside what opened — inside
+  // it when it is a modal window, where a card floating over the page could not be pressed. `opened`
+  // finds what the click opened; nothing found, the line goes beside the key itself.
+  function firstOpen(id, node, { opened = () => null, inside = null, title, text, after = 450 }) {
+    if (!node || node.dataset.firstOpen === id) return;
+    node.dataset.firstOpen = id;
+    node.addEventListener('click', () => {
+      if (state?.hints?.[id]) return;
+      setTimeout(() => {
+        const box = opened();
+        const modal = Boolean(box?.closest?.('dialog')?.matches?.(':modal'));
+        const into = modal ? (inside?.(box) ?? box) : null;
+        void hint(id, into ?? box ?? node, { title: title(), text: text(), inside: modal });
+      }, after);
+    });
+  }
+
   return {
     loaded,
+    firstOpen,
     // The page changed its language after it drew the pill: the pill says it again in the new one.
     repaint: () => paintPill(),
     maybeBonjour,

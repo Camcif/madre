@@ -17010,8 +17010,42 @@ function roomTour() {
 
 // Three buttons open whole workspaces and say nothing about it until you are inside one. The
 // first time each is pressed, the workspace opens as always and a card beside the button says
-// what it is for. Once per button: after that the button is just a button.
+// what it is for. Once per button: after that the button is just a button. From 1.1 every key of
+// the bar that opens something says so too (2026-10-14).
 const FIRST_TOUCH = {
+  settings: {
+    button: '#custom-button',
+    panel: '#settings',
+    title: t('Settings'),
+    text: t('Everything this project uses, in one window: appearance, agents, memory, permissions, privacy and version. Press / to search any setting.'),
+  },
+  modules: {
+    button: '#modules-button',
+    panel: '#modules',
+    title: t('Modules'),
+    text: t('Extra features for this project, like apps. Each tile says what it does and what it needs; nothing is installed until you ask.'),
+  },
+  mother: {
+    button: '#mother-button',
+    panel: '#mother',
+    title: t('Diagnostics'),
+    text: t('When something fails, describe it in your own words: Diagnostics says what is going on and gives you the key that fixes it.'),
+  },
+  memory: {
+    button: '#nostromo-bar',
+    title: t('Memory map'),
+    text: t('Everything MADRE remembers about this project, as stars. Drag to turn it, use the wheel to zoom in, and click a star to read that memory.'),
+  },
+  crew: {
+    button: '#agents-compact',
+    title: t('Agents'),
+    text: t('The agents this project can call, and whether each one is ready. Their sessions are set in Settings › Agents.'),
+  },
+  steps: {
+    button: '#steps-pill',
+    title: t('First steps'),
+    text: t('A short list to get the most out of MADRE. Each step is checked off on its own when you do it, and the pill goes away when you are done.'),
+  },
   browser: {
     button: '#browser-button',
     title: t('The browser'),
@@ -17042,6 +17076,11 @@ function firstTouch(id) {
   try { localStorage.setItem(HINTS_KEY, JSON.stringify({ ...seen, [id]: true })); } catch { /* a private window gets the card every time */ }
   const button = document.querySelector(hint.button);
   if (!button) return;
+  // Said once what was pressed has opened: some open after a moment, and a modal window (the
+  // Memory map) makes everything outside it unreachable, so the card goes inside that window.
+  setTimeout(() => showFirstTouch(hint, button), 320);
+}
+function showFirstTouch(hint, button) {
   document.querySelector('.hint-card')?.remove();
   const card = el('section', 'hint-card');
   card.setAttribute('role', 'dialog');
@@ -17049,7 +17088,9 @@ function firstTouch(id) {
   const ok = el('button', 'hint-ok', t('Got it'));
   ok.type = 'button';
   card.append(el('h3', null, hint.title), el('p', null, hint.text), ok);
-  document.body.append(card);
+  const modal = [...document.querySelectorAll('dialog[open]')].reverse().find((one) => one.matches(':modal'));
+  (modal ?? document.body).append(card);
+  if (modal) card.classList.add('in-modal');
   // Placed once the workspace has opened, because opening it moves things: the bar narrows when
   // the browser docks, and the conversations button steps aside for its own panel. Under the
   // button, with its point aimed at it, while the button is there to point at; beside the panel

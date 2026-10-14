@@ -1580,6 +1580,7 @@ async function openHomeAdd() {
   homeAddSheet.addEventListener('close', () => { homeAddSheet?.remove(); homeAddSheet = null; });
   document.body.append(homeAddSheet);
   homeAddSheet.showModal();
+  void homeTour.hint('home-add', list, { inside: true, title: t('Add to Home'), text: t('The tiles you took off, and the widgets. A widget is offered only when something on this Mac feeds it; right-click any tile to move it, resize it or take it off.') });
   // The author's widget is asked about before the list is drawn: where it cannot be read, it is not listed at all.
   const ownerOk = new Set();
   for (const [id, spec] of Object.entries(WIDGETS).filter(([id, spec]) => spec.owner && !placed(id))) {
@@ -1757,6 +1758,8 @@ function makeWidget(id) {
     if (!reading) { body.append(el('p', 'sm-hint', t('It could not be read just now.'))); return; }
     WIDGET_PAINT[spec.kind](body, reading);
     fitTile(node);
+    // The first time it shows, what it is (homeTour is set up below this, so it is read late).
+    if (!node.dataset.guided) { node.dataset.guided = '1'; setTimeout(() => { try { guideWidget(node, spec.kind); } catch { /* the tour is not up yet */ } }, 1500); }
   };
   node.start = () => { if (timer) return; void read(); timer = setInterval(() => void read(), 20000); };
   node.stop = () => { clearInterval(timer); timer = 0; };
@@ -1790,9 +1793,43 @@ const homeTour = startTour({
     links: () => openLinkSheet(),
     get maps() { return ui.macro.hidden ? undefined : () => ui.macro.click(); },
     settings: () => openSettings(),
+    local: () => openSettings('local'),
     gestures: () => homeTour.openGestures(),
   },
 });
+// What each key of Home's bar opens, said the first time it opens (public/tour.js, firstOpen).
+const topSheet = () => [...document.querySelectorAll('dialog[open]')].at(-1) ?? null;
+homeTour.firstOpen('home-links', ui.bar.links, {
+  opened: topSheet,
+  inside: (box) => box.querySelector('.sm-link-list, .sm-sheet-body'),
+  title: () => t('Connections'),
+  text: () => t('Which projects can look up what another learned, and the contract each one signed. Nothing is shared without your signature, and you can cancel any connection here.'),
+});
+homeTour.firstOpen('home-map', ui.macro, {
+  title: () => t('Project map'),
+  text: () => t('Your projects as a map. Drag one onto another to connect them, click one to go to it, and press Esc to come back.'),
+  after: 900,
+});
+homeTour.firstOpen('home-settings', ui.gear, {
+  opened: () => document.querySelector('dialog.sm-settings[open]'),
+  inside: (box) => box.querySelector('.sm-settings-window'),
+  title: () => t('Home settings'),
+  text: () => t('How Home looks and what its bar holds, your agents, the Coordinator, which projects use the local AI, your projects and the version. ⌘ , opens it from anywhere.'),
+});
+// What each widget shows, the first time it is on Home: its own line, and how to change it.
+const WIDGET_GUIDE = {
+  system: () => t('How busy this Mac\'s processor is and how much memory is free. It updates on its own.'),
+  servers: () => t('The servers running in your open projects and whether they answer. A project shows here when its Preview is on.'),
+  memory: () => t('How grown each open project\'s memory is, and its weakest side: the one thing that would improve it most.'),
+  coordinator: () => t('How far the Coordinator\'s own record is from training a model of its own.'),
+  models: () => t('Ollama and its models, and how many examples each project has toward a model of its own (8/300 is 8 of 300). «Choose projects» sets which ones use the local AI.'),
+  usage: () => t('How many copies of MADRE are on, which versions and whether people come back. Only you see this.'),
+};
+function guideWidget(node, kind) {
+  const said = WIDGET_GUIDE[kind];
+  if (!said) return;
+  void homeTour.hint(`w-${kind}`, node.querySelector('.sm-tile-head') ?? node, { title: WIDGETS[`w-${kind}`]?.name() ?? '', text: `${said()} ${t('Right-click it to change its size or take it off.')}` });
+}
 // Once Home has drawn: the bonjour if it is owed; if it was given, the hint on Connections — what
 // it is, and, for whoever came from 0.7.2, what the word meant before.
 let welcomeAsked = false;

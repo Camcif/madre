@@ -2799,7 +2799,10 @@ export async function createPulseServer({
         if (request.method === 'GET' && url.pathname === '/api/tour') {
           const state = await readTour(root);
           if (viaPhone || !fromHere) return sendJson(response, 200, { version: TOUR_VERSION, state, owed: false, returning: false, chapters: CHAPTERS, hints: HINTS });
-          return sendJson(response, 200, { version: TOUR_VERSION, state, owed: !state.bonjourAt, returning: state.path ? state.path === 'back' : await cameBefore(root), chapters: CHAPTERS, hints: HINTS });
+          // Where this person comes from: the tour of 1.0 (path «since»), 0.7.2 (their words in a room's
+          // record, path «back»), or nowhere — a first install.
+          const from = state.path === 'since' || (!state.path && state.before === '1.0') ? '1.0' : (state.path ? state.path === 'back' : await cameBefore(root)) ? '0.7.2' : null;
+          return sendJson(response, 200, { version: TOUR_VERSION, state, owed: !state.bonjourAt, returning: Boolean(from), from, chapters: CHAPTERS, hints: HINTS });
         }
         if (viaPhone || !fromHere || (request.method === 'POST' && request.headers.origin !== `http://${host}`)) return sendJson(response, 403, { error: t('This is done on the Mac.') });
         if (request.method === 'POST' && url.pathname === '/api/tour') {

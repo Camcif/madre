@@ -8485,3 +8485,14 @@ dialog.tour-bonjour::backdrop { background: transparent; }
   background-color: var(--surface, var(--panel)) !important;
   box-shadow: var(--key-down) !important;
 }
+
+/* The tour's widgets scene (1.1): four cards on a board, each with two meters that fill once. */
+.ts-grid.ts-widgets { top: 22px; bottom: 22px; grid-template-columns: repeat(2, 1fr); }
+.ts-widgets .ts-card { display: grid; align-content: center; gap: 9px; padding: 0 14px; }
+.ts-widgets .ts-card i { display: block; height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--phosphor) calc(var(--w) * 100%), color-mix(in srgb, var(--text) 10%, transparent) 0); }
+@media (prefers-reduced-motion: no-preference) {
+  .ts-widgets .ts-card i { animation: ts-fill 1.6s cubic-bezier(.2, .7, .2, 1) both; }
+  .ts-widgets .ts-card:nth-child(2) i { animation-delay: .15s; } .ts-widgets .ts-card:nth-child(3) i { animation-delay: .3s; } .ts-widgets .ts-card:nth-child(4) i { animation-delay: .45s; }
+}
+@keyframes ts-fill { from { background-size: 0 100%; background-repeat: no-repeat; } to { background-size: 100% 100%; background-repeat: no-repeat; } }
+.hint-card.in-modal::before { content: none; }

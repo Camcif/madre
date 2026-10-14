@@ -11,10 +11,16 @@
 // `news` — that says what is new or different since 0.7.2, checked against the v0.7.2 tag (BISHOP,
 // Home, the second bar, Settings and the phone did not exist there; MU/TH/UR, NOSTROMO,
 // ⚙ CONNECTIONS, AIRLOCK, the ash key and the EN and theme keys did).
+//
+// A third person from 1.1 (2026-10-14): whoever already read the tour of 1.0 (path «since»). They
+// are told only what changed after it, and each chapter they read opens with `since`, as `news`
+// does for 0.7.2: the clearer names (Spanish only: the English did not change, `only`), Home as a
+// board, its widgets, the local AI chosen project by project, the sky of connections and Settings.
 
 export const ORDER = {
-  new: ['home', 'project', 'talk', 'modes', 'settings', 'modules', 'coordinator', 'links', 'maps', 'phone', 'gestures'],
-  back: ['moved', 'home', 'coordinator', 'links', 'maps', 'project', 'settings', 'modules', 'talk', 'modes', 'phone', 'gestures'],
+  new: ['home', 'board', 'widgets', 'project', 'talk', 'modes', 'settings', 'modules', 'local', 'coordinator', 'links', 'maps', 'phone', 'gestures'],
+  back: ['moved', 'home', 'board', 'widgets', 'coordinator', 'links', 'maps', 'project', 'settings', 'modules', 'local', 'talk', 'modes', 'phone', 'gestures'],
+  since: ['renamed', 'board', 'widgets', 'local', 'links', 'settings', 'gestures'],
 };
 
 export const CHAPTERS = [
@@ -66,6 +72,83 @@ export const CHAPTERS = [
       [{ es: 'Menú de un proyecto', en: 'A project\'s menu' }, { es: 'clic derecho · ⋯', en: 'right-click · ⋯' }],
       [{ es: 'Anclarlo a la barra', en: 'Pin it to the bar' }, { es: 'arrastrar la tarjeta', en: 'drag the card' }],
       [{ es: 'Los que no caben', en: 'Those that do not fit' }, '+n'],
+    ],
+    where: ['home'],
+  },
+  {
+    id: 'renamed',
+    only: 'es',
+    title: { es: 'Nombres más claros', en: 'Clearer names' },
+    lead: { es: 'MADRE ahora dice las cosas como son. Lo que buscabas sigue ahí, con otro nombre.', en: 'MADRE now says things as they are.' },
+    moved: [
+      [{ es: 'Turnos', en: 'Turns' }, { es: 'Respuestas', en: 'Replies' }],
+      [{ es: 'Remedio · condición', en: 'Remedy · condition' }, { es: 'Solución · problema', en: 'Solution · problem' }],
+      [{ es: 'BODEGA · PUENTE · ENFERMERÍA · ESCLUSA', en: 'HOLD · BRIDGE · MED BAY · JETTISONED' }, { es: 'SIN CONFIRMAR · CONFIRMADA · EN CUARENTENA · DESCARTADA', en: 'UNCONFIRMED · CONFIRMED · QUARANTINED · DISCARDED' }],
+      [{ es: 'Archivista', en: 'Archivist' }, { es: 'Quien resume la memoria', en: 'Who sums up the memory' }],
+      [{ es: 'La llave de #3 y #4', en: 'The key of #3 and #4' }, { es: 'Confirmar', en: 'Confirm' }],
+      [{ es: 'Abordar · Papeles', en: 'Board · Roles' }, { es: 'Entrar · Funciones', en: 'Board · Roles' }],
+    ],
+    points: {
+      es: [
+        'Solo cambiaron palabras: todo funciona igual y nada de lo que configuraste se movió.',
+        'Cada texto se revisó para que se entienda aunque no sepas de IA ni de programación.',
+        'Los guiños a Alien siguen ahí, y los comandos de la consola de Diagnóstico siguen en inglés.',
+      ],
+      en: [],
+    },
+    keys: [],
+    where: [],
+  },
+  {
+    id: 'board',
+    title: { es: 'Inicio, a tu manera', en: 'Home, your way' },
+    lead: { es: 'Inicio es un tablero: cada tarjeta se mueve, cambia de tamaño o se quita.', en: 'Home is a board: every card moves, changes size or comes off.' },
+    news: { kind: 'new', es: 'En 0.7.2 no había Inicio; ahora es un tablero que acomodas a tu gusto.', en: 'There was no Home in 0.7.2; now it is a board you arrange your way.' },
+    since: { kind: 'new', es: 'En 1.0 Inicio tenía un orden fijo; ahora lo acomodas tú.', en: 'In 1.0 Home had a fixed order; now you arrange it.' },
+    points: {
+      es: [
+        'Clic derecho en una tarjeta para moverla, cambiar su ancho y su alto, o quitarla. Clic derecho en un espacio vacío para agregar tarjetas o volver al acomodo original.',
+        'Arrastra una tarjeta para cambiarla de lugar; si la llevas al borde, la página se desplaza sola.',
+        'El cajón de Proyectos muestra tres filas y +N abre los demás; ordénalos por Te necesita, nombre, reciente o en tu propio orden. Cada página tiene su propio fondo.',
+      ],
+      en: [
+        'Right-click a card to move it, change its width and height, or take it off. Right-click an empty spot to add cards or go back to the default layout.',
+        'Drag a card to move it; carried to the edge, the page scrolls on its own.',
+        'The Projects drawer shows three rows and +N opens the rest; order them by Needs you, name, recent or your own order. Every page has its own wallpaper.',
+      ],
+    },
+    keys: [
+      [{ es: 'Menú de una tarjeta', en: 'A card\'s menu' }, { es: 'clic derecho', en: 'right-click' }],
+      [{ es: 'Moverla', en: 'Move it' }, { es: 'arrastrar', en: 'drag' }],
+      [{ es: 'Agregar tarjetas', en: 'Add cards' }, { es: 'clic derecho en un espacio vacío', en: 'right-click an empty spot' }],
+    ],
+    where: ['home'],
+  },
+  {
+    id: 'widgets',
+    title: { es: 'Widgets', en: 'Widgets' },
+    lead: { es: 'Tarjetas que muestran lo que pasa en tu Mac y en tus proyectos. Solo se ofrecen si hay algo que las alimente.', en: 'Cards that show what happens on your Mac and in your projects. Only offered when something feeds them.' },
+    news: { kind: 'new', es: 'Nuevos: tarjetas con lo que pasa en tu Mac y en tus proyectos. Se agregan con clic derecho en Inicio › Agregar a Inicio.', en: 'New: cards with what happens on your Mac and in your projects. Add them with right-click in Home › Add to Home.' },
+    since: { kind: 'new', es: 'Llegaron después de 1.0. Se agregan con clic derecho en Inicio › Agregar a Inicio.', en: 'They came after 1.0. Add them with right-click in Home › Add to Home.' },
+    points: {
+      es: [
+        '<b>Recursos del sistema</b>: qué tan ocupado está el procesador y cuánta memoria queda libre.',
+        '<b>Servidores</b>: los servidores que corren en tus proyectos abiertos y si responden. Necesita la Vista previa encendida en el proyecto.',
+        '<b>Calidad de la memoria</b>: qué tan madura está la memoria de cada proyecto abierto y cuál es su punto más débil.',
+        '<b>Entrenamiento del Coordinador</b>: cuánto le falta a la memoria del Coordinador para entrenar un modelo propio.',
+        '<b>Modelos locales</b>: Ollama, sus modelos y cuántos ejemplos lleva cada proyecto para entrenar el suyo (8/300 son 8 de 300). Desde ahí eliges qué proyectos usan la IA local.',
+      ],
+      en: [
+        '<b>System resources</b>: how busy the processor is and how much memory is free.',
+        '<b>Servers</b>: the servers running in your open projects and whether they answer. It needs Preview on in the project.',
+        '<b>Memory quality</b>: how grown each open project\'s memory is, and its weakest side.',
+        '<b>Coordinator training</b>: how far the Coordinator\'s memory is from training a model of its own.',
+        '<b>Local models</b>: Ollama, its models and how many examples each project has toward its own (8/300 is 8 of 300). From there you choose which projects use the local AI.',
+      ],
+    },
+    keys: [
+      [{ es: 'Agregar uno', en: 'Add one' }, { es: 'clic derecho › Agregar a Inicio', en: 'right-click › Add to Home' }],
+      [{ es: 'Su tamaño', en: 'Its size' }, { es: 'clic derecho en el widget', en: 'right-click the widget' }],
     ],
     where: ['home'],
   },
@@ -175,6 +258,7 @@ export const CHAPTERS = [
         'Two projects are connected once; you revoke it whenever you want from Connections, in Home.',
       ],
     },
+    since: { kind: 'changed', es: 'El mapa de Conexiones en Inicio ahora es un cielo: cada proyecto es una estrella y cada conexión, un flujo de luz. Ábrelo en una ventana para explorarlo.', en: 'The Connections map in Home is now a sky: every project is a star and every connection a flow of light. Open it in a window to explore it.' },
     keys: [[{ es: 'Conectar en el Mapa de proyectos', en: 'Connect in the Project map' }, { es: 'arrastrar uno sobre otro', en: 'carry one onto another' }]],
     where: ['home'],
   },
@@ -207,6 +291,7 @@ export const CHAPTERS = [
     id: 'settings',
     title: { es: 'Diagnóstico y Ajustes', en: 'Diagnostics and Settings' },
     lead: { es: 'Todo lo que configuras, en un lugar; y la solución cuando algo falla.', en: 'Everything you set, in one place; and the remedy when something fails.' },
+    since: { kind: 'changed', es: 'Los Ajustes de Inicio suman IA local. En Ajustes › Agentes cada agente se pliega, y OpenCode agrupa sus modelos por proveedor.', en: 'Home\'s Settings gain Local AI. In Settings › Agents each agent folds, and OpenCode groups its models by provider.' },
     news: { kind: 'new', es: 'Lo que estaba repartido entre MU/TH/UR, ⚙ CONEXIONES y la barra ahora está en una ventana con buscador, y Diagnóstico te da la solución.', en: 'What was spread across MU/TH/UR, ⚙ CONNECTIONS and the bar now lives in one window with a search, and Diagnostics gives you the remedy.' },
     points: {
       es: [
@@ -248,6 +333,27 @@ export const CHAPTERS = [
     where: ['room'],
   },
   {
+    id: 'local',
+    title: { es: 'IA local por proyecto', en: 'Local AI by project' },
+    lead: { es: 'Eliges qué proyectos usan Ollama, la IA que corre en tu Mac sin gastar tokens ni enviar nada.', en: 'You choose which projects use Ollama, the AI that runs on your Mac with no tokens spent and nothing sent.' },
+    news: { kind: 'changed', es: 'En 0.7.2 la IA local era todo o nada; ahora se elige proyecto por proyecto.', en: 'In 0.7.2 the local AI was all or nothing; now it is chosen project by project.' },
+    since: { kind: 'new', es: 'En 1.0 la IA local era todo o nada; ahora se elige proyecto por proyecto.', en: 'In 1.0 the local AI was all or nothing; now it is chosen project by project.' },
+    points: {
+      es: [
+        'En Inicio › Ajustes › IA local hay tres modos: Automático (todos), Uno a uno (solo los que enciendes) y Manual (cada proyecto decide en sus Ajustes).',
+        'Cambiar de modo no cambia a ningún proyecto que ya existe: solo decide cómo empiezan los nuevos.',
+        'Un proyecto sin IA local sigue trabajando con sus agentes. Solo deja de usar la búsqueda por significado, el resumen de la memoria y @madre.',
+      ],
+      en: [
+        'In Home › Settings › Local AI there are three modes: Automatic (all), One by one (only those you switch on) and Manual (each project decides in its Settings).',
+        'Changing the mode changes no project that already exists: it only decides how new ones start.',
+        'A project without the local AI keeps working with its agents; it only stops using search by meaning, the memory summary and @madre.',
+      ],
+    },
+    keys: [[{ es: 'Elegir proyectos', en: 'Choose projects' }, { es: 'Inicio › Ajustes › IA local', en: 'Home › Settings › Local AI' }]],
+    where: ['home'],
+  },
+  {
     id: 'phone',
     title: { es: 'Tu teléfono', en: 'Your phone' },
     lead: { es: 'Sigue donde ibas, desde el teléfono.', en: 'Carry on where you were, from your phone.' },
@@ -273,6 +379,7 @@ export const CHAPTERS = [
     title: { es: 'Gestos y atajos', en: 'Gestures and shortcuts' },
     lead: { es: 'Los gestos y atajos de MADRE. Abre esta hoja con ? cuando quieras.', en: 'What is done with your hands. This sheet opens with ? at any moment.' },
     news: { kind: 'new', es: 'Los gestos y atajos de todo MADRE, juntos en una hoja por primera vez.', en: 'The gestures and shortcuts of all of MADRE, together on one sheet for the first time.' },
+    since: { kind: 'changed', es: 'Suma los gestos del tablero de Inicio: acomodar, arrastrar y agregar tarjetas.', en: 'It adds the gestures of Home\'s board: arrange, drag and add cards.' },
     points: { es: [], en: [] },
     keys: [],
     where: ['home', 'room'],
@@ -330,6 +437,9 @@ export const GESTURES = [
     [{ es: 'Volver', en: 'Back' }, { es: 'Esc, paso a paso', en: 'Esc, layer by layer' }],
   ]],
   [{ es: 'Inicio', en: 'Home' }, [
+    [{ es: 'Menú de una tarjeta', en: 'A card\'s menu' }, { es: 'clic derecho', en: 'right-click' }],
+    [{ es: 'Mover una tarjeta', en: 'Move a card' }, { es: 'arrastrar', en: 'drag' }],
+    [{ es: 'Agregar tarjetas y widgets', en: 'Add cards and widgets' }, { es: 'clic derecho en un espacio vacío', en: 'right-click an empty spot' }],
     [{ es: 'Menú de un proyecto', en: 'A project\'s menu' }, { es: 'clic derecho · ⋯', en: 'right-click · ⋯' }],
     [{ es: 'Anclarlo', en: 'Pin it' }, { es: 'arrastrar a la barra', en: 'drag to the bar' }],
     [{ es: 'Los que no caben', en: 'Those that do not fit' }, '+n'],

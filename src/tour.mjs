@@ -20,14 +20,24 @@ import { createInterface } from 'node:readline';
 import { oneAtATime, writeWhole } from './json-file.mjs';
 import { PROJECT_HOMES, associateProject, projectRoomId, salasRoomId } from './salas.mjs';
 
-export const TOUR_VERSION = '1.0';
-// The chapters, in their order; «moved» is only for whoever comes from 0.7.2.
-export const CHAPTERS = ['moved', 'home', 'project', 'talk', 'modes', 'coordinator', 'links', 'maps', 'settings', 'modules', 'phone', 'gestures'];
-// The places that confuse most, each told once in one line (from option C).
-export const HINTS = ['switch', 'links', 'key4'];
-const PATHS = ['new', 'back'];
+// 1.1 (2026-10-14): the same welcome, a third way through it. Whoever read the tour of 1.0 is told
+// what changed since (path «since»): the clearer names, Home as a board, its widgets and the local
+// AI chosen project by project. A tour.json of 1.0 is that person; it is started again for 1.1 and
+// remembers where it came from (`before`).
+export const TOUR_VERSION = '1.1';
+// The chapters, in their order; «moved» is only for whoever comes from 0.7.2, «renamed» only for
+// whoever comes from 1.0.
+export const CHAPTERS = ['moved', 'home', 'renamed', 'board', 'widgets', 'project', 'talk', 'modes', 'coordinator', 'links', 'maps', 'settings', 'modules', 'local', 'phone', 'gestures'];
+// The places that confuse most, each told once in one line (from option C); then, from 1.1, what
+// each key of Home's bar opens, the first time it opens, and what each widget of Home shows. (A
+// project's bar says it with its own first-touch cards, public/app.js, FIRST_TOUCH.)
+export const HINTS = ['switch', 'links', 'key4',
+  'home-links', 'home-map', 'home-settings', 'home-add',
+  'w-system', 'w-servers', 'w-memory', 'w-coordinator', 'w-models', 'w-usage'];
+const PATHS = ['new', 'back', 'since'];
+const BEFORE = ['1.0'];
 
-const fresh = () => ({ version: TOUR_VERSION, path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {}, held: null });
+const fresh = (before = null) => ({ version: TOUR_VERSION, path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {}, held: null, before });
 // A tab that shows the bonjour or the chapters says so every few seconds; another tab that finds it
 // said within this long tells the person it is open there, instead of a second bonjour.
 export const HELD_MS = 45 * 1000;
@@ -38,7 +48,10 @@ const tourFile = (stateRoot) => join(stateRoot, 'tour.json');
 // what it says correctly and nothing else. A file for another version starts the tour again.
 export async function readTour(stateRoot) {
   const raw = await readFile(tourFile(stateRoot), 'utf8').then((text) => JSON.parse(text)).catch(() => null);
-  if (!raw || typeof raw !== 'object' || raw.version !== TOUR_VERSION) return fresh();
+  if (!raw || typeof raw !== 'object') return fresh();
+  // The tour of 1.0, read or not: this person had 1.0, and 1.1 starts again for them.
+  if (raw.version === '1.0') return fresh('1.0');
+  if (raw.version !== TOUR_VERSION) return fresh();
   const iso = (value) => (typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : null);
   return {
     version: TOUR_VERSION,
@@ -50,6 +63,7 @@ export async function readTour(stateRoot) {
     finished: iso(raw.finished),
     hints: Object.fromEntries(HINTS.filter((id) => iso(raw.hints?.[id])).map((id) => [id, raw.hints[id]])),
     held: raw.held && TAB.test(String(raw.held.by ?? '')) && iso(raw.held.at) ? { by: raw.held.by, at: raw.held.at } : null,
+    before: BEFORE.includes(raw.before) ? raw.before : null,
   };
 }
 
@@ -67,7 +81,8 @@ export function changeTour(stateRoot, change, now = new Date()) {
 }
 async function applyChange(stateRoot, change, now) {
   if (!change || typeof change !== 'object') return { error: 'change' };
-  if (change.reset === true) return writeTour(stateRoot, fresh());
+  // Again from the start, as the same person: whoever came from 1.0 still did.
+  if (change.reset === true) return writeTour(stateRoot, fresh((await readTour(stateRoot)).before));
   const state = await readTour(stateRoot);
   const at = new Date(now).toISOString();
   if (change.path !== undefined) {

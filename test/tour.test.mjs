@@ -26,7 +26,7 @@ test('tour · kept in ~/.pulse, one change at a time, and a file for another ver
   const state = await scratch('madre-tour-');
   try {
     const first = await readTour(state);
-    assert.deepEqual(first, { version: '1.0', path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {}, held: null });
+    assert.deepEqual(first, { version: '1.1', path: null, bonjourAt: null, done: [], at: null, closed: false, finished: null, hints: {}, held: null, before: null });
     // One tab holds it while it shows it; only that tab lets go.
     await changeTour(state, { hold: 'tab-aaaaaa' });
     assert.equal((await readTour(state)).held.by, 'tab-aaaaaa');
@@ -64,7 +64,7 @@ test('tour · kept in ~/.pulse, one change at a time, and a file for another ver
     await writeFile(join(state, 'tour.json'), JSON.stringify({ ...finished, version: '0.7' }));
     assert.equal((await readTour(state)).bonjourAt, null, 'a tour of another version counted as this one');
     assert.deepEqual((await changeTour(state, { reset: true })).done, []);
-    assert.equal(CHAPTERS.length, 12);
+    assert.equal(CHAPTERS.length, 16);
   } finally {
     await rm(state, { recursive: true, force: true });
   }
@@ -175,21 +175,25 @@ test('tour · the routes: the pages of this Mac only, never a phone', async () =
 test('tour · the chapters the page tells are the ones the server keeps, in both languages', async () => {
   const { CHAPTERS: told, GESTURES, ORDER } = await import('../public/tour-chapters.js');
   assert.deepEqual(told.map((chapter) => chapter.id), CHAPTERS, 'a chapter the server would refuse, or one it keeps that the page never tells');
-  // Two tours of the same chapters: a new person never reads what moved; whoever came from 0.7.2
-  // starts there, and every other chapter tells them, in one line, what is new or different.
-  assert.deepEqual(Object.keys(ORDER), ['new', 'back']);
-  assert.deepEqual([...ORDER.new].sort(), CHAPTERS.filter((id) => id !== 'moved').sort(), 'the tour of the essentials lacks a chapter, or tells one twice');
-  assert.deepEqual([...ORDER.back].sort(), [...CHAPTERS].sort(), 'the tour of what changed lacks a chapter, or tells one twice');
+  // Three tours of the same chapters: a new person never reads what moved or what was renamed;
+  // whoever came from 0.7.2 starts with what moved, and every other chapter tells them, in one
+  // line, what is new or different; whoever came from 1.0 reads only what changed after it.
+  assert.deepEqual(Object.keys(ORDER), ['new', 'back', 'since']);
+  assert.deepEqual([...ORDER.new].sort(), CHAPTERS.filter((id) => !['moved', 'renamed'].includes(id)).sort(), 'the tour of the essentials lacks a chapter, or tells one twice');
+  assert.deepEqual([...ORDER.back].sort(), CHAPTERS.filter((id) => id !== 'renamed').sort(), 'the tour of what changed lacks a chapter, or tells one twice');
   assert.equal(ORDER.back[0], 'moved');
-  for (const chapter of told.filter((one) => one.id !== 'moved')) {
+  assert.equal(ORDER.since[0], 'renamed');
+  for (const chapter of told.filter((one) => !['moved', 'renamed'].includes(one.id))) {
     assert.ok(['new', 'changed'].includes(chapter.news?.kind) && chapter.news.es && chapter.news.en, `${chapter.id} does not say what changed since 0.7.2`);
   }
   // What moved is told against what 0.7.2 had: BISHOP and PERSONALIZE never shipped in it.
   assert.ok(!JSON.stringify(told[0].moved).match(/BISHOP|PERSONALI/), 'what moved names something 0.7.2 never had');
   for (const chapter of told) {
     for (const field of ['title', 'lead']) assert.ok(chapter[field]?.es && chapter[field]?.en, `${chapter.id} has no ${field} in both languages`);
-    assert.equal(chapter.points.es.length, chapter.points.en.length, `${chapter.id} says more in one language`);
-    if (!['gestures'].includes(chapter.id)) assert.equal(chapter.points.es.length, 3, `${chapter.id} is not three sentences`);
+    // A chapter told in one language only (the clearer names: the English did not change) says nothing in the other.
+    if (!chapter.only) assert.equal(chapter.points.es.length, chapter.points.en.length, `${chapter.id} says more in one language`);
+    // The gestures are a sheet and the widgets a guide, one line per widget; the rest, three sentences.
+    if (!['gestures', 'widgets'].includes(chapter.id)) assert.equal(chapter.points[chapter.only ?? 'es'].length, 3, `${chapter.id} is not three sentences`);
     for (const where of chapter.where) assert.ok(['home', 'room'].includes(where));
     // Nothing is told as «coming soon»: what is not offered is not told (the phone, 2026-10-12).
     assert.equal(chapter.soon, undefined, `${chapter.id} still tells what is coming`);
@@ -202,4 +206,39 @@ test('tour · the chapters the page tells are the ones the server keeps, in both
   const server = await readFile(join(import.meta.dirname, '..', 'src', 'server.mjs'), 'utf8');
   assert.match(server, /'\/loader\.js', '\/tour\.js', '\/tour-chapters\.js'[,\]]/);
   for (const page of ['app.js', 'salas-mac.js']) assert.match(await readFile(join(import.meta.dirname, '..', 'public', page), 'utf8'), /from '\.\/tour\.js'/, `${page} has no welcome`);
+});
+
+test('tour · whoever read the tour of 1.0 is told what changed since, and stays someone who came from 1.0', async () => {
+  const state = await scratch('madre-tour-since-');
+  let server;
+  try {
+    // The file a person who finished the tour of 1.0 has.
+    await writeFile(join(state, 'tour.json'), JSON.stringify({ version: '1.0', path: 'new', bonjourAt: '2026-10-11T10:00:00.000Z', done: ['home', 'gestures'], at: 'gestures', closed: false, finished: '2026-10-11T10:05:00.000Z', hints: { links: '2026-10-11T10:06:00.000Z' }, held: null }));
+    const read = await readTour(state);
+    assert.deepEqual([read.version, read.bonjourAt, read.finished, read.before], ['1.1', null, null, '1.0'], 'the tour starts again, remembering where it came from');
+    await changeTour(state, { path: 'since', bonjour: true, hint: 'w-models' });
+    assert.equal((await readTour(state)).path, 'since');
+    assert.ok((await readTour(state)).hints['w-models']);
+    assert.equal((await changeTour(state, { reset: true })).before, '1.0', 'again from the start, still someone who came from 1.0');
+    const project = await scratch('madre-tour-since-project-');
+    ({ server } = await createPulseServer({ projectRoot: project, stateRoot: state, agents: [], invokers: {}, testMode: true }));
+    const port = await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server.address().port)));
+    const told = await fetch(`http://127.0.0.1:${port}/api/tour`).then((response) => response.json());
+    assert.deepEqual([told.owed, told.returning, told.from], [true, true, '1.0']);
+    await rm(project, { recursive: true, force: true });
+  } finally {
+    if (server) await new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    await rm(state, { recursive: true, force: true });
+  }
+});
+
+test('tour · every path names chapters that exist, and the clearer names are told only in Spanish', async () => {
+  const { ORDER, CHAPTERS: TOLD } = await import('../public/tour-chapters.js');
+  for (const [path, ids] of Object.entries(ORDER)) for (const id of ids) {
+    assert.ok(TOLD.some((chapter) => chapter.id === id), `${path} names ${id}`);
+    assert.ok(CHAPTERS.includes(id), `the server does not keep ${id}`);
+  }
+  assert.equal(TOLD.find((chapter) => chapter.id === 'renamed').only, 'es');
+  // Whoever came from 1.0 reads a line on what changed in every chapter but the names.
+  for (const id of ORDER.since) if (id !== 'renamed') assert.ok(TOLD.find((chapter) => chapter.id === id).since, `${id} says nothing of what changed since 1.0`);
 });
