@@ -14,6 +14,10 @@ import { terminateProcessTree, lastWords } from '../adapters/process.mjs';
 
 export const PLAYWRIGHT_PACKAGE = '@playwright/mcp';
 export const PLAYWRIGHT_BROWSERS = ['chromium', 'firefox', 'webkit'];
+// The browser the server downloads for each engine: `install-browser` is `playwright install <name>`
+// underneath, so the name is the engine's own. The remedy used to say chrome-for-testing whatever
+// was chosen, and a person on webkit installed a browser that could never fix it (2026-10-14).
+export const installBrowserLine = (browser = 'chromium') => `npx ${PLAYWRIGHT_PACKAGE} install-browser ${PLAYWRIGHT_BROWSERS.includes(browser) ? browser : 'chromium'}`;
 export const PLAYWRIGHT_SERVER_NAME = 'pulse-playwright';
 // The tools @playwright/mcp exposes that a room turn may use. Screenshots and files land in scratch.
 export const PLAYWRIGHT_TOOLS = ['browser_navigate', 'browser_navigate_back', 'browser_snapshot', 'browser_click', 'browser_type', 'browser_fill_form', 'browser_hover', 'browser_press_key', 'browser_select_option', 'browser_wait_for', 'browser_console_messages', 'browser_network_requests', 'browser_take_screenshot', 'browser_resize', 'browser_tabs', 'browser_close'];
@@ -101,15 +105,18 @@ export const wantsBrowser = (text) => BROWSER_INTENT.test(String(text ?? ''));
 // The last answer to «does it start?», for a switch that was already on: asked again in the
 // background at most every ten minutes, so the card can say the browser is missing and no turn
 // carries a server that would only fail.
-let started = { at: 0, result: null, asking: null };
+// The answer belongs to the browser it was asked about: chosen another, it is asked again, or a
+// browser that does not start would ride on the answer of one that does.
+let started = { at: 0, result: null, asking: null, browser: null };
 export function playwrightHealth({ browser = 'chromium', env = process.env, cwd = process.cwd(), now = Date.now(), check = playwrightStarts } = {}) {
   if (env.PULSE_PLAYWRIGHT_CHECK === '0') return started.result;
+  if (started.browser !== browser) started = { at: 0, result: null, asking: null, browser };
   if (!started.asking && now - started.at > 10 * 60 * 1000) {
-    started.asking = check({ browser, env, cwd }).then((result) => { started = { at: Date.now(), result, asking: null }; return result; }, () => { started.asking = null; return null; });
+    started.asking = check({ browser, env, cwd }).then((result) => { if (started.browser === browser) started = { at: Date.now(), result, asking: null, browser }; return result; }, () => { started.asking = null; return null; });
   }
   return started.result;
 }
-export function forgetPlaywrightHealth(result = null) { started = { at: result ? Date.now() : 0, result, asking: null }; }
+export function forgetPlaywrightHealth(result = null, browser = null) { started = { at: result ? Date.now() : 0, result, asking: null, browser }; }
 
 // What the browser may open: this room, and the servers the human started from RUNS in this project
 // while they listen on 127.0.0.1. RIPLEY's sealed frame keeps no data, so an app that stores its
@@ -141,7 +148,7 @@ export default defineModule({
   tracks: { name: PLAYWRIGHT_PACKAGE, npm: PLAYWRIGHT_PACKAGE },
   summary: 'Hands an agent a headless browser that reaches only this project and the servers you start from COMMANDS, on the turns that ask to look at a page, click through it, read its console or take screenshots.',
   creates: ['nothing in the project \u00b7 screenshots land in .pulse/out/<turn>/', 'a switch in ~/.pulse/config.json', 'a browser per turn, started and stopped by the CLI', 'no origin but this project is reachable through it'],
-  requires: ['@playwright/mcp and a chromium browser on this machine', 'PREVIEW on, to have pages to open'],
+  requires: ['@playwright/mcp and the browser you choose for it (chromium by default) on this machine', 'PREVIEW on, to have pages to open'],
   settings: { enabled: false, browser: 'chromium', headless: true },
   card: 'switch',
   controls: [
@@ -154,8 +161,8 @@ export default defineModule({
     return {
       runs: [{ name: PLAYWRIGHT_PACKAGE, version }],
       settings: { browser: ctx.settings.browser ?? 'chromium', headless: ctx.settings.headless !== false },
-      status: { installed: Boolean(ctx.settings.enabled), detail: ctx.settings.enabled ? (!version ? t('on · the browser server is not installed') : health?.ok === false ? t('on · the browser does not start: {problem}', { problem: String(health.problem).slice(0, 160) }) : `${t('on')} · ${ctx.settings.browser}`) : version ? t('off') : t('off · the browser server is not installed') },
-      preflight: version ? { ok: true, problems: [] } : { ok: false, problems: ['Install the browser server first: npm install -g @playwright/mcp, then its browser: npx @playwright/mcp install-browser chrome-for-testing'] },
+      status: { installed: Boolean(ctx.settings.enabled), detail: ctx.settings.enabled ? (!version ? t('on · the browser server is not installed') : health?.ok === false ? t('on · the browser does not start: {problem}. Install it with {command}.', { problem: String(health.problem).replace(/[.\s]+$/, '').slice(0, 160), command: installBrowserLine(ctx.settings.browser) }) : `${t('on')} · ${ctx.settings.browser}`) : version ? t('off') : t('off · the browser server is not installed') },
+      preflight: version ? { ok: true, problems: [] } : { ok: false, problems: [`Install the browser server first: npm install -g @playwright/mcp, then its browser: ${installBrowserLine(ctx.settings.browser)}`] },
       install: { display: ctx.settings.enabled ? 'disable PLAYWRIGHT' : 'enable PLAYWRIGHT (config.json)', platforms: ['codex', 'claude', 'gemini', 'opencode'] },
     };
   },
@@ -187,9 +194,15 @@ export default defineModule({
   async toggle(ctx) {
     const enabled = !ctx.settings.enabled;
     if (enabled) {
-      const check = await playwrightStarts({ browser: ctx.settings.browser ?? 'chromium', env: ctx.env, cwd: ctx.projectRoot });
-      forgetPlaywrightHealth(check);
-      if (!check.ok) return { status: 412, body: { error: t('TEST BROWSER did not start, so it stays off: {problem}. Install the server and its browser (npm install -g @playwright/mcp, then npx @playwright/mcp install-browser chrome-for-testing) and turn it on again.', { problem: String(check.problem).replace(/[.\s]+$/, '') }), code: 'MU-054' } };
+      const browser = ctx.settings.browser ?? 'chromium';
+      const check = await playwrightStarts({ browser, env: ctx.env, cwd: ctx.projectRoot });
+      forgetPlaywrightHealth(check, browser);
+      // The server is there and only the browser is missing: say which one, and the one line that
+      // installs it. Without the server, both lines.
+      const version = await playwrightVersion({ env: ctx.env, projectRoot: ctx.projectRoot });
+      if (!check.ok) return { status: 412, body: { error: version
+        ? t('TEST BROWSER did not start, so it stays off: {problem}. The browser server is installed; what is missing is the {browser} browser. Install it with {command} and turn it on again, or choose another browser in its settings.', { problem: String(check.problem).replace(/[.\s]+$/, ''), browser, command: installBrowserLine(browser) })
+        : t('TEST BROWSER did not start, so it stays off: {problem}. Install the server and its browser ({server}, then {command}) and turn it on again.', { problem: String(check.problem).replace(/[.\s]+$/, ''), server: `npm install -g ${PLAYWRIGHT_PACKAGE}`, command: installBrowserLine(browser) }), code: 'MU-054' } };
     }
     await ctx.updateConfig({ modules: { playwright: { ...(ctx.config.modules?.playwright ?? {}), enabled } } });
     await ctx.record('extension.toggled', { id: 'playwright', name: 'PLAYWRIGHT', enabled });
@@ -203,6 +216,6 @@ export default defineModule({
     match: /@playwright\/mcp|playwright.*not (found|installed)|browser server/i,
     diagnosis: 'The TEST BROWSER module runs @playwright/mcp per turn. Two different things have to be on this computer and only one of them is the package: the server, and the browser build that this version of it expects. A server that starts without its browser answers every tool call with "Browser … is not installed", and one that cannot start at all reaches the agent as CONNECTION_CLOSED.',
     remedy: 'Install the server once, globally, then its browser — the browser is downloaded by the server itself, not by the playwright CLI — and RECHECK in MODULES.',
-    fixes: { darwin: ['npm install -g @playwright/mcp', 'npx @playwright/mcp install-browser chrome-for-testing'], linux: ['npm install -g @playwright/mcp', 'npx @playwright/mcp install-browser chrome-for-testing'] },
+    fixes: { darwin: ['npm install -g @playwright/mcp', 'npx @playwright/mcp install-browser chromium'], linux: ['npm install -g @playwright/mcp', 'npx @playwright/mcp install-browser chromium'] },
   }],
 });

@@ -178,3 +178,22 @@ test('PLAYWRIGHT already on: a browser that does not start is said on its card a
   if (turn) assert.deepEqual(turn, [], 'a browser known not to start was handed to a turn');
   forgetPlaywrightHealth();
 });
+
+test('PLAYWRIGHT: the answer belongs to the browser it was asked about, and the remedy names that browser', async () => {
+  const { playwrightHealth, forgetPlaywrightHealth, installBrowserLine } = await import('../src/modules/playwright.mjs');
+  forgetPlaywrightHealth();
+  const asked = [];
+  const check = async ({ browser }) => { asked.push(browser); return browser === 'webkit' ? { ok: false, problem: 'Browser "webkit" is not installed' } : { ok: true, checked: true }; };
+  playwrightHealth({ env: {}, check, browser: 'chromium' });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(playwrightHealth({ env: {}, check, browser: 'chromium' }), { ok: true, checked: true });
+  // Chosen another engine, the room asks again instead of riding on chromium's answer.
+  assert.equal(playwrightHealth({ env: {}, check, browser: 'webkit' }), null);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(playwrightHealth({ env: {}, check, browser: 'webkit' })?.ok, false);
+  assert.deepEqual(asked, ['chromium', 'webkit']);
+  assert.equal(installBrowserLine('webkit'), 'npx @playwright/mcp install-browser webkit');
+  assert.equal(installBrowserLine('chromium'), 'npx @playwright/mcp install-browser chromium');
+  assert.equal(installBrowserLine('nope'), 'npx @playwright/mcp install-browser chromium');
+  forgetPlaywrightHealth();
+});

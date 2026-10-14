@@ -822,7 +822,7 @@ export const ES = {
     'nada en el proyecto · las capturas se guardan en .pulse/out/<turno>/',
   'a browser per turn, started and stopped by the CLI': 'un navegador en cada respuesta, que la app del agente enciende y apaga',
   'no origin but this project is reachable through it': 'desde ese navegador no se puede abrir nada que no sea este proyecto',
-  '@playwright/mcp and a chromium browser on this machine': '@playwright/mcp y un navegador chromium en esta computadora',
+  '@playwright/mcp and the browser you choose for it (chromium by default) on this machine': '@playwright/mcp y el navegador que elijas para él (chromium, si no eliges otro) en esta computadora',
   'PREVIEW on, to have pages to open': 'VISTA PREVIA encendida, para que haya páginas que abrir',
 
   // ── LAS FICHAS DE MÓDULO ──────────────────────────────────────────────────
@@ -2140,7 +2140,7 @@ export const ES = {
   'TRYING IT…': 'PROBÁNDOLO…',
   'only in its own draft folder ': 'solo en su carpeta de borrador ',
   ' · nothing else in the project': ' · nada más en el proyecto',
-  'on · the browser does not start: {problem}': 'encendido · el navegador no arranca: {problem}',
+  'on · the browser does not start: {problem}. Install it with {command}.': 'encendido · el navegador no arranca: {problem}. Instálalo con {command}.',
   'Untitled': 'Sin título',
   'Files': 'Archivos',
   'The viewer': 'El visor',
@@ -2156,8 +2156,10 @@ export const ES = {
   '@{agent} · {server}: {with} with it ({nWith} turns) · {without} without it ({nWithout} turns)': '@{agent} · {server}: {with} con él ({nWith} respuestas) · {without} sin él ({nWithout} respuestas)',
   'it did not answer within {seconds}s': 'no contestó en {seconds} s',
   'it exited with code {code} before it spoke': 'se cerró con el código {code} antes de responder',
-  'TEST BROWSER did not start, so it stays off: {problem}. Install the server and its browser (npm install -g @playwright/mcp, then npx @playwright/mcp install-browser chrome-for-testing) and turn it on again.':
-    'NAVEGADOR DE PRUEBAS no arrancó, así que se queda apagado: {problem}. Instala el servidor y su navegador (npm install -g @playwright/mcp, luego npx @playwright/mcp install-browser chrome-for-testing) y vuelve a encenderlo.',
+  'TEST BROWSER did not start, so it stays off: {problem}. The browser server is installed; what is missing is the {browser} browser. Install it with {command} and turn it on again, or choose another browser in its settings.':
+    'NAVEGADOR DE PRUEBAS no arrancó, así que se queda apagado: {problem}. El servidor sí está instalado; lo que falta es el navegador {browser}. Instálalo con {command} y vuelve a encenderlo, o elige otro navegador en sus ajustes.',
+  'TEST BROWSER did not start, so it stays off: {problem}. Install the server and its browser ({server}, then {command}) and turn it on again.':
+    'NAVEGADOR DE PRUEBAS no arrancó, así que se queda apagado: {problem}. Instala el servidor y su navegador ({server}, luego {command}) y vuelve a encenderlo.',
   '#{n} {label} is written in the message: its keys are asked for when you send it.': '#{n} {label} está escrito en el mensaje: se te pedirá confirmarlo al enviarlo.',
   'stopped at the {seconds}s limit': 'detenido al llegar al límite de {seconds} s',
   'stopped ({why})': 'detenido ({why})',
@@ -2365,7 +2367,9 @@ export const ES = {
   'no session': 'sin sesión',
   'CLICK A LINE NUMBER TO SELECT · SHIFT FOR A RANGE':
     'CLIC EN UN NÚMERO DE LÍNEA PARA SELECCIONAR · SHIFT PARA UN RANGO',
-  '{agent} wrote this file in this project': '{agent} escribió este archivo en este proyecto',
+  'Last changed by @{agent} · {when}': 'Último cambio: @{agent} · {when}',
+  '@{agent} changed {file} here · {when}': '@{agent} cambió {file} aquí · {when}',
+  'Refresh files': 'Actualizar archivos',
   'Diagnostics › {name} declares {fields}, which this MADRE does not know. A typo, or a field from a newer version.':
     'Diagnóstico › {name} declara {fields}, que esta MADRE no conoce. Puede ser un error de escritura o un campo de una versión más nueva de MADRE.',
   // ── LA PROSA DENTRO DE LOS REMEDIOS ──────────────────────────────────────

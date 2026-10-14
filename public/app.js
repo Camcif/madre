@@ -303,12 +303,25 @@ const modules = {
 // Which agent last wrote to a path, taken from what the room already recorded: the artifacts a
 // creation lease produced, and the files a CONTROL turn changed. Nothing new is stored and nothing
 // is inferred from the filesystem — if MADRE did not see it happen, the file carries no mark.
-const touched = new Map();
-function markTouched(agent, files) {
+// Each path keeps who touched it last and when (2026-10-14), so a folder can say that something
+// under it changed and the Finder can lead from the top of the project down to the file.
+const touched = new Map();   // path -> { agent, at }
+function markTouched(agent, files, at = null) {
+  const when = at ? Date.parse(at) || Date.now() : Date.now();
   for (const file of files ?? []) {
     const path = typeof file === 'string' ? file : file?.path;
-    if (path && agent) touched.set(String(path).replace(/^\.?\//, ''), agent);
+    if (!path || !agent) continue;
+    const key = String(path).replace(/^\.?\//, '');
+    if ((touched.get(key)?.at ?? 0) <= when) touched.set(key, { agent, at: when });
   }
+  if (!tree.open) tree.stale = true;
+}
+// The newest touch under a folder, for its dot.
+function touchedUnder(dir) {
+  const prefix = `${dir}/`;
+  let newest = null;
+  for (const [path, touch] of touched) if (path.startsWith(prefix) && (!newest || touch.at > newest.at)) newest = { ...touch, path };
+  return newest;
 }
 
 
@@ -5901,7 +5914,8 @@ function renderEventNode(event) {
       if (open && !replaying) void paintAshEconomy(open);
       return;
     }
-    case 'agent.completed': state.running.delete(event.payload.messageId); updateStopAll(); removeThinking(event.payload.messageId); return;
+    case 'agent.completed': state.running.delete(event.payload.messageId); updateStopAll(); removeThinking(event.payload.messageId); if (!replaying) treeFollowWrites(); return;
+    case 'files.touched': markTouched(event.payload.agent, event.payload.files, event.timestamp); if (!replaying) treeFollowWrites(); return;
     case 'message.failed': state.running.delete(event.payload.messageId); updateStopAll(); node = renderFailure(event); break;
     case 'handoff.created': node = renderHandoff(event); break;
     case 'memory.distilled': node = renderDistilled(event); break;
@@ -6010,13 +6024,19 @@ function renderEventNode(event) {
     case 'bishop.order.proposed': node = renderBishopProposal(event); break;
     case 'bishop.answer': node = renderBishopAnswer(event); break;
     case 'create.missing': node = renderCreateMissing(event); break;
-    case 'control.changed': markTouched(event.payload.agent, event.payload.files); node = renderControlChanged(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } break;
+    case 'control.changed': markTouched(event.payload.agent, event.payload.files, event.timestamp); node = renderControlChanged(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } break;
     case 'control.reverted': node = renderControlReverted(event); if (!replaying) treeFollowWrites(); break;
     case 'mode.granted':
     case 'mode.denied': settleModeRequest(event); return;
     case 'plan.ignored': node = renderPlanIgnored(event); break;
-    case 'artifacts.created': markTouched(event.payload.agent, event.payload.files); attachArtifacts(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } return;
-    case 'command.output': node = renderCommandCard(event); if (!replaying && event.payload.run?.files?.length) treeFollowWrites(); break;
+    case 'artifacts.created': markTouched(event.payload.agent, event.payload.files, event.timestamp); attachArtifacts(event); if (!replaying) { ripleyMaybeReload((event.payload.files ?? []).map((file) => file.path)); treeFollowWrites(); } return;
+    case 'command.output': {
+      const run = event.payload.run;
+      if (run) markTouched(run.agent, [...(run.files ?? []), ...(run.touched ?? [])], event.timestamp);
+      node = renderCommandCard(event);
+      if (!replaying && run) treeFollowWrites();
+      break;
+    }
     case 'eyecat.flagged': node = renderEyecat(event); break;
     case 'eyecat.settled': settleEyecat(event); return;
     default: return;
@@ -7383,7 +7403,7 @@ for (const button of document.querySelectorAll?.('button') ?? []) {
 // `openDirs` survives a reload of the tree: after a copy, a move or a new folder the panel is
 // rebuilt, and a tree that folds itself shut hides exactly the thing the human just made.
 // `reveal` is that thing, lit once when its row is drawn again.
-const tree = { open: false, loaded: new Map(), openDirs: new Set(), reveal: null };
+const tree = { open: false, loaded: new Map(), openDirs: new Set(), reveal: null, stale: false };
 const formatSize = (bytes) => bytes == null ? '' : bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB` : bytes < 1024 ** 3 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 const CODE_EXT = /\.(m?[jt]sx?|py|rb|go|rs|java|kt|swift|c|h|cpp|hpp|cs|php|sh|zsh|css|scss|html?|json|ya?ml|toml|sql|md)$/i;
 
@@ -7485,8 +7505,8 @@ const finderJoin = (dir, name) => (dir === '.' ? name : `${dir}/${name}`);
 // swapped in whole. Several writes in a row are one refresh. A search being typed, or a word being
 // asked in the panel, is the human's and is left alone.
 let treeFollowTimer = null;
-function treeFollowWrites() {
-  if (!tree.open) return;
+function treeFollowWrites({ now = false } = {}) {
+  if (!tree.open) { tree.stale = true; return; }
   clearTimeout(treeFollowTimer);
   treeFollowTimer = setTimeout(async () => {
     const busy = () => !tree.open || finder.q?.value.trim() || finder.clip?.querySelector('.tree-ask');
@@ -7497,7 +7517,7 @@ function treeFollowWrites() {
     const top = els.treeBody.scrollTop;
     els.treeBody.replaceChildren(root);
     els.treeBody.scrollTop = top;
-  }, 350);
+  }, now ? 0 : 350);
 }
 
 // The panel again, as it was: the folders that were open stay open, the one the result landed in
@@ -7643,6 +7663,13 @@ function treeNode(path, entry) {
   if (entry.kind === 'dir') {
     const caret = el('span', 'caret', '▸');
     button.append(caret, el('span', 'name', entry.name));
+    // Something under this folder changed: the dot of whoever touched it last, the way down.
+    const under = touchedUnder(path);
+    if (under) {
+      const dot = paint(el('span', 'touched trail'), under.agent);
+      dot.title = t('@{agent} changed {file} here · {when}', { agent: under.agent, file: under.path.slice(path.length + 1), when: agoWords(new Date(under.at).toISOString()) });
+      button.append(dot);
+    }
     const children = el('ul');
     children.hidden = true;
     let opened = false;
@@ -7664,8 +7691,8 @@ function treeNode(path, entry) {
     const by = touched.get(path);
     if (by) {
       // Its colour is the agent's own, so the tree reads the same way the thread does.
-      const dot = paint(el('span', 'touched'), by);
-      dot.title = t('{agent} wrote this file in this project', { agent: `@${by}` });
+      const dot = paint(el('span', 'touched'), by.agent);
+      dot.title = t('Last changed by @{agent} · {when}', { agent: by.agent, when: agoWords(new Date(by.at).toISOString()) });
       button.append(dot);
     }
     button.addEventListener('click', () => { void openViewer({ root: 'project', path, label: path }); });
@@ -8803,8 +8830,16 @@ function setTree(open) {
     const root = el('ul');
     els.treeBody.append(root);
     void loadTreeLevel('.', root);
-  }
+  } else if (open && tree.stale) treeFollowWrites();
+  if (open) tree.stale = false;
 }
+// By hand, for anything written from outside MADRE: an editor, a terminal, another app.
+document.querySelector('#tree-refresh')?.addEventListener('click', (event) => {
+  const button = event.currentTarget;
+  button.classList.remove('spin'); void button.offsetWidth; button.classList.add('spin');
+  if (finder.q?.value.trim()) { finder.q.dispatchEvent(new Event('input')); return; }
+  treeFollowWrites({ now: true });
+});
 els.treeButton?.addEventListener('click', () => setTree(!tree.open));
 // A new file from the Finder: its path asked in the room's alert, made empty, opened in the viewer.
 document.querySelector('#tree-new')?.addEventListener('click', async () => {

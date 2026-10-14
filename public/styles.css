@@ -2636,6 +2636,12 @@ dialog.intents-window { width: 760px; height: 640px; }
 
 /* A file an agent wrote in this room, in that agent's own colour. */
 .tree .node .touched { width: 6px; height: 6px; border-radius: 50%; background: var(--agent, var(--ph)); box-shadow: none; flex: 0 0 auto; margin-left: 2px; }
+/* The way down to what changed: a folder carries the dot of the last touch beneath it, hollow, so
+   the filled one is always the file itself. */
+.tree .node .touched.trail { background: transparent; box-shadow: inset 0 0 0 1.5px var(--agent, var(--ph)); }
+.tree-head .tree-refresh.spin svg { animation: tree-spin .6s ease; }
+@keyframes tree-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tree-head .tree-refresh.spin svg { animation: none; } }
 
 /* Read by what the file is. Six roles, the room's own phosphor: enough to find a string or a
    comment at a glance, and never so many colours that the code stops being the thing you see. */

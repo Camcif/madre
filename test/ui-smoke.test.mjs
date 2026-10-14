@@ -574,12 +574,15 @@ test('the room says who wrote a file, and how to ask about a piece of one', asyn
   const app = await readFile(here('app.js'), 'utf8');
   const page = await readFile(here('index.html'), 'utf8');
 
-  // Which agent last wrote to a path, from what the room already recorded — the artifacts a lease
-  // produced and the files a CONTROL turn changed. Nothing is inferred from the filesystem: a file
-  // MADRE did not see change carries no mark.
+  // Which agent last wrote to a path, from what the room recorded — the artifacts a lease produced,
+  // the files a CONTROL turn changed, and since 2026-10-14 what a command or a writing turn left
+  // where git does not look (`files.touched`, `run.touched`). A file nobody in the room touched
+  // carries no mark; the folders on the way to a marked file carry a hollow one.
   assert.match(app, /case 'artifacts\.created': markTouched\(event\.payload\.agent/);
   assert.match(app, /case 'control\.changed': markTouched\(event\.payload\.agent/);
-  assert.match(app, /const dot = paint\(el\('span', 'touched'\), by\);/, 'the mark does not carry the agent colour');
+  assert.match(app, /case 'files\.touched': markTouched\(event\.payload\.agent/);
+  assert.match(app, /const dot = paint\(el\('span', 'touched'\), by\.agent\);/, 'the mark does not carry the agent colour');
+  assert.match(app, /paint\(el\('span', 'touched trail'\), under\.agent\)/, 'a folder does not lead to what changed under it');
 
   // REVIEW WITH existed and was invisible until a selection existed, and nobody guesses that a
   // line number is clickable. The hint appears exactly while there is nothing selected.

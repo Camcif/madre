@@ -96,6 +96,36 @@ export async function walkProject(root, { maxFiles = 20000, ttlMs = 15000 } = {}
   return files;
 }
 
+// What changed on disk since a moment, by modification time (2026-10-14). A restore point sees
+// only what git sees, so a PDF a command wrote into an ignored `output/` was there and nobody said
+// so: the Finder did not refresh and nothing told whose it was. This looks at the files
+// themselves, skipping the same heavy folders the search skips and MADRE's own `.pulse`/`.madre`,
+// bounded so a large project costs a fraction of a second. Newest first.
+const UNWATCHED = new Set([...SHALLOW, '.pulse', '.madre']);
+export async function filesChangedSince(root, since, { maxFiles = 8000, limit = 40 } = {}) {
+  const from = Number(since) - 250;
+  if (!Number.isFinite(from)) return [];
+  const found = [];
+  let seen = 0;
+  async function walk(dir, prefix, depth) {
+    if (seen >= maxFiles || depth > 14) return;
+    let entries = [];
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    const files = [];
+    for (const entry of entries) {
+      if (SKIP.has(entry.name)) continue;
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) { if (!UNWATCHED.has(entry.name)) await walk(join(dir, entry.name), rel, depth + 1); continue; }
+      if (entry.isFile()) files.push(rel);
+    }
+    seen += files.length;
+    const stats = await Promise.all(files.map((rel) => stat(join(root, rel)).then((info) => [rel, info.mtimeMs], () => null)));
+    for (const one of stats) if (one && one[1] >= from) found.push({ path: one[0], at: one[1] });
+  }
+  await walk(root, '', 0);
+  return found.sort((a, b) => b.at - a.at).slice(0, limit).map((one) => one.path);
+}
+
 export function scoreFile(path, query) {
   const q = query.toLowerCase();
   if (!q) return 1;

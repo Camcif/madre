@@ -34,7 +34,7 @@ import { MODES, SCOPES, SCOPE_LABELS, capabilitySummary, normalizeMode, resolveS
 import { createLease, diffSnapshots, namedPaths, snapshot } from './lease.mjs';
 import { stat as statFile, readdir, copyFile, readFile as readFileBytes } from 'node:fs/promises';
 import { basename as baseName, join as joinPath } from 'node:path';
-import { declaredTypeFor } from './files.mjs';
+import { declaredTypeFor, filesChangedSince } from './files.mjs';
 import { isModuleFile, sdkPaths } from './modules/index.mjs';
 import { validateAshReply } from './modules/ash-policy.mjs';
 import { PHONE_MAX_MODE } from './bridge/policy.mjs';
@@ -899,6 +899,7 @@ export class Room {
 
   async #runCommand({ request, command, responseMessageId, index }) {
     const run = { responseMessageId, index, agent: request.agent, line: command.line };
+    const startedAt = Date.now();
     await this.#emit('run.started', run);
     let checkpoint = null;
     try {
@@ -911,6 +912,9 @@ export class Room {
     const finished = this.#runDesk.run({ id: `${responseMessageId}:${index}`, argv: expandHome(command), cwd: this.#projectRoot, onServing: (where) => opened(where) })
       .then(async (result) => {
         const changes = checkpoint ? await this.#controlDesk.changesSince(checkpoint).catch(() => null) : null;
+        // What git cannot see — a folder the project ignores — found by its time on disk.
+        const listed = new Set((changes?.files ?? []).map((file) => file.path));
+        const touched = (await filesChangedSince(this.#projectRoot, startedAt).catch(() => [])).filter((path) => !listed.has(path));
         const status = result.stoppedBy ? `stopped (${result.stoppedBy})` : result.exitCode === null ? 'did not start' : `exit ${result.exitCode}`;
         const event = await this.#emit('command.output', {
           name: 'run',
@@ -918,7 +922,7 @@ export class Room {
           text: `${result.text || '(no output)'}${changes?.files.length ? `\n\nFiles changed: ${changes.files.map((file) => `${file.status} ${file.path}`).join(', ')}` : ''}`,
           ok: result.ok,
           args: [],
-          run: { ...run, exitCode: result.exitCode, durationMs: result.durationMs, stoppedBy: result.stoppedBy, served: result.serving ?? undefined, checkpointId: checkpoint?.id, files: changes?.files.length ? changes.files.slice(0, 40) : undefined },
+          run: { ...run, exitCode: result.exitCode, durationMs: result.durationMs, stoppedBy: result.stoppedBy, served: result.serving ?? undefined, checkpointId: checkpoint?.id, files: changes?.files.length ? changes.files.slice(0, 40) : undefined, touched: touched.length ? touched : undefined },
         });
         // The last line of the request answered: the agent that asked hears how it went.
         void this.#maybeReturnRun(responseMessageId).catch((error) => console.error(`MADRE could not hand the commands back: ${error.message}`));
@@ -1727,6 +1731,7 @@ export class Room {
       const invoke = this.#invokers[agent.adapter];
       if (!invoke) throw new Error(`${agent.label} does not have a supported MADRE adapter.`);
       const before = lease && !lease.control && !lease.create ? await snapshot(lease.outDir) : null;
+      const writingSince = Date.now();
       responseMessageId = randomUUID();
       this.#liveTurns.set(responseMessageId, { agent: agent.id, mode: turnMode });
       const notesBefore = this.#memory ? this.#memory.maxMemoryId() : 0;
@@ -1892,6 +1897,12 @@ export class Room {
         }
       }
       if (controlChanges) await this.#emit('control.changed', { ...controlChanges, responseMessageId });
+      // A writing turn may also have written where git does not look; the Finder hears about it.
+      if (lease && turnMode >= 2) {
+        const listed = new Set([...artifacts.map((file) => file.path), ...(controlChanges?.files ?? []).map((file) => file.path)]);
+        const touched = (await filesChangedSince(this.#projectRoot, writingSince).catch(() => [])).filter((path) => !listed.has(path));
+        if (touched.length) await this.#emit('files.touched', { agent: agent.id, messageId, responseMessageId, files: touched });
+      }
       // Codex and OpenCode give tokens, not dollars: the turn is priced at the list price of the
       // model it ran on (src/prices.mjs), an estimate that says it is one. Gemini prices itself in
       // its adapter, where its report names each model it used.
