@@ -575,19 +575,31 @@ function projectRelative(path) {
 }
 
 // Plain text with file paths turned into viewer links.
+// A memory cited by its sequence — [#214], [#64–#1431], [pulse · decision · #1928–#2141] — is a
+// piece of its own (2026-10-15), so it can be shown as a reference; its words stay exactly as written.
+const CITE = /\[(?:[^\]\n]{0,60}·\s*)?#\d+(?:\s*[–-]\s*#?\d+)?\]/g;
+function appendCites(text, into) {
+  let last = 0;
+  for (const match of text.matchAll(CITE)) {
+    if (match.index > last) into.append(text.slice(last, match.index));
+    into.append(el('span', 'cite', match[0]));
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) into.append(text.slice(last));
+}
 function appendTextWithPaths(text, into) {
   let last = 0;
   for (const match of text.matchAll(FILE_PATH)) {
     const rel = projectRelative(match[1]);
     if (!rel) continue;
-    if (match.index > last) into.append(text.slice(last, match.index));
+    if (match.index > last) appendCites(text.slice(last, match.index), into);
     const link = el('a', 'file-link', match[0]);
     link.href = `/api/files?path=${encodeURIComponent(rel)}`;
     link.addEventListener('click', (event) => { event.preventDefault(); openViewer({ root: 'project', path: rel, line: match[2] ? Number(match[2]) : null }); });
     into.append(link);
     last = match.index + match[0].length;
   }
-  if (last < text.length) into.append(text.slice(last));
+  if (last < text.length) appendCites(text.slice(last), into);
 }
 
 // A picture of the project is drawn; one from elsewhere is not fetched until someone asks (WEB-01):
@@ -19768,4 +19780,132 @@ if (!SPLIT_CHAT) roomTour();
   if (!showLab || SPLIT_CHAT) return;
   draw();
   document.body.append(bar);
+})();
+
+/* ---------- LABORATORIO DEL CHAT (2026-10-15) ---------- */
+// Una conversación con todos los elementos del chat, dibujada por los mismos renderizadores de la
+// sala a partir de eventos de muestra (solo en pantalla: no se escriben en el registro), y un panel
+// con cinco formas de cada elemento. Nadie lo ve si no abre la sala con `?lab` (o `?lab=CÓDIGO`).
+// La elección se guarda como un código de 17 letras, en grupos de cuatro, para pasarla tal cual.
+const LAB = [
+  ['Mensaje del humano', ['Burbuja de acento (hoy)', 'Burbuja neutra · ChatGPT y Claude', 'Sin burbuja, alineado a la derecha', 'Tarjeta de petición · Cursor', 'Burbuja con destino visible']],
+  ['Adjuntos', ['Mosaicos (hoy)', 'Chips en línea', 'Tarjeta de archivo · Claude', 'Lista compacta', 'Encima del mensaje · ChatGPT']],
+  ['Pensando', ['Puntos (hoy)', 'Texto con brillo · Claude y ChatGPT', 'Avatar que late y tiempo', 'Barra fina de progreso', 'Píldora «pensando · 12 s»']],
+  ['Cabecera del agente', ['Mono con chips (hoy)', 'Nombre en letra normal · Claude', 'Píldora del agente', 'Solo nombre; chips al pasar · ChatGPT', 'Avatar dentro de la cabecera']],
+  ['Cuerpo de la respuesta', ['Prosa libre con carril (hoy)', 'Burbuja', 'Tarjeta con borde', 'Filo del color del agente', 'Documento con regla']],
+  ['Memoria citada', ['Número en el texto (hoy)', 'Superíndice · ChatGPT con búsqueda', 'Chip de fuente · Perplexity', 'Subrayado punteado', 'Atenuada, al final de la frase']],
+  ['Plan', ['Tarjeta (hoy)', 'Lista de tareas con casillas · Cursor', 'Pasos numerados con línea', 'Equipo 2×2', 'Línea de tiempo']],
+  ['Bloque de código', ['Cabecera y COPIAR (hoy)', 'Barra suave · ChatGPT', 'Limpio, copiar al pasar · Claude', 'Oscuro siempre · terminal', 'Plegado a 6 líneas']],
+  ['Pie de la respuesta', ['Métricas e iconos (hoy)', 'Solo iconos, al pasar · ChatGPT', 'Métricas en píldora', 'Acciones con fondo · Claude', 'Hora sola, métricas al pasar']],
+  ['Elección', ['Opciones grandes (hoy)', 'Chips de respuesta · ChatGPT y Gemini', 'Lista con número', 'Tarjetas lado a lado', 'Botones al pie · Gemini']],
+  ['Petición de permiso', ['Tarjeta (hoy)', 'Aprobación en una línea · Claude Code', 'Tarjeta con barra de color', 'Barra sobre la caja de escribir', 'Discreta, solo borde']],
+  ['Permiso concedido', ['Píldora del modo (hoy)', 'Línea divisoria', 'Texto gris centrado', 'Píldora con candado', 'Punto y texto']],
+  ['Petición de comandos', ['Lista con botones (hoy)', 'Compacta, sin cajas por línea', 'Código oscuro · terminal', 'Pasos numerados', 'Botones solo al pasar']],
+  ['Comando ejecutado', ['Línea con estado (hoy)', 'Ventana de terminal', 'Píldora · herramientas de ChatGPT y Claude', 'Paso en un hilo', 'Línea compacta, sin /run']],
+  ['Avisos del sistema', ['Puntos plegados (hoy)', 'Línea centrada', 'Divisor con texto', 'Chip a la izquierda', 'Siempre abiertos, en tarjeta']],
+  ['Error y diagnóstico', ['Tarjeta roja centrada (hoy)', 'Tarjeta a la izquierda con icono', 'Banner a lo ancho', 'Línea roja discreta', 'Tarjeta neutra con borde rojo']],
+  ['Espacio entre turnos', ['Como hoy', 'Compacto', 'Amplio · ChatGPT y Claude', 'Línea fina entre turnos', 'Agrupar el mismo agente']],
+];
+(() => {
+  let asked = null;
+  try { asked = new URLSearchParams(location.search).get('lab'); } catch { return; }
+  if (asked === null || SPLIT_CHAT) return;
+  const root = document.documentElement;
+  const picks = LAB.map(() => 'A');
+  try {
+    const saved = (/^[A-E-]{17,21}$/.test(asked) ? asked : localStorage.getItem('pulse.lab')) ?? '';
+    saved.replace(/-/g, '').split('').forEach((key, index) => { if (index < picks.length) picks[index] = key; });
+  } catch { /* sin almacenamiento */ }
+  const code = () => picks.join('').match(/.{1,4}/g).join('-');
+  const apply = () => {
+    picks.forEach((key, index) => { root.dataset[`lab${String(index + 1).padStart(2, '0')}`] = key; });
+    // 14 · the /run cards reuse the four forms already built (data-term); 15 · notices show open.
+    const term = { B: 'window', C: 'pill', D: 'step', E: 'line' }[picks[13]];
+    if (term) root.dataset.term = term; else delete root.dataset.term;
+    document.querySelectorAll('#messages .sys-dots').forEach((strip) => strip.classList.toggle('open', picks[14] !== 'A'));
+    try { localStorage.setItem('pulse.lab', code()); } catch { /* sin almacenamiento */ }
+  };
+  apply();
+  root.dataset.lab = 'on';
+
+  // The panel: one row per element, its five forms, the code and a way to copy it.
+  const panel = el('aside', 'lab-panel');
+  const draw = () => {
+    panel.replaceChildren();
+    const head = el('header', 'lab-head');
+    const fold = el('button', 'lab-fold', panel.classList.contains('folded') ? '›' : '‹');
+    fold.type = 'button';
+    fold.title = 'Plegar el panel';
+    fold.addEventListener('click', () => { panel.classList.toggle('folded'); draw(); });
+    const codeBox = el('output', 'lab-code', code());
+    const copy = el('button', 'lab-copy', 'Copiar mi elección');
+    copy.type = 'button';
+    copy.addEventListener('click', async () => {
+      const lines = LAB.map(([name, forms], index) => `${String(index + 1).padStart(2, '0')} ${name}: ${picks[index]} · ${forms['ABCDE'.indexOf(picks[index])]}`);
+      const text = `Código: ${code()}\n${lines.join('\n')}`;
+      try { await navigator.clipboard.writeText(text); copy.textContent = 'Copiado ✓'; } catch { prompt('Copia tu elección:', text); }
+      setTimeout(() => { copy.textContent = 'Copiar mi elección'; }, 1600);
+    });
+    head.append(fold, el('b', null, 'Laboratorio'), codeBox, copy);
+    panel.append(head);
+    if (panel.classList.contains('folded')) return;
+    const list = el('div', 'lab-list');
+    LAB.forEach(([name, forms], index) => {
+      const row = el('div', 'lab-row');
+      const top = el('div', 'lab-top');
+      top.append(el('span', 'lab-n', String(index + 1).padStart(2, '0')), el('span', 'lab-name', name));
+      const keys = el('span', 'lab-keys');
+      for (const key of 'ABCDE') {
+        const button = el('button', key === picks[index] ? 'on' : null, key);
+        button.type = 'button';
+        button.title = forms['ABCDE'.indexOf(key)];
+        button.addEventListener('click', () => { picks[index] = key; apply(); draw(); });
+        keys.append(button);
+      }
+      top.append(keys);
+      row.append(top, el('span', 'lab-desc', forms['ABCDE'.indexOf(picks[index])]));
+      list.append(row);
+    });
+    const again = el('button', 'lab-again', 'Volver a dibujar la conversación');
+    again.type = 'button';
+    again.addEventListener('click', () => drawConversation());
+    panel.append(list, again);
+  };
+  draw();
+  document.body.append(panel);
+
+  // The conversation: sample events through the room's own renderer, in the order a real one goes.
+  let n = 0;
+  const at = (minutes) => new Date(Date.now() - (90 - minutes) * 60000).toISOString();
+  const ev = (type, payload, minutes) => ({ id: `lab-${Date.now()}-${n += 1}`, sequence: 900000 + n, type, timestamp: at(minutes), payload });
+  function drawConversation() {
+    const column = els.column;
+    if (!column) return;
+    column.replaceChildren();
+    state.lastSender = null;
+    const u1 = `lab-u1-${Date.now()}`;
+    const a1 = `lab-a1-${Date.now()}`;
+    const events = [
+      ev('message.created', { messageId: u1, role: 'user', sender: 'you', target: 'codex', mode: 2, text: 'Revisa el README y el título del paquete; arma un plan con los demás si hace falta.', status: 'sent', attachments: [{ name: 'README.md', fileName: 'lab-readme.md', size: 4096, contentType: 'text/markdown' }, { name: 'notas.txt', fileName: 'lab-notas.txt', size: 812, contentType: 'text/plain' }] }, 1),
+      { ...ev('agent.started', { messageId: `lab-think-${Date.now()}`, agent: 'gemini', timeoutMs: 180000 }, 2), timestamp: new Date().toISOString() },
+      ev('message.created', { messageId: a1, parentMessageId: u1, role: 'assistant', sender: 'codex', target: 'you', mode: 2, model: 'gpt-5.6-sol', effort: 'high', status: 'sent', text: 'Revisé el proyecto: el título del README no coincidía con el nombre del paquete [#214]. Lo dejé anotado y reparto la revisión.\n\n```pulse\n- @claude: corre las pruebas y dime cuántas pasan.\n- @gemini: revisa que el README se lea bien.\n- @opencode: compara con la versión anterior.\n- @madre: resume lo que se decidió.\n```\n\nEsta es la función que arma el título:\n\n```js\nexport function titulo(paquete) {\n  return paquete.nombre ?? \'MADRE\';\n}\n// se usa en README.md y en la barra\n```' }, 3),
+      ev('choice.offered', { agent: 'codex', question: '¿Actualizo también el CHANGELOG?', options: ['Sí, con una línea', 'Sí, con el detalle', 'No por ahora'], recommended: 0 }, 4),
+      ev('message.created', { messageId: `lab-a2-${Date.now()}`, parentMessageId: u1, role: 'assistant', sender: 'gemini', target: 'you', mode: 1, status: 'sent', text: 'El README se lee bien. Para corregir el título necesito #3 por 15 min: tengo que editar README.md, que ya existe.' }, 5),
+      ev('message.created', { messageId: `lab-a3-${Date.now()}`, parentMessageId: u1, role: 'assistant', sender: 'opencode', target: 'you', mode: 1, status: 'sent', text: 'Comparé con la versión anterior. Para dejar el cambio necesito #3 por 15 min.' }, 6),
+      ev('message.created', { messageId: `lab-u2-${Date.now()}`, role: 'user', sender: 'you', target: 'opencode', mode: 3, text: 'Adelante con el cambio.', status: 'sent' }, 7),
+      ev('run.requested', { messageId: u1, responseMessageId: `lab-run-${Date.now()}`, agent: 'madre', reason: 'Ver que el cambio quedó', mode: 3, commands: [{ line: "node -e \"console.log('uno')\"", argv: ['node', '-e', "console.log('uno')"] }, { line: 'git status --short', argv: ['git', 'status', '--short'] }, { line: 'ls | head', why: 'uses "{char}", which needs a shell; put each command on its own line', whyArgs: { char: '|' } }] }, 8),
+      ev('command.output', { name: 'run', ok: true, text: 'PDF listo: output/pdf/cotizacion.pdf', run: { line: 'node scripts/pdf.mjs', exitCode: 0, durationMs: 2000, agent: 'codex' } }, 9),
+      ev('command.output', { name: 'run', ok: false, text: 'ℹ tests 60\n✔ test 1 passed\n✖ test 9 failed\nℹ pass 53\nℹ fail 7', run: { line: 'npm test', exitCode: 1, durationMs: 4200, agent: 'claude' } }, 10),
+      ev('copilot.started', { until: new Date(Date.now() + 3600000).toISOString(), minutes: 60 }, 11),
+      ev('limit.warning', { agent: 'codex', usedPercent: 71.3, projectedPercent: 87.2, level: 'warning', source: 'room-soft-budget', resetAt: null, alternatives: ['claude'], message: 'MADRE warning: @codex is at 71% of its local window.' }, 12),
+      ev('message.failed', { messageId: `lab-f-${Date.now()}`, target: 'madre', error: 'madre is not installed on this computer.' }, 13),
+    ];
+    for (const event of events) renderEvent(event);
+    apply();
+    column.lastElementChild?.scrollIntoView({ block: 'end' });
+  }
+  // After the room has drawn its own conversation, the lab takes the column. Notices fold by
+  // themselves ten seconds later; when they do, the chosen form opens them again.
+  setTimeout(drawConversation, 1600);
+  if (els.column) new MutationObserver(() => { if (picks[14] !== 'A') document.querySelectorAll('#messages .sys-dots:not(.open)').forEach((strip) => strip.classList.add('open')); }).observe(els.column, { childList: true, subtree: true });
 })();
