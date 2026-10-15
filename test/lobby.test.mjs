@@ -276,3 +276,16 @@ test('home: widgets are added from a key of the bar, not only from a right-click
   assert.equal(html.match(/id="sm-add"/g).length, 1);
   assert.match(page, /document\.getElementById\('sm-add-widgets'\)\?\.addEventListener\('click', \(\) => openHomeAdd\(\)\);/);
 });
+
+test('narrow screens: Home and a project keep their bars whole on a tablet and a phone', async () => {
+  const [app, css, home, tour] = await Promise.all(['app.js', 'styles.css', 'salas-mac.css', 'tour.js'].map((name) => readFile(join(import.meta.dirname, '..', 'public', name), 'utf8')));
+  // One side panel alone gives way too: on a tablet it no longer leaves the conversation a strip.
+  assert.match(app, /if \(!members\.length \|\| members\.reduce\(\(sum, one\) => sum \+ one\.floor, COLUMN_MIN\) <= window\.innerWidth\) return false;/);
+  // The tour pill says its short form on a narrow bar, and a phone's project bar keeps only what fits.
+  assert.match(tour, /open\.dataset\.short = fill\(t\('Tour · \{n\}\/\{total\}'\)/);
+  assert.match(css, /@media \(max-width: 1180px\) \{\n  \.tour-pill-go\[data-short\] \{ font-size: 0; \}/);
+  assert.match(css, /\.shell > \.bar \.tour-pill-slot, \.shell > \.bar-home #reload-button \{ display: none !important; \}/);
+  // Home: «+n» always fits whole, and on a phone the logo keeps its pulse and reload steps out.
+  assert.match(home, /\.sm-tb-open:not\(\[hidden\]\) \{ min-width: 40px; \}/);
+  assert.match(home, /@media \(max-width: 560px\) \{ #sm-reload \{ display: none; \} \}/);
+});

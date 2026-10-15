@@ -8527,6 +8527,19 @@ dialog.tour-bonjour::backdrop { background: transparent; }
 .tour-pill-go { height: 28px; padding: 0 6px 0 12px; border: 0; background: transparent; font: inherit; font-family: var(--read); font-size: 12.5px; font-weight: 600; white-space: nowrap; color: color-mix(in srgb, var(--tour-acc) 70%, var(--text)); cursor: pointer; }
 .tour-pill-x { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; color: var(--text-2); background: transparent; cursor: pointer; }
 .tour-pill-x svg { width: 11px; height: 11px; }
+/* A phone's room bar (2026-10-14): only what keeps it whole — the pulse, the live light, DETENER
+   TODO and «more» on the left; Inicio, the projects and Ajustes on the right. Reload is the page's
+   own pull, and the tour goes on from Ajustes › Versión. */
+@media (max-width: 560px) {
+  .shell > .bar { gap: 8px; }
+  .shell > .bar .brand { width: 40px; overflow: hidden; flex: none; }
+  .shell > .bar .tour-pill-slot, .shell > .bar-home #reload-button { display: none !important; }
+}
+/* A narrow bar (2026-10-14): the pill says «Recorrido · 3/13»; the full sentence stays its name. */
+@media (max-width: 1180px) {
+  .tour-pill-go[data-short] { font-size: 0; }
+  .tour-pill-go[data-short]::after { content: attr(data-short); font-size: 12px; }
+}
 .tour-pill-x:hover { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
 
 /* A hint: one line, once, beside the place it speaks of, in the top layer — a bubble, no beak. And

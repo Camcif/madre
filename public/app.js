@@ -8029,7 +8029,9 @@ let givingWay = false;
 function giveWay() {
   if (givingWay) return false;
   const members = besideNow();
-  if (members.length < 2 || members.reduce((sum, one) => sum + one.floor, COLUMN_MIN) <= window.innerWidth) return false;
+  // One side alone gives way too (2026-10-14): on a tablet or a phone a panel beside the conversation
+  // left it a strip and pushed the bar under its own keys.
+  if (!members.length || members.reduce((sum, one) => sum + one.floor, COLUMN_MIN) <= window.innerWidth) return false;
   const rank = (one) => besideOrder.indexOf(one.key);
   const oldest = [...members].sort((a, b) => rank(a) - rank(b))[0];
   givingWay = true;

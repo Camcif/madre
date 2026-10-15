@@ -180,6 +180,8 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const done = list.filter((chapter) => state.done.includes(chapter.id)).length;
     const pill = el('span', 'tour-pill');
     const open = key('tour-pill-go', fill(t('Continue the tour · {n} of {total}'), { n: done, total: list.length }), () => openChapters(state.at));
+    // On a narrow bar it says only where it goes and how far (styles.css, .tour-pill-go[data-short]).
+    open.dataset.short = fill(t('Tour · {n}/{total}'), { n: done, total: list.length });
     const away = key('tour-pill-x', null, () => { void keep({ finished: true }); });
     away.innerHTML = CLOSE_ICON; // trusted: our own SVG string
     away.setAttribute('aria-label', t('Hide the tour'));

@@ -96,9 +96,22 @@ body.salas-mac {
 .sm-pill.is-wait i { width: 7px; height: 7px; border-radius: 50%; background: var(--s-acc); animation: sm-beat 1.4s ease-in-out infinite; }
 .sm-pill.is-update { background: color-mix(in srgb, var(--session-wait) 18%, transparent); color: var(--text); }
 .sm-badge { display: inline-grid; place-items: center; min-width: 16px; height: 16px; margin-left: 2px; padding: 0 4px; border-radius: 999px; background: var(--s-acc); color: var(--s-acc-ink); font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0; }
-@media (max-width: 1180px) { .sm-tb-agents { display: none; } }
-@media (max-width: 980px) { .sm-tb-open, .sm-live span, .sm-pill.is-update { display: none; } }
+@media (max-width: 1180px) { .sm-tb-agents, .sm-live span { display: none; } }
+/* However tight the bar, «+n» fits whole: the rooms go behind it, never under the next key. */
+.sm-tb-open:not([hidden]) { min-width: 40px; }
+@media (max-width: 980px) { .sm-tb-open, .sm-pill.is-update { display: none; } }
 @media (max-width: 720px) { .sm-crumb, .sm-barkey span { display: none; } .sm-top { padding: 8px 10px 0; } }
+/* A phone (2026-10-14): the bar never runs under its right group. The logo keeps only its pulse, the
+   keys sit closer, and reload — which the page's own pull does — steps out, as in a project's bar. */
+@media (max-width: 560px) {
+  .sm-top { gap: 6px; padding: 8px 8px 0; }
+  .sm-topbar { gap: 8px; height: 44px; padding: 8px 10px; border-radius: 16px; }
+  .sm-tb-home { gap: 4px; padding: 8px; }
+  .sm-brand { width: 40px; overflow: hidden; }
+  .sm-brand .brand-logo { height: 14px; }
+  .sm-barkey { padding: 0 8px; }
+}
+@media (max-width: 560px) { #sm-reload { display: none; } }
 .sm-brand:focus-visible { outline: 2px solid var(--s-acc); outline-offset: 3px; }
 .sm-spacer { flex: 1; }
 /* The bar's keys are the room's bar keys (styles.css, .mother-button, .tree-button, .stop-all). */

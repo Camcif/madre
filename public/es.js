@@ -4890,4 +4890,6 @@ export const ES = {
   'The Memory map will not ask until {time}.': 'El Mapa de memoria no lo pedirá hasta las {time}.',
   // Inicio: una tecla propia para «Agregar a Inicio» (2026-10-14).
   'Add widgets to Home': 'Agregar widgets a Inicio',
+  // La píldora del recorrido en una barra angosta (2026-10-14).
+  'Tour · {n}/{total}': 'Recorrido · {n}/{total}',
 };
