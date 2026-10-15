@@ -59,8 +59,10 @@ body.salas-mac {
 .sm-crumb { flex: none; font-weight: 600; color: var(--text); }
 .sm-crumb::before { content: '/ '; color: var(--text-3); font-weight: 400; }
 .sm-live { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--text-2); }
-.sm-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--session-ok); }
-.sm-live.is-off i { background: var(--session-bad); }
+.sm-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--session-ok); box-shadow: none; animation: sm-state-pulse 2.6s ease-in-out infinite; }
+.sm-live.is-off i { background: var(--session-bad); animation: none; }
+@keyframes sm-state-pulse { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { .sm-live i { animation: none; } }
 .sm-live.is-off { color: var(--session-bad); }
 /* The projects open: a key each, its state as a lamp — calm, working (it beats), waiting (ringed), older. */
 .sm-tb-open { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; padding: 3px; margin: -3px; }

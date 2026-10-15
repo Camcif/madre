@@ -320,15 +320,19 @@ test('room: the conversation never gives way, and what stands beside it does, ol
   assert.match(css, /::view-transition-new\(madre-split\) \{ height: 100%; object-fit: cover;/);
 });
 
-test('room: a press in the conversation\'s box sends the windows to the edges, and any of them brings them back', async () => {
+test('room: a press in the conversation\'s box sends the windows to the edges, and the one asked for comes back alone', async () => {
   const [app, css] = await Promise.all(['app.js', 'styles.css'].map((name) => readFile(join(import.meta.dirname, '..', 'public', name), 'utf8')));
   assert.match(app, /document\.querySelector\('#composer \.field'\)\?\.addEventListener\('pointerdown', \(\) => setWindowsAside\(true\)\);/);
   // Only what lies over the conversation moves, to its nearer edge, leaving a strip in view.
   assert.match(app, /overTheRoom\(node\)/);
   assert.match(app, /toLeft \? ASIDE_PEEK - box\.right : window\.innerWidth - ASIDE_PEEK - box\.left/);
-  // A window wanted — pressed, opened, or reached by the keyboard — brings them all back.
-  assert.match(app, /if \(windowsAside\) setWindowsAside\(false\);/);
-  assert.match(app, /addEventListener\?\.\('focusin', \(event\) => \{ if \(windowsAside && event\.target\?\.closest\?\.\('\.aside'\)\) setWindowsAside\(false\); \}\);/);
+  // A window wanted — pressed, opened, or reached by the keyboard — comes back alone: opening the
+  // Finder from the bar does not bring Settings back with it (2026-10-14).
+  assert.match(app, /if \(windowsAside\) setWindowsAside\(false, \{ only: node \}\);/);
+  assert.match(app, /addEventListener\?\.\('focusin', \(event\) => \{ const win = windowsAside && event\.target\?\.closest\?\.\('\.aside'\); if \(win\) setWindowsAside\(false, \{ only: win \}\); \}\);/);
+  // A key of the bar whose window is at the edge brings it back instead of closing it.
+  assert.match(app, /openSettings\(!settingsWindow\.node\?\.open \|\| atTheEdge\(settingsWindow\.node\)\)/);
+  assert.match(app, /setTree\(!tree\.open \|\| atTheEdge\(els\.tree\)\)/);
   // A translate on the compositor, and a strip is one press: nothing inside it is pressed.
   assert.match(css, /\.aside \{ translate: var\(--aside-x, 0px\) 0;/);
   assert.match(css, /\.aside > \* \{ pointer-events: none; \}/);
@@ -354,12 +358,13 @@ test('windows: a change of the room never paints the conversation across a windo
   assert.match(morph, /node\.style\.setProperty\('view-transition-name', `madre-held-\$\{index\}`\);/);
   assert.match(morph, /node\.style\.removeProperty\('view-transition-name'\);/);
   assert.match(css, /::view-transition-group\(\.madre-held\) \{ animation: none; \}/);
-  // A press on something that does a thing brings the windows back; the composer's own menus do
-  // not; a press on the desktop itself toggles them, aside and back.
-  assert.match(app, /if \(!windowsAside \|\| target\?\.closest\?\.\('#composer, \.model-menu, \.agent-pop, \.slash-menu'\)\) return;/);
+  // A press on something that does a thing leaves the windows where they are; a press on the
+  // desktop sends aside what is still over it, and with nothing left there brings them all back.
+  assert.ok(!/if \(!windowsAside \|\| target\?\.closest\?\.\('#composer/.test(app), 'a press on the bar brings every window back again');
+  assert.match(app, /const deskToggle = \(\) => setWindowsAside\(windowsUp\(\)\.length > 0 \|\| !windowsAside, \{ always: true \}\);/);
   // On the bare ground it answers on the press (no wait for the release); on words, on release.
-  assert.match(app, /if \(event\.button !== 0 \|\| event\.target\?\.closest\?\.\(DESK_WORDS\) \|\| !deskPress\(event\)\) return;\n    deskAnswered = true;\n    setWindowsAside\(!windowsAside, \{ always: true \}\);/);
-  assert.match(app, /if \(deskAnswered\) \{ deskAnswered = false; return; \}\n    if \(deskPress\(event\)\) setWindowsAside\(!windowsAside, \{ always: true \}\);/);
+  assert.match(app, /if \(event\.button !== 0 \|\| event\.target\?\.closest\?\.\(DESK_WORDS\) \|\| !deskPress\(event\)\) return;\n    deskAnswered = true;\n    deskToggle\(\);/);
+  assert.match(app, /if \(deskAnswered\) \{ deskAnswered = false; return; \}\n    if \(deskPress\(event\)\) deskToggle\(\);/);
   // The bars and an agent's sphere are never the desktop: a press there does not move the windows.
   assert.match(app, /const NOT_DESK = '[^']*\.bar[^']*\.avatar[^']*';/);
   assert.match(app, /target\.closest\(DESK_ACTIVE\) \|\| target\.closest\(NOT_DESK\)\) return false;/);

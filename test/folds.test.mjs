@@ -282,7 +282,8 @@ test('modules: a press inside a dialog is never the desktop, the button brings a
   // other window aside.
   assert.match(app, /target\.closest\(WINDOW_SELECTOR\) \|\| target\.closest\('dialog'\) \|\| target\.closest\('#composer'\)/);
   // MODULES is a window like AJUSTES: open but aside or behind, the button brings it to the front.
-  assert.match(app, /function openModules\(\) \{[\s\S]*?if \(windowsAside\) setWindowsAside\(false\);\n  bringWindowForward\(node\);/);
+  assert.match(app, /function openModules\(\) \{[\s\S]*?placeModules\(modulesBoxFor\(\), \{ chosen: false \}\);\n  \}\n  bringWindowForward\(node\);/);
+  assert.match(app, /if \(node\.open && node\.classList\.contains\('front'\) && !node\.classList\.contains\('aside'\)\) \{ closeModules\(\); return; \}/);
   assert.match(app, /carryWindowBy\(head, node, \{ box: \(\) => modulesWindow\.box, place: placeModules, done: rememberModulesBox \}\);/);
   assert.match(app, /windowEdgesFor\(node, \{ box: \(\) => modulesWindow\.box, place: placeModules, done: rememberModulesBox, minW: 320, minH: 300 \}\);/);
   // Ash's economy is its window's own content, and its card's button opens that window.
@@ -298,7 +299,7 @@ test('bar: the live light breathes on the conversation it is live for, and says 
   const [app, css] = await Promise.all([read('app.js'), read('styles.css')]);
   assert.match(app, /els\.connection\?\.closest\('\.bar'\)\?\.querySelector\('\.bar-left'\)\?\.append\(els\.connection\);/);
   assert.match(app, /els\.connection\.dataset\.said = /);
-  assert.match(css, /\.bar-left \.connection\[data-state="live"\] \.connection-dot \{[^}]*animation: live-glow/);
+  assert.match(css, /\.bar-left \.connection\[data-state="live"\] \.connection-dot \{[^}]*animation: state-pulse/);
   assert.match(css, /\.bar-left #project \{ color: var\(--text\); font-weight: 600; \}/);
   assert.match(css, /\.bar-left \.project\.chat-here \{ color: var\(--text-2\); font-weight: 400; \}/);
 });

@@ -4882,4 +4882,5 @@ export const ES = {
     'En Ajustes › Conectar MCP agrega las herramientas que pueden usar los agentes de este proyecto —un comando en esta computadora o una dirección en internet— o trae las que ya usas en Claude Code, Codex, Gemini o Cursor.',
   'fold': 'plegar',
   '{n} notices': '{n} avisos',
+  '{agent} is not installed on this computer.': '{agent} no está instalado en esta computadora.',
 };

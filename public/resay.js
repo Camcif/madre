@@ -57,6 +57,7 @@ const SAID = [
   '@{agent} already holds {mode} of this project; one holder at a time. STOPALL revokes it.',
   '@{agent} left the project: Ollama is not running. Start Ollama, or open Local AI in Modules.',
   '@madre is in the project · {version}',
+  '{agent} is not installed on this computer.',
   '@madre left the project: Ollama has no chat model running',
   '@{agent} left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.',
   'Google reported the model as unavailable (HTTP 503) and the CLI kept retrying.',

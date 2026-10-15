@@ -1993,7 +1993,7 @@ browserGrip?.addEventListener('pointerdown', (event) => {
   }, { once: true });
 });
 
-browser.button?.addEventListener('click', () => { if (browser.dialog && !browser.dialog.hidden) browserHide(); else browserShow(); });
+browser.button?.addEventListener('click', () => { if (browser.dialog && !browser.dialog.hidden && !atTheEdge(browser.dialog)) browserHide(); else browserShow(); });
 browser.close?.addEventListener('click', () => browserHide());
 browser.servers?.addEventListener('click', () => { void browserServers(); });
 // A list left hanging over the page is the kind of thing a human closes by clicking away from it.
@@ -6268,6 +6268,8 @@ function countStrip(strip) {
   const open = strip.classList.contains('open');
   more.textContent = open ? t('fold') : notices.length > 1 ? `+${notices.length - 1}` : '';
   more.hidden = !open && notices.length < 2;
+  // A row of one is only its dot, centred in a round badge.
+  strip.classList.toggle('single', !open && notices.length < 2);
   strip.tabIndex = 0;
   strip.setAttribute('role', 'button');
   strip.setAttribute('aria-expanded', String(open));
@@ -6794,7 +6796,8 @@ function openCustom(open) {
   customButton.setAttribute('aria-expanded', String(open));
   customButton.setAttribute('aria-pressed', String(open));
 }
-customButton?.addEventListener('click', () => openSettings(!settingsWindow.node?.open));
+// A window at the edge is not shown: its key brings it back instead of closing it.
+customButton?.addEventListener('click', () => openSettings(!settingsWindow.node?.open || atTheEdge(settingsWindow.node)));
 customWindow.node?.addEventListener('close', () => { customButton?.setAttribute('aria-expanded', 'false'); customButton?.setAttribute('aria-pressed', 'false'); });
 
 /* ---------- AJUSTES: every setting in one window ---------- */
@@ -8341,10 +8344,12 @@ const WINDOW_LAYER = 30;
 const windowPlacers = new WeakMap();
 const windowStack = [];
 const WINDOW_SELECTOR = '.tree.window, .surface.window, .conv-window, .browser-dock.window';
+function atTheEdge(node) { return Boolean(node?.classList?.contains('aside')); }
 function bringWindowForward(node) {
   if (!node) return;
-  // A window asked for is a window wanted back: every one returns from the edge.
-  if (windowsAside) setWindowsAside(false);
+  // A window asked for is that window wanted back: it alone returns from the edge; the others it
+  // left there stay there until they are asked for too.
+  if (windowsAside) setWindowsAside(false, { only: node });
   for (let i = windowStack.length - 1; i >= 0; i -= 1) {
     const one = windowStack[i];
     if (one === node || !one.isConnected || !one.matches(WINDOW_SELECTOR)) { windowStack.splice(i, 1); if (one !== node) { one.style.removeProperty('z-index'); one.classList.remove('front'); } }
@@ -8417,7 +8422,8 @@ function dropWindow(node) {
   if (at >= 0) windowStack.splice(at, 1);
   node?.style.removeProperty('z-index');
   node?.style.removeProperty('--depth');
-  node?.classList.remove('front', 'behind');
+  node?.classList.remove('front', 'behind', 'aside', 'aside-moving');
+  if (node?.dataset) delete node.dataset.aside;
   // The one now on top is the one in front.
   windowStack.at(-1)?.classList.add('front');
   paintDepth();
@@ -8427,7 +8433,7 @@ function dropWindow(node) {
 // windows come back over it — it goes back to its layer. Pressing it once never left it clear for
 // good: that was a desktop that stayed sharp under windows that had come back.
 const writing = () => Boolean(document.activeElement?.closest?.('#composer'));
-function deskInUse() { focusDesk(writing() || windowsAside); }
+function deskInUse() { focusDesk(writing() || (windowsAside && !windowsUp().length)); }
 if (!SPLIT_CHAT) {
   document.addEventListener?.('focusin', deskInUse);
   // Focus leaves the box before the next element has it: read once it has landed.
@@ -8444,9 +8450,9 @@ document.addEventListener?.('pointerdown', (event) => {
 
 // A press in the conversation's own box says «this, now». Every window lying over the conversation
 // slides to its nearer edge, one just after another, the way a desktop is shown, and leaves a strip
-// of itself in view so it is plain where it went. A press anywhere outside the box — a strip, the
-// thread, the bar — opening any window, or the keyboard reaching into one brings them all back to
-// where they were. The menus the box opens (mode, model, effort, an agent's card) are the box's. Only a translate moves: the
+// of itself in view so it is plain where it went. Pressing a strip, opening a window or the keyboard
+// reaching into one brings back that window only — opening the Finder from the bar is not asking for
+// Settings too; the desktop pressed again brings them all back. The menus the box opens (mode, model, effort, an agent's card) are the box's. Only a translate moves: the
 // windows are not laid out again on the way, and nothing about them is lost.
 const ASIDE_PEEK = 30;
 let windowsAside = false;
@@ -8457,13 +8463,16 @@ function overTheRoom(node) {
   if (!room?.width || !box.width) return false;
   return box.right > room.left + 8 && box.left < room.right - 8;
 }
-function setWindowsAside(on, { always = false } = {}) {
-  if (on === windowsAside) return;
-  clearTimeout(asideSettle);
+function windowsUp() {
+  return [...document.querySelectorAll(WINDOW_SELECTOR)].filter((node) => !node.hidden && node.getClientRects().length && !node.classList.contains('aside') && overTheRoom(node));
+}
+function setWindowsAside(on, { always = false, only = null } = {}) {
+  if (!on && !windowsAside) return;
   if (on) {
-    const moving = [...document.querySelectorAll(WINDOW_SELECTOR)].filter((node) => !node.hidden && node.getClientRects().length && overTheRoom(node));
+    const moving = windowsUp();
     // Shown on purpose, the desktop clears even when no window lay over the conversation.
-    if (!moving.length && !always) return;
+    if (!moving.length && (!always || windowsAside)) return;
+    clearTimeout(asideSettle);
     windowsAside = true;
     moving.forEach((node, index) => {
       const box = node.getBoundingClientRect();
@@ -8474,12 +8483,16 @@ function setWindowsAside(on, { always = false } = {}) {
       node.classList.add('aside-moving', 'aside');
     });
   } else {
-    windowsAside = false;
-    for (const node of document.querySelectorAll('.aside')) {
+    const back = only ? [only].filter((node) => node.classList.contains('aside')) : [...document.querySelectorAll('.aside')];
+    // Asked for while it was not at the edge: the others stay where they are.
+    if (only && !back.length) return;
+    clearTimeout(asideSettle);
+    for (const node of back) {
       node.style.setProperty('--aside-delay', '0ms');
       node.classList.remove('aside');
       delete node.dataset.aside;
     }
+    windowsAside = Boolean(document.querySelector('.aside'));
   }
   document.documentElement.classList.toggle('windows-aside', windowsAside);
   deskInUse();
@@ -8510,14 +8523,10 @@ function deskPress(event) {
 }
 if (!SPLIT_CHAT) {
   document.querySelector('#composer .field')?.addEventListener('pointerdown', () => setWindowsAside(true));
-  document.addEventListener?.('pointerdown', (event) => {
-    // A press that does something else brings the windows back; a press on the desktop decides on
-    // release, below, whether it was a toggle or the start of a selection.
-    const target = event.target;
-    if (!windowsAside || target?.closest?.('#composer, .model-menu, .agent-pop, .slash-menu')) return;
-    if (target?.closest?.('.shell') && !target.closest(WINDOW_SELECTOR) && !target.closest(DESK_ACTIVE)) return;
-    setWindowsAside(false);
-  }, true);
+  // A press on a strip brings that window back (bringWindowForward, above); a press that does
+  // something else — the bar, a button — leaves the windows where they are.
+  // The desktop pressed: windows still over the conversation go aside; with none left, all come back.
+  const deskToggle = () => setWindowsAside(windowsUp().length > 0 || !windowsAside, { always: true });
   // On the bare ground there is nothing to select, so the desktop answers on the press itself, not
   // on the release (that wait read as a delay). On words — a bubble, a line of the room — it still
   // decides on release, where a drag that selected text is told apart from a click.
@@ -8527,13 +8536,13 @@ if (!SPLIT_CHAT) {
     deskAnswered = false;
     if (event.button !== 0 || event.target?.closest?.(DESK_WORDS) || !deskPress(event)) return;
     deskAnswered = true;
-    setWindowsAside(!windowsAside, { always: true });
+    deskToggle();
   });
   document.addEventListener?.('click', (event) => {
     if (deskAnswered) { deskAnswered = false; return; }
-    if (deskPress(event)) setWindowsAside(!windowsAside, { always: true });
+    if (deskPress(event)) deskToggle();
   });
-  document.addEventListener?.('focusin', (event) => { if (windowsAside && event.target?.closest?.('.aside')) setWindowsAside(false); });
+  document.addEventListener?.('focusin', (event) => { const win = windowsAside && event.target?.closest?.('.aside'); if (win) setWindowsAside(false, { only: win }); });
   window.addEventListener?.('resize', () => { if (windowsAside) setWindowsAside(false); });
 }
 
@@ -9012,7 +9021,7 @@ document.querySelector('#tree-refresh')?.addEventListener('click', (event) => {
   if (finder.q?.value.trim()) { finder.q.dispatchEvent(new Event('input')); return; }
   treeFollowWrites({ now: true });
 });
-els.treeButton?.addEventListener('click', () => setTree(!tree.open));
+els.treeButton?.addEventListener('click', () => setTree(!tree.open || atTheEdge(els.tree)));
 // A new file from the Finder: its path asked in the room's alert, made empty, opened in the viewer.
 document.querySelector('#tree-new')?.addEventListener('click', async () => {
   const path = await roomAsk({
@@ -11831,7 +11840,6 @@ function openMother() {
     bootMother();
     renderMother();
   }
-  if (windowsAside) setWindowsAside(false);
   bringWindowForward(node);
   mother.button.setAttribute('aria-pressed', 'true');
   // On a phone the keyboard would cover what MU/TH/UR says; it comes up when the field is touched.
@@ -14259,7 +14267,6 @@ function openModules() {
     setTimeout(() => node.classList.remove('entering'), motion(460));
     placeModules(modulesBoxFor(), { chosen: false });
   }
-  if (windowsAside) setWindowsAside(false);
   bringWindowForward(node);
   modules.button.setAttribute('aria-pressed', 'true');
 }
@@ -14272,7 +14279,7 @@ function closeModules() {
 // Open, behind or set aside: the button brings it to the front; in front, it closes it.
 modules.button.addEventListener('click', async () => {
   const node = modules.dialog;
-  if (node.open && node.classList.contains('front') && !windowsAside) { closeModules(); return; }
+  if (node.open && node.classList.contains('front') && !node.classList.contains('aside')) { closeModules(); return; }
   openModules();
   await refreshModules();
   renderModules();

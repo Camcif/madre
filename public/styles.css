@@ -1193,8 +1193,9 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .effort-meter.ghost i.on { background: color-mix(in srgb, var(--tone) 45%, var(--text-3)); }
 
 .model-menu.effort-menu { --tone: var(--agent, var(--phosphor)); width: min(400px, calc(100vw - 24px)); padding: 12px 14px 10px; }
-.effort-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 2px 12px; }
-.effort-head .model-menu-title { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.effort-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 2px 2px 12px; }
+/* The title reads whole on its own line; AUTO goes under it and never covers it (2026-10-14). */
+.effort-head .model-menu-title { flex: 1 1 100%; margin: 0; white-space: normal; overflow: visible; line-height: 1.4; }
 /* Letting the CLI decide: a small switch beside the title, lit while it is the choice. */
 .effort-auto { display: inline-flex; align-items: center; gap: 7px; flex: none; height: 26px; padding: 0 10px 0 9px; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; color: var(--text-2); font: inherit; cursor: pointer; transition: color var(--motion) var(--ease-out), border-color var(--motion) var(--ease-out), background-color var(--motion) var(--ease-out); }
 .effort-auto .auto-dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; transition: background-color var(--motion) var(--ease-out); }
@@ -5688,7 +5689,9 @@ dialog.mother { --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospa
 /* Dark theme: the box is its own black, a neutral graphite rather than the room's green-black,
    and the row of mode, model and effort under it steps back so it never competes with it. */
 :root:not([data-scheme="light"]) .shell .composer .field { background-color: color-mix(in srgb, #1a1b1d 96%, transparent); }
-:root:not([data-scheme="light"]) .composer > .pick-options .pick-label { background: color-mix(in srgb, var(--bg) 45%, transparent); box-shadow: none; }
+/* Dark glass reads on a dark ground (2026-10-14): the ground at 45% over the ground was invisible,
+   so it takes a breath of the text colour, a half-pixel rim and the same blur as in light. */
+:root:not([data-scheme="light"]) .composer > .pick-options .pick-label { background: color-mix(in srgb, var(--text) 13%, color-mix(in srgb, var(--bg) 52%, transparent)); box-shadow: 0 0 0 .5px color-mix(in srgb, var(--text) 20%, transparent), inset 0 1px 0 rgb(255 255 255 / .09), 0 6px 18px rgb(0 0 0 / .28); -webkit-backdrop-filter: blur(20px) saturate(1.7); backdrop-filter: blur(20px) saturate(1.7); }
 :root:not([data-scheme="light"]) .composer > .pick-options :is(.mode-chip, .model-chip, .effort-chip) { opacity: .78; }
 :root:not([data-scheme="light"]) .composer > .pick-options :is(.mode-chip, .model-chip, .effort-chip):is(:hover, :focus-visible, [aria-expanded="true"]) { opacity: 1; }
 
@@ -6447,9 +6450,13 @@ dialog.surface.window:is(.settings-window, .module-window).lifted { background-c
 .bar-left .connection { position: relative; align-self: flex-start; margin: 9px 0 0 -2px; padding: 4px; text-transform: none; cursor: default; }
 .bar-left .connection :is(.connection-icon .bar-glyph, .connection-label) { display: none; }
 .bar-left .connection .connection-dot { width: 7px; height: 7px; background: var(--text-3); box-shadow: none; }
-.bar-left .connection[data-state="live"] .connection-dot { background: #34d058; animation: live-glow 3.2s ease-in-out infinite; }
-.bar-left .connection[data-state="reconnecting"] .connection-dot { background: var(--warn); animation: live-glow 1.2s ease-in-out infinite; }
-@keyframes live-glow { 0%, 100% { opacity: .55; box-shadow: 0 0 0 0 rgba(52, 208, 88, 0); } 50% { opacity: 1; box-shadow: 0 0 6px 2px rgba(52, 208, 88, .55); } }
+.bar-left .connection[data-state="live"] .connection-dot { background: #34d058; animation: state-pulse 2.6s ease-in-out infinite; }
+.bar-left .connection[data-state="reconnecting"] .connection-dot { background: var(--warn); animation: state-pulse 1.1s ease-in-out infinite; }
+.bar-left .connection:is([data-state="offline"], [data-state="closed"], [data-state="disconnected"]) .connection-dot { background: var(--danger, #e5484d); animation: none; }
+/* The project's state is a dot that breathes, nothing more (2026-10-14): from its size to a little
+   larger and back, in the colour of the state. No glow around it. */
+@keyframes state-pulse { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.15); } }
+:root.just-arrived .bar-left .connection[data-state="live"] .connection-dot { animation: state-pulse 2.6s ease-in-out infinite; }
 .bar-left .connection::after { content: attr(data-said); position: absolute; top: calc(100% + 8px); left: 50%; translate: -50% 0; padding: 4px 9px; border-radius: 8px; font-family: var(--read); font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--text); background: var(--surface, var(--panel)); box-shadow: var(--key-rest); opacity: 0; pointer-events: none; transition: opacity var(--motion-fast) var(--ease-out); z-index: 60; }
 .bar-left .connection:hover::after { opacity: 1; }
 .bar-left .connection::first-letter { text-transform: none; }
@@ -8101,6 +8108,14 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
   width: fit-content; max-width: min(92%, 560px); margin-inline: auto; padding: 8px 16px 9px; border: 0; border-radius: 18px;
 }
 #messages#messages .row > .col > .who { width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px; }
+/* A failure wears the room's own card (2026-10-14): rounded, as wide as its words, in its red
+   tint — it was a square box of another app. Its RETRY and UNDO stay under it. */
+#messages#messages .thread-inner > .system.fail {
+  width: fit-content; max-width: min(92%, 560px); margin-inline: auto; padding: 10px 18px 11px; border: 0; border-radius: 18px;
+  background: color-mix(in srgb, var(--danger) 9%, var(--plane-solid, var(--panel))) !important;
+  box-shadow: 0 0 0 .5px color-mix(in srgb, var(--danger) 30%, transparent) !important;
+}
+#messages#messages .thread-inner > .system.fail .label { font-family: var(--mono); letter-spacing: .14em; }
 
 /* ==========================================================================================
    NOTICES THAT FOLD INTO DOTS (2026-10-14)
@@ -8124,6 +8139,7 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
 }
 #messages .sys-dots:hover, #messages .sys-dots:focus-visible { background: color-mix(in srgb, var(--bg) 78%, transparent); outline: none; }
 #messages .sys-dots > .sys-more { font: inherit; color: inherit; }
+#messages .sys-dots.single { padding: 6px; gap: 0; justify-content: center; }
 #messages#messages .sys-dots > .system.folded { --dot: var(--text-3); margin: 0; cursor: inherit; }
 #messages#messages .sys-dots > .system.folded[data-tone="crit"] { --dot: var(--terror, #d33); }
 #messages#messages .sys-dots > .system.folded[data-tone="warn"] { --dot: var(--warn, #e2a022); }
@@ -8171,9 +8187,9 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
    (`#composer#composer` only outranks CHIPS IN FLAT TONE, which had flattened them into tags.)
    ========================================================================================== */
 :root {
-  --lq-fill: color-mix(in srgb, var(--bg) 45%, transparent);
-  --lq-fill-over: color-mix(in srgb, var(--bg) 62%, transparent);
-  --lq-rim: none;
+  --lq-fill: color-mix(in srgb, var(--text) 7%, color-mix(in srgb, var(--bg) 45%, transparent));
+  --lq-fill-over: color-mix(in srgb, var(--text) 11%, color-mix(in srgb, var(--bg) 62%, transparent));
+  --lq-rim: 0 0 0 .5px color-mix(in srgb, var(--text) 12%, transparent), inset 0 1px 0 rgb(255 255 255 / .05);
 }
 :root[data-scheme="light"] {
   --lq-fill: color-mix(in srgb, var(--bg) 62%, transparent);
