@@ -9,7 +9,7 @@ test('first contact: the five-stop tour of 0.7 is gone; the welcome of 1.0 (publ
   const [app, page] = await Promise.all([read('public/app.js'), read('public/index.html')]);
   assert.ok(!app.includes('TOUR_STEPS') && !/function startTour\(\)/.test(app), 'the old tour still has code');
   assert.ok(!page.includes('id="tour"'), 'the old tour still has its dialog');
-  assert.match(app, /import \{ startTour as startWelcome \} from '\.\/tour\.js';/);
+  assert.match(app, /import \{ (?:spotlight, )?startTour as startWelcome \} from '\.\/tour\.js';/);
 });
 
 test('first steps: offered once to a first visit, ticked by doing, never by a «done» key', async () => {

@@ -75,6 +75,36 @@ const SCENES = {
   gestures: () => `<div class="ts-caps"><span class="ts-cap c0">⌘ ,</span><span class="ts-cap c1">Esc</span><span class="ts-cap c2">?</span></div>`,
 };
 
+// What a first-time card speaks of, lit, and the rest of the page a shade quieter: the card needs
+// no beak to say where it points (2026-10-15). A ring laid over the place, never the place itself
+// lifted (a key inside the bar cannot leave the bar's layer). `place()` follows it when it moves;
+// `remove()` takes it away with the card.
+export function spotlight(node) {
+  const none = { place() {}, remove() {} };
+  if (!node?.getBoundingClientRect || typeof document === 'undefined') return none;
+  const spot = document.createElement('div');
+  spot.className = 'hint-spot';
+  spot.setAttribute('aria-hidden', 'true');
+  document.body.append(spot);
+  const place = () => {
+    if (!node.isConnected) { remove(); return; }
+    const box = node.getBoundingClientRect();
+    spot.hidden = !box.width && !box.height;
+    if (spot.hidden) return;
+    const radius = Number.parseFloat(getComputedStyle(node).borderTopLeftRadius) || 10;
+    Object.assign(spot.style, { left: `${box.left - 4}px`, top: `${box.top - 4}px`, width: `${box.width + 8}px`, height: `${box.height + 8}px`, borderRadius: `${Math.min(radius + 4, (box.height + 8) / 2)}px` });
+  };
+  function remove() {
+    window.removeEventListener('resize', place);
+    window.removeEventListener('scroll', place, true);
+    spot.remove();
+  }
+  window.addEventListener('resize', place);
+  window.addEventListener('scroll', place, true);
+  place();
+  return { place, remove };
+}
+
 // `onChange` hears the kept state each time it is known or changes (null if it could not be read).
 // `phone`: none of it here (a phone, or the right half of a split window); `device`: this page is a
 // phone, which gets one card the first time instead of the bonjour.
@@ -484,9 +514,11 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const card = el('section', `tour-hint${inside ? ' inline' : ''}`);
     card.setAttribute('role', 'note');
     card.append(el('span', 'tour-hint-eyebrow', t('The first time')), el('b', null, title), el('p', null, text));
+    let spot = null;
     const done = () => {
       if (!hintNode) return;
       void keep({ hint: id });
+      spot?.remove();
       card.remove();
       hintNode = null;
       document.removeEventListener('keydown', onKey, true);
@@ -511,6 +543,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const left = Math.max(12, Math.min(window.innerWidth - width - 12, onTheRight ? box.right - width : box.left));
     const below = box.bottom + 10 + height < window.innerHeight;
     Object.assign(card.style, { left: `${left}px`, top: `${below ? box.bottom + 10 : Math.max(12, box.top - height - 10)}px` });
+    spot = spotlight(anchor);
     document.addEventListener('keydown', onKey, true);
     return true;
   }

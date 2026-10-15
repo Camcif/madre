@@ -7,7 +7,7 @@ import { DEFAULT_LANGUAGE, LANGUAGES, browserLanguage, isLanguage, language, pic
 import { createEditor } from './editor.js';
 import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
-import { startTour as startWelcome } from './tour.js';
+import { spotlight, startTour as startWelcome } from './tour.js';
 import { dropStickyHover } from './touch.js';
 // Where nothing can hover (a phone), a tapped key does not stay lit (public/touch.js).
 dropStickyHover();
@@ -17885,6 +17885,7 @@ function firstTouch(id) {
 }
 function showFirstTouch(hint, button) {
   document.querySelector('.hint-card')?.remove();
+  document.querySelectorAll('.hint-spot').forEach((node) => node.remove());
   const card = el('section', 'hint-card');
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-label', hint.title);
@@ -17896,8 +17897,8 @@ function showFirstTouch(hint, button) {
   if (modal) card.classList.add('in-modal');
   // Placed once the workspace has opened, because opening it moves things: the bar narrows when
   // the browser docks, and the conversations button steps aside for its own panel. Under the
-  // button, with its point aimed at it, while the button is there to point at; beside the panel
-  // it opened, with no point at all, when the button is gone.
+  // button, which the spotlight lights, while the button is there; beside the panel it opened
+  // when the button is gone.
   const place = () => {
     const box = button.getBoundingClientRect();
     const width = card.offsetWidth;
@@ -17915,12 +17916,15 @@ function showFirstTouch(hint, button) {
     const above = box.bottom + 12 + card.offsetHeight > window.innerHeight - 8;
     card.classList.toggle('above', above);
     card.style.top = `${above ? Math.max(12, box.top - 12 - card.offsetHeight) : box.bottom + 12}px`;
-    card.style.setProperty('--arrow', `${Math.min(width - 20, Math.max(14, box.left + box.width / 2 - left))}px`);
   };
   card.style.visibility = 'hidden';
-  const show = () => { place(); card.style.visibility = ''; };
+  // No beak: the place it speaks of is lit and the rest dims a little. Inside a modal window the
+  // card is in the top layer and a ring under it would sit behind the window, so none there.
+  const spot = modal ? null : spotlight(button);
+  const show = () => { place(); spot?.place(); card.style.visibility = ''; };
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(show)); else show();
   const close = () => {
+    spot?.remove();
     card.remove();
     document.removeEventListener('pointerdown', outside, true);
     document.removeEventListener('keydown', escape, true);

@@ -2919,13 +2919,7 @@ dialog.whats-new::backdrop { background: rgba(0, 0, 0, .45); backdrop-filter: bl
   border-radius: 16px; background: var(--panel); color: var(--text); border: 1px solid var(--line-2);
   box-shadow: 0 18px 50px rgba(0, 0, 0, .4); animation: wn-in calc(300ms * var(--motion-scale)) cubic-bezier(.2, .8, .2, 1);
 }
-.hint-card.beside::before { content: none; }
-.hint-card::before {
-  content: ''; position: absolute; top: -7px; left: calc(var(--arrow, 24px) - 6px); width: 12px; height: 12px;
-  background: var(--panel); border-left: 1px solid var(--line-2); border-top: 1px solid var(--line-2); transform: rotate(45deg);
-}
 @media (prefers-reduced-motion: reduce) { .hint-card { animation: none; } }
-.hint-card.above::before { top: auto; bottom: -7px; border-left: 0; border-top: 0; border-right: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
 .hint-card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
 .hint-card p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
 .hint-ok { margin-top: 12px; border: 0; border-radius: 10px; padding: 7px 14px; background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
@@ -8783,7 +8777,6 @@ dialog.tour-bonjour::backdrop { background: transparent; }
   .ts-widgets .ts-card:nth-child(2) i { animation-delay: .15s; } .ts-widgets .ts-card:nth-child(3) i { animation-delay: .3s; } .ts-widgets .ts-card:nth-child(4) i { animation-delay: .45s; }
 }
 @keyframes ts-fill { from { background-size: 0 100%; background-repeat: no-repeat; } to { background-size: 100% 100%; background-repeat: no-repeat; } }
-.hint-card.in-modal::before { content: none; }
 
 /* The tables of what was renamed or moved: a long new name wraps under itself, never past the box. */
 .ts-moved-row .now { overflow-wrap: anywhere; line-height: 1.35; }
@@ -9172,11 +9165,9 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 }
 
 /* 04 · Cabecera: el nombre del agente en su píldora, en letra de lectura; modelo y esfuerzo detrás,
-   en voz baja; el modo conserva su color. */
+   en píldoras neutras (AJUSTES EN LA SALA REAL, al final); el modo conserva su color. */
 :root:not([data-lab04]) #messages#messages .row.assistant .col > .who { align-items: center; gap: 8px; padding: 3px 10px 3px 3px; }
 :root:not([data-lab04]) #messages#messages .row.assistant .col > .who > span:first-child { padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--agent) 15%, transparent); color: color-mix(in srgb, var(--agent) 82%, var(--text)); font: 600 12.5px/1.4 var(--read); letter-spacing: 0; text-transform: none; }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge:is(.model, .effort) { padding: 0; background: none !important; color: var(--text-3); font: 400 11.5px/1.4 var(--read); letter-spacing: 0; text-transform: none; }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.effort::before { content: '·'; margin-right: 8px; color: var(--text-3); }
 
 /* 05 · Cuerpo: la burbuja, con la esquina corta hacia el avatar, que va abajo. */
 :root:not([data-reply]) #messages#messages .row.assistant:not(.delegated) .bubble { border-radius: 20px 20px 20px 6px; padding: 13px 17px 10px; }
@@ -9258,3 +9249,60 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
   #messages#messages .row.thinking > .avatar::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent, var(--phosphor)) 30%, transparent); }
   #messages#messages .bubble .file-tile:hover { transform: none; }
 }
+
+/* ==========================================================================================
+   AJUSTES EN LA SALA REAL (2026-10-15, tras ACCC-BABA-ECBB-DCAA-C)
+   ========================================================================================== */
+
+/* El conjunto de un agente en un solo carril: la cabecera, la burbuja, lo que pide (elección,
+   comandos) y sus /run empiezan donde empieza la burbuja, a la derecha del avatar. */
+:root:not([data-reply]) #messages#messages .row.assistant { column-gap: 14px; }
+:root:not([data-reply]) #messages#messages .row.assistant .col > .who { margin-left: 0; }
+:root:not([data-reply]) #messages#messages .thread-inner > :is(.choice, .command-card) { --agent-lane: 42px; margin-left: var(--agent-lane) !important; margin-right: 0; max-width: min(760px, calc(100% - var(--agent-lane))); }
+:root:not([data-reply])[data-term="pill"] #messages#messages .thread-inner > .command-card.terminal.open { width: auto; }
+
+/* La cabecera: cada insignia con la misma forma que la píldora del nombre (22 px, redonda, letra de
+   lectura); el tiempo de lo cobrado en voz baja; la respuesta citada se corta antes que desbordar. */
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who { flex-wrap: wrap; row-gap: 4px; max-width: 100%; box-sizing: border-box; border-radius: 14px; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who > span:first-child { display: inline-block; height: 22px; padding: 0 10px; line-height: 22px; box-sizing: border-box; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who :is(.badge, .to-agent) {
+  display: inline-block; flex: none; height: 22px; max-width: 100%; padding: 0 9px; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 7%, transparent) !important; color: var(--text-2);
+  font: 500 11.5px/22px var(--read); letter-spacing: 0; text-transform: none;
+}
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge:not(.model, .mode)::first-letter { text-transform: uppercase; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.model.effort::first-letter { text-transform: uppercase; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.ash { text-transform: lowercase; background: color-mix(in srgb, var(--phosphor) 12%, transparent) !important; color: color-mix(in srgb, var(--phosphor) 85%, var(--text)); }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.mode { font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .to-agent { background: color-mix(in srgb, var(--agent) 13%, transparent) !important; color: color-mix(in srgb, var(--agent) 82%, var(--text)); }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .reply { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; letter-spacing: 0; text-transform: none; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .spent { flex: none; font: 400 11px var(--mono); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; color: var(--text-3); }
+
+/* Modo · modelo · esfuerzo en claro: el mismo vidrio blanco que ya tiene en oscuro. */
+:root[data-scheme="light"] .composer > .pick-options .pick-label {
+  background: rgb(255 255 255 / .6);
+  box-shadow: 0 0 0 .5px rgb(20 30 20 / .1), inset 0 1px 0 #ffffff, 0 6px 18px rgb(20 30 20 / .1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);
+}
+
+/* Cambiar de proyecto: al pasar, el cuadro de atrás se despega un poco; al presionar, o con la
+   ventana abierta, se ilumina el de enfrente. */
+.switch-button svg > path { transition: transform calc(220ms * var(--motion-scale) / .7) cubic-bezier(.2, .8, .2, 1); }
+.switch-button:is(:hover, :focus-visible) svg > path { transform: translate(1.3px, -1.3px); }
+.switch-button svg > .ic-f { transition: fill calc(160ms * var(--motion-scale)) ease, filter calc(160ms * var(--motion-scale)) ease; }
+.switch-button:active svg > .ic-f, body:has(dialog.room-switch[open]) .switch-button svg > .ic-f { fill: currentColor; fill-opacity: .9; filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 45%, transparent)); }
+@media (prefers-reduced-motion: reduce) { .switch-button svg > path { transition: none; } .switch-button:is(:hover, :focus-visible) svg > path { transform: none; } }
+
+/* El foco de un aviso de primera vez (spotlight, tour.js): lo que el aviso nombra se ve claro, con
+   un aro suave del acento, y el resto de la página baja un poco. Sin pico en la tarjeta. */
+.hint-spot {
+  position: fixed; z-index: 2147482999; pointer-events: none; box-sizing: border-box;
+  box-shadow: 0 0 0 200vmax rgb(14 20 16 / .16), 0 0 0 2px color-mix(in srgb, var(--accent, var(--phosphor)) 55%, transparent), 0 0 24px 2px color-mix(in srgb, var(--accent, var(--phosphor)) 32%, transparent);
+  background: rgb(255 255 255 / .06);
+  animation: hint-spot-in calc(360ms * var(--motion-scale, .7) / .7) cubic-bezier(.2, .8, .2, 1) both;
+  transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
+}
+.hint-spot[hidden] { display: none; }
+:root:not([data-scheme="light"]) .hint-spot { box-shadow: 0 0 0 200vmax rgb(0 0 0 / .3), 0 0 0 2px color-mix(in srgb, var(--accent, var(--phosphor)) 60%, transparent), 0 0 26px 3px color-mix(in srgb, var(--accent, var(--phosphor)) 30%, transparent); }
+@keyframes hint-spot-in { from { opacity: 0; transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .hint-spot { animation: none; transition: none; } }
