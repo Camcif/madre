@@ -8887,3 +8887,63 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 #messages#messages .system.local-model .acts button { height: 30px; padding: 0 14px; border: 0 !important; border-radius: 9px; background: var(--phosphor) !important; box-shadow: none !important; color: var(--phosphor-ink) !important; font-family: var(--read); font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: lowercase; }
 #messages#messages .system.local-model .acts button::first-letter { text-transform: uppercase; }
 #messages#messages .system.local-model .acts button + button { background: color-mix(in srgb, var(--text) 8%, transparent) !important; color: var(--text) !important; }
+.reply-lab .lab-code { margin-left: auto; padding: 4px 10px; border-radius: 8px; background: color-mix(in srgb, var(--phosphor) 16%, transparent); color: var(--phosphor); font: 600 12px var(--mono); letter-spacing: .08em; }
+
+/* «#3 EDITAR concedido»: un estado pequeño en el color de su modo, no una franja punteada. */
+#messages#messages .mode-ask.settled { display: inline-flex !important; grid-template-columns: none; justify-self: start; align-self: flex-start; width: fit-content !important; max-width: 100%; margin-left: 0 !important; margin-right: auto !important; padding: 5px 12px 5px 10px; border: 0 !important; border-radius: 999px; background: color-mix(in srgb, var(--mode-c, var(--ok, var(--phosphor))) 13%, transparent) !important; box-shadow: none !important; }
+#messages#messages .mode-ask.settled .mode-what { display: inline-flex; align-items: center; gap: 7px; font-family: var(--read); font-size: 12.5px; font-weight: 500; letter-spacing: 0; color: var(--mode-c, var(--ok, var(--phosphor))); }
+#messages#messages .mode-ask.settled .mode-what::before { content: '✓'; font-weight: 700; }
+#messages#messages .mode-ask.settled[data-mode="1"] { --mode-c: var(--mode-1); }
+#messages#messages .mode-ask.settled[data-mode="2"] { --mode-c: var(--mode-2); }
+#messages#messages .mode-ask.settled[data-mode="3"] { --mode-c: var(--mode-3); }
+#messages#messages .mode-ask.settled[data-mode="4"] { --mode-c: var(--mode-4); }
+
+/* ==========================================================================================
+   PRUEBA · las tarjetas de /run en cuatro formas (2026-10-15), por data-term en <html>:
+   line (a), window (b), pill (c), step (d). Sin el atributo, la de siempre.
+   ========================================================================================== */
+/* a · línea: el comando primero, el estado y quién a la derecha, la última línea debajo. */
+:root[data-term="line"] #messages#messages .command-card.terminal { border-radius: 14px; }
+:root[data-term="line"] #messages .command-card.terminal :is(.term-tag, .term-count) { display: none; }
+:root[data-term="line"] #messages .command-card.terminal .term-head { gap: 10px; padding: 10px 12px; }
+:root[data-term="line"] #messages .command-card.terminal .term-head .chev-icon { order: -1; }
+:root[data-term="line"] #messages .command-card.terminal .term-line { font-size: 13px; }
+:root[data-term="line"] #messages .command-card.terminal .term-status { font-family: var(--read); font-size: 12px; padding: 3px 10px; }
+:root[data-term="line"] #messages .command-card.terminal .term-who { font-family: var(--read); font-size: 12px; }
+:root[data-term="line"] #messages .command-card.terminal .term-peek { padding: 0 12px 10px 38px; font-size: 12px; }
+:root[data-term="line"] #messages .command-card.terminal .term-peek::before { content: '→ '; color: var(--text-3); }
+/* b · ventana: una terminal pequeña, oscura en los dos temas, con su salida a la vista. */
+:root[data-term="window"] #messages#messages .command-card.terminal { overflow: hidden; border-radius: 14px; border: 0 !important; background: #0d100d !important; box-shadow: 0 0 0 .5px rgba(255, 255, 255, .1), var(--lift-1) !important; color: #e9ede6; }
+:root[data-term="window"] #messages .command-card.terminal .term-head { padding: 9px 12px; background: rgba(255, 255, 255, .05); border-bottom: 1px solid rgba(255, 255, 255, .07); }
+:root[data-term="window"] #messages .command-card.terminal .term-head::before { content: ''; flex: none; width: 34px; height: 10px; background: radial-gradient(circle at 5px 5px, #ff5f57 4px, transparent 4.5px), radial-gradient(circle at 17px 5px, #febc2e 4px, transparent 4.5px), radial-gradient(circle at 29px 5px, #28c840 4px, transparent 4.5px); opacity: .85; }
+:root[data-term="window"] #messages .command-card.terminal :is(.term-tag, .term-count) { display: none; }
+:root[data-term="window"] #messages .command-card.terminal .term-line { color: #e9ede6; font-size: 12.5px; }
+:root[data-term="window"] #messages .command-card.terminal .term-who { color: #9aa197; }
+:root[data-term="window"] #messages .command-card.terminal .term-peek { margin: 0; padding: 10px 14px 12px; font-size: 12px; color: #b8c2b4; white-space: pre-wrap; }
+:root[data-term="window"] #messages .command-card.terminal .term-peek::before { content: '› '; color: #28c840; }
+:root[data-term="window"] #messages .command-card.terminal pre { background: transparent; border-top-color: rgba(255, 255, 255, .07); color: #e9ede6; }
+/* c · píldora: como las llamadas a herramientas de los chats, una línea del ancho de lo que dice. */
+:root[data-term="pill"] #messages#messages .command-card.terminal:not(.open) { justify-self: start; width: fit-content; max-width: 100%; border-radius: 999px; }
+:root[data-term="pill"] #messages .command-card.terminal:not(.open) .term-peek, :root[data-term="pill"] #messages .command-card.terminal :is(.term-tag, .term-count) { display: none; }
+:root[data-term="pill"] #messages .command-card.terminal:not(.open) .term-head { padding: 6px 12px 6px 8px; gap: 8px; }
+:root[data-term="pill"] #messages .command-card.terminal .term-status { order: -1; font-family: var(--read); font-size: 12px; }
+:root[data-term="pill"] #messages .command-card.terminal .term-line { font-size: 12.5px; }
+:root[data-term="pill"] #messages .command-card.terminal .term-who { font-family: var(--read); font-size: 12px; }
+:root[data-term="pill"] #messages#messages .command-card.terminal.open { border-radius: 14px; }
+/* d · paso: sin tarjeta; un punto de estado en un hilo, el comando y debajo quién, cuánto y qué dijo. */
+:root[data-term="step"] #messages#messages .command-card.terminal { position: relative; padding-left: 26px; border: 0 !important; background: transparent !important; box-shadow: none !important; }
+:root[data-term="step"] #messages#messages .command-card.terminal::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; border-radius: 2px; background: color-mix(in srgb, var(--text) 12%, transparent); }
+:root[data-term="step"] #messages#messages .command-card.terminal::after { content: '✓'; position: absolute; left: 0; top: 9px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--ok, var(--phosphor)); color: var(--bg); font: 700 10px var(--read); }
+:root[data-term="step"] #messages#messages .command-card.terminal.failed::after { content: '✕'; background: var(--crit); }
+:root[data-term="step"] #messages .command-card.terminal :is(.term-tag, .term-count) { display: none; }
+:root[data-term="step"] #messages .command-card.terminal .term-head { flex-wrap: wrap; padding: 6px 0; row-gap: 2px; }
+:root[data-term="step"] #messages .command-card.terminal .term-line { flex: 1 1 calc(100% - 40px); font-size: 13px; }
+:root[data-term="step"] #messages .command-card.terminal .term-head .chev-icon { order: 0; }
+:root[data-term="step"] #messages .command-card.terminal .term-status { order: 2; padding: 0; background: none !important; font-family: var(--read); font-size: 12px; }
+:root[data-term="step"] #messages .command-card.terminal .term-who { order: 3; font-family: var(--read); font-size: 12px; }
+:root[data-term="step"] #messages .command-card.terminal .term-who::before { content: '· '; color: var(--text-3); }
+:root[data-term="step"] #messages .command-card.terminal .term-peek { padding: 0 0 6px; font-size: 12px; }
+:root[data-term="step"] #messages .command-card.terminal pre { border: 0; border-radius: 10px; margin-bottom: 6px; }
+:root[data-term="step"][data-wallpaper]:not([data-wallpaper="default"]) #messages#messages .command-card.terminal { padding-right: 12px; border-radius: 0 14px 14px 0; background: color-mix(in srgb, var(--bg) 62%, transparent) !important; -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15); }
+#messages#messages .mode-ask.settled { background: color-mix(in srgb, var(--mode-c, var(--phosphor)) 16%, color-mix(in srgb, var(--bg) 78%, transparent)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mode-c, var(--phosphor)) 45%, transparent) !important; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+#messages#messages .mode-ask.settled .mode-what { color: color-mix(in srgb, var(--mode-c, var(--phosphor)) 70%, var(--text)); }

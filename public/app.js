@@ -4496,6 +4496,8 @@ function settleModeAsk(ask, said) {
   if (at >= 0) modeAsks.splice(at, 1);
   if (!said) { ask.card.remove(); return; }
   ask.card.classList.add('settled');
+  // Said as a small state in the mode's own colour (styles.css, .mode-ask.settled).
+  if (Number.isInteger(ask.wanted)) ask.card.dataset.mode = String(ask.wanted);
   ask.card.replaceChildren(el('div', 'mode-what', said));
 }
 // The human answered the ask their own way — a message to that agent at that mode or above —
@@ -19664,58 +19666,73 @@ if (!SPLIT_CHAT) roomTour();
 // y `&lane=` lane, column, halo, stripe o 0. Lo elegido se recuerda en este navegador; `?reply=off`
 // lo apaga y esconde el selector.
 (() => {
-  const FORMS = [['bubble', 'Burbuja'], ['doc', 'A · regla'], ['doc-inline', 'A · avatar en línea'], ['pieces', 'C · tarjeta'], ['pieces-edge', 'C · filo']];
-  const LANES = [['lane', 'Difuso'], ['column', 'Columna'], ['halo', 'Halo'], ['stripe', 'Franja'], ['0', 'Sin carril']];
+  const FORMS = [['A', 'doc', 'A · regla'], ['B', 'doc-inline', 'B · avatar en línea'], ['C', 'pieces', 'C · tarjeta'], ['D', 'pieces-edge', 'D · filo'], ['E', 'bubble', 'E · burbuja']];
+  const LANES = [['1', 'lane', '1 · difuso'], ['2', 'column', '2 · columna'], ['3', 'halo', '3 · halo'], ['4', 'stripe', '4 · franja'], ['5', '0', '5 · sin carril']];
+  const TERMS = [['0', 'actual', 'Actual'], ['a', 'line', 'a · línea'], ['b', 'window', 'b · ventana'], ['c', 'pill', 'c · píldora'], ['d', 'step', 'd · paso']];
   // C con carril difuso es la forma de siempre desde 2026-10-15; el selector sigue para comparar.
   let reply = 'pieces';
   let lane = 'lane';
+  let term = 'actual';
   let showLab = false;
   try {
     const asked = new URLSearchParams(location.search);
-    if (asked.get('reply') === 'off') { localStorage.removeItem('pulse.reply'); localStorage.removeItem('pulse.reply.lane'); }
+    if (asked.get('reply') === 'off') { for (const key of ['pulse.reply', 'pulse.reply.lane', 'pulse.reply.term']) localStorage.removeItem(key); }
     else {
+      // ?combo=C1b: la forma, el carril y la terminal en un código.
+      const combo = /^([A-E])([1-5])?([0a-d])?$/.exec(asked.get('combo') ?? '');
+      if (combo) {
+        localStorage.setItem('pulse.reply', FORMS.find(([code]) => code === combo[1])[1]);
+        if (combo[2]) localStorage.setItem('pulse.reply.lane', LANES.find(([code]) => code === combo[2])[1]);
+        if (combo[3]) localStorage.setItem('pulse.reply.term', TERMS.find(([code]) => code === combo[3])[1]);
+      }
       if (asked.has('reply')) localStorage.setItem('pulse.reply', asked.get('reply'));
       if (asked.has('lane')) localStorage.setItem('pulse.reply.lane', asked.get('lane'));
+      if (asked.has('term')) localStorage.setItem('pulse.reply.term', asked.get('term'));
     }
-    showLab = asked.has('reply') && asked.get('reply') !== 'off';
+    showLab = (asked.has('reply') && asked.get('reply') !== 'off') || asked.has('combo');
     reply = localStorage.getItem('pulse.reply') ?? 'pieces';
     lane = localStorage.getItem('pulse.reply.lane') ?? 'lane';
+    term = localStorage.getItem('pulse.reply.term') ?? 'actual';
     if (lane === '1') lane = 'lane';
   } catch { /* sin almacenamiento: la forma de siempre */ }
-  if (!FORMS.some(([value]) => value === reply)) reply = 'pieces';
+  if (!FORMS.some(([, value]) => value === reply)) reply = 'pieces';
+  if (!TERMS.some(([, value]) => value === term)) term = 'actual';
   const root = document.documentElement;
   const apply = () => {
     if (reply === 'bubble') delete root.dataset.reply; else root.dataset.reply = reply;
     if (lane === '0' || reply === 'bubble') delete root.dataset.replyLegible; else root.dataset.replyLegible = lane;
+    if (term === 'actual') delete root.dataset.term; else root.dataset.term = term;
   };
   apply();
   const bar = el('div', 'reply-lab');
   const keep = (key, value) => { try { localStorage.setItem(key, value); } catch { /* sin almacenamiento */ } };
+  const codeOf = () => `${FORMS.find(([, value]) => value === reply)[0]}${LANES.find(([, value]) => value === lane)?.[0] ?? '1'}${TERMS.find(([, value]) => value === term)[0]}`;
+  const row = (title, list, current, set, { off = false } = {}) => {
+    const line = el('div', 'lab-row');
+    line.append(el('b', null, title));
+    for (const [, value, words] of list) {
+      const key = el('button', value === current && !off ? 'on' : null, words);
+      key.type = 'button';
+      key.disabled = off;
+      key.addEventListener('click', () => { set(value); apply(); draw(); });
+      line.append(key);
+    }
+    return line;
+  };
   const draw = () => {
     bar.replaceChildren();
-    const forms = el('div', 'lab-row');
-    forms.append(el('b', null, 'Forma'));
-    for (const [value, words] of FORMS) {
-      const key = el('button', value === reply ? 'on' : null, words);
-      key.type = 'button';
-      key.addEventListener('click', () => { reply = value; keep('pulse.reply', value); apply(); draw(); });
-      forms.append(key);
-    }
+    const forms = row('Forma', FORMS, reply, (value) => { reply = value; keep('pulse.reply', value); });
     const sample = el('button', 'lab-sample', 'Insertar ejemplo');
     sample.type = 'button';
-    sample.title = 'Dos respuestas de muestra, solo en pantalla: no se guardan';
+    sample.title = 'Dos respuestas y dos comandos de muestra, solo en pantalla: no se guardan';
     sample.addEventListener('click', insertSample);
     forms.append(sample);
-    const lanes = el('div', 'lab-row');
-    lanes.append(el('b', null, 'Carril'));
-    for (const [value, words] of LANES) {
-      const key = el('button', value === lane && reply !== 'bubble' ? 'on' : null, words);
-      key.type = 'button';
-      key.disabled = reply === 'bubble';
-      key.addEventListener('click', () => { lane = value; keep('pulse.reply.lane', value); apply(); draw(); });
-      lanes.append(key);
-    }
-    bar.append(forms, lanes);
+    const lanes = row('Carril', LANES, lane, (value) => { lane = value; keep('pulse.reply.lane', value); }, { off: reply === 'bubble' });
+    const terms = row('Terminal', TERMS, term, (value) => { term = value; keep('pulse.reply.term', value); });
+    const code = el('span', 'lab-code', codeOf());
+    code.title = 'Esta combinación. Ábrela con ?combo=' + codeOf();
+    terms.append(code);
+    bar.append(forms, lanes, terms);
   };
   // Dos respuestas como las de las capturas, dibujadas por el mismo render de la sala.
   function insertSample() {
@@ -19741,6 +19758,10 @@ if (!SPLIT_CHAT) roomTour();
       'Hola a todos, soy @claude abriendo la ronda de prueba. Pido a cada agente una línea de confirmación.\n\n```pulse\n- @codex: saluda y confirma que recibes este mensaje en una línea.\n- @gemini: saluda y confirma que recibes este mensaje en una línea.\n- @opencode: saluda y confirma que recibes este mensaje en una línea.\n- @madre: saluda y confirma que recibes este mensaje en una línea.\n```');
     make('madre', 'Madre', [el('span', 'badge', 'CONTESTÁNDOLE A @CLAUDE')], '',
       'Soy @madre, la memoria de esta sala hablando, con qwen2.5:7b sobre Ollama en esta máquina. El archivista es mi otra mitad: el mismo modelo, de fondo, lee lo que la sala dice cada pocos intercambios o tras unos minutos de reposo y guarda hechos, decisiones, preferencias y preguntas abiertas. Eso es lo que ves en el Mapa de memoria y lo que yo cito con [#n]. No escribo archivos, no ejecuto ni tomo decisiones por nadie.\n\nSí puedo convocar al equipo si me lo pides: «@madre, pregúntale al equipo …» abre una ronda con cada agente en línea y cierro con un resumen citado. Para enseñarme algo no hace falta dictármelo: trabaja en la sala y se destila solo.');
+    for (const node of [
+      renderTerminalCard({ id: 'sample-ok', payload: { name: 'run', ok: true, text: 'PDF listo: output/pdf/cotizacion.pdf', run: { line: 'node scripts/pdf.mjs', exitCode: 0, durationMs: 2000, agent: 'codex' } } }),
+      renderTerminalCard({ id: 'sample-fail', payload: { name: 'run', ok: false, text: 'ℹ tests 60\n✔ test 1 passed\n✖ test 9 failed\nℹ pass 53\nℹ fail 7', run: { line: 'npm test', exitCode: 1, durationMs: 4200, agent: 'codex' } } }),
+    ]) { node.classList.add('reply-sample'); column.append(node); }
     const thread = document.querySelector('#messages');
     if (thread) thread.scrollTop = thread.scrollHeight;
   }
