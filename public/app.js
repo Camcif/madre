@@ -19657,3 +19657,94 @@ if (!SPLIT_CHAT) startReviewAsk({ busy: () => Boolean(state.device || state.runn
 // The tour of 1.0 reads where the person is as the room opens, so First steps knows whether to
 // wait; on a phone, the phone's card is said the first time.
 if (!SPLIT_CHAT) roomTour();
+
+/* ---------- PRUEBA · respuestas sin burbuja (2026-10-15) ---------- */
+// Para comparar formas de respuesta sin burbuja con la de siempre, en una sala de verdad, sobre su
+// fondo. Nadie lo ve si no abre la sala con `?reply=`: doc, doc-inline, pieces, pieces-edge o bubble,
+// y `&lane=` lane, column, halo, stripe o 0. Lo elegido se recuerda en este navegador; `?reply=off`
+// lo apaga y esconde el selector.
+(() => {
+  const FORMS = [['bubble', 'Burbuja'], ['doc', 'A · regla'], ['doc-inline', 'A · avatar en línea'], ['pieces', 'C · tarjeta'], ['pieces-edge', 'C · filo']];
+  const LANES = [['lane', 'Difuso'], ['column', 'Columna'], ['halo', 'Halo'], ['stripe', 'Franja'], ['0', 'Sin carril']];
+  // C con carril difuso es la forma de siempre desde 2026-10-15; el selector sigue para comparar.
+  let reply = 'pieces';
+  let lane = 'lane';
+  let showLab = false;
+  try {
+    const asked = new URLSearchParams(location.search);
+    if (asked.get('reply') === 'off') { localStorage.removeItem('pulse.reply'); localStorage.removeItem('pulse.reply.lane'); }
+    else {
+      if (asked.has('reply')) localStorage.setItem('pulse.reply', asked.get('reply'));
+      if (asked.has('lane')) localStorage.setItem('pulse.reply.lane', asked.get('lane'));
+    }
+    showLab = asked.has('reply') && asked.get('reply') !== 'off';
+    reply = localStorage.getItem('pulse.reply') ?? 'pieces';
+    lane = localStorage.getItem('pulse.reply.lane') ?? 'lane';
+    if (lane === '1') lane = 'lane';
+  } catch { /* sin almacenamiento: la forma de siempre */ }
+  if (!FORMS.some(([value]) => value === reply)) reply = 'pieces';
+  const root = document.documentElement;
+  const apply = () => {
+    if (reply === 'bubble') delete root.dataset.reply; else root.dataset.reply = reply;
+    if (lane === '0' || reply === 'bubble') delete root.dataset.replyLegible; else root.dataset.replyLegible = lane;
+  };
+  apply();
+  const bar = el('div', 'reply-lab');
+  const keep = (key, value) => { try { localStorage.setItem(key, value); } catch { /* sin almacenamiento */ } };
+  const draw = () => {
+    bar.replaceChildren();
+    const forms = el('div', 'lab-row');
+    forms.append(el('b', null, 'Forma'));
+    for (const [value, words] of FORMS) {
+      const key = el('button', value === reply ? 'on' : null, words);
+      key.type = 'button';
+      key.addEventListener('click', () => { reply = value; keep('pulse.reply', value); apply(); draw(); });
+      forms.append(key);
+    }
+    const sample = el('button', 'lab-sample', 'Insertar ejemplo');
+    sample.type = 'button';
+    sample.title = 'Dos respuestas de muestra, solo en pantalla: no se guardan';
+    sample.addEventListener('click', insertSample);
+    forms.append(sample);
+    const lanes = el('div', 'lab-row');
+    lanes.append(el('b', null, 'Carril'));
+    for (const [value, words] of LANES) {
+      const key = el('button', value === lane && reply !== 'bubble' ? 'on' : null, words);
+      key.type = 'button';
+      key.disabled = reply === 'bubble';
+      key.addEventListener('click', () => { lane = value; keep('pulse.reply.lane', value); apply(); draw(); });
+      lanes.append(key);
+    }
+    bar.append(forms, lanes);
+  };
+  // Dos respuestas como las de las capturas, dibujadas por el mismo render de la sala.
+  function insertSample() {
+    const column = document.querySelector('#messages .thread-inner') ?? document.querySelector('#messages');
+    if (!column) return;
+    column.querySelectorAll('.reply-sample').forEach((node) => node.remove());
+    const make = (agent, label, badges, said, text) => {
+      const row = paint(el('article', 'row assistant reply-sample'), agent);
+      row.dataset.agent = agent;
+      const col = el('div', 'col');
+      const who = el('div', 'who');
+      who.append(el('span', null, label), ...badges, el('span', 'reply', said));
+      const bubble = el('div', 'bubble');
+      bubble.append(renderMarkdown(text));
+      const foot = el('div', 'bubble-foot');
+      foot.append(el('div', 'stamp', '02:01 PM · 15.3k tok · $0.10'));
+      bubble.append(foot);
+      col.append(who, bubble);
+      row.append(avatar(agent), col);
+      column.append(row);
+    };
+    make('claude', 'Claude', [el('span', 'badge ash', 'AHORRO DE TOKENS')], '↳ Prueba de comunicación entre agentes…',
+      'Hola a todos, soy @claude abriendo la ronda de prueba. Pido a cada agente una línea de confirmación.\n\n```pulse\n- @codex: saluda y confirma que recibes este mensaje en una línea.\n- @gemini: saluda y confirma que recibes este mensaje en una línea.\n- @opencode: saluda y confirma que recibes este mensaje en una línea.\n- @madre: saluda y confirma que recibes este mensaje en una línea.\n```');
+    make('madre', 'Madre', [el('span', 'badge', 'CONTESTÁNDOLE A @CLAUDE')], '',
+      'Soy @madre, la memoria de esta sala hablando, con qwen2.5:7b sobre Ollama en esta máquina. El archivista es mi otra mitad: el mismo modelo, de fondo, lee lo que la sala dice cada pocos intercambios o tras unos minutos de reposo y guarda hechos, decisiones, preferencias y preguntas abiertas. Eso es lo que ves en el Mapa de memoria y lo que yo cito con [#n]. No escribo archivos, no ejecuto ni tomo decisiones por nadie.\n\nSí puedo convocar al equipo si me lo pides: «@madre, pregúntale al equipo …» abre una ronda con cada agente en línea y cierro con un resumen citado. Para enseñarme algo no hace falta dictármelo: trabaja en la sala y se destila solo.');
+    const thread = document.querySelector('#messages');
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  }
+  if (!showLab || SPLIT_CHAT) return;
+  draw();
+  document.body.append(bar);
+})();
