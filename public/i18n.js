@@ -37,6 +37,13 @@ export function setLanguage(id) {
   return current;
 }
 
+// The language of the person at this browser, for a MADRE nobody has set yet (2026-10-15): the
+// browser's first language, Spanish in any of its variants, English for every other one.
+export function browserLanguage(nav = globalThis.navigator) {
+  const first = String((Array.isArray(nav?.languages) && nav.languages[0]) || nav?.language || '').toLowerCase();
+  return first.startsWith('es') ? 'es' : 'en';
+}
+
 // `{name}` is filled from `vars` after the sentence is chosen, so the Spanish can put the number
 // where Spanish puts it. A slot with nothing to fill it is left as it is rather than printed as
 // "undefined": a visible brace is a bug you can see.

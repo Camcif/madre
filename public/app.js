@@ -3,7 +3,7 @@ import { calledByName, abduct } from './abduction.js';
 import { brandOf, monogram } from './brands.js';
 import { allConditions, detectPlatform, diagnose, fixesFor, PLATFORMS, searchConditions } from './troubleshooting.js';
 import { answerFor, INQUIRIES, STRIKES } from './inquiry.js';
-import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, language, pick, setLanguage, t, fill } from './i18n.js';
+import { DEFAULT_LANGUAGE, LANGUAGES, browserLanguage, isLanguage, language, pick, setLanguage, t, fill } from './i18n.js';
 import { createEditor } from './editor.js';
 import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
@@ -105,10 +105,17 @@ if (document.documentElement) document.documentElement.lang = language();
 
 // A browser that has never chosen takes what this machine chose, once, and remembers it. It
 // cannot loop: the choice is written before the page is asked to come back.
-function adoptLanguage(fromMachine) {
+// A machine nobody has set (2026-10-15) takes this browser's language, and keeps it for Home and
+// every project, as if it had been chosen in Settings.
+async function adoptLanguage(fromMachine, chosenOnMachine = true) {
   // The half on the right never writes the choice, so it would reload for ever; the left decides.
-  if (SPLIT_CHAT) return;
-  if (chosenLanguage || !isLanguage(fromMachine) || fromMachine === language()) return;
+  if (SPLIT_CHAT || chosenLanguage) return;
+  if (chosenOnMachine === false && !state.device) {
+    const mine = browserLanguage();
+    const saved = await fetch('/api/language', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ language: mine }) }).then((response) => response.ok).catch(() => false);
+    if (saved) fromMachine = mine;
+  }
+  if (!isLanguage(fromMachine) || fromMachine === language()) return;
   try { localStorage.setItem('pulse.language', fromMachine); } catch { return; }
   location.reload();
 }
@@ -10138,7 +10145,7 @@ if (initial.version) {
   const corner = document.querySelector('#colophon');
   if (corner) corner.replaceChildren(el('b', null, `MADRE ${initial.version}`), document.createTextNode('\u00a0·\u00a0© 2026 Jossue Alcalá'));
 }
-adoptLanguage(initial.language);
+void adoptLanguage(initial.language, initial.languageChosen);
 // Whether the copilot is on for this project, so the robot and the mode say so from the start.
 void loadCopilot().then(() => showNewHints());
 // Behind the bridge this page is on a phone (docs/MOBILE.md): it says so, offers the way back to

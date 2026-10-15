@@ -200,7 +200,7 @@ npx @jossuealcala/madre start
 npx @jossuealcala/madre doctor    # what's installed, who's signed in
 ```
 
-MADRE speaks **Spanish** by default. In Settings › Appearance you switch it to English.
+MADRE speaks **Spanish** and **English**: the first time, it opens in your browser's language, and you can change it any time in Settings › Appearance.
 
 <br>
 

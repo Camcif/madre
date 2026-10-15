@@ -4,6 +4,8 @@
 
 <p align="center"><b>Español</b> · <a href="README.en.md">English</a></p>
 
+<p align="center"><sub><b>In English:</b> MADRE puts Codex, Claude Code, Gemini CLI and OpenCode in one local chat on your machine, with one memory they all share. It opens in your browser's language, Spanish or English. <a href="README.en.md"><b>Read the full README in English →</b></a></sub></p>
+
 <p align="center">
   <a href="https://www.npmjs.com/package/@jossuealcala/madre"><img alt="npm" src="https://img.shields.io/npm/v/@jossuealcala/madre?style=flat-square&label=npm&color=9bff66&labelColor=050605"></a>
   <a href="https://github.com/jossuealcacao-exe/madre/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/jossuealcacao-exe/madre/ci.yml?style=flat-square&label=CI&color=9bff66&labelColor=050605"></a>
@@ -200,7 +202,7 @@ npx @jossuealcala/madre start
 npx @jossuealcala/madre doctor    # qué hay instalado, quién tiene sesión
 ```
 
-MADRE habla **español**. En Ajustes › Apariencia la pasas a inglés.
+MADRE habla **español** e **inglés**: la primera vez se abre en el idioma de tu navegador, y en Ajustes › Apariencia lo cambias cuando quieras.
 
 <br>
 

@@ -5,7 +5,7 @@
 //
 // The phone has its own SALAS (salas.js), served by the bridge; the two read the same rooms.
 
-import { setLanguage, t } from './i18n.js';
+import { browserLanguage, setLanguage, t } from './i18n.js';
 import { brandOf, monogram } from './brands.js';
 import { startReviewAsk } from './review-ask.js';
 import { startTour } from './tour.js';
@@ -34,6 +34,7 @@ const ui = {
   attention: { title: $('sm-attention-title'), count: $('sm-attention-count'), list: $('sm-attention-list') },
 };
 let language = 'es';
+let languageAdopted = false;
 let timer = 0;
 let arming = 0;
 let data = null;
@@ -2289,6 +2290,15 @@ async function refresh() {
   const answer = await refreshPending;
   refreshPending = null;
   if (!answer) { ui.foot.textContent = t('This project did not answer. It may have closed.'); ui.bar.live.classList.add('is-off'); ui.bar.live.lastChild.textContent = t('Not answering right now'); return; }
+  // Home is the first screen of `npx madre`: a MADRE nobody has set takes this browser's language
+  // here, once, and every project follows (public/i18n.js, browserLanguage).
+  if (answer.languageChosen === false && !languageAdopted) {
+    languageAdopted = true;
+    let chosenHere = null;
+    try { chosenHere = localStorage.getItem('pulse.language'); } catch { /* no storage */ }
+    const mine = chosenHere === 'es' || chosenHere === 'en' ? chosenHere : browserLanguage();
+    if (await post('/api/language', { language: mine }).then((response) => response?.ok !== false).catch(() => false)) answer.language = mine;
+  }
   if (answer.language && answer.language !== language) { language = setLanguage(answer.language); root.lang = language; translateStatic(); drawAttention(); drawDecisions(); drawWork(); homeTour.repaint(); }
   data = answer;
   // A project that came up after Home stopped waiting is open: its card no longer says it did not.

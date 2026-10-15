@@ -123,7 +123,11 @@ test('i18n: the language is chosen in PERSONALIZE, and the page comes back in it
   // language stays wrong for the life of the page.
   assert.ok(app.indexOf('setLanguage(isLanguage(chosenLanguage)') < app.indexOf('const PLACEHOLDERS'), 'the page builds sentences before it knows the language');
   // A browser that has never chosen takes the machine's choice once, and cannot loop.
-  assert.match(app, /if \(chosenLanguage \|\| !isLanguage\(fromMachine\) \|\| fromMachine === language\(\)\) return;/);
+  assert.match(app, /if \(SPLIT_CHAT \|\| chosenLanguage\) return;/);
+  assert.match(app, /if \(!isLanguage\(fromMachine\) \|\| fromMachine === language\(\)\) return;/);
+  // A machine nobody has set takes the browser's language once, saved like a choice (2026-10-15).
+  assert.match(app, /if \(chosenOnMachine === false && !state\.device\) \{\n    const mine = browserLanguage\(\);/);
+  assert.match(app, /void adoptLanguage\(initial\.language, initial\.languageChosen\);/);
 
   const server = await readFile(join(import.meta.dirname, '..', 'src', 'server.mjs'), 'utf8');
   assert.match(server, /url\.pathname === '\/api\/language'/);
@@ -364,4 +368,17 @@ test('a remedy this room can carry out points at its button, not at a terminal',
   assert.match(app, /if \(condition\.solvedIn === 'connections'\) \{[\s\S]{0,400}openSettingsOn\('agents', \{ agent: who \}\)/);
   // And the commands stay, in their own block under it: another machine, another shell, someone who prefers typing.
   assert.match(app, /terminal\.rows\.append\(commandBlock\(fixesFor\(condition, mother\.platform, chosen\)\)\);/, 'the commands were replaced instead of being kept under the button');
+});
+
+test('i18n: a MADRE nobody has set speaks the browser\'s language — Spanish in any variant, English for the rest', async () => {
+  const { browserLanguage } = await import('../public/i18n.js');
+  for (const [said, expected] of [[['es-MX', 'en'], 'es'], [['es'], 'es'], [['en-US', 'es-MX'], 'en'], [['pt-BR'], 'en'], [['fr-FR'], 'en'], [[], 'en']]) {
+    assert.equal(browserLanguage({ languages: said }), expected, said.join());
+  }
+  assert.equal(browserLanguage({ language: 'es-AR' }), 'es', 'navigator.language alone');
+  const [server, home] = await Promise.all([readFile(join(import.meta.dirname, '..', 'src', 'server.mjs'), 'utf8'), readFile(join(import.meta.dirname, '..', 'public', 'salas-mac.js'), 'utf8')]);
+  // Set by the environment or the file, it is a choice; changing it in Settings is one too.
+  assert.match(server, /let languageChosen = Boolean\(process\.env\.PULSE_LANGUAGE \|\| \(await readConfig\(root\)\)\.language\);/);
+  assert.match(server, /await updateConfig\(root, \{ language \}\);\n        languageChosen = true;/);
+  assert.match(home, /if \(answer\.languageChosen === false && !languageAdopted\) \{/);
 });

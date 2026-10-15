@@ -208,6 +208,9 @@ export async function createPulseServer({
   // What language the screens speak. The prompt the agents read is not one of them, and the
   // environment wins over the file, as it does for every other setting here.
   setRoomLanguage(process.env.PULSE_LANGUAGE ?? (await readConfig(root)).language);
+  // Whether anyone set it: a MADRE nobody has set takes the language of the first browser that
+  // opens it (public/i18n.js, browserLanguage), once, and keeps it as if it had been chosen.
+  let languageChosen = Boolean(process.env.PULSE_LANGUAGE || (await readConfig(root)).language);
   // RIPLEY renders HTML in the viewer only while the human has it switched on; read live, the switch is the module's.
   const ripleyOn = async () => Boolean((await readConfig(root)).modules?.ripley?.enabled);
   agentTimeouts ??= agentTimeoutsFromEnv();
@@ -1850,7 +1853,7 @@ export async function createPulseServer({
         // the room of Salas, whether or not that room exists yet (phase 3d).
         const salas = salasRoomId(root);
         const enlaces = await Promise.all(activeContracts(await readConfig(root), { salas }).map(async (contract) => ({ ...contract, traffic: await linkTraffic(servingRooms(contract).map((id) => join(root, 'rooms', id)), contract) })));
-        return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null, salas, enlaces, phonePreview: await phonePreview() });
+        return sendJson(response, 200, { mac: hostname().replace(/\.local$/i, ''), language: roomLanguage(), languageChosen, here, version: PACKAGE.version ?? null, rooms: seen, handoff: (await readHandoff(root)).mac ?? null, salas, enlaces, phonePreview: await phonePreview() });
       }
       // The open rooms, each in one line (its glance: who works, who waits, its last conversation;
       // never its census or the links), for the room's switcher (2026-10-10), asked every few
@@ -2274,6 +2277,7 @@ export async function createPulseServer({
           // wins over the config here as it does everywhere else, and reading the file again
           // would hand the page a different answer from the one the server itself is using.
           language: roomLanguage(),
+          languageChosen,
           // Which conversation this page is looking at, and the others it could open.
           chats: await chatsView(),
           agents: agents.map((agent) => ({ ...agent, login: loginPlanFor(agent), install: installPlanFor(agent), key: keyPlanFor(agent.id), ...(accountNoteFor(agent.id) ?? {}) })),
@@ -2764,6 +2768,7 @@ export async function createPulseServer({
         const payload = await body(request).catch(() => ({}));
         const language = payload.language === 'en' ? 'en' : 'es';
         await updateConfig(root, { language });
+        languageChosen = true;
         setRoomLanguage(process.env.PULSE_LANGUAGE ?? language);
         return sendJson(response, 200, { language });
       }
