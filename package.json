@@ -54,7 +54,14 @@
     "docs/INTERNALS.md",
     "docs/REFERENCE.md",
     "SECURITY.md",
-    "CONTRIBUTING.md"
+    "CONTRIBUTING.md",
+    "README.en.md",
+    "CHANGELOG.en.md",
+    "TRADEMARKS.en.md",
+    "docs/en/REFERENCE.md",
+    "docs/en/SDK.md",
+    "docs/en/INTERNALS.md",
+    "docs/en/training"
   ],
   "bin": {
     "madre": "./bin/madre.mjs",

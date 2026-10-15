@@ -40,6 +40,13 @@ if (!openBody.trim()) fail(`The ${version} section is empty. A release note is h
 // A minor version opens on what it brings, once, for everyone who updates (src/whats-new.mjs).
 // A patch may go out without a sheet; a minor cannot, or the people it is for never hear of it.
 const { notesFor } = await import('../src/whats-new.mjs');
+// The English changelog (CHANGELOG.en.md, 2026-10-15) closes with the Spanish one: the same version
+// open there, and something written in it, or English readers never hear what came.
+let changelogEn = await readFile(resolve(root, 'CHANGELOG.en.md'), 'utf8').catch(() => null);
+if (changelogEn === null) fail('CHANGELOG.en.md is missing. The English changelog closes with the Spanish one.');
+const openHeaderEn = changelogEn.match(new RegExp(`^## ${version.replace(/\./g, '\\.')} · Unreleased.*$`, 'm'));
+if (!openHeaderEn) fail(`CHANGELOG.en.md has no "## ${version} · Unreleased" section. Translate what this version ships first.`);
+if (!changelogEn.slice(changelogEn.indexOf(openHeaderEn[0]) + openHeaderEn[0].length).split(/^## /m)[0].trim()) fail(`The ${version} section of CHANGELOG.en.md is empty.`);
 if (/\.0$/.test(version) && !notesFor(version)) fail(`${version} has no "what's new" in src/whats-new.mjs. Write the few things this version brings, and where they are, before closing it.`);
 
 console.log(`\nMADRE › closing ${pkg.name}@${version} · ${today}${dryRun ? ' · DRY RUN' : ''}\n`);
@@ -56,25 +63,32 @@ const [major, minor, patch] = version.split('.').map(Number);
 const next = `${major}.${minor}.${patch + 1}`;
 changelog = changelog.replace(openHeader[0], `## ${next} · Sin publicar\n\n## ${version} · ${today}`);
 await writeFile(resolve(root, 'CHANGELOG.md'), changelog);
+changelogEn = changelogEn.replace(openHeaderEn[0], `## ${next} · Unreleased\n\n## ${version} · ${today}`);
+await writeFile(resolve(root, 'CHANGELOG.en.md'), changelogEn);
 if (pkg.version !== version) { pkg.version = version; await writeFile(resolve(root, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`); }
-run('git', ['add', 'CHANGELOG.md', 'package.json']);
+run('git', ['add', 'CHANGELOG.md', 'CHANGELOG.en.md', 'package.json']);
 run('git', ['commit', '-q', '-m', `Release ${version}`]);
 run('git', ['tag', '-a', `v${version}`, '-m', `MADRE ${version}`]);
 run('git', ['push', '-q', 'origin', 'main']);
 run('git', ['push', '-q', 'origin', `v${version}`]);
 
-const section = changelog.slice(changelog.indexOf(`## ${version} · ${today}`));
-let body = section.slice(section.indexOf('\n') + 1, section.indexOf('\n## ', 1) > 0 ? section.indexOf('\n## ', 1) : undefined).trim();
-// GitHub refuses release notes over 125 000 characters, and 1.0's folded log went past them: the
-// notes then stop before the folded log and point at the CHANGELOG for the rest.
-if (body.length > 120000) {
-  const fold = body.search(/\n### [^\n]*\n+<details>/);
-  const anchor = `${version}--${today}`.replace(/\./g, '');
-  body = `${(fold > 0 ? body.slice(0, fold) : body.slice(0, 110000)).trim()}\n\nEl registro completo de esta versión está en el [CHANGELOG](https://github.com/jossuealcacao-exe/madre/blob/main/CHANGELOG.md#${anchor}).`;
-}
+// The version's section of a changelog. GitHub refuses release notes over 125 000 characters, and
+// 1.0's folded log went past them: the notes stop before a folded log and point at the file.
+const sectionOf = (text, file, rest) => {
+  const section = text.slice(text.indexOf(`## ${version} · ${today}`));
+  let body = section.slice(section.indexOf('\n') + 1, section.indexOf('\n## ', 1) > 0 ? section.indexOf('\n## ', 1) : undefined).trim();
+  if (body.length > 60000) {
+    const fold = body.search(/\n### [^\n]*\n+<details>/);
+    const anchor = `${version}--${today}`.replace(/\./g, '');
+    body = `${(fold > 0 ? body.slice(0, fold) : body.slice(0, 55000)).trim()}\n\n${rest} [${file}](https://github.com/jossuealcacao-exe/madre/blob/main/${file}#${anchor}).`;
+  }
+  return body;
+};
+const body = sectionOf(changelog, 'CHANGELOG.md', 'El registro completo de esta versión está en el');
+const bodyEn = sectionOf(changelogEn, 'CHANGELOG.en.md', 'The full log of this version is in');
 // 1.0 left the names borrowed from Alien (docs/MACROVERSO-TRASPASO.md §1·c): the notes open with
-// the version itself, and end on the command that opens Home.
-const notes = `${body}\n\n---\n\n\`\`\`\nnpx ${pkg.name}@${version}\n\`\`\`\n`;
+// the version itself, and end on the command that opens Home. Spanish first, then English.
+const notes = `${body}\n\n---\n\n### English\n\n${bodyEn}\n\n---\n\n\`\`\`\nnpx ${pkg.name}@${version}\n\`\`\`\n`;
 await writeFile(resolve(root, '.release-notes.tmp.md'), notes);
 try { run('gh', ['release', 'create', `v${version}`, '--title', `MADRE ${version}`, '--notes-file', '.release-notes.tmp.md', '--latest']); }
 catch { console.error('  (gh release failed; create it by hand from the tag)'); }

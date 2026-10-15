@@ -2,6 +2,8 @@
   <a href="https://madre.run"><img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/madre-banner.png" alt="MADRE · Todas tus IAs en un mismo chat · Codex, Claude Code, Gemini CLI y OpenCode" width="100%"></a>
 </p>
 
+<p align="center"><b>Español</b> · <a href="README.en.md">English</a></p>
+
 <p align="center">
   <a href="https://www.npmjs.com/package/@jossuealcala/madre"><img alt="npm" src="https://img.shields.io/npm/v/@jossuealcala/madre?style=flat-square&label=npm&color=9bff66&labelColor=050605"></a>
   <a href="https://github.com/jossuealcacao-exe/madre/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/jossuealcacao-exe/madre/ci.yml?style=flat-square&label=CI&color=9bff66&labelColor=050605"></a>

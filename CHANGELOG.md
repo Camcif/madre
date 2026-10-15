@@ -27,6 +27,7 @@ Para quien la usa es un parche: no hay saludo, recorrido ni «Qué hay de nuevo�
 - **Tarjetas más claras.** La de cada agente: su sesión, una cifra, cuatro datos, su plan y un botón a Ajustes. «Lo que se envía» se ve como el resto de MADRE: título alineado, pestañas centradas, los botones de siempre y sin los textos en mayúsculas de la consola. El copiloto con jerarquía, «AUTO» en la esquina de «Cuánto piensa» y los avisos que flotan sobre el fondo.
 - **La vista dividida cabe.** La barra del proyecto se acomoda a su propio ancho cuando está junto a otra conversación y al navegador.
 - **Las ventanas vuelven de una en una.** Abrir el Finder o cualquier otra ventana desde la barra ya no trae de vuelta las que habías mandado al borde; cada una vuelve cuando la pides.
+- **MADRE también en inglés fuera de la app.** El README, el CHANGELOG, las marcas y la documentación de uso (referencia, SDK, internos, conectores, hoja de ruta, entrenamiento y recolector de reportes) tienen su versión en inglés (`README.en.md`, `CHANGELOG.en.md`, `TRADEMARKS.en.md`, `docs/en/`), y las notas de cada versión en GitHub van en los dos idiomas. El español sigue siendo el original.
 - **El inglés dice lo mismo que el español.** 215 frases reescritas con los nombres nuevos y sin jerga (lease, key, aberration, sentinel, HOLD/BRIDGE…).
 
 ## 1.0.1 · 2026-10-14
