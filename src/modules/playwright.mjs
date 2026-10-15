@@ -143,7 +143,7 @@ export function playwrightServerFor({ port, outputDir, browser = 'chromium', hea
 
 export default defineModule({
   id: 'playwright',
-  name: 'Test browser',
+  name: 'Browser for agents',
   vendor: 'MADRE · Playwright MCP',
   tracks: { name: PLAYWRIGHT_PACKAGE, npm: PLAYWRIGHT_PACKAGE },
   summary: 'Hands an agent a headless browser that reaches only this project and the servers you start from COMMANDS, on the turns that ask to look at a page, click through it, read its console or take screenshots.',

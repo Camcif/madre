@@ -6812,35 +6812,35 @@ customWindow.node?.addEventListener('close', () => { customButton?.setAttribute(
 // Nothing here is a second copy of a setting: every category draws the same panel MU/TH/UR draws,
 // from the same code and the same answers (state.settingsTargets), wearing the room's ink.
 const SETTINGS_SECTIONS = [
-  ['You', 'How it looks and how the project works', ['look', 'room', 'files']],
-  ['The agents', 'Who works, what the project remembers, and the tools they reach', ['agents', 'memory', 'mcp']],
-  ['System', 'Permissions, privacy and the version', ['permissions', 'privacy', 'release']],
+  ['You', 'How it looks, how it works and your files', ['look', 'room', 'files']],
+  ['The agents', 'Who works, what they remember and which outside tools they use', ['agents', 'memory', 'mcp']],
+  ['System', 'What agents may do, privacy and updates', ['permissions', 'privacy', 'release']],
 ];
 const SETTINGS_CATS = {
   look: { name: 'Appearance', color: '#8e75e8', icon: '<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 3.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/>' },
-  room: { name: 'Project and turns', color: '#d97757', icon: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
+  room: { name: 'Work and limits', color: '#d97757', icon: '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="11" y="11" width="5.5" height="5.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
   agents: { name: 'Agents', color: '#10a37f', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
-  memory: { name: 'Memory', color: '#3fb6d9', icon: '<rect x="5" y="5" width="10" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="8.1" y="8.1" width="3.8" height="3.8" rx=".6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
-  mcp: { name: 'Connect MCP', color: '#5b8def', icon: '<path d="M7.2 3.2v3.3M12.8 3.2v3.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5.2 6.5h9.6v2.4a4.8 4.8 0 0 1-9.6 0z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 13.7v3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
-  files: { name: 'Files and servers', color: '#c8955a', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
+  memory: { name: 'What it remembers', color: '#3fb6d9', icon: '<rect x="5" y="5" width="10" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="8.1" y="8.1" width="3.8" height="3.8" rx=".6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.5V5M12 2.5V5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  mcp: { name: 'Outside tools (MCP)', color: '#5b8def', icon: '<path d="M7.2 3.2v3.3M12.8 3.2v3.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5.2 6.5h9.6v2.4a4.8 4.8 0 0 1-9.6 0z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 13.7v3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
+  files: { name: 'Files and local sites', color: '#c8955a', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
   permissions: { name: 'Permissions', color: '#e5484d', icon: '<path d="M10 2.8 4.2 5v4.6c0 3.6 2.4 6.4 5.8 7.6 3.4-1.2 5.8-4 5.8-7.6V5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="9" r="1.7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 10.7v2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   privacy: { name: 'Privacy', color: '#d4a72c', icon: '<rect x="4.5" y="8.5" width="11" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 8.5V6.6a3 3 0 0 1 6 0v1.9" fill="none" stroke="currentColor" stroke-width="1.6"/>' },
-  release: { name: 'Version and reports', color: '#4caf3a', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+  release: { name: 'Updates and errors', color: '#4caf3a', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
 };
 const SETTINGS_ORDER = ['look', 'room', 'files', 'agents', 'memory', 'mcp', 'permissions', 'privacy', 'release'];
 // The words the search knows, each pointing to the category that holds it and to the words on the
 // screen that carry it there, so a result opens the category and lands on the setting.
 const SETTINGS_INDEX = [
   ['look', 'Preview'], ['look', 'Language'], ['look', 'Theme'], ['look', 'Wallpaper'], ['look', 'Accent'], ['look', 'Bubbles'], ['look', 'Text'],
-  ['room', 'Several at once'], ['room', 'Notifications'], ['room', 'Conversations at once'], ['room', 'Turns per conversation'], ['room', 'Agents may make plans'], ['room', 'Steps per plan'],
-  ['files', 'Files'], ['files', 'Your servers'], ['files', 'File viewer'], ['files', 'Preview'], ['files', "Test browser"],
-  ['room', 'Tokens per agent'], ['room', 'Default time limit'], ['room', 'Silence limit'], ['room', 'Retries'], ['room', 'Model'],
+  ['room', 'Several at once'], ['room', 'Notifications'], ['room', 'Conversations at once'], ['room', 'Answers per conversation'], ['room', 'Agents may make plans'], ['room', 'Steps per plan'],
+  ['files', 'Files'], ['files', 'Your servers'], ['files', 'File viewer'], ['files', 'Preview'], ['files', "Browser for agents"],
+  ['room', 'Usage limit per agent'], ['room', 'Default time limit'], ['room', 'Silence limit'], ['room', 'Retries'], ['room', 'Model'],
   ['agents', 'Max mode'], ['agents', 'Starting mode'], ['agents', 'Web access'], ['agents', 'Generate images'], ['agents', 'Time limit'], ['agents', 'Sign in'],
-  ['memory', 'Who distils first'], ['memory', 'Who may distil'], ['memory', 'Share of the context'], ['memory', 'Related'], ['memory', 'Smart search'], ['memory', 'Dataset'], ['memory', 'Analysis and tests'],
-  ['mcp', 'Connect MCP'], ['mcp', 'Add a server'], ['mcp', 'Import from your apps'], ['mcp', 'Acts from'],
-  ['permissions', 'How each mode is confirmed'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
-  ['privacy', 'Hidden data'], ['privacy', 'Replaced with'], ['privacy', 'Keys, tokens and e-mail addresses'], ['privacy', 'Your home path'], ['privacy', 'Erase private data'],
-  ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'The tour of MADRE 1.0'], ['release', 'Report automatically'], ['release', 'Tell the author'],
+  ['memory', 'Who takes notes first'], ['memory', 'Who may take notes'], ['memory', 'Room for memories'], ['memory', 'Related memories'], ['memory', 'Search by meaning'], ['memory', 'Training data'], ['memory', 'Details and checkups'],
+  ['mcp', 'Outside tools (MCP)'], ['mcp', 'Add a tool'], ['mcp', 'Import from your apps'], ['mcp', 'Can act from'],
+  ['permissions', 'How you unlock modes'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
+  ['privacy', 'Words to hide'], ['privacy', 'Replaced with'], ['privacy', 'Access keys and emails'], ['privacy', 'Your home folder'], ['privacy', 'Erase private data'],
+  ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'The tour of MADRE 1.0'], ['release', 'Send reports automatically'], ['release', 'Tell the author'],
 ];
 const settingsWindow = { node: document.querySelector('#settings'), body: document.querySelector('#settings-body'), search: document.querySelector('#settings-search'), box: null, ready: false, open: null, query: '', mode: 'board', observer: null };
 try { settingsWindow.box = JSON.parse(localStorage.getItem('pulse.settingsWindow') ?? 'null'); } catch { /* no storage */ }
@@ -6876,9 +6876,9 @@ function settingsStatus(id) {
   }
   if (id === 'memory') {
     const mem = data.settings.memory;
-    if (!mem) return { line: t('This project has no memory index') };
+    if (!mem) return { line: t('This project has no memory yet') };
     const who = mem.archivist === 'auto' || !mem.archivist ? t('the cheapest agent') : `@${mem.archivist}`;
-    return { line: t('Memory summarized by {who} · smart search {how}', { who, how: (mem.embedProvider ?? 'auto').toUpperCase() }) };
+    return { line: t('Notes by {who} · search by meaning {how}', { who, how: (mem.embedProvider ?? 'auto').toUpperCase() }) };
   }
   if (id === 'permissions') {
     const config = data.settings.override ?? OVERRIDE_DEFAULT;
@@ -6888,13 +6888,13 @@ function settingsStatus(id) {
   if (id === 'privacy') {
     const priv = data.settings.privacy;
     if (!priv) return { line: t('Reading…') };
-    return { line: `${priv.terms.length ? t('{n} hidden data items', { n: priv.terms.length }) : t('No hidden data')} · ${priv.secrets !== false ? t('keys redacted') : t('keys not redacted')}` };
+    return { line: `${priv.terms.length ? t('{n} hidden data items', { n: priv.terms.length }) : t('No hidden data')} · ${priv.secrets !== false ? t('keys hidden') : t('keys visible')}` };
   }
   if (id === 'release') {
     const info = updateUI.info;
-    const report = sentinelUI.settings?.autoReport ? t('auto-report on') : t('auto-report off');
+    const report = sentinelUI.settings?.autoReport ? t('error reports sent') : t('error reports kept here');
     if (!info) return { line: report };
-    return { line: `MADRE ${info.current} · ${info.available ? t('{version} available', { version: info.latest }) : info.enabled === false ? t('not checked') : t('up to date')} · ${report}`, warn: info.available ? t('{version} is on npm', { version: info.latest }) : null };
+    return { line: `MADRE ${info.current} · ${info.available ? t('{version} available', { version: info.latest }) : info.enabled === false ? t('not checked') : t('up to date')} · ${report}`, warn: info.available ? t('{version} is out', { version: info.latest }) : null };
   }
   return { line: '' };
 }
@@ -6938,14 +6938,14 @@ function settingsQuick(id) {
     }
   }
   if (id === 'privacy' && settingsUI.data?.settings.privacy) {
-    add(t('Redact keys and e-mail addresses'), switchFor(settingsUI.data.settings.privacy.secrets !== false, async (on, box) => {
+    add(t('Hide keys and emails'), switchFor(settingsUI.data.settings.privacy.secrets !== false, async (on, box) => {
       try { const payload = await fetch('/api/privacy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ secrets: on }) }).then((response) => response.json()); if (payload.error) throw new Error(payload.error); settingsUI.data.settings.privacy.secrets = on; }
       catch (error) { box.checked = !on; toast(t('The privacy setting was not saved: {error}', { error: error.message })); }
       renderSettings();
     }));
   }
   if (id === 'release' && sentinelUI.settings) {
-    add(t('Auto-report unknown conditions'), switchFor(Boolean(sentinelUI.settings.autoReport), async (on, box) => {
+    add(t('Send error reports automatically'), switchFor(Boolean(sentinelUI.settings.autoReport), async (on, box) => {
       try { sentinelUI.settings = (await fetch('/api/sentinel/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ autoReport: on }) }).then((response) => response.json())).settings; }
       catch (error) { box.checked = !on; toast(t('It could not be saved: {error}', { error: error.message })); }
       renderMotherSentinel();
@@ -10672,7 +10672,7 @@ function paintIntentTry(box, said) {
   const level = effortLabel(said.effort);
   box.replaceChildren();
   box.classList.remove('up');
-  box.append(el('span', 'free-what', `${t('Looks like {what}', { what: t(INTENT_NAMES[said.intent] ?? 'an explanation') })} · ${t('{level} might be enough · try it on this one and Intenciones will notice', { level: level.toUpperCase() })}`));
+  box.append(el('span', 'free-what', `${t('Looks like {what}', { what: t(INTENT_NAMES[said.intent] ?? 'an explanation') })} · ${t('{level} might be enough · try it on this one and MADRE will notice', { level: level.toUpperCase() })}`));
   box.append(el('span', 'intent-basis trial', t('Trial')));
   const later = el('button', 'free-later', t('Not now'));
   later.type = 'button';
@@ -10699,8 +10699,8 @@ function paintIntentTried(box, once) {
   box.replaceChildren();
   box.classList.remove('up');
   box.append(el('span', 'free-what', once.from
-    ? t('This one goes at {level} · if it falls short, Intenciones will notice and go back to {from}', { level, from: effortLabel(once.from).toUpperCase() })
-    : t('This one goes at {level} · if it falls short, Intenciones will notice and go back to the CLI default', { level })));
+    ? t('This one goes at {level} · if it falls short, MADRE will notice and go back to {from}', { level, from: effortLabel(once.from).toUpperCase() })
+    : t('This one goes at {level} · if it falls short, MADRE will notice and go back to the CLI default', { level })));
   box.append(el('span', 'intent-basis trial', t('Trial')));
   const undo = el('button', 'free-later', t('Undo'));
   undo.type = 'button';
@@ -12119,10 +12119,10 @@ function mcpStatus() {
   const servers = mcpUI.servers;
   // The board shows this card before anyone opens it: it reads its list once, by itself.
   if (!servers) { if (!mcpUI.asked) { mcpUI.asked = true; void loadMcp(); } return { line: t('Reading…') }; }
-  if (!servers.length) return { line: t('No servers yet') };
+  if (!servers.length) return { line: t('No outside tools yet') };
   const ready = servers.filter((one) => one.enabled && !one.problem && one.tools?.length).length;
   const stuck = servers.filter((one) => one.enabled && (one.problem || one.needsAuth));
-  return { line: t('{ready} of {total} servers ready', { ready, total: servers.length }), warn: stuck.length ? t('{names} need you', { names: stuck.map((one) => one.label).join(', ') }) : null };
+  return { line: t('{ready} of {total} tools ready', { ready, total: servers.length }), warn: stuck.length ? t('{names} need you', { names: stuck.map((one) => one.label).join(', ') }) : null };
 }
 async function mcpCall(path, body = null, { method = body ? 'POST' : 'GET' } = {}) {
   const response = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -12146,14 +12146,14 @@ function drawMcpSettings(host) {
   const aside = el('div', 'sx-field');
   aside.append(
     sxButton(t('Import from your apps'), () => void openMcpImport()),
-    sxButton(t('Add a server'), () => { mcpUI.adding = mcpUI.adding ? null : { transport: 'stdio', auth: 'none', env: [] }; drawMcpTarget(); }, { tone: 'primary' }),
+    sxButton(t('Add a tool'), () => { mcpUI.adding = mcpUI.adding ? null : { transport: 'stdio', auth: 'none', env: [] }; drawMcpTarget(); }, { tone: 'primary' }),
   );
-  const list = sxBlock(host, t('Connect MCP'), t('Tools from outside for the agents of this project: a program on this computer or an address on the internet. MADRE starts each one and checks it before any agent gets it; if one stops answering, the agents work without it.'), { aside, className: 'mcp-block' });
+  const list = sxBlock(host, t('Outside tools (MCP)'), t('Let the agents use other apps and services: a program on this computer or a service online. MADRE checks each one first; if one fails, the agents carry on without it.'), { aside, className: 'mcp-block' });
   if (mcpUI.servers === null) sxRow(list, t('Reading…'), null);
-  else if (!mcpUI.servers.length && !mcpUI.adding) sxRow(list, t('No servers yet'), t('Add one by hand, or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.'));
+  else if (!mcpUI.servers.length && !mcpUI.adding) sxRow(list, t('No outside tools yet'), t('Add one by hand, or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.'));
   for (const server of mcpUI.servers ?? []) list.rows.append(mcpServerRow(server));
   if (mcpUI.said) sxFoot(list, mcpUI.said);
-  sxFoot(list, t('Tools that only read work from #1 CHAT ONLY. Tools that act — send, write, publish — are handed from the mode you choose for each server: #4 FULL ACCESS unless you lower it. Secrets stay in MADRE\'s vault, never in a file of the project.'));
+  sxFoot(list, t('Tools that only look things up work from #1 CHAT ONLY. Tools that do things — send, write, publish — only from the mode you choose: #4 FULL ACCESS unless you lower it. Keys stay locked in MADRE, never in your files.'));
   if (mcpUI.adding) drawMcpForm(host);
   if (mcpUI.found) drawMcpImport(host);
 }
@@ -12164,7 +12164,7 @@ function mcpServerRow(server) {
   const name = el('b', null, server.label);
   words.append(name, el('span', 'sx-hint mono mcp-where', server.transport === 'http' ? server.url : server.line ?? [server.command, ...(server.args ?? [])].join(' ')));
   const chips = el('div', 'sx-chips');
-  chips.append(el('span', 'sx-chip', server.transport === 'http' ? t('address') : t('command')));
+  chips.append(el('span', 'sx-chip', server.transport === 'http' ? t('online') : t('on this computer')));
   const needsSignIn = server.auth === 'oauth' && (!server.signedIn || server.needsAuth);
   if (needsSignIn) chips.append(el('span', 'sx-chip warn', t('sign-in needed')));
   else if (server.problem) chips.append(el('span', 'sx-chip off', t('not answering')));
@@ -12204,17 +12204,17 @@ function mcpServerRow(server) {
   // From which mode its tools that act travel. Without any, there is nothing to choose.
   if (acting) {
     const from = el('div', 'mcp-from');
-    from.append(el('span', 'sx-hint', acting === 1 ? t('Its tool that acts works from') : t('Its {n} tools that act work from', { n: acting })), sxSeg([2, 3, 4].map((n) => ({ value: String(n), text: `#${n}`, title: `${MODES[n].label} · ${MODES[n].hint}` })), String(server.actions ?? 4), async (value) => {
+    from.append(el('span', 'sx-hint', acting === 1 ? t('Its tool that does things works from') : t('Its {n} tools that do things work from', { n: acting })), sxSeg([2, 3, 4].map((n) => ({ value: String(n), text: `#${n}`, title: `${MODES[n].label} · ${MODES[n].hint}` })), String(server.actions ?? 4), async (value) => {
       try { await mcpCall(`/api/x/mcp/servers/${server.id}/actions`, { actions: Number(value) }); } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
       drawMcpTarget();
-    }, { label: t('Acts from') }));
+    }, { label: t('Can act from') }));
     row.append(from);
   }
   if (mcpUI.open.has(server.id)) {
     const list = el('ul', 'mcp-tools');
     for (const tool of server.tools) {
       const item = el('li', tool.readOnly ? 'reads' : 'acts');
-      item.append(el('code', null, tool.name), el('span', 'mcp-tool-kind', tool.readOnly ? t('reads') : t('acts')));
+      item.append(el('code', null, tool.name), el('span', 'mcp-tool-kind', tool.readOnly ? t('looks up') : t('does things')));
       if (tool.description) item.title = tool.description;
       list.append(item);
     }
@@ -12234,7 +12234,7 @@ async function mcpSignIn(server) {
 }
 function drawMcpForm(host) {
   const draft = mcpUI.adding;
-  const block = sxBlock(host, t('Add a server'), t('A name for it, and how MADRE reaches it. MADRE checks it as soon as you save.'), { className: 'mcp-block' });
+  const block = sxBlock(host, t('Add a tool'), t('A name for it, and how MADRE reaches it. MADRE checks it as soon as you save.'), { className: 'mcp-block' });
   const input = (value, placeholder, { mono = false, type = 'text', change } = {}) => {
     const field = el('input', `sx-input${mono ? ' mono' : ''}`);
     field.type = type; field.value = value ?? ''; field.placeholder = placeholder; field.spellcheck = false; field.autocomplete = 'off';
@@ -12242,9 +12242,9 @@ function drawMcpForm(host) {
     return field;
   };
   sxRow(block, t('Name'), t('A short word: it is how the agents see it.'), input(draft.id, 'apex', { mono: true, change: (value) => { draft.id = value.trim().toLowerCase(); } }));
-  sxRow(block, t('How it runs'), null, sxSeg([{ value: 'stdio', text: t('Local command') }, { value: 'http', text: t('Web address') }], draft.transport, (value) => { draft.transport = value; drawMcpTarget(); }, { label: t('How it runs') }));
+  sxRow(block, t('Where it lives'), null, sxSeg([{ value: 'stdio', text: t('On this computer') }, { value: 'http', text: t('On the internet') }], draft.transport, (value) => { draft.transport = value; drawMcpTarget(); }, { label: t('Where it lives') }));
   if (draft.transport === 'stdio') {
-    sxRow(block, t('Command'), t('The program and its arguments, as you would type them; no pipes or &&.'), input(draft.command, 'node ~/mcp/server.mjs', { mono: true, change: (value) => { draft.command = value; } }), { stack: true });
+    sxRow(block, t('Command'), t('The command its instructions give you to start it.'), input(draft.command, 'node ~/mcp/server.mjs', { mono: true, change: (value) => { draft.command = value; } }), { stack: true });
     const vars = el('div', 'mcp-vars');
     draft.env.forEach((row, index) => {
       const line = el('div', 'sx-field');
@@ -12257,10 +12257,10 @@ function drawMcpForm(host) {
       vars.append(line);
     });
     vars.append(sxButton(t('Add a variable'), () => { draft.env.push({ name: '', value: '', secret: true }); drawMcpTarget(); }));
-    sxRow(block, t('Variables'), t('What it needs in its environment. A secret goes to MADRE\'s vault and never into a file.'), vars, { stack: true });
+    sxRow(block, t('Variables'), t('Settings it needs, like an API key. Secret ones stay locked in MADRE, never in a file.'), vars, { stack: true });
   } else {
-    sxRow(block, t('Address'), t('The full address of its MCP endpoint, starting with https://.'), input(draft.url, 'https://example.com/mcp', { mono: true, change: (value) => { draft.url = value.trim(); } }), { stack: true });
-    sxRow(block, t('Sign-in'), t('Sign in opens the server\'s own page, the way Claude connects to it; a token is pasted once and kept in the vault.'), sxSeg([{ value: 'none', text: t('None') }, { value: 'oauth', text: t('Sign in') }, { value: 'token', text: t('Token') }], draft.auth, (value) => { draft.auth = value; drawMcpTarget(); }, { label: t('Sign-in') }));
+    sxRow(block, t('Address'), t('The MCP address the service gives you, starting with https://.'), input(draft.url, 'https://example.com/mcp', { mono: true, change: (value) => { draft.url = value.trim(); } }), { stack: true });
+    sxRow(block, t('Sign-in'), t('Sign in opens the service\'s own page. A token is a code you paste once; MADRE keeps it safe.'), sxSeg([{ value: 'none', text: t('None') }, { value: 'oauth', text: t('Sign in') }, { value: 'token', text: t('Token') }], draft.auth, (value) => { draft.auth = value; drawMcpTarget(); }, { label: t('Sign-in') }));
     if (draft.auth === 'token') sxRow(block, t('Token'), null, input(draft.token, t('paste it here'), { mono: true, type: 'password', change: (value) => { draft.token = value; } }), { stack: true });
   }
   const save = sxButton(draft.auth === 'oauth' && draft.transport === 'http' ? t('Save and sign in') : t('Save and check'), async () => {
@@ -12294,8 +12294,8 @@ async function openMcpImport() {
 function drawMcpImport(host) {
   const found = mcpUI.found;
   const block = sxBlock(host, t('Import from your apps'), found.length
-    ? t('Servers you already set up in other apps. Only their names are read until you import them; then their values go to MADRE\'s vault and each one is checked.')
-    : t('No MCP servers were found in .mcp.json, opencode.json, Claude Code, Codex, Gemini CLI or Cursor.'), { className: 'mcp-block' });
+    ? t('Tools you already set up in other apps. Nothing is copied until you import; then MADRE keeps their keys safe and checks each one.')
+    : t('No outside tools were found in .mcp.json, opencode.json, Claude Code, Codex, Gemini CLI or Cursor.'), { className: 'mcp-block' });
   for (const one of found) {
     const box = el('input');
     box.type = 'checkbox';
@@ -12306,7 +12306,7 @@ function drawMcpImport(host) {
     const label = el('label', 'mcp-pick');
     label.append(box);
     const secrets = one.env.length + one.headers.length;
-    sxRow(block, `${one.name} · ${one.source}`, `${one.where}${secrets ? ` · ${t('{n} values for the vault', { n: secrets })}` : ''}${one.taken ? ` · ${t('already here')}` : one.disabled ? ` · ${t('off in that app')}` : ''}`, label);
+    sxRow(block, `${one.name} · ${one.source}`, `${one.where}${secrets ? ` · ${t('{n} keys to keep safe', { n: secrets })}` : ''}${one.taken ? ` · ${t('already here')}` : one.disabled ? ` · ${t('off in that app')}` : ''}`, label);
   }
   const actions = el('div', 'mcp-actions');
   if (found.length) {
@@ -12315,7 +12315,7 @@ function drawMcpImport(host) {
       try {
         const { results } = await mcpCall('/api/x/mcp/import', { picks: [...mcpUI.picked] });
         const ok = results.filter((one) => one.ok).length;
-        toast(t('{ok} of {n} imported servers answered', { ok, n: results.length }), { tone: ok === results.length ? 'done' : 'look' });
+        toast(t('{ok} of {n} imported tools answered', { ok, n: results.length }), { tone: ok === results.length ? 'done' : 'look' });
       } catch (error) { toast(`${t('Diagnostics › ')}${resay(error.message)}`); }
       mcpUI.found = null;
       drawMcpTarget(); syncSettingsCards();
@@ -12336,15 +12336,15 @@ function drawFilesSettings(host) {
     else { surfaceModes.tree = value; rememberSurfaces(); }
     syncSettingsCards();
   }, { label: t('Files') }));
-  sxRow(where, t('Your servers'), t('Your servers, the ones answering on this computer: docked beside the conversation, or floating.'), sxSeg([
+  sxRow(where, t('Your servers'), t('Web pages your project runs on this computer: beside the conversation, or floating.'), sxSeg([
     { value: 'dock', text: t('Docked') }, { value: 'window', text: t('Window') },
   ], browserWindow.floating ? 'window' : 'dock', (value) => { setBrowserFloating(value === 'window', { animate: false }); }, { label: t('Your servers') }));
   sxRow(where, t('File viewer'), t('It always opens beside the conversation: opening a file never splits the project on its own. From there it can float as a window.'));
 
-  const show = sxBlock(host, t('What they can show'), t('Two modules decide it; their switches are the same ones as in MODULES.'));
+  const show = sxBlock(host, t('What they can show'), t('These switches are the same ones as in MODULES.'));
   for (const [id, label, hint] of [
-    ['ripley', t('Preview'), t('HTML, SVG and Markdown from the project render in the file viewer, inside a frame that reaches nothing. Off, files show as source.')],
-    ['playwright', t("Test browser"), t('A browser without a window that reaches only this project and the servers you start, on the turns that ask to look at a page.')],
+    ['ripley', t('Preview'), t('Web pages, images and documents show as they look, safely. Off, you see their code.')],
+    ['playwright', t("Browser for agents"), t('Agents can open and check your project\'s pages, without reaching anything else.')],
   ]) {
     const item = modules.items.find((one) => one.id === id);
     if (!item) { sxRow(show, label, t('Reading…')); continue; }
@@ -13796,7 +13796,7 @@ function moduleGlance(item) {
     }).catch(() => { strip.classList.remove('loading'); fill([[t('State'), standing]]); });
   } else if (item.id === 'ollama') {
     const info = item.ollama ?? {};
-    fill([[t('Server'), info.running ? t('Running') : t('Stopped'), info.host ?? null], [t('Models'), String(info.models?.length ?? 0)], [t('Smart search'), info.embedModel ?? t('none')], [t('State'), standing]]);
+    fill([[t('Server'), info.running ? t('Running') : t('Stopped'), info.host ?? null], [t('Models'), String(info.models?.length ?? 0)], [t('Search by meaning'), info.embedModel ?? t('none')], [t('State'), standing]]);
   }
   // A module that keeps no figures of its own gets none made up: its sheet opens on what it does.
   return strip.childElementCount || strip.classList.contains('loading') ? strip : document.createDocumentFragment();
@@ -13909,7 +13909,7 @@ function moduleSheet(host, item) {
     void renderEconomy(app);
   }
   if (item.id === 'intents') {
-    const block = sxBlock(host, t('What your use taught'), `${t('Per agent and per kind of request: the lowest effort that was enough in your own turns, learned for no tokens. Below, a test that learns faster, for a price.')} ${t('When a lower level might be enough, Intenciones offers to try it on a single message and watches how it goes; if it falls short, the next one goes back up.')}`, { className: 'mods-reading mods-intents' });
+    const block = sxBlock(host, t('What your use taught'), `${t('Per agent and per kind of request: the lowest effort that was enough in your own turns, learned for no tokens. Below, a test that learns faster, for a price.')} ${t('When a lower level might be enough, MADRE offers to try it on a single message and watches how it goes; if it falls short, the next one goes back up.')}`, { className: 'mods-reading mods-intents' });
     intentsReading(block.rows);
   }
   if (item.id === 'ollama') ollamaBlock(host, item);
@@ -13926,14 +13926,14 @@ function moduleSheet(host, item) {
 // Ollama's local brain as rows: the server, its models, the roles it takes in this room.
 function ollamaBlock(host, item) {
   const info = item.ollama ?? { running: false, models: [], settings: {} };
-  const block = sxBlock(host, t('Local AI'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
+  const block = sxBlock(host, t('AI on this computer'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
   const recheck = sxButton(t('Check again'), async () => { recheck.disabled = true; await fetch('/api/ollama/probe', { method: 'POST' }).catch(() => null); await refreshModules(); });
   sxRow(block, t('Server'), info.running ? t('Running · {host}', { host: info.host }) : t('Not running'), recheck);
   // Whether this project uses it, beside Home's choice for all of them (src/local-ai.mjs).
   const project = info.project;
   if (project && !project.home) {
-    const why = !project.master ? t('Local AI is switched off for every project.')
-      : project.mode === 'auto' ? t('Home turns it on in every project, and «Active» switches it for all of them. To choose project by project, go to Home › Settings › Local AI.')
+    const why = !project.master ? t('AI on this computer is off for every project.')
+      : project.mode === 'auto' ? t('Home turns it on in every project, and «Active» switches it for all of them. To choose project by project, go to Home › Settings › AI on this computer.')
         : project.mode === 'pick' ? t('Home chooses the projects one by one; «Active» switches this one here too.')
           : t('Each project decides on its own: «Active» is this project’s switch.');
     // The switch is the card's own «Active» (src/modules/ollama.mjs, toggle): this row says whose it is.
@@ -13957,9 +13957,9 @@ function ollamaBlock(host, item) {
     sxFoot(block, t('Without Ollama running, the project keeps using its providers.'));
     return;
   }
-  const roles = sxBlock(host, t('Roles'), t('What Local AI does in this project.'));
+  const roles = sxBlock(host, t('Roles'), t('What AI on this computer does in this project.'));
   for (const [role, model, present, label, hint] of [
-    ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('Smart search'), info.embedModel ?? null],
+    ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('Search by meaning'), info.embedModel ?? null],
     ['archivist', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('Archivist'), info.chatModel ?? null],
     ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the project'), info.chatModel ?? null],
   ]) {
@@ -14962,7 +14962,7 @@ async function fillCoreBoard() {
       if (value === (mem.embedProvider ?? 'auto')) option.selected = true;
       embed.append(option);
     }
-    embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('smart search: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
+    embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('search by meaning: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
     const field = (word, control) => { const label = el('label', 'core-field'); label.append(el('span', 'k', word), control); return label; };
     reads.append(field(t('ARCHIVIST'), archivist), field(t('SMART SEARCH'), embed));
     if (mem.envWins) reads.append(el('p', 'note', t('AN ENVIRONMENT VARIABLE IS SETTING SOME OF THIS, AND IT WINS OVER WHAT YOU CHOOSE HERE.')));
@@ -15586,14 +15586,14 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
       fetch('/api/maturity').then((response) => response.json()),
       fetch('/api/memory/dashboard').then((response) => response.json()).then((payload) => payload?.dashboard ?? null),
     ]);
-  } catch { glance.classList.remove('loading'); glance.replaceChildren(el('p', 'sx-hint', t('The archive could not be read.'))); return; }
+  } catch { glance.classList.remove('loading'); glance.replaceChildren(el('p', 'sx-hint', t('The memory could not be read.'))); return; }
   glance.classList.remove('loading');
   glance.replaceChildren();
   analysis.replaceChildren();
   stamp.textContent = t('Read at {time}', { time: formatTime(new Date().toISOString()) });
   const m = read?.maturity;
   const v = read?.verdict;
-  if (!dash || !m || !v) { glance.append(el('p', 'sx-hint', t('Nothing to read yet: the project has no archive.'))); return; }
+  if (!dash || !m || !v) { glance.append(el('p', 'sx-hint', t('Nothing yet: the project has no memories saved.'))); return; }
 
   const stats = el('div', 'sx-stats');
   const stat = (label, value, sub, spark = null, title = null) => {
@@ -15607,8 +15607,8 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
   const week = (w) => (w ? `${t('{n} this week', { n: memFmt(w.last) })} · ${w.delta > 0 ? `▲ ${memFmt(w.delta)}` : w.delta < 0 ? `▼ ${memFmt(-w.delta)}` : '='}` : null);
   stat(t('Exchanges'), memFmt(dash.totals.entries), week(dash.weeks.entries), dash.series.entries.slice(-14), memWeekTitle(dash.weeks.entries));
   stat(t('Memories'), memFmt(dash.totals.memories), week(dash.weeks.memories), dash.series.memories.slice(-14), memWeekTitle(dash.weeks.memories));
-  stat(t('Turns that recalled'), memFmt(dash.totals.turns), week(dash.weeks.recalls), dash.series.recalls.slice(-14), memWeekTitle(dash.weeks.recalls));
-  stat(t('Waiting'), memFmt(dash.totals.pending), dash.totals.pending ? t('Exchanges nobody has distilled yet.') : t('The archivist is up to date.'));
+  stat(t('Answers that used memories'), memFmt(dash.totals.turns), week(dash.weeks.recalls), dash.series.recalls.slice(-14), memWeekTitle(dash.weeks.recalls));
+  stat(t('Not noted yet'), memFmt(dash.totals.pending), dash.totals.pending ? t('Exchanges not turned into notes yet.') : t('All caught up.'));
   glance.append(stats);
 
   // How ripe it is, in one line and one bar, and the next thing that would help it.
@@ -15628,19 +15628,19 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
 
   const grid = el('div', 'mem-grid');
   memActivity(memCard(grid, t('Activity · last {n} days', { n: dash.days.length }), 'span-12'), dash);
-  memSignals(memCard(grid, t('What the archive is made of'), 'span-12'), m);
+  memSignals(memCard(grid, t('What the memory holds'), 'span-12'), m);
   memBars(memCard(grid, t('By kind'), 'span-4'), Object.entries(dash.kinds).map(([kind, n]) => ({ label: kindWord(kind), n, swatch: `var(--mem-${kind}, var(--ph))` })));
-  memBars(memCard(grid, t('By archivist'), 'span-4'), Object.entries(dash.agents).map(([agent, n]) => ({ label: `@${agent}`, n })));
+  memBars(memCard(grid, t('By note-taker'), 'span-4'), Object.entries(dash.agents).map(([agent, n]) => ({ label: `@${agent}`, n })));
   memBars(memCard(grid, t('By status'), 'span-4'), Object.entries(dash.zones).map(([zone, n]) => ({ label: zoneWord(zone), n, title: ZONE_NOTE[zone] ?? null })));
-  const recall = memCard(grid, t('Recall and smart search'), 'span-12');
+  const recall = memCard(grid, t('Memories used and search by meaning'), 'span-12');
   const carried = dash.via.search + dash.via.cascade;
   if (carried) {
     const split = el('div', 'mem-split');
-    split.title = t('How recalled memories arrived: found by the search, or brought along with related memories.');
+    split.title = t('How used memories arrived: found by search, or brought along by a related one.');
     for (const [id, n] of [['search', dash.via.search], ['cascade', dash.via.cascade]]) { const part = el('i', id); part.style.flexGrow = String(n); split.append(part); }
     recall.append(split);
     const legend = el('div', 'mem-legend');
-    for (const [id, label, n] of [['search', t('Search'), dash.via.search], ['cascade', t('Related'), dash.via.cascade]]) {
+    for (const [id, label, n] of [['search', t('Search'), dash.via.search], ['cascade', t('Related memories'), dash.via.cascade]]) {
       const key = el('span', `k ${id}`);
       key.append(el('i'), `${label} `, el('b', null, `${memFmt(n)} · ${memPct(n / carried)}`));
       legend.append(key);
@@ -15656,17 +15656,17 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
       recall.append(row);
     }
     recall.append(el('span', 'detail', String(dash.vectors.model)));
-  } else recall.append(el('p', 'note', t('Smart search is off: recall matches words only.')));
-  memCard(grid, t('Memory review'), 'span-12').append(examsBlock(read.exams, { pass: dash.pass }));
+  } else recall.append(el('p', 'note', t('Search by meaning is off: memories are found by exact words only.')));
+  memCard(grid, t('Memory checkup'), 'span-12').append(examsBlock(read.exams, { pass: dash.pass }));
   analysis.append(grid);
 }
 
 /* ---------- the three tests ---------- */
 
 const EXAM_NAMES = {
-  coverage: t('CAN THE ARCHIVE ANSWER WHAT THIS PROJECT ASKS?'),
-  consistency: t('DOES THE ARCHIVE CONTRADICT ITSELF?'),
-  match: t('DOES THE LOCAL MODEL LAND WHERE THE AGENTS LANDED?'),
+  coverage: t('DOES THE MEMORY HAVE THE ANSWERS?'),
+  consistency: t('DOES THE MEMORY CONTRADICT ITSELF?'),
+  match: t('DOES THE LOCAL AI ANSWER LIKE THE AGENTS?'),
 };
 const EXAM_ABOUT = {
   coverage: t('Real questions from this project, recall run at the moment each one was asked, scored against the reply that was actually given. It asks whether the answer was already in the archive, not whether it was right.'),
@@ -15864,7 +15864,7 @@ function connectionCard(agent) {
   for (const [key, labelText, onWhy] of [['imageGen', t('Generate images'), t('On for CREATE.')], ['web', t('Web access'), t('On in every turn.')]]) {
     const scope = agentScopes[key] ?? { capable: false, enabled: false, wired: false };
     const usable = scope.capable && scope.wired;
-    const why = (on) => (!scope.capable ? t('This CLI has no way to do it.') : !scope.wired ? t('Not wired yet.') : on ? onWhy : t('Off.'));
+    const why = (on) => (!scope.capable ? t('This agent can\'t do this.') : !scope.wired ? t('Not available yet.') : on ? onWhy : t('Off.'));
     const toggle = sxSwitch(scope.enabled, async (on, box) => {
       box.disabled = true;
       try {
@@ -15951,7 +15951,7 @@ function connectionCard(agent) {
   if (agent.detected && agent.key && agent.id !== 'opencode') slot.append(keyForm(agent, { onDone: () => { void loadSettings(); renderOnboarding(); } }));
   // Signed in, OpenCode's providers are added in its block below; the terminal is for a first sign-in.
   if (agent.detected && agent.login && !agent.login.headless && !(agent.id === 'opencode' && session?.state === 'signed-in')) {
-    slot.append(el('p', 'sx-hint', t('It signs in from its own app, in your terminal:')));
+    slot.append(el('p', 'sx-hint', t('To sign in, copy this into your Terminal app:')));
     slot.append(commandBlock([agent.login.display, `# ${t(agent.login.note)}`]));
   }
   if (agent.detected && agent.login?.headless) slot.append(loginAskSlot(agent.id));
@@ -15979,7 +15979,7 @@ function renderMemoryPanel(data) {
 }
 function drawMemory(host, data) {
   const mem = data?.settings?.memory;
-  if (!mem) { sxBlock(host, t('Memory'), t('This project has no memory index.')); return; }
+  if (!mem) { sxBlock(host, t('What it remembers'), t('This project has no memory yet.')); return; }
   const save = async (memoryPatch, describe) => { try { await saveSettingNow({ memory: memoryPatch }, describe); await loadSettings(); } catch (error) { toast(t('Memory setting was not saved: {error}', { error: error.message })); } };
   const select = (options, current, change, label) => {
     const node = el('select', 'sx-input');
@@ -15993,19 +15993,19 @@ function drawMemory(host, data) {
   const aside = el('div', 'sx-aside');
   const stamp = el('span', 'sx-hint');
   aside.append(stamp);
-  const glanceBlock = sxBlock(host, t('The archive'), null, { aside, className: 'sx-glance' });
+  const glanceBlock = sxBlock(host, t('At a glance'), null, { aside, className: 'sx-glance' });
   const glance = el('div', 'sx-glance-body');
   glanceBlock.rows.append(glance);
   const more = el('details', 'sx-more');
-  const summary = el('summary', null, t('Analysis and tests'));
+  const summary = el('summary', null, t('Details and checkups'));
   const analysis = el('div', 'sx-analysis mem-dash');
   more.append(summary, analysis);
   glanceBlock.append(more);
   aside.append(sxButton(t('Refresh'), () => void drawMemoryDashboard(glance, analysis, stamp)));
   void drawMemoryDashboard(glance, analysis, stamp);
 
-  const keep = sxBlock(host, t('The archivist'), t('It reads what nobody has distilled and keeps the few notes worth remembering. The cheapest allowed agent goes first; a local model costs nothing and keeps everything on this machine.'));
-  sxRow(keep, t('Who distils first'), null, select([['auto', t('Automatic · the cheapest allowed')], ...mem.candidates.map((c) => [c.id, `@${c.id}${c.local ? ` · ${c.label}` : ''}`])], mem.archivist, (value) => save({ archivist: value }, value === 'auto' ? t('archivist: the cheapest allowed agent goes first.') : t('archivist: @{agent} distils first.', { agent: value })), t('Who distils first')));
+  const keep = sxBlock(host, t('Who takes notes'), t('An agent rereads recent conversations and saves only what is worth remembering. The cheapest one goes first; AI on this computer is free and private.'));
+  sxRow(keep, t('Who takes notes first'), null, select([['auto', t('Automatic · the cheapest one')], ...mem.candidates.map((c) => [c.id, `@${c.id}${c.local ? ` · ${c.label}` : ''}`])], mem.archivist, (value) => save({ archivist: value }, value === 'auto' ? t('notes: the cheapest agent goes first.') : t('notes: @{agent} goes first.', { agent: value })), t('Who takes notes first')));
   const allowed = new Set(mem.archivists ?? mem.candidates.map((c) => c.id));
   const who = el('div', 'sx-chips');
   for (const candidate of mem.candidates) {
@@ -16014,42 +16014,42 @@ function drawMemory(host, data) {
     chip.setAttribute('aria-pressed', String(allowed.has(candidate.id)));
     chip.addEventListener('click', () => {
       if (allowed.has(candidate.id)) allowed.delete(candidate.id); else allowed.add(candidate.id);
-      if (!allowed.size) { allowed.add(candidate.id); toast(t('Diagnostics › someone has to keep the archive.')); return; }
+      if (!allowed.size) { allowed.add(candidate.id); toast(t('Diagnostics › at least one agent has to take notes.')); return; }
       chip.setAttribute('aria-pressed', String(allowed.has(candidate.id)));
-      void save({ archivists: allowed.size === mem.candidates.length ? [] : [...allowed] }, t('archivists: {who}.', { who: [...allowed].map((id) => `@${id}`).join(', ') }));
+      void save({ archivists: allowed.size === mem.candidates.length ? [] : [...allowed] }, t('taking notes: {who}.', { who: [...allowed].map((id) => `@${id}`).join(', ') }));
     });
     who.append(chip);
   }
-  sxRow(keep, t('Who may distil'), t('The agents switched on may summarize the memory.'), who, { stack: true });
-  sxRow(keep, t('Every'), t('Exchanges between one distillation and the next.'), sxNumber(mem.every, t('exchanges'), { min: 1, label: t('Every'), wire: { toPatch: (value) => ({ memory: { every: value } }), describe: (value) => t('distil every {n} exchanges.', { n: value }) } }));
-  sxRow(keep, t('Or after'), t('Quiet minutes that also start a distillation.'), sxNumber(mem.idleMinutes, t('min'), { min: 1, label: t('Or after'), wire: { toPatch: (value) => ({ memory: { idleMinutes: value } }), describe: (value) => t('or after {n} quiet minutes.', { n: value }) } }));
+  sxRow(keep, t('Who may take notes'), t('Only the agents switched on here take notes.'), who, { stack: true });
+  sxRow(keep, t('Every'), t('How many exchanges pass before it takes notes again.'), sxNumber(mem.every, t('exchanges'), { min: 1, label: t('Every'), wire: { toPatch: (value) => ({ memory: { every: value } }), describe: (value) => t('notes every {n} exchanges.', { n: value }) } }));
+  sxRow(keep, t('Or after'), t('Or take notes after this many quiet minutes.'), sxNumber(mem.idleMinutes, t('min'), { min: 1, label: t('Or after'), wire: { toPatch: (value) => ({ memory: { idleMinutes: value } }), describe: (value) => t('or after {n} quiet minutes.', { n: value }) } }));
 
-  const recall = sxBlock(host, t('Recall'), t('What each turn carries from the archive, and how it finds it.'));
-  sxRow(recall, t('Share of the context'), t('The most each turn may spend on memories.'), sxNumber(Math.round(mem.recallShare * 100), '%', { min: 0, step: 5, label: t('Share of the context'), wire: { toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("recall may take {n}% of each turn's context.", { n: Math.min(60, value) }) } }));
-  const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('recall also brings the memories that usually come along with it.') : t('recall carries only what the words and the meaning match.')), { label: t('Related') });
-  sxRow(recall, t('Related'), t('Two memories that keep showing up in the same turn are used together, however differently they read.'), cascade);
+  const recall = sxBlock(host, t('Using memories'), t('How many memories each answer uses, and how they are found.'));
+  sxRow(recall, t('Room for memories'), t('The most of what an agent reads that may be memories.'), sxNumber(Math.round(mem.recallShare * 100), '%', { min: 0, step: 5, label: t('Room for memories'), wire: { toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("memories may take up to {n}% of what each agent reads.", { n: Math.min(60, value) }) } }));
+  const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('related memories come along too.') : t('only memories that match come along.')), { label: t('Related memories') });
+  sxRow(recall, t('Related memories'), t('Memories that are often used together come together.'), cascade);
   const embedNow = mem.embedder ? mem.embedder : t('off');
-  sxRow(recall, t('Smart search'), t('Find by meaning, not only by words. Now: {what}.', { what: embedNow }), select([
-    ['auto', t('Automatic · Ollama if running, else Gemini')],
+  sxRow(recall, t('Search by meaning'), t('Finds memories by what they mean, not only by exact words. Now: {what}.', { what: embedNow }), select([
+    ['auto', t('Automatic · AI on this computer if running, else Gemini')],
     ['ollama', `Ollama · ${t('local')}${mem.ollama.embedModel ? ` · ${mem.ollama.embedModel}` : ` · ${t('no model yet')}`}`],
     ['gemini', t('Gemini · needs your key')],
-    ['off', t('Off · words only')],
-  ], mem.embedProvider ?? data.config?.memory?.embedProvider ?? 'auto', (value, node) => save({ embedProvider: value }, t('smart search: {what}.', { what: node.options[node.selectedIndex].textContent.toLowerCase() })), t('Smart search')));
-  if (mem.envWins) sxFoot(recall, t('Environment variables are set for memory; they win over these values on the next launch.'));
+    ['off', t('Off · exact words only')],
+  ], mem.embedProvider ?? data.config?.memory?.embedProvider ?? 'auto', (value, node) => save({ embedProvider: value }, t('search by meaning: {what}.', { what: node.options[node.selectedIndex].textContent.toLowerCase() })), t('Search by meaning')));
+  if (mem.envWins) sxFoot(recall, t('Some of these values are fixed by how MADRE was started; those win next time it starts.'));
 
   // The dataset behind MADRE AI, and the recipe that trains on it, outside MADRE.
-  const train = sxBlock(host, t('Dataset and training'), t('Export what the project kept, train your model with it on this Mac, and @madre picks the result up.'));
+  const train = sxBlock(host, t('Train your own AI'), t('Advanced: export what the project learned, train a model on this Mac, and @madre answers with it.'));
   const datasetHint = el('span', 'sx-hint', t('Reading…'));
   const exportButton = sxButton(t('Export'), async () => {
     exportButton.disabled = true;
     try { const payload = await fetch('/api/dataset', { method: 'POST' }).then((response) => response.json()); showDataset(payload); toast(t('Diagnostics › dataset exported: {n} pairs in {dir}', { n: payload.dataset.pairs, dir: payload.dir })); }
     catch (error) { toast(t('Dataset export failed: {error}', { error: error.message })); }
     finally { exportButton.disabled = false; }
-  }, { title: t('Write train.jsonl and valid.jsonl next to the ledger, redacted, in chat format for mlx-lm') });
-  const datasetRow = sxRow(train, t('Dataset'), null, exportButton);
+  }, { title: t('Saves the training files in the project, with private data hidden') });
+  const datasetRow = sxRow(train, t('Training data'), null, exportButton);
   datasetRow.querySelector('.sx-words').append(datasetHint);
   const recipe = el('details', 'sx-more');
-  recipe.append(el('summary', null, t('Train your model · local, with MLX on Apple silicon')));
+  recipe.append(el('summary', null, t('Step by step · Macs with Apple chips only')));
   const steps = el('ol', 'sx-steps');
   recipe.append(el('p', 'sx-hint', t('Export the dataset first. Each step is one command for your terminal: copy it, run it, come back. When the model exists in Ollama, @madre switches to it at the next recheck.')), steps);
   train.append(recipe);
@@ -16091,13 +16091,13 @@ function renderSettings() {
 }
 
 function drawConnections(host, data) {
-  host.append(el('p', 'sx-intro', t('One agent is enough to open the project. MADRE uses the session each CLI already has: install one here or sign it in, and the project opens by itself. The credentials stay in each CLI; MADRE only asks whether it is signed in.')));
+  host.append(el('p', 'sx-intro', t('One agent is enough to start. MADRE uses the AI apps already on this computer: install one here or sign in, and the project opens. Your passwords stay in each app; MADRE only checks you are signed in.')));
   for (const agent of data.agents) host.append(connectionCard(agent));
 }
 
 function drawRoomSettings(host, data) {
   const s = data.settings;
-  const plans = sxBlock(host, t('Plans'), t('When a turn may open a plan, and how long a plan may be.'));
+  const plans = sxBlock(host, t('Plans'), t('Whether an agent may split a job into steps for the others.'));
   const delegation = sxSwitch(s.delegation, async (on, box) => {
     try { await saveSettingNow({ room: { delegation: on } }, on ? t('agents may open plans.') : t('agents no longer open plans.')); }
     catch (error) { box.checked = !on; toast(t('The setting was not saved: {error}', { error: error.message })); }
@@ -16107,9 +16107,9 @@ function drawRoomSettings(host, data) {
     min: 1, label: t('Steps per plan'), wire: { toPatch: (value) => ({ room: { maxPlanSteps: value } }), describe: (value) => t('max plan steps saved: {n}.', { n: value }) },
   }));
 
-  const limits = sxBlock(host, t('Budget and waiting'), t('What each agent may spend, and how long the project waits for it.'));
-  sxRow(limits, t('Tokens per agent'), t('Counted here, in each 5-hour window.'), sxNumber(s.softTokenBudget, null, {
-    min: 10000, step: 10000, label: t('Tokens per agent'),
+  const limits = sxBlock(host, t('Spending and waiting'), t('What each agent may spend, and how long the project waits for it.'));
+  sxRow(limits, t('Usage limit per agent'), t('Every 5 hours, in tokens: the unit AI use is measured in.'), sxNumber(s.softTokenBudget, null, {
+    min: 10000, step: 10000, label: t('Usage limit per agent'),
     wire: { toPatch: (value) => ({ room: { softTokenBudget: value } }), describe: (value) => t('local budget saved: {n} tokens per agent per 5h window.', { n: formatTokens(value) }) },
   }));
   sxRow(limits, t('Default time limit'), t('How long an agent may take before the project stops waiting. Each agent can have its own in Agents.'), sxNumber(Math.round(s.defaultTimeout / 1000), 's', {
@@ -16117,7 +16117,7 @@ function drawRoomSettings(host, data) {
     wire: { toPatch: (seconds) => ({ timeouts: { default: seconds * 1000 } }), describe: (seconds) => t('default timeout saved: {n}s.', { n: seconds }) },
   }));
 
-  const gemini = sxBlock(host, 'Gemini', t('Gemini can go quiet before it answers anything; this is how long the project gives it.'));
+  const gemini = sxBlock(host, 'Gemini', t('Gemini sometimes takes a while to start; this is how long to wait for it.'));
   sxRow(gemini, t('Silence limit'), t('Seconds without any output before the attempt is dropped.'), sxNumber(Math.round(s.geminiIdleMs / 1000), 's', {
     min: 10, step: 10, label: t('Silence limit'),
     wire: { toPatch: (seconds) => ({ gemini: { idleMs: seconds * 1000 } }), describe: (seconds) => t('Gemini silence limit saved: {n}s.', { n: seconds }) },
@@ -16283,7 +16283,7 @@ function openCodeProviderRow(provider, reload, hidden) {
 // how far each agent may go. The key is still asked in the browser for each message; this only
 // chooses which key and lets an accepted one hold a few minutes. #4 always asks for something.
 function overrideKeyHint(mode, key) {
-  if (key === 'confirm') return t('One click on UNLOCK. EDIT still takes a restore point first, and UNDO is one click.');
+  if (key === 'confirm') return t('One click on UNLOCK. EDIT saves a copy first, so UNDO is one click away.');
   if (key === 'phrase') return t('Your phrase, typed when you unlock it.');
   if (key === 'phrase-airlock') return t('Your phrase, typed twice.');
   if (key === 'designation-airlock') return t('The folder name of the project ({name}), typed twice.', { name: projectDesignation() });
@@ -16306,7 +16306,7 @@ function drawPermissions(host, data) {
   }
   const config = data.settings.override ?? OVERRIDE_DEFAULT;
   const canHash = Boolean(globalThis.crypto?.subtle);
-  const keys = sxBlock(host, t('How each mode is confirmed'), t('What you type to unlock #3 EDIT and #4 FULL ACCESS. It is asked for each message, unless a remembered permission below still holds.'), { className: 'perm-keys' });
+  const keys = sxBlock(host, t('How you unlock modes'), t('What you type to unlock #3 EDIT and #4 FULL ACCESS. Asked on every message, unless you chose to remember it below.'), { className: 'perm-keys' });
   overrideProof = null;
   if (config.phrase && [3, 4].some((mode) => config.keys[mode].startsWith('phrase'))) {
     overrideProof = el('input', 'sx-input');
@@ -16325,7 +16325,7 @@ function drawPermissions(host, data) {
   }
   sxFoot(keys, t('#4 always asks you to confirm: it runs commands, and what leaves the machine does not come back.'));
 
-  const phrase = sxBlock(host, t('Your phrase'), t('Only its fingerprint is kept (a salted SHA-256). When you type it to unlock, this Mac checks it and forgets it; it never leaves the Mac.'));
+  const phrase = sxBlock(host, t('Your phrase'), t('MADRE never stores the phrase itself, only a scrambled print of it, and it never leaves this Mac.'));
   const field = el('input', 'sx-input');
   field.type = 'password';
   field.autocomplete = 'new-password';
@@ -16349,7 +16349,7 @@ function drawPermissions(host, data) {
   }
   field.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); keep.click(); } });
 
-  const grace = sxBlock(host, t('Remember permission'), t('Once you confirm, the same mode for the same agent is not asked again for a while. Only in this page: reloading, STOP ALL or the × on its chip closes it.'));
+  const grace = sxBlock(host, t('Remember permission'), t('After you confirm, the same agent won\'t ask again for a while. Reloading the page or STOP ALL ends it.'));
   for (const mode of [3, 4]) {
     const options = mode === 3 ? [0, 5, 15, 30] : [0, 5];
     sxRow(grace, `#${mode} ${MODES[mode].label}`, mode === 4 ? t('Never longer than 5 minutes.') : t('Raising an agent\'s max mode always asks, remembered permission or not.'), sxSeg(options.map((minutes) => ({ value: minutes, text: minutes ? t('{n} min', { n: minutes }) : t('Off') })), config.grace[mode] ?? 0, (minutes) => {
@@ -16360,7 +16360,7 @@ function drawPermissions(host, data) {
 
   // Who may reach which mode: the ceiling of every agent in one table. The mode a message starts in
   // stays on each agent's sheet.
-  const who = sxBlock(host, t('Who may do what'), t('The highest mode each agent may reach. Each mode wears its colour; #3 and #4 still ask you to confirm.'), { className: 'perm-who' });
+  const who = sxBlock(host, t('Who may do what'), t('The most each agent may do. #3 and #4 still ask you first.'), { className: 'perm-who' });
   for (const agent of data.agents.filter((one) => one.detected)) {
     const scopes = data.settings.capabilities?.[agent.id]?.scopes ?? {};
     const cap = scopes.maxMode ?? 1;
@@ -16381,19 +16381,19 @@ function drawPrivacy(host, data) {
   if (!priv) return;
   const terms = el('textarea', 'sx-input mono');
   terms.rows = 4; terms.value = priv.terms.join('\n'); terms.placeholder = t('one term per line · a company, a brand, a domain, a name'); terms.spellcheck = false;
-  terms.setAttribute('aria-label', t('Hidden data'));
+  terms.setAttribute('aria-label', t('Words to hide'));
   const marker = el('input', 'sx-input mono');
   marker.value = priv.marker; marker.maxLength = 40; marker.spellcheck = false;
   marker.setAttribute('aria-label', t('Replaced with'));
   const exposure = el('span', 'sx-hint', t('Checking the project…'));
-  const purge = sxButton(t('Erase private data'), null, { tone: 'danger', title: t('Replace all hidden data already in the ledger, the index and the memories with the marker. Asks for the project name.') });
+  const purge = sxButton(t('Erase private data'), null, { tone: 'danger', title: t('Hides these words everywhere they were already saved. Asks for the project name.') });
   const showExposure = (payload) => {
     const x = payload?.exposure;
     if (!x) { exposure.textContent = ''; return; }
     const total = x.events + x.entries + x.memories;
     exposure.textContent = !payload.terms?.length ? t('Write the terms first.') : total
-      ? t('Still in the project: {events} events · {entries} indexed exchanges · {memories} memories.', { events: x.events, entries: x.entries, memories: x.memories })
-      : t('The project is clean: no private term in the ledger, the index or the memories.');
+      ? t('Still showing in {events} records · {entries} exchanges · {memories} memories.', { events: x.events, entries: x.entries, memories: x.memories })
+      : t('All clean: none of these words is saved in the project.');
     purge.disabled = !payload.terms?.length || !total;
   };
   const savePrivacy = async (patch, describe) => {
@@ -16409,19 +16409,19 @@ function drawPrivacy(host, data) {
   terms.addEventListener('change', () => savePrivacy({ terms: terms.value.split('\n') }, (payload) => t('{n} private {term} guarded from now on.', { n: payload.terms.length, term: payload.terms.length === 1 ? t('term') : t('terms') })));
   marker.addEventListener('change', () => savePrivacy({ marker: marker.value }, (payload) => t('private terms appear as {marker}.', { marker: payload.marker })));
 
-  const named = sxBlock(host, t('Hidden data'), t("A company, a brand, a domain: what an agent's own setup can leak into a reply. MADRE replaces them before the ledger, the archivist, the other agents or the dataset see them."));
+  const named = sxBlock(host, t('Words to hide'), t("Names you don't want saved or shared: a company, a brand, a domain. MADRE swaps them out before anything is saved or reaches another agent."));
   sxRow(named, t('One per line'), null, terms, { stack: true });
   sxRow(named, t('Replaced with'), t('What the project shows in their place.'), marker);
-  sxFoot(named, priv.envWins ? t('The terms stay in config.json; the project only records how many. PULSE_PRIVATE_TERMS is set, so its terms are added on every launch.') : t('The terms stay in config.json; the project only records how many.'));
+  sxFoot(named, priv.envWins ? t('The terms stay in config.json; the project only records how many. PULSE_PRIVATE_TERMS is set, so its terms are added on every launch.') : t('The list stays on this computer; the project only notes how many words it has.'));
 
   // Two guards that need no list, because what they catch has a shape rather than a name.
-  const shaped = sxBlock(host, t('Caught by their shape'), t('Two guards that need no list.'));
+  const shaped = sxBlock(host, t('Hidden automatically'), t('No list needed: MADRE spots these on its own.'));
   const guard = (key, label, hint, describe) => sxRow(shaped, label, hint, sxSwitch(priv[key] !== false, (on) => savePrivacy({ [key]: on }, () => `${describe} ${on ? t('on') : t('off')}.`), { label }));
-  guard('secrets', t('Keys, tokens and e-mail addresses'), t('API keys, GitHub and npm tokens, JWTs and e-mail addresses are struck out wherever they appear.'), t('redaction of keys and e-mail addresses'));
-  guard('paths', t('Your home path'), t('/Users/yourname becomes ~: a quoted path still reads, it just stops naming you.'), t('hiding of home paths'));
+  guard('secrets', t('Access keys and emails'), t('Access keys, service tokens and email addresses are crossed out wherever they appear.'), t('redaction of keys and e-mail addresses'));
+  guard('paths', t('Your home folder'), t('/Users/yourname becomes ~: a quoted path still reads, it just stops naming you.'), t('hiding of home paths'));
 
   const already = sxBlock(host, t('Already in the project'), t('What was recorded before a term was named stays as it was until you erase it.'));
-  const purgeRow = sxRow(already, t('Exposure'), null, purge);
+  const purgeRow = sxRow(already, t('Still visible'), null, purge);
   purgeRow.querySelector('.sx-words').append(exposure);
   purge.addEventListener('click', async () => {
     const designation = await roomAsk({
@@ -17812,7 +17812,7 @@ for (const id of Object.keys(FIRST_TOUCH)) document.querySelector(FIRST_TOUCH[id
 // other card — one after the other, each pointing at where it lives.
 const NEW_HINTS = [
   { id: 'new-copilot', button: '.copilot-chip', title: t('New: Copilot'), text: t('Turn it on from the robot and, for the time you choose, the agent you write to drives the project: it edits, plans and runs the safe commands by itself. It asks for the #3 key once.') },
-  { id: 'new-mcp', button: '#custom-button', panel: '#settings', title: t('New: Connect MCP'), text: t('In Settings › Connect MCP, add the tools this project\'s agents can use — a command on this computer or an address on the internet — or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.') },
+  { id: 'new-mcp', button: '#custom-button', panel: '#settings', title: t('New: Outside tools (MCP)'), text: t('In Settings › Outside tools (MCP), let this project\'s agents use other apps and services — a program on this computer or a service online — or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.') },
 ];
 function showNewHints(delay = 2500) {
   if (state.device) return;
@@ -18063,7 +18063,7 @@ function renderUpdate() {
 function drawRelease(section, info) {
   section.replaceChildren();
   if (!info) { sxBlock(section, t('Version'), t('The version could not be read.')); return; }
-  const where = { npx: t('It runs from the npx cache.'), project: t("It runs from this project's node_modules."), global: t('It is installed globally.') }[info.install] ?? t('It runs from source.');
+  const where = { npx: t('Runs without being installed (npx).'), project: t("Installed inside this project."), global: t('Installed on this computer.') }[info.install] ?? t('It runs from source.');
   const chip = info.available ? sxChip(t('{version} available', { version: info.latest }), 'warn') : info.latest ? sxChip(t('Up to date'), 'on') : null;
   const block = sxBlock(section, `MADRE ${info.current}`, where, { aside: chip });
   // What this version brought, again: the board that opened after the update, for whoever closed
@@ -18078,13 +18078,13 @@ function drawRelease(section, info) {
     try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: on }) }); toast(on ? t('Diagnostics › Look for new versions on: one check a day.') : t('Diagnostics › Look for new versions off: no request leaves for npm.')); await loadVersion(); }
     catch (error) { box.checked = !on; box.disabled = false; toast(t('The setting was not saved: {error}', { error: error.message })); }
   }, { disabled: Boolean(info.envWins), label: t('Look for new versions') });
-  sxRow(block, t('Look for new versions'), t('Once a day MADRE asks npm for the latest version: only the package name travels, the same request npx makes.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
+  sxRow(block, t('Look for new versions'), t('Once a day MADRE checks whether there\'s a new version. Only its name is sent.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
   if (info.enabled) sxRow(block, t('Last check'), when ?? t('Not yet.'), sxButton(t('Check now'), () => void loadVersion({ force: true })));
 
   if (!info.available) return;
   const canRestart = info.install !== 'source';
   const fresh = sxBlock(section, t('MADRE {version} is ready', { version: info.latest }), canRestart
-    ? t('Restart with it here: the project closes, installs and comes back on this same address in a few seconds. Nothing in the ledger is lost. Or run the command yourself.')
+    ? t('Restart here: the project closes, updates and comes back in a few seconds. Nothing is lost. Or run the command yourself.')
     : t('Pull the repository and start it again.'), { className: 'sx-fresh' });
   if (canRestart) {
     const restart = sxButton(updateUI.restarting ? t('Restarting…') : t('Restart with {version}', { version: info.latest }), async () => {
@@ -18171,7 +18171,7 @@ function renderTurns(section) {
   };
   sxRow(block, t('Several at once'), turns.enabled ? t('Several conversations may work at once.') : t('One conversation at a time; switching away from one at work is refused.'), sxSwitch(turns.enabled, (on) => save({ enabled: on }), { label: t('Several at once') }));
   sxRow(block, t('Conversations at once'), t('How many conversations may be working at the same time.'), sxStepper(turns.chats, { max: 6, disabled: !turns.enabled }, (n) => save({ chats: n })), { off: !turns.enabled });
-  sxRow(block, t('Turns per conversation'), t('How many answers may be under way inside one conversation.'), sxStepper(turns.turnsPerChat, { max: 8, disabled: !turns.enabled }, (n) => save({ turnsPerChat: n })), { off: !turns.enabled });
+  sxRow(block, t('Answers per conversation'), t('How many answers may be under way inside one conversation.'), sxStepper(turns.turnsPerChat, { max: 8, disabled: !turns.enabled }, (n) => save({ turnsPerChat: n })), { off: !turns.enabled });
   const notes = notificationsState();
   const ask = sxButton(notes === 'granted' ? t('On') : notes === 'denied' ? t('Blocked') : notes === 'unsupported' ? t('Not available') : t('Turn on'), async () => { await askForNotifications(); renderMotherSentinel(); }, { tone: notes === 'default' ? 'primary' : null });
   ask.disabled = notes !== 'default';
@@ -18192,18 +18192,18 @@ function drawSentinel(section) {
   const reports = [...state.reports.values()].sort((a, b) => (a.at < b.at ? 1 : -1));
   const unsent = reports.filter((report) => !report.sent?.ok).length;
   const settings = sentinelUI.settings ?? { autoReport: false, canSend: false, repo: null };
-  const block = sxBlock(section, t('Failure monitor'), t('It keeps the failures Diagnostics cannot explain, and crashes, with paths, names and keys removed. Nothing leaves this machine unless you send it.'), {
+  const block = sxBlock(section, t('Error reports'), t('Keeps errors MADRE can\'t explain, with private details removed. Nothing leaves this computer unless you send it.'), {
     aside: reports.length ? sxChip(t('{n} reports · {unsent} not sent', { n: reports.length, unsent }), unsent ? 'warn' : '') : sxChip(t('Nothing to report'), 'on'),
   });
-  sxRow(block, t('Report automatically'), settings.canSend ? t("New unknown conditions go to the author's collector, redacted.") : t('No collector is configured (PULSE_REPORT_URL).'), sxSwitch(settings.autoReport, async (on, box) => {
+  sxRow(block, t('Send reports automatically'), settings.canSend ? t("New errors go to MADRE's author, with private details removed.") : t('Sending isn\'t set up in this copy of MADRE.'), sxSwitch(settings.autoReport, async (on, box) => {
     box.disabled = true;
     try {
       const result = await fetch('/api/sentinel/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ autoReport: on }) }).then((response) => response.json());
       sentinelUI.settings = result.settings;
-      toast(result.settings.autoReport ? t("Diagnostics › auto-report on: new unknown conditions go to the author's collector, redacted.") : t('Diagnostics › auto-report off: reports stay here until you send one.'));
+      toast(result.settings.autoReport ? t("Diagnostics › error reports on: new errors go to MADRE's author, with private details removed.") : t('Diagnostics › auto-report off: reports stay here until you send one.'));
     } catch (error) { box.checked = !on; toast(t('It could not be saved: {error}', { error: error.message })); }
     finally { renderMotherSentinel(); }
-  }, { disabled: !settings.canSend, label: t('Report automatically') }), { off: !settings.canSend });
+  }, { disabled: !settings.canSend, label: t('Send reports automatically') }), { off: !settings.canSend });
   // Whoever arrived from a post in Spanish will not make a GitHub account to say "it does not
   // detect Codex". The form leads there; the issue stays one click away, and the other way round
   // in English, where the person reading this is already holding an account.
@@ -18214,7 +18214,7 @@ function drawSentinel(section) {
   both.append(...(spanish ? [viaForm, viaIssue] : [viaIssue, viaForm]));
   sxRow(block, t('Tell the author'), t('What failed, or what you wish MADRE did.'), both);
   if (!reports.length) return;
-  const list = sxBlock(section, t('Reports'), t('Each one is redacted before it is kept. Read it in the issue before you send it.'));
+  const list = sxBlock(section, t('Reports'), t('Private details are removed from each one. You can read it before sending.'));
   for (const report of reports.slice(0, 20)) {
     const who = report.kind === 'crash' ? t('Crash') : `@${report.agent ?? t('project')}`;
     const line = String(report.error).split('\n')[0].slice(0, 200);
@@ -18280,7 +18280,7 @@ const BAR_BUILT = {
 // They ride with the crew when it is there, and lead the keys when it is not: where they always were.
 const BAR_CONTEXTUAL = ['#steps-pill', '#tour-pill-slot', '#handoff-pill', '#update-pill', '#stop-all'];
 // A module's name before the board has answered; once it has, the module says its own.
-const BAR_MODULE_NAMES = { ash: 'Token saver', ollama: 'Local AI', intents: 'Intenciones' };
+const BAR_MODULE_NAMES = { ash: 'Token saver', ollama: 'AI on this computer', intents: 'Suggested effort' };
 const BAR_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const barKit = {
   node: document.querySelector('#bar'),
@@ -18335,7 +18335,7 @@ function barCatalogue() {
     const nodes = spec.nodes.map((query) => document.querySelector(query)).filter(Boolean);
     if (nodes.length) out.set(id, { id, name: spec.name(), nodes });
   }
-  out.set('memory', { id: 'memory', name: t('Memory'), icon: SETTINGS_CATS.memory.icon, open: () => openSettingsOn('memory') });
+  out.set('memory', { id: 'memory', name: t('What it remembers'), icon: SETTINGS_CATS.memory.icon, open: () => openSettingsOn('memory') });
   // SALAS, every room on this Mac (docs/MACROVERSO.md). On a phone the way back to them is already
   // at the start of the bar.
   // On the Mac the way out is the house in the second bar; a key here would say it twice.

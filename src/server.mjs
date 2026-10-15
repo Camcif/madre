@@ -2536,9 +2536,9 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/local-ai') {
         const patch = await body(request);
         if (typeof patch?.on !== 'boolean') return sendJson(response, 400, { error: t('Say on or off.') });
-        if (salasRoom) return sendJson(response, 409, { error: t('The Coordinator follows the local AI switch of Modules.') });
+        if (salasRoom) return sendJson(response, 409, { error: t('The Coordinator follows the AI on this computer switch of Modules.') });
         const status = await setLocalAiHere(patch.on);
-        if (!status) return sendJson(response, 409, { error: t('Home turns the local AI on in every project. Change it in Home › Settings › Local AI.') });
+        if (!status) return sendJson(response, 409, { error: t('Home turns the AI on this computer on in every project. Change it in Home › Settings › AI on this computer.') });
         return sendJson(response, 200, { project: status.project });
       }
       if (request.method === 'GET' && url.pathname === '/api/settings') {

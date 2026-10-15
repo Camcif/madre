@@ -215,7 +215,7 @@ export function startTour({ page, go = {}, ready = () => true, phone = false, de
     const title = el('h1', 'tour-hello', back || since ? t('Hello again.') : t('Hello.'));
     title.id = 'tour-bonjour-title';
     const body = el('p', 'tour-hello-says', since
-      ? t('Since 1.0, Home became a board you arrange, with widgets; the local AI is chosen project by project, and MADRE speaks more plainly. I tell you what changed, at your own pace.')
+      ? t('Since 1.0, Home became a board you arrange, with widgets; the AI on this computer is chosen project by project, and MADRE speaks more plainly. I tell you what changed, at your own pace.')
       : back
         ? t('MADRE changed a lot since 0.7.2. First I bring your projects to Home; then I tell you what is new, at your own pace.')
         : t('This is MADRE: all your AI agents in one place, with your projects, their memory and your permissions.'));

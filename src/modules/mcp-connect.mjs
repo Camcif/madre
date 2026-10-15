@@ -146,7 +146,7 @@ const pending = new Map();   // state -> { id, verifier, clientId, redirectUri, 
 
 export default defineModule({
   id: 'mcp',
-  name: 'Connect MCP',
+  name: 'Outside tools (MCP)',
   vendor: 'MADRE',
   version: '1.0.0',
   summary: 'MCP servers you add to this project, for its agents: a command on this computer or an address on the internet. Each one is started and checked before any turn gets it; tools that read work from #1, tools that act from the mode you choose.',
@@ -157,7 +157,7 @@ export default defineModule({
   async status(ctx) {
     const { servers } = await readMcp(ctx.stateRoot, ctx.projectRoot);
     const ready = servers.filter((one) => one.enabled && !one.problem && one.tools?.length).length;
-    return { status: { installed: true, detail: servers.length ? t('{ready} of {total} servers ready', { ready, total: servers.length }) : t('no servers yet') } };
+    return { status: { installed: true, detail: servers.length ? t('{ready} of {total} tools ready', { ready, total: servers.length }) : t('no servers yet') } };
   },
   async toolsForTurn(ctx, turn) {
     const { servers } = await readMcp(ctx.stateRoot, ctx.projectRoot);
@@ -254,7 +254,7 @@ export default defineModule({
         if (!server) return { status: 404, body: { error: t('That server is not connected in this project.') } };
         // MADRE's own process reaches this server to sign in: the list of what left the machine
         // names it as the server the person connected, not as an address nothing declares.
-        declareDestinations('mcp', [{ id: server.id, host: new URL(server.url).hostname, to: t('{name} · an MCP server you connected', { name: server.label }), what: t('the sign-in: how to sign in, the registration of MADRE and the token'), when: t('when you press Sign in on it'), where: t('Settings › Connect MCP') }]);
+        declareDestinations('mcp', [{ id: server.id, host: new URL(server.url).hostname, to: t('{name} · an MCP server you connected', { name: server.label }), what: t('the sign-in: how to sign in, the registration of MADRE and the token'), when: t('when you press Sign in on it'), where: t('Settings › Outside tools (MCP)') }]);
         const found = await discoverOAuth(server.url).catch((error) => ({ ok: false, problem: error.message }));
         if (!found.ok) return { status: 409, body: { error: t(found.problem) } };
         const redirectUri = `${url.origin}/api/x/mcp/oauth/callback`;
@@ -274,7 +274,7 @@ export default defineModule({
         const state = url.searchParams.get('state') ?? '';
         const flow = pending.get(state);
         pending.delete(state);
-        if (!flow) return page(t('This sign-in expired'), t('Start it again from Settings › Connect MCP.'));
+        if (!flow) return page(t('This sign-in expired'), t('Start it again from Settings › Outside tools (MCP).'));
         if (url.searchParams.get('error')) return page(t('The sign-in was not completed'), t('The server said: {problem}', { problem: String(url.searchParams.get('error_description') ?? url.searchParams.get('error')).replace(/[<>&]/g, '') }));
         const done = await exchangeCode({ authorization: flow.authorization, clientId: flow.clientId, redirectUri: flow.redirectUri, code: url.searchParams.get('code') ?? '', verifier: flow.verifier, resource: flow.resource }).catch((error) => ({ ok: false, problem: error.message }));
         if (!done.ok) return page(t('The sign-in was not completed'), t('The server said: {problem}', { problem: String(done.problem).replace(/[<>&]/g, '') }));
@@ -282,7 +282,7 @@ export default defineModule({
         const { servers } = await readMcp(ctx.stateRoot, ctx.projectRoot);
         const server = servers.find((one) => one.id === flow.id);
         const check = server ? await saveChecked(ctx, server) : { ok: false };
-        return page(check.ok ? t('Connected') : t('Signed in'), check.ok ? t('{name} is connected to this project with {n} tools. You can close this tab and go back to MADRE.', { name: server?.label ?? flow.id, n: check.tools.length }) : t('You are signed in, but the server did not answer yet: {problem}. Check it again from Settings › Connect MCP.', { problem: String(check.problem ?? '').replace(/[<>&]/g, '') }));
+        return page(check.ok ? t('Connected') : t('Signed in'), check.ok ? t('{name} is connected to this project with {n} tools. You can close this tab and go back to MADRE.', { name: server?.label ?? flow.id, n: check.tools.length }) : t('You are signed in, but the server did not answer yet: {problem}. Check it again from Settings › Outside tools (MCP).', { problem: String(check.problem ?? '').replace(/[<>&]/g, '') }));
       },
     },
   ],

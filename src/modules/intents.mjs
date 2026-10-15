@@ -46,10 +46,10 @@ const nameOrNull = (value) => (typeof value === 'string' && /^[A-Za-z0-9][A-Za-z
 export default defineModule({
   id: 'intents',
   configKey: 'intents',
-  name: 'Intenciones',
+  name: 'Suggested effort',
   vendor: 'MADRE',
   version: '1.0.0',
-  summary: 'Suggests how hard Claude Code and Codex should think for the message you are writing, from what was measured on this project. It suggests; you choose.',
+  summary: 'Suggests how hard Claude Code and Codex should think about your message, based on what worked in this project. You decide.',
   creates: ['nothing in the project', 'its measurements next to the project, in intents.jsonl'],
   settings: { enabled: true },
   card: 'intents',
@@ -64,7 +64,7 @@ export default defineModule({
       method: 'GET', path: '/api/intents',
       handler: async (ctx, { url }) => {
         const desk = deskFor(ctx);
-        if (!desk) return { status: 503, body: { error: t('Intenciones is not available in this project.') } };
+        if (!desk) return { status: 503, body: { error: t('Suggested effort is not available in this project.') } };
         let models = {};
         try { models = JSON.parse(url.searchParams.get('models') ?? '{}') ?? {}; } catch { models = {}; }
         const chosen = Object.fromEntries(Object.entries(models).map(([agent, model]) => [agent, nameOrNull(model)]));
@@ -97,8 +97,8 @@ export default defineModule({
       method: 'POST', path: '/api/intents/calibrate',
       handler: async (ctx, { payload }) => {
         const desk = deskFor(ctx);
-        if (!desk) return { status: 503, body: { error: t('Intenciones is not available in this project.') } };
-        if (!enabled(ctx)) return { status: 409, body: { error: t('Turn Intenciones on first.') } };
+        if (!desk) return { status: 503, body: { error: t('Suggested effort is not available in this project.') } };
+        if (!enabled(ctx)) return { status: 409, body: { error: t('Turn Suggested effort on first.') } };
         const result = await desk.start({
           kind: payload?.kind === 'full' ? 'full' : 'quick',
           agent: String(payload?.agent ?? ''),
@@ -113,7 +113,7 @@ export default defineModule({
     {
       method: 'POST', path: '/api/intents/answer',
       handler: async (ctx, { payload }) => {
-        const result = deskFor(ctx)?.answer(String(payload?.choice ?? '')) ?? { error: t('Intenciones is not available in this project.') };
+        const result = deskFor(ctx)?.answer(String(payload?.choice ?? '')) ?? { error: t('Suggested effort is not available in this project.') };
         return { status: result.error ? 409 : 200, body: result };
       },
     },

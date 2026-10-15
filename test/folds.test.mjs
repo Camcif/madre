@@ -200,7 +200,7 @@ test('mother: one door to the crew, and the bridge is first contact and nothing 
   assert.ok(!app.includes('function openBridge'), 'a way to open the bridge on a room that has a crew survives');
 
   // And what the bridge said about needing only one agent is said where the crew now lives.
-  assert.match(app, /One agent is enough to open the project/);
+  assert.match(app, /One agent is enough to start\. MADRE uses the AI apps already on this computer/);
 });
 
 test('settings: every sheet is built from the same blocks, and the sheet is as wide as you pull it', async () => {
@@ -406,7 +406,7 @@ test('bar: right-click opens it for editing, AJUSTES stays last, and the choice 
   assert.match(app, /try \{ localStorage\.setItem\(BAR_KEY, JSON\.stringify\(barKit\.saved\)\); \} catch \{/);
   assert.match(app, /barKit\.order = barStored\(\)\.filter\(\(id\) => id !== BAR_FIXED && catalogue\.has\(id\)\);/, 'an unknown id or AJUSTES can land in the order');
   // What the new keys open.
-  assert.match(app, /out\.set\('memory', \{ id: 'memory', name: t\('Memory'\), icon: SETTINGS_CATS\.memory\.icon, open: \(\) => openSettingsOn\('memory'\) \}\);/);
+  assert.match(app, /out\.set\('memory', \{ id: 'memory', name: t\('What it remembers'\), icon: SETTINGS_CATS\.memory\.icon, open: \(\) => openSettingsOn\('memory'\) \}\);/);
   assert.match(app, /if \(face\.window\) offered\.set\(id,/);
   assert.match(app, /for \(const item of items\) if \(item\.external\) offered\.set\(item\.id, item\);/);
   assert.match(app, /floatModule\(id\);/);

@@ -368,9 +368,9 @@ test('the room UI boots against a real transcript without throwing', async () =>
   assert.deepEqual(cards.map((card) => card.dataset.cat), ['look', 'room', 'files', 'agents', 'memory', 'mcp', 'permissions', 'privacy', 'release']);
   assert.ok(cards.every((card) => card.querySelector('.settings-line')?.textContent.trim()), 'a card does not say where it stands');
   const search = registry.get('settings-search');
-  search.value = 'version';
+  search.value = 'actualizacion';
   search.listeners.input[0]();
-  assert.match(settingsBody.textContent, /Versión y reportes/, 'a search without the accent misses the category');
+  assert.match(settingsBody.textContent, /Actualizaciones y errores/, 'a search without the accent misses the category');
   settingsBody.querySelector('.settings-result').listeners.click[0]();
   assert.equal(globalThis.__pulse.settingsWindow().open, 'release', 'the result does not land in its category');
   assert.ok(settingsBody.querySelector('.settings-detail'), 'the category has no panel');
@@ -427,7 +427,7 @@ test('the bar is yours: a right-click opens it, − takes a key off, a tile puts
   assert.ok(registry.get('modules-button').classList.contains('bar-off'), 'a key that is off is still on the bar');
   assert.ok(registry.get('agents').classList.contains('bar-off') && registry.get('agents-compact').classList.contains('bar-off'), 'the crew is one key: both of its forms go');
   const memoryKey = bar.children.find((node) => node.dataset?.barItem === 'memory');
-  assert.equal(memoryKey.getAttribute('aria-label'), 'Memoria');
+  assert.equal(memoryKey.getAttribute('aria-label'), 'Lo que recuerda');
   assert.ok(memoryKey.classList.contains('tree-button'), 'a new key is not drawn like the others');
 
   // A right-click on a key opens the bar for editing, without the browser's own menu.
@@ -903,7 +903,7 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     await syncIntentOffer();
     assert.equal(offer.hidden, false);
     assert.equal(posted.at(-1)[1].mode, 1, 'the mode did not reach the suggestion');
-    assert.match(offer.textContent, /Parece una búsqueda · podría bastar BAJO · pruébalo en esta pregunta e Intenciones lo tendrá en cuenta/);
+    assert.match(offer.textContent, /Parece una búsqueda · podría bastar BAJO · pruébalo en esta pregunta y MADRE lo tendrá en cuenta/);
     assert.ok(offer.children.some((child) => child.className === 'intent-basis trial' && child.textContent === 'Prueba'), 'a try carries no badge');
     assert.ok(!offer.classList.contains('up'));
     const tryKey = offer.children.find((child) => child.className === 'free-go');
@@ -913,7 +913,7 @@ test('Intenciones speaks under the box only with a reason, marks the chip, and i
     assert.deepEqual(state.effortOnce, { agent: 'codex', model: null, intent: 'lookup', effort: 'low', from: 'medium' });
     assert.equal(state.chosenEffort.codex, undefined, 'a try was remembered for every message');
     assert.ok(!String(localStorage.getItem('pulse.chosenEffort')).includes('"codex":"low"'));
-    assert.match(offer.textContent, /Esta pregunta va con BAJO · si no alcanza, Intenciones lo notará y volverá a MEDIO/);
+    assert.match(offer.textContent, /Esta pregunta va con BAJO · si no alcanza, MADRE lo notará y volverá a MEDIO/);
     // Edited, still the same kind of request: the try stays.
     registry.get('message').value = '¿dónde está definido el puerto por defecto del servidor?';
     await syncIntentOffer();
