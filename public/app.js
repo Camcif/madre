@@ -17903,21 +17903,31 @@ function showFirstTouch(hint, button) {
 for (const id of Object.keys(FIRST_TOUCH)) document.querySelector(FIRST_TOUCH[id].button)?.addEventListener('click', () => firstTouch(id));
 
 // What a small version brings is said with the same cards, once each, on their own: no welcome and
-// no tour (1.0.2: the copilot and Connect MCP). Only when the room is quiet — no dialog open, no
+// no tour (1.0.2: the copilot, outside tools, the Finder, the memory's door and the folded
+// notices). Only when the room is quiet — no dialog open, no
 // other card — one after the other, each pointing at where it lives.
 const NEW_HINTS = [
   { id: 'new-copilot', button: '.copilot-chip', title: t('New: Copilot'), text: t('Turn it on from the robot and, for the time you choose, the agent you write to drives the project: it edits, plans and runs the safe commands by itself. It asks for the #3 key once.') },
   { id: 'new-mcp', button: '#custom-button', panel: '#settings', title: t('New: Outside tools (MCP)'), text: t('In Settings › Outside tools (MCP), let this project\'s agents use other apps and services — a program on this computer or a service online — or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.') },
+  { id: 'new-finder', button: '#tree-button', spill: '.bar-more', title: t('New: the Finder keeps up'), text: t('It refreshes by itself after each answer and each command, and a dot on a folder shows which agent last touched something inside it.') },
+  { id: 'new-memory-access', button: '#nostromo-bar', spill: '.bar-more', title: t('New: the memory without the name'), text: t('The Memory map can stop asking for the project name for 1, 8 or 24 hours, or for good: «Don\'t ask again…» in its confirmation, or Settings › Permissions.') },
+  { id: 'new-dots', button: '#messages .sys-dots', title: t('New: notices fold into dots'), text: t('After 10 seconds a notice folds into a dot of its colour; a click opens them all, in order. The ones that ask for something stay open.') },
 ];
 function showNewHints(delay = 2500) {
   if (state.device) return;
   setTimeout(() => {
-    const next = NEW_HINTS.find((hint) => !hintsSeen()[hint.id] && document.querySelector(hint.button)?.getClientRects().length);
-    if (!next) return;
+    // Where it lives, or «more» when the bar keeps that key behind it.
+    const shown = (selector) => { const node = selector && document.querySelector(selector); return node?.getClientRects().length ? node : null; };
+    const anchorOf = (hint) => shown(hint.button) ?? shown(hint.spill);
+    const pending = NEW_HINTS.filter((hint) => !hintsSeen()[hint.id]);
+    const next = pending.find(anchorOf);
+    // Nothing to point at yet (no folded notice, a key not on screen): asked again later.
+    if (!next) { if (pending.length) showNewHints(30000); return; }
     // Not over something the person is already reading: tried again later, never stacked.
     if (document.querySelector('dialog[open], .hint-card') || !els.onboarding.hidden) { showNewHints(8000); return; }
     try { localStorage.setItem(HINTS_KEY, JSON.stringify({ ...hintsSeen(), [next.id]: true })); } catch { return; }
-    showFirstTouch(next, document.querySelector(next.button));
+    const behind = !shown(next.button);
+    showFirstTouch(behind ? { ...next, text: `${next.text} ${t('It is in «more», on the bar.')}` } : next, anchorOf(next));
     const card = document.querySelector('.hint-card');
     const watch = setInterval(() => { if (!card?.isConnected) { clearInterval(watch); showNewHints(600); } }, 400);
   }, delay);

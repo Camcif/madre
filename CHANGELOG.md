@@ -6,7 +6,7 @@ Una versión se cierra cuando está en npm: hasta entonces su sección se llama 
 
 ## 1.0.2 · Sin publicar
 
-Para quien la usa es un parche: no hay saludo ni recorrido nuevo, solo dos avisos de la primera vez (el copiloto y Herramientas externas).
+Para quien la usa es un parche: no hay saludo, recorrido ni «Qué hay de nuevo». Lo nuevo se dice con avisos de la primera vez, uno a la vez y una sola vez: el copiloto, Herramientas externas (MCP), el Finder que se mantiene al día, la memoria sin escribir el nombre, los avisos plegados en puntos y, en Inicio, la tecla para agregar widgets.
 
 - **Los comandos que pide un agente le regresan solos.** Cuando corren las líneas de un ```pulse-run, el resultado vuelve al agente que lo pidió en un turno propio, con el modo que tenía (hasta #3), lo que estaba contestando y la salida de cada línea; ya no hace falta escribir «ya lo corrí». Si ese agente sigue contestando, espera; DETENER TODO lo retiene. La tarjeta trae **Correr todos**, **Devolver lo que corrió** (cuando no quieres correr el resto) y dice a quién vuelve. Una salida larga ya no saca de la conversación la petición del humano: en la ventana compartida pesa como mucho ~1,200 caracteres (su principio y su final).
 - **Los agentes ya no confunden su permiso.** En #3 y #4 la instrucción del modo decía «solo lectura» encima del permiso para editar: con ACCESO TOTAL un agente respondía que solo inspeccionaría. Ahora dice lo que cada modo permite.

@@ -480,3 +480,14 @@ test('memory access: the gate offers «don\'t ask again», which lands in Permis
   assert.match(app, /if \(held\?\.choice === 'never' \|\| \(held && Number\(held\.until\) > Date\.now\(\)\)\) return held;/);
   assert.match(app, /access\.id = 'perm-memory';/);
 });
+
+test('1.0.2: what is new is said with first-time cards, one at a time, with no welcome and no «what is new»', async () => {
+  const [app, home] = await Promise.all([read('app.js'), read('salas-mac.js')]);
+  const { notesFor } = await import('../src/whats-new.mjs');
+  assert.equal(notesFor('1.0.2'), null, 'a patch opened the «what is new» board');
+  for (const id of ['new-copilot', 'new-mcp', 'new-finder', 'new-memory-access', 'new-dots']) assert.match(app, new RegExp(`\\{ id: '${id}', button: `));
+  // A key kept behind «more» is pointed at there, and a card with nothing to point at waits.
+  assert.match(app, /const anchorOf = \(hint\) => shown\(hint\.button\) \?\? shown\(hint\.spill\);/);
+  assert.match(app, /if \(!next\) \{ if \(pending\.length\) showNewHints\(30000\); return; \}/);
+  assert.match(home, /homeTour\.hint\('new-add-widgets', key, /);
+});

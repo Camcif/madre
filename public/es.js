@@ -4910,4 +4910,14 @@ export const ES = {
   // Proveedores de OpenCode: el catálogo completo (2026-10-14).
   'Most used': 'Más usados',
   'All providers': 'Todos los proveedores',
+  // Avisos de la primera vez de 1.0.2 (2026-10-14).
+  'New: the Finder keeps up': 'Nuevo: el Finder se mantiene al día',
+  'It refreshes by itself after each answer and each command, and a dot on a folder shows which agent last touched something inside it.': 'Se actualiza solo después de cada respuesta y cada comando, y un punto en cada carpeta dice qué agente tocó algo dentro por última vez.',
+  'New: the memory without the name': 'Nuevo: la memoria sin escribir el nombre',
+  "The Memory map can stop asking for the project name for 1, 8 or 24 hours, or for good: «Don't ask again…» in its confirmation, or Settings › Permissions.": 'El Mapa de memoria puede dejar de pedir el nombre del proyecto por 1, 8 o 24 horas, o para siempre: «No volver a pedir…» en su confirmación, o en Ajustes › Permisos.',
+  'New: notices fold into dots': 'Nuevo: los avisos se pliegan en puntos',
+  'After 10 seconds a notice folds into a dot of its colour; a click opens them all, in order. The ones that ask for something stay open.': 'A los 10 segundos un aviso se pliega en un punto de su color; un clic los abre todos, en orden. Los que piden algo se quedan abiertos.',
+  'New: add widgets': 'Nuevo: agregar widgets',
+  'This key opens «Add to Home»: the widgets you can put here and the tiles you took off.': 'Esta tecla abre «Agregar a Inicio»: los widgets que puedes poner aquí y las tarjetas que quitaste.',
+  'It is in «more», on the bar.': 'Está en «más», en la barra.',
 };
