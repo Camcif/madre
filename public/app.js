@@ -6838,7 +6838,7 @@ const SETTINGS_INDEX = [
   ['agents', 'Max mode'], ['agents', 'Starting mode'], ['agents', 'Web access'], ['agents', 'Generate images'], ['agents', 'Time limit'], ['agents', 'Sign in'],
   ['memory', 'Who takes notes first'], ['memory', 'Who may take notes'], ['memory', 'Room for memories'], ['memory', 'Related memories'], ['memory', 'Search by meaning'], ['memory', 'Training data'], ['memory', 'Details and checkups'],
   ['mcp', 'Outside tools (MCP)'], ['mcp', 'Add a tool'], ['mcp', 'Import from your apps'], ['mcp', 'Can act from'],
-  ['permissions', 'How you unlock modes'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Who may do what'],
+  ['permissions', 'How you unlock modes'], ['permissions', 'Your phrase'], ['permissions', 'Remember permission'], ['permissions', 'Memory access'], ['permissions', 'Who may do what'],
   ['privacy', 'Words to hide'], ['privacy', 'Replaced with'], ['privacy', 'Access keys and emails'], ['privacy', 'Your home folder'], ['privacy', 'Erase private data'],
   ['release', 'Look for new versions'], ['release', 'Check now'], ['release', "What's new in this version"], ['release', 'The tour of MADRE 1.0'], ['release', 'Send reports automatically'], ['release', 'Tell the author'],
 ];
@@ -16358,6 +16358,17 @@ function drawPermissions(host, data) {
     }, { label: t('Remember permission for #{n}', { n: mode }) }));
   }
 
+  // The Memory map asks for the project name; here it can stop asking for a while, or for good
+  // (2026-10-14). Kept in this browser, for this project only.
+  const access = sxBlock(host, t('Memory access'), t('Opening the Memory map asks for the project name. Choose how long it does not ask again.'));
+  access.id = 'perm-memory';
+  const held = memoryAccess();
+  sxRow(access, t('Don\'t ask again'), memoryAccessLine(held), sxSeg(MEMORY_ACCESS.map(([value, words]) => ({ value, text: words() })), held?.choice ?? 'ask', (choice) => {
+    setMemoryAccess(choice);
+    toast(choice === 'ask' ? t('The Memory map asks for the project name again.') : choice === 'never' ? t('The Memory map will not ask again in this project.') : t('The Memory map will not ask until {time}.', { time: clockTime(memoryAccess()?.until) }), { tone: 'done' });
+    renderSettings();
+  }, { label: t('Don\'t ask again') }), { stack: true });
+
   // Who may reach which mode: the ceiling of every agent in one table. The mode a message starts in
   // stays on each agent's sheet.
   const who = sxBlock(host, t('Who may do what'), t('The most each agent may do. #3 and #4 still ask you first.'), { className: 'perm-who' });
@@ -16578,8 +16589,30 @@ function nostromoTick(now) {
 
 function nostromoDesignation() { return projectDesignation(); }
 
+// How long the Memory map may open without asking for the project name (Settings › Permissions ›
+// Memory access): never stored past its hour, and only in this browser for this project.
+const MEMORY_ACCESS_KEY = 'pulse.memoryAccess';
+const MEMORY_ACCESS = [['ask', () => t('Always ask')], ['60', () => t('{n} h', { n: 1 })], ['480', () => t('{n} h', { n: 8 })], ['1440', () => t('{n} h', { n: 24 })], ['never', () => t('Never')]];
+function memoryAccess() {
+  try {
+    const held = JSON.parse(localStorage.getItem(MEMORY_ACCESS_KEY) ?? 'null');
+    if (held?.choice === 'never' || (held && Number(held.until) > Date.now())) return held;
+  } catch { /* no storage: it asks */ }
+  return null;
+}
+function setMemoryAccess(choice) {
+  try {
+    if (choice === 'ask') localStorage.removeItem(MEMORY_ACCESS_KEY);
+    else localStorage.setItem(MEMORY_ACCESS_KEY, JSON.stringify({ choice, until: choice === 'never' ? null : Date.now() + Number(choice) * 60000 }));
+  } catch { /* no storage: it keeps asking */ }
+}
+function clockTime(at) { return new Date(at).toLocaleTimeString(language(), { hour: '2-digit', minute: '2-digit' }); }
+function memoryAccessLine(held) {
+  if (!held) return t('It asks every time.');
+  return held.choice === 'never' ? t('It does not ask in this project.') : t('It does not ask until {time}.', { time: clockTime(held.until) });
+}
 nostromo.button?.addEventListener('click', () => {
-  if (nostromo.armed) { void openNostromo(); return; }
+  if (nostromo.armed || memoryAccess()) { void openNostromo(); return; }
   if (!nostromo.gate.dialog) return;
   nostromo.gate.reply.textContent = '';
   nostromo.gate.reply.className = 'key-reply';
@@ -16590,6 +16623,11 @@ nostromo.button?.addEventListener('click', () => {
 // NOSTROMO also lives in the bar: the same door, from anywhere in the room.
 document.querySelector('#nostromo-bar')?.addEventListener('click', () => nostromo.button?.click());
 nostromo.gate.cancel?.addEventListener('click', () => nostromo.gate.dialog.close());
+// «Don't ask again» goes straight to where that is chosen: Settings › Permissions › Memory access.
+document.querySelector('#nostromo-gate-skip')?.addEventListener('click', () => {
+  nostromo.gate.dialog.close();
+  openSettingsOn('permissions', { anchor: 'perm-memory' });
+});
 nostromo.gate.form?.addEventListener('submit', (event) => {
   event.preventDefault();
   const typed = nostromo.gate.input.value.trim();

@@ -469,3 +469,14 @@ test('bar: on a narrow screen what does not fit waits behind «more», and setti
   assert.match(css, /\.bar > \.bar-left \{ min-width: 58px; flex-shrink: 1; \}/, 'the brand can be squeezed out again');
 });
 
+
+test('memory access: the gate offers «don\'t ask again», which lands in Permissions, and a held choice opens the map straight', async () => {
+  const [app, html] = await Promise.all([read('app.js'), read('index.html')]);
+  assert.match(html, /<button id="nostromo-gate-skip" class="key-skip" type="button">Don't ask again…<\/button>/);
+  assert.match(app, /openSettingsOn\('permissions', \{ anchor: 'perm-memory' \}\);/);
+  assert.match(app, /if \(nostromo\.armed \|\| memoryAccess\(\)\) \{ void openNostromo\(\); return; \}/);
+  // 1 h, 8 h, 24 h or never, and «always ask» to undo it; an hour that passed asks again.
+  assert.match(app, /const MEMORY_ACCESS = \[\['ask', [^\n]*\['60', [^\n]*\['480', [^\n]*\['1440', [^\n]*\['never', /);
+  assert.match(app, /if \(held\?\.choice === 'never' \|\| \(held && Number\(held\.until\) > Date\.now\(\)\)\) return held;/);
+  assert.match(app, /access\.id = 'perm-memory';/);
+});

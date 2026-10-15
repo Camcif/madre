@@ -6995,6 +6995,9 @@ dialog.room-ask:not(.console) .room-ask-choice.danger:hover { background: var(--
 /* The key, quieter: one sentence of what it allows, a smaller one of what keeps it safe, the
    ceiling note when there is one, and a field whose label says what to type. */
 dialog.key-ask .room-ask-body { color: var(--text); font-size: 14px; }
+/* «Don't ask again…» under the memory gate: a quiet link to Settings › Permissions › Memory access. */
+.key-skip { display: block; margin: 4px auto 0; padding: 4px 8px; border: 0; border-radius: 8px; background: none; font: 500 12px/1.3 var(--sans); color: var(--text-2); cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--text-2) 40%, transparent); text-underline-offset: 3px; }
+.key-skip:hover, .key-skip:focus-visible { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); outline: 0; }
 .key-safe { margin: -4px 0 0; font-family: var(--read); font-size: 12.5px; line-height: 1.45; color: color-mix(in srgb, var(--text) 58%, transparent); }
 .key-raise { margin: 0; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--mode-3) 14%, transparent); color: color-mix(in srgb, var(--mode-3) 70%, var(--text)); font-family: var(--read); font-size: 12px; font-weight: 550; }
 dialog.key-ask.m4 .key-raise { background: color-mix(in srgb, var(--mode-4) 14%, transparent); color: color-mix(in srgb, var(--mode-4) 70%, var(--text)); }

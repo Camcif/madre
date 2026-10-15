@@ -4876,4 +4876,16 @@ export const ES = {
   'on this computer': 'en esta computadora',
   'looks up': 'consulta',
   'does things': 'hace cosas',
+  // Ajustes › Permisos › Acceso a la memoria (2026-10-14): el Mapa de memoria sin pedir el nombre por un rato.
+  'Memory access': 'Acceso a la memoria',
+  'Opening the Memory map asks for the project name. Choose how long it does not ask again.': 'Abrir el Mapa de memoria pide el nombre del proyecto. Elige cuánto tiempo no lo vuelve a pedir.',
+  "Don't ask again": 'No volver a pedir',
+  "Don't ask again…": 'No volver a pedir…',
+  'Always ask': 'Pedir siempre',
+  'It asks every time.': 'Lo pide cada vez.',
+  'It does not ask in this project.': 'No lo pide en este proyecto.',
+  'It does not ask until {time}.': 'No lo pide hasta las {time}.',
+  'The Memory map asks for the project name again.': 'El Mapa de memoria vuelve a pedir el nombre del proyecto.',
+  'The Memory map will not ask again in this project.': 'El Mapa de memoria ya no lo pedirá en este proyecto.',
+  'The Memory map will not ask until {time}.': 'El Mapa de memoria no lo pedirá hasta las {time}.',
 };
