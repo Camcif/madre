@@ -4003,6 +4003,13 @@ function replyWith(agentId, source) {
 document.addEventListener('click', (event) => { if (!replyMenu.hidden && !replyMenu.contains(event.target) && !event.target.closest?.('.bubble-actions .reply')) hideReplyMenu(); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideReplyMenu(); });
 
+function fileSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function fileTiles(files) {
   const wrap = el('div', 'files');
   for (const file of files) {
@@ -4012,7 +4019,13 @@ function fileTiles(files) {
     tile.type = 'button';
     tile.title = `${file.name} · ${formatTokens(file.size)}B`;
     if (image) { const img = el('img'); img.src = url; img.alt = file.name; img.loading = 'lazy'; tile.append(img); }
-    else { tile.append(el('span', 'kind', (file.name.split('.').pop() ?? 'file').slice(0, 4).toUpperCase())); tile.append(el('span', 'name', file.name)); }
+    else {
+      const kind = (file.name.includes('.') ? file.name.split('.').pop() : 'file').slice(0, 4).toUpperCase();
+      // The card says what the file is and how big, under its name, the way chats show an attachment.
+      const label = el('span', 'file-text');
+      label.append(el('span', 'name', file.name), el('span', 'meta', `${kind} · ${fileSize(file.size)}`));
+      tile.append(el('span', 'kind', kind), label);
+    }
     tile.addEventListener('click', () => openViewer({ root: 'attachments', path: file.fileName, label: file.name }));
     wrap.append(tile);
   }
@@ -19681,10 +19694,11 @@ if (!SPLIT_CHAT) roomTour();
   const FORMS = [['A', 'doc', 'A · regla'], ['B', 'doc-inline', 'B · avatar en línea'], ['C', 'pieces', 'C · tarjeta'], ['D', 'pieces-edge', 'D · filo'], ['E', 'bubble', 'E · burbuja']];
   const LANES = [['1', 'lane', '1 · difuso'], ['2', 'column', '2 · columna'], ['3', 'halo', '3 · halo'], ['4', 'stripe', '4 · franja'], ['5', '0', '5 · sin carril']];
   const TERMS = [['0', 'actual', 'Actual'], ['a', 'line', 'a · línea'], ['b', 'window', 'b · ventana'], ['c', 'pill', 'c · píldora'], ['d', 'step', 'd · paso']];
-  // C con carril difuso es la forma de siempre desde 2026-10-15; el selector sigue para comparar.
-  let reply = 'pieces';
+  // Desde ACCC-BABA-ECBB-DCAA-C (2026-10-15) la respuesta va en burbuja y cada /run en píldora. Lo que
+  // se eligió en el selector solo vale mientras se compara: sin ?reply ni ?combo, la forma de siempre.
+  let reply = 'bubble';
   let lane = 'lane';
-  let term = 'actual';
+  let term = 'pill';
   let showLab = false;
   try {
     const asked = new URLSearchParams(location.search);
@@ -19702,13 +19716,15 @@ if (!SPLIT_CHAT) roomTour();
       if (asked.has('term')) localStorage.setItem('pulse.reply.term', asked.get('term'));
     }
     showLab = (asked.has('reply') && asked.get('reply') !== 'off') || asked.has('combo');
-    reply = localStorage.getItem('pulse.reply') ?? 'pieces';
-    lane = localStorage.getItem('pulse.reply.lane') ?? 'lane';
-    term = localStorage.getItem('pulse.reply.term') ?? 'actual';
+    if (showLab) {
+      reply = localStorage.getItem('pulse.reply') ?? reply;
+      lane = localStorage.getItem('pulse.reply.lane') ?? lane;
+      term = localStorage.getItem('pulse.reply.term') ?? term;
+    }
     if (lane === '1') lane = 'lane';
   } catch { /* sin almacenamiento: la forma de siempre */ }
-  if (!FORMS.some(([, value]) => value === reply)) reply = 'pieces';
-  if (!TERMS.some(([, value]) => value === term)) term = 'actual';
+  if (!FORMS.some(([, value]) => value === reply)) reply = 'bubble';
+  if (!TERMS.some(([, value]) => value === term)) term = 'pill';
   const root = document.documentElement;
   const apply = () => {
     if (reply === 'bubble') delete root.dataset.reply; else root.dataset.reply = reply;
@@ -19787,39 +19803,48 @@ if (!SPLIT_CHAT) roomTour();
 // sala a partir de eventos de muestra (solo en pantalla: no se escriben en el registro), y un panel
 // con cinco formas de cada elemento. Nadie lo ve si no abre la sala con `?lab` (o `?lab=CÓDIGO`).
 // La elección se guarda como un código de 17 letras, en grupos de cuatro, para pasarla tal cual.
+// LAB_CHOSEN es lo que quedó en la sala (styles.css, «CHAT · ACCC-BABA-ECBB-DCAA-C»): un elemento solo
+// lleva data-labNN cuando se compara con otra forma, y entonces su regla de siempre se aparta.
+const LAB_CHOSEN = 'ACCCBABAECBBDCAAC';
 const LAB = [
   ['Mensaje del humano', ['Burbuja de acento (hoy)', 'Burbuja neutra · ChatGPT y Claude', 'Sin burbuja, alineado a la derecha', 'Tarjeta de petición · Cursor', 'Burbuja con destino visible']],
-  ['Adjuntos', ['Mosaicos (hoy)', 'Chips en línea', 'Tarjeta de archivo · Claude', 'Lista compacta', 'Encima del mensaje · ChatGPT']],
-  ['Pensando', ['Puntos (hoy)', 'Texto con brillo · Claude y ChatGPT', 'Avatar que late y tiempo', 'Barra fina de progreso', 'Píldora «pensando · 12 s»']],
-  ['Cabecera del agente', ['Mono con chips (hoy)', 'Nombre en letra normal · Claude', 'Píldora del agente', 'Solo nombre; chips al pasar · ChatGPT', 'Avatar dentro de la cabecera']],
-  ['Cuerpo de la respuesta', ['Prosa libre con carril (hoy)', 'Burbuja', 'Tarjeta con borde', 'Filo del color del agente', 'Documento con regla']],
+  ['Adjuntos', ['Mosaicos (antes)', 'Chips en línea', 'Tarjeta de archivo · Claude (hoy)', 'Lista compacta', 'Encima del mensaje · ChatGPT']],
+  ['Pensando', ['Puntos (antes)', 'Texto con brillo · Claude y ChatGPT', 'Avatar que late y tiempo (hoy)', 'Barra fina de progreso', 'Píldora «pensando · 12 s»']],
+  ['Cabecera del agente', ['Mono con chips (antes)', 'Nombre en letra normal · Claude', 'Píldora del agente (hoy)', 'Solo nombre; chips al pasar · ChatGPT', 'Avatar dentro de la cabecera']],
+  ['Cuerpo de la respuesta', ['Prosa libre con carril (antes)', 'Burbuja (hoy)', 'Tarjeta con borde', 'Filo del color del agente', 'Documento con regla']],
   ['Memoria citada', ['Número en el texto (hoy)', 'Superíndice · ChatGPT con búsqueda', 'Chip de fuente · Perplexity', 'Subrayado punteado', 'Atenuada, al final de la frase']],
-  ['Plan', ['Tarjeta (hoy)', 'Lista de tareas con casillas · Cursor', 'Pasos numerados con línea', 'Equipo 2×2', 'Línea de tiempo']],
+  ['Plan', ['Tarjeta (antes)', 'Lista de tareas con casillas · Cursor (hoy)', 'Pasos numerados con línea', 'Equipo 2×2', 'Línea de tiempo']],
   ['Bloque de código', ['Cabecera y COPIAR (hoy)', 'Barra suave · ChatGPT', 'Limpio, copiar al pasar · Claude', 'Oscuro siempre · terminal', 'Plegado a 6 líneas']],
-  ['Pie de la respuesta', ['Métricas e iconos (hoy)', 'Solo iconos, al pasar · ChatGPT', 'Métricas en píldora', 'Acciones con fondo · Claude', 'Hora sola, métricas al pasar']],
-  ['Elección', ['Opciones grandes (hoy)', 'Chips de respuesta · ChatGPT y Gemini', 'Lista con número', 'Tarjetas lado a lado', 'Botones al pie · Gemini']],
-  ['Petición de permiso', ['Tarjeta (hoy)', 'Aprobación en una línea · Claude Code', 'Tarjeta con barra de color', 'Barra sobre la caja de escribir', 'Discreta, solo borde']],
-  ['Permiso concedido', ['Píldora del modo (hoy)', 'Línea divisoria', 'Texto gris centrado', 'Píldora con candado', 'Punto y texto']],
-  ['Petición de comandos', ['Lista con botones (hoy)', 'Compacta, sin cajas por línea', 'Código oscuro · terminal', 'Pasos numerados', 'Botones solo al pasar']],
-  ['Comando ejecutado', ['Línea con estado (hoy)', 'Ventana de terminal', 'Píldora · herramientas de ChatGPT y Claude', 'Paso en un hilo', 'Línea compacta, sin /run']],
+  ['Pie de la respuesta', ['Métricas e iconos (antes)', 'Solo iconos, al pasar · ChatGPT', 'Métricas en píldora', 'Acciones con fondo · Claude', 'Hora sola, métricas al pasar (hoy)']],
+  ['Elección', ['Opciones grandes (antes)', 'Chips de respuesta · ChatGPT y Gemini', 'Lista con número (hoy)', 'Tarjetas lado a lado', 'Botones al pie · Gemini']],
+  ['Petición de permiso', ['Tarjeta (antes)', 'Aprobación en una línea · Claude Code (hoy)', 'Tarjeta con barra de color', 'Barra sobre la caja de escribir', 'Discreta, solo borde']],
+  ['Permiso concedido', ['Píldora del modo (antes)', 'Línea divisoria (hoy)', 'Texto gris centrado', 'Píldora con candado', 'Punto y texto']],
+  ['Petición de comandos', ['Lista con botones (antes)', 'Compacta, sin cajas por línea', 'Código oscuro · terminal', 'Pasos numerados (hoy)', 'Botones solo al pasar']],
+  ['Comando ejecutado', ['Línea con estado (antes)', 'Ventana de terminal', 'Píldora · herramientas de ChatGPT y Claude (hoy)', 'Paso en un hilo', 'Línea compacta, sin /run']],
   ['Avisos del sistema', ['Puntos plegados (hoy)', 'Línea centrada', 'Divisor con texto', 'Chip a la izquierda', 'Siempre abiertos, en tarjeta']],
   ['Error y diagnóstico', ['Tarjeta roja centrada (hoy)', 'Tarjeta a la izquierda con icono', 'Banner a lo ancho', 'Línea roja discreta', 'Tarjeta neutra con borde rojo']],
-  ['Espacio entre turnos', ['Como hoy', 'Compacto', 'Amplio · ChatGPT y Claude', 'Línea fina entre turnos', 'Agrupar el mismo agente']],
+  ['Espacio entre turnos', ['Como antes', 'Compacto', 'Amplio · ChatGPT y Claude (hoy)', 'Línea fina entre turnos', 'Agrupar el mismo agente']],
 ];
 (() => {
   let asked = null;
   try { asked = new URLSearchParams(location.search).get('lab'); } catch { return; }
   if (asked === null || SPLIT_CHAT) return;
   const root = document.documentElement;
-  const picks = LAB.map(() => 'A');
+  const picks = LAB_CHOSEN.split('');
   try {
     const saved = (/^[A-E-]{17,21}$/.test(asked) ? asked : localStorage.getItem('pulse.lab')) ?? '';
     saved.replace(/-/g, '').split('').forEach((key, index) => { if (index < picks.length) picks[index] = key; });
   } catch { /* sin almacenamiento */ }
   const code = () => picks.join('').match(/.{1,4}/g).join('-');
   const apply = () => {
-    picks.forEach((key, index) => { root.dataset[`lab${String(index + 1).padStart(2, '0')}`] = key; });
-    // 14 · the /run cards reuse the four forms already built (data-term); 15 · notices show open.
+    picks.forEach((key, index) => {
+      const name = `lab${String(index + 1).padStart(2, '0')}`;
+      if (key === LAB_CHOSEN[index]) delete root.dataset[name]; else root.dataset[name] = key;
+    });
+    // 05 · every body but the bubble was drawn over the old prose form; 14 · the /run cards reuse
+    // the forms already built (data-term); 15 · notices show open.
+    if (picks[4] === 'B') { delete root.dataset.reply; delete root.dataset.replyLegible; }
+    else { root.dataset.reply = 'pieces'; root.dataset.replyLegible = 'lane'; }
     const term = { B: 'window', C: 'pill', D: 'step', E: 'line' }[picks[13]];
     if (term) root.dataset.term = term; else delete root.dataset.term;
     document.querySelectorAll('#messages .sys-dots').forEach((strip) => strip.classList.toggle('open', picks[14] !== 'A'));

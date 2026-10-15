@@ -9125,3 +9125,136 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 :root[data-lab17="E"] #messages .thread-inner > :is(.row.assistant[data-agent="claude"] + .row.assistant[data-agent="claude"], .row.assistant[data-agent="codex"] + .row.assistant[data-agent="codex"], .row.assistant[data-agent="gemini"] + .row.assistant[data-agent="gemini"], .row.assistant[data-agent="opencode"] + .row.assistant[data-agent="opencode"], .row.assistant[data-agent="madre"] + .row.assistant[data-agent="madre"]) > .avatar { visibility: hidden; }
 :root[data-lab15="B"][data-wallpaper]:not([data-wallpaper="default"]) #messages#messages .sys-dots.open > .system.folded,
 :root[data-lab15="C"][data-wallpaper]:not([data-wallpaper="default"]) #messages#messages .sys-dots.open > .system.folded { background: color-mix(in srgb, var(--bg) 62%, transparent) !important; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-radius: 12px !important; }
+
+/* ==========================================================================================
+   CHAT · ACCC-BABA-ECBB-DCAA-C (2026-10-15). Lo que se eligió en el laboratorio (?lab), hecho
+   forma de la sala: adjuntos en tarjeta, avatar que late al pensar, el agente en una píldora, la
+   respuesta en burbuja, el plan como lista de tareas, la hora sola al pie, elecciones en lista con
+   número, el permiso en una línea, el concedido como divisoria, comandos en pasos, cada /run en
+   píldora (data-term="pill", app.js) y aire entre turnos. Cada regla se aparta cuando el
+   laboratorio compara otra forma de su elemento (data-labNN en <html>). Sin backdrop-filter en el
+   hilo, como dicen los planos: sobre un fondo de pantalla, cada pieza lleva su propio material.
+   ========================================================================================== */
+
+/* 02 · Adjuntos: una tarjeta por archivo, con su tipo, su nombre y su tamaño. */
+:root:not([data-lab02]) #messages#messages .bubble .files { gap: 8px; margin-top: 10px; }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile:not(.image) {
+  display: inline-grid; grid-template-columns: 34px minmax(0, auto); align-items: center; column-gap: 10px;
+  max-width: min(100%, 280px); padding: 7px 14px 7px 7px; border: 0; border-radius: 12px;
+  background: var(--plane-solid); color: var(--text); text-align: left;
+  box-shadow: 0 0 0 .5px rgb(var(--plane-ink) / .14), 0 1px 2px rgb(var(--plane-ink) / .1);
+  transition: transform calc(160ms * var(--motion-scale)) ease, box-shadow calc(160ms * var(--motion-scale)) ease;
+}
+:root:not([data-lab02]) #messages#messages .bubble .file-tile:not(.image):hover { transform: translateY(-1px); box-shadow: 0 0 0 .5px rgb(var(--plane-ink) / .18), 0 4px 10px -4px rgb(var(--plane-ink) / .28); }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile:focus-visible { outline: 2px solid color-mix(in srgb, var(--phosphor) 70%, transparent); outline-offset: 2px; }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile .kind { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: color-mix(in srgb, var(--phosphor) 12%, transparent); color: var(--phosphor); font: 600 9.5px var(--mono); letter-spacing: .06em; }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile .file-text { display: grid; gap: 1px; min-width: 0; }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/1.3 var(--read); letter-spacing: 0; }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile .meta { font: 400 11.5px/1.3 var(--read); font-variant-numeric: tabular-nums; color: var(--text-3); }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile.image { overflow: hidden; border-radius: 12px; box-shadow: 0 0 0 .5px rgb(var(--plane-ink) / .14); }
+:root:not([data-lab02]) #messages#messages .bubble .file-tile.image img { border-radius: 0; }
+
+/* 03 · Pensando: sin globo. El avatar respira y deja un anillo en su color; al lado, lo que hace y
+   cuánto lleva. Sobre un fondo de pantalla, la línea va en el material de las etiquetas. */
+:root:not([data-lab03]) #messages#messages .row.thinking .bubble { gap: 0; padding: 4px 6px 4px 2px; border-radius: 999px; background: transparent !important; box-shadow: none !important; }
+:root:not([data-lab03]) #messages#messages .row.thinking .bubble > i { display: none; }
+:root:not([data-lab03]) #messages#messages .row.thinking .status { margin-left: 0; font-size: 14px; font-style: normal; color: var(--text-2); }
+:root:not([data-lab03]) #messages#messages .row.thinking .status::after { display: none; }
+:root:not([data-lab03]) #messages#messages .row.thinking :is(.elapsed, .tokens) { margin-left: 10px; font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+:root:not([data-lab03]) #messages#messages .row.thinking .stop-turn { margin-left: 6px; }
+:root:not([data-lab03]) #messages#messages .row.thinking > .avatar { position: relative; animation: think-breathe calc(2.4s * var(--motion-scale) / .7) ease-in-out infinite; }
+:root:not([data-lab03]) #messages#messages .row.thinking > .avatar::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; animation: think-ring calc(2.4s * var(--motion-scale) / .7) ease-out infinite; }
+:root:not([data-lab03])[data-wallpaper]:not([data-wallpaper="default"]) #messages#messages .row.thinking .bubble { padding: 4px 8px 4px 14px; background: var(--plane-meta) !important; }
+@keyframes think-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(.9); } }
+@keyframes think-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--agent, var(--phosphor)) 50%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--agent, var(--phosphor)) 0%, transparent); }
+}
+
+/* 04 · Cabecera: el nombre del agente en su píldora, en letra de lectura; modelo y esfuerzo detrás,
+   en voz baja; el modo conserva su color. */
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who { align-items: center; gap: 8px; padding: 3px 10px 3px 3px; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who > span:first-child { padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--agent) 15%, transparent); color: color-mix(in srgb, var(--agent) 82%, var(--text)); font: 600 12.5px/1.4 var(--read); letter-spacing: 0; text-transform: none; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge:is(.model, .effort) { padding: 0; background: none !important; color: var(--text-3); font: 400 11.5px/1.4 var(--read); letter-spacing: 0; text-transform: none; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.effort::before { content: '·'; margin-right: 8px; color: var(--text-3); }
+
+/* 05 · Cuerpo: la burbuja, con la esquina corta hacia el avatar, que va abajo. */
+:root:not([data-reply]) #messages#messages .row.assistant:not(.delegated) .bubble { border-radius: 20px 20px 20px 6px; padding: 13px 17px 10px; }
+
+/* 07 · Plan: una lista de tareas; cada casilla en el color de quien la hará. */
+:root:not([data-lab07]) #messages#messages .plan-card { margin: 10px 0 8px; padding: 10px 14px 8px; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--text) 4%, transparent); }
+:root:not([data-lab07]) #messages#messages .plan-card .plan-label { display: block; margin-bottom: 4px; }
+:root:not([data-lab07]) #messages#messages .plan-card ol { margin: 0; padding: 0; list-style: none; }
+:root:not([data-lab07]) #messages#messages .plan-card li { position: relative; margin: 0; padding: 6px 0 6px 28px; font-size: 14px; line-height: 1.45; }
+:root:not([data-lab07]) #messages#messages .plan-card li::before { content: ''; position: absolute; left: 0; top: calc(6px + (1.45em - 17px) / 2); width: 17px; height: 17px; box-sizing: border-box; border-radius: 5px; background: color-mix(in srgb, var(--agent) 8%, var(--plane-solid)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--agent) 55%, var(--line-2)); }
+:root:not([data-lab07]) #messages#messages .plan-card li + li { border-top: 1px solid color-mix(in srgb, var(--text) 6%, transparent); }
+
+/* 09 · Pie: la hora sola; lo que costó aparece al pasar o al enfocar la respuesta. */
+:root:not([data-lab09]) #messages#messages .row.assistant .bubble-foot .stamp > span:not(:first-child) { opacity: 0; transition: opacity calc(180ms * var(--motion-scale)) ease; }
+:root:not([data-lab09]) #messages#messages .row.assistant:is(:hover, :focus-within) .bubble-foot .stamp > span { opacity: 1; }
+:root:not([data-lab09]) #messages#messages .row.assistant .bubble-foot .stamp > span:first-child { font-variant-numeric: tabular-nums; }
+@media (hover: none) { :root:not([data-lab09]) #messages#messages .row.assistant .bubble-foot .stamp > span { opacity: 1; } }
+
+/* 10 · Elección: una lista con número, como las de los chats; cada fila es una frase que se presiona. */
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-list { gap: 0; overflow: hidden; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line-2); }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option { grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 14px; border: 0; border-radius: 0; background: transparent; font-size: 14.5px; line-height: 1.45; }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option + .choice-option { box-shadow: inset 0 1px 0 var(--line); }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option:hover { background: color-mix(in srgb, var(--agent, var(--text)) 6%, transparent); }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option:focus-visible { outline-offset: -2px; }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-key { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text-2); font: 600 11.5px var(--mono); }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option.recommended { background: color-mix(in srgb, var(--agent, var(--phosphor)) 5%, transparent); }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option.recommended .choice-key,
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option.picked .choice-key { background: var(--agent, var(--phosphor)); color: var(--agent-on, var(--bg)); }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-option.picked { background: color-mix(in srgb, var(--agent, var(--phosphor)) 10%, transparent); }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-tag { padding: 3px 9px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--agent, var(--phosphor)) 13%, transparent); color: color-mix(in srgb, var(--agent, var(--phosphor)) 85%, var(--text)); font: 500 11.5px var(--read); letter-spacing: 0; text-transform: lowercase; }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-tag::first-letter { text-transform: uppercase; }
+:root:not([data-lab10]) #messages#messages .choice:not(.run-request) .choice-foot { margin-top: 12px; font: 400 12px/1.5 var(--read); letter-spacing: 0; text-transform: none; color: var(--text-3); }
+
+/* 11 · Permiso: en una línea, como Claude Code: qué pide y por cuánto, los botones a la derecha, y
+   debajo, en letra secundaria, cómo se confirma. */
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 10px 0 2px; padding: 10px 12px 10px 14px; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--warn, #e2a022) 7%, var(--plane-solid)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn, #e2a022) 38%, transparent), 0 1px 2px rgb(var(--plane-ink) / .08) !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-what { flex: 1 1 260px; font: 400 14px/1.45 var(--read); }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-what .who { padding: 0; border-radius: 0; background: none !important; font-weight: 600; }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-time { font: 400 13px var(--read); letter-spacing: 0; color: var(--text-2); }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-why { order: 9; flex: 1 1 100%; font: 400 12.5px/1.45 var(--read); color: var(--text-3); }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-windows { flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-window { flex: none; font: 500 12px var(--read); letter-spacing: 0; padding: 4px 9px; white-space: nowrap; }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-actions { margin: 0; gap: 6px; }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) :is(.mode-go, .mode-alt) { height: 30px; padding: 0 13px; border-radius: 9px; font: 500 12.5px var(--read); letter-spacing: 0; text-transform: lowercase; white-space: nowrap; transition: background calc(150ms * var(--motion-scale)), color calc(150ms * var(--motion-scale)); }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) :is(.mode-go, .mode-alt)::first-letter { text-transform: uppercase; }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-go { font-weight: 600; box-shadow: none; }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-alt { border: 0; background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
+:root:not([data-lab11]) #messages#messages .mode-ask:not(.settled) .mode-alt:hover { background: color-mix(in srgb, var(--text) 12%, transparent); }
+
+/* 12 · Concedido: una divisoria a lo ancho de la respuesta, con el permiso al centro en su color. */
+:root:not([data-lab12]) #messages#messages .mode-ask.settled { display: flex !important; align-items: center; gap: 12px; justify-self: stretch; align-self: stretch; width: auto !important; margin: 12px 0 2px !important; padding: 0; background: none !important; box-shadow: none !important; }
+:root:not([data-lab12]) #messages#messages .mode-ask.settled::before,
+:root:not([data-lab12]) #messages#messages .mode-ask.settled::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--mode-c, var(--ok, var(--phosphor))) 40%, var(--line-2)); animation: settle-line calc(420ms * var(--motion-scale) / .7) cubic-bezier(.2, .7, .2, 1) both; }
+:root:not([data-lab12]) #messages#messages .mode-ask.settled::before { transform-origin: right; }
+:root:not([data-lab12]) #messages#messages .mode-ask.settled::after { transform-origin: left; }
+:root:not([data-lab12]) #messages#messages .mode-ask.settled .mode-what { flex: none; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--mode-c, var(--ok, var(--phosphor))) 14%, var(--plane-solid)); color: color-mix(in srgb, var(--mode-c, var(--ok, var(--phosphor))) 80%, var(--text)); }
+@keyframes settle-line { from { transform: scaleX(0); opacity: 0; } }
+
+/* 13 · Petición de comandos: pasos numerados; el paso que corrió dice ✓ y el que falló ✕. */
+:root:not([data-lab13]) #messages#messages .choice.run-request .choice-list { counter-reset: run-step; }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line { counter-increment: run-step; }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line .choice-key { font-size: 0 !important; border-radius: 50%; }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line .choice-key::after { content: counter(run-step); font: 600 11.5px var(--mono); color: var(--text-2); }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line.ran .choice-key { background: color-mix(in srgb, var(--ok, var(--phosphor)) 16%, transparent) !important; }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line.ran .choice-key::after { content: '✓'; color: var(--ok, var(--phosphor)); font-family: var(--read); }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line.failed .choice-key { background: color-mix(in srgb, var(--crit) 15%, transparent) !important; }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line.failed .choice-key::after { content: '✕'; color: var(--crit); font-family: var(--read); }
+:root:not([data-lab13]) #messages#messages .choice.run-request .run-line.refused .choice-key::after { color: var(--text-3); }
+:root:not([data-lab13]) #messages#messages .choice.run-request :is(.run-all, .run-back) { text-transform: lowercase; }
+:root:not([data-lab13]) #messages#messages .choice.run-request :is(.run-all, .run-back)::first-letter { text-transform: uppercase; }
+
+/* 17 · Aire entre turnos, como en los chats de hoy; lo que es del mismo turno queda junto. */
+:root:not([data-lab17]) #messages#messages .thread-inner > * + * { margin-top: 28px; }
+:root:not([data-lab17]) #messages#messages .thread-inner > :is(.command-card, .sys-dots) + :is(.command-card, .sys-dots),
+:root:not([data-lab17]) #messages#messages .thread-inner > .row.assistant + :is(.choice, .command-card) { margin-top: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  #messages#messages .row.thinking > .avatar, #messages#messages .row.thinking > .avatar::after, #messages#messages .mode-ask.settled::before, #messages#messages .mode-ask.settled::after { animation: none !important; }
+  #messages#messages .row.thinking > .avatar::after { box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent, var(--phosphor)) 30%, transparent); }
+  #messages#messages .bubble .file-tile:hover { transform: none; }
+}
