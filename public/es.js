@@ -4888,4 +4888,6 @@ export const ES = {
   'The Memory map asks for the project name again.': 'El Mapa de memoria vuelve a pedir el nombre del proyecto.',
   'The Memory map will not ask again in this project.': 'El Mapa de memoria ya no lo pedirá en este proyecto.',
   'The Memory map will not ask until {time}.': 'El Mapa de memoria no lo pedirá hasta las {time}.',
+  // Inicio: una tecla propia para «Agregar a Inicio» (2026-10-14).
+  'Add widgets to Home': 'Agregar widgets a Inicio',
 };

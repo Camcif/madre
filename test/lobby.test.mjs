@@ -268,3 +268,11 @@ test('lobby · a project taken out of MADRE leaves Home, ends its connections an
     for (const dir of [home, state, project]) await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('home: widgets are added from a key of the bar, not only from a right-click', async () => {
+  const [page, html] = await Promise.all(['salas-mac.js', 'salas-mac.html'].map((name) => readFile(join(import.meta.dirname, '..', 'public', name), 'utf8')));
+  assert.match(html, /<button id="sm-add-widgets" class="sm-icon-key bar" type="button" aria-label="Add widgets to Home"/);
+  // Its id is its own: «sm-add» is the Add a project button.
+  assert.equal(html.match(/id="sm-add"/g).length, 1);
+  assert.match(page, /document\.getElementById\('sm-add-widgets'\)\?\.addEventListener\('click', \(\) => openHomeAdd\(\)\);/);
+});

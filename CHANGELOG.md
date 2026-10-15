@@ -20,6 +20,7 @@ Para quien la usa es un parche: no hay saludo ni recorrido nuevo, solo dos aviso
 - **Navegador de pruebas.** Si falta el navegador elegido, el aviso dice cuál y el comando exacto (`npx @playwright/mcp install-browser webkit`, `chromium`…), en vez de pedir siempre chrome-for-testing; la revisión ya no reutiliza la respuesta de otro navegador.
 - **Ajustes más fáciles de entender**, en español y en inglés: Memoria es «Lo que recuerda», Conectar MCP es «Herramientas externas (MCP)», IA local es «IA en esta computadora», Intenciones es «Esfuerzo sugerido», y cada ajuste dice qué hace sin jerga (archivista, destilar, recall, embeddings…).
 - **El Mapa de memoria puede dejar de pedir el nombre.** «No volver a pedir…» en su confirmación lleva a **Ajustes › Permisos › Acceso a la memoria**: pedir siempre, 1, 8 o 24 h, o nunca. Se guarda en este navegador y para ese proyecto (también el Coordinador).
+- **Agregar widgets a Inicio desde la barra.** Una tecla propia junto a Recargar abre «Agregar a Inicio»; antes solo se llegaba con clic derecho.
 - **Las ventanas vuelven de una en una.** Abrir el Finder o cualquier otra ventana desde la barra ya no trae de vuelta las que habías mandado al borde; cada una vuelve cuando la pides.
 - **El inglés dice lo mismo que el español.** 215 frases reescritas con los nombres nuevos y sin jerga (lease, key, aberration, sentinel, HOLD/BRIDGE…).
 

@@ -3038,6 +3038,8 @@ function reloadWithGrace() {
   }, 900);
 }
 ui.bar.reload.addEventListener('click', reloadWithGrace);
+// «Add to Home» had only a right-click and a menu; now a key of its own in the bar (2026-10-14).
+document.getElementById('sm-add-widgets')?.addEventListener('click', () => openHomeAdd());
 
 // From Home into a project, and back (2026-10-10): the page settles back under a veil of its own
 // ground and goes (styles.css, madre-leaving); the room lifts the veil as it arrives. Every way in
@@ -4529,6 +4531,9 @@ function translateStatic() {
   ui.bar.links.querySelector('span').textContent = t('Connections');
   ui.bar.reload.title = t('Reload the page');
   ui.bar.reload.setAttribute('aria-label', t('Reload the page'));
+  const addKey = document.getElementById('sm-add-widgets');
+  addKey?.setAttribute('title', t('Add widgets to Home'));
+  addKey?.setAttribute('aria-label', t('Add widgets to Home'));
   ui.stop.querySelector('span').textContent = t('Stop all');
   ui.macro.querySelector('span').textContent = t('Project map');
   ui.gear.title = t('Home settings');
