@@ -1881,10 +1881,10 @@ function welcomeHome() {
     const sayAdd = async () => {
       const key = document.getElementById('sm-add-widgets');
       if (!key || document.querySelector('dialog[open]') || !(await homeTour.hint('new-add-widgets', key, { title: t('New: add widgets'), text: t('This key opens «Add to Home»: the widgets you can put here and the tiles you took off.') }))) {
-        if ((tries += 1) < 6) setTimeout(sayAdd, 6000);
+        if ((tries += 1) < 6) setTimeout(sayAdd, 6000)?.unref?.();
       }
     };
-    setTimeout(sayAdd, 5000);
+    setTimeout(sayAdd, 5000)?.unref?.();
   });
 }
 
