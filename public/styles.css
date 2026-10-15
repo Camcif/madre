@@ -9261,22 +9261,30 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 :root:not([data-reply]) #messages#messages .thread-inner > :is(.choice, .command-card) { --agent-lane: 42px; margin-left: var(--agent-lane) !important; margin-right: 0; max-width: min(760px, calc(100% - var(--agent-lane))); }
 :root:not([data-reply])[data-term="pill"] #messages#messages .thread-inner > .command-card.terminal.open { width: auto; }
 
-/* La cabecera: cada insignia con la misma forma que la píldora del nombre (22 px, redonda, letra de
-   lectura); el tiempo de lo cobrado en voz baja; la respuesta citada se corta antes que desbordar. */
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who { flex-wrap: wrap; row-gap: 4px; max-width: 100%; box-sizing: border-box; border-radius: 14px; }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who > span:first-child { display: inline-block; height: 22px; padding: 0 10px; line-height: 22px; box-sizing: border-box; }
+/* La cabecera: un plano con píldoras dentro, que se leen como una pieza. El plano deja 3 px
+   alrededor de todo (radio 14 = 11 de la píldora + 3), las píldoras van a 4 px entre sí, todas de
+   22 px, letra de lectura de 12 px y el mismo material: sólido, con un filo de medio píxel; el
+   color solo tiñe. El texto suelto (la pregunta citada, lo cobrado) lleva el mismo aire que una
+   píldora. En angosto se acomoda en renglones en vez de desbordarse. */
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who { flex-wrap: wrap; align-items: center; gap: 4px; row-gap: 4px; max-width: 100%; padding: 3px; box-sizing: border-box; border-radius: 14px; box-shadow: inset 0 0 0 .5px rgb(var(--plane-ink) / .1) !important; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who > span:first-child,
 :root:not([data-lab04]) #messages#messages .row.assistant .col > .who :is(.badge, .to-agent) {
-  display: inline-block; flex: none; height: 22px; max-width: 100%; padding: 0 9px; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  border: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 7%, transparent) !important; color: var(--text-2);
-  font: 500 11.5px/22px var(--read); letter-spacing: 0; text-transform: none;
+  --chip: var(--text); --chip-mix: 5%;
+  display: inline-block; flex: none; height: 22px; max-width: 100%; padding: 0 10px; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 0; border-radius: 11px; background: color-mix(in srgb, var(--chip) var(--chip-mix), var(--plane-solid)) !important;
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--chip) 18%, transparent);
+  color: color-mix(in srgb, var(--chip) 80%, var(--text)); font: 500 12px/22px var(--read); letter-spacing: 0; text-transform: none;
 }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge:not(.model, .mode)::first-letter { text-transform: uppercase; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who :is(.badge, .to-agent) { --chip: var(--text-2); }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who > span:first-child { --chip: var(--agent); --chip-mix: 15%; font-weight: 600; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .to-agent { --chip: var(--agent); --chip-mix: 13%; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.ash { --chip: var(--phosphor); --chip-mix: 13%; text-transform: lowercase; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge:not(.model, .mode)::first-letter,
 :root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.model.effort::first-letter { text-transform: uppercase; }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.ash { text-transform: lowercase; background: color-mix(in srgb, var(--phosphor) 12%, transparent) !important; color: color-mix(in srgb, var(--phosphor) 85%, var(--text)); }
 :root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.mode { font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .to-agent { background: color-mix(in srgb, var(--agent) 13%, transparent) !important; color: color-mix(in srgb, var(--agent) 82%, var(--text)); }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .reply { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; letter-spacing: 0; text-transform: none; }
-:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .spent { flex: none; font: 400 11px var(--mono); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; color: var(--text-3); }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who :is(.reply, .spent) { padding: 0 7px; line-height: 22px; letter-spacing: 0; text-transform: none; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .reply { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .spent { flex: none; padding-left: 4px; font: 400 11px/22px var(--mono); font-variant-numeric: tabular-nums; color: var(--text-3); }
 
 /* Modo · modelo · esfuerzo en claro: el mismo vidrio blanco que ya tiene en oscuro. */
 :root[data-scheme="light"] .composer > .pick-options .pick-label {
@@ -9306,3 +9314,15 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 :root:not([data-scheme="light"]) .hint-spot { box-shadow: 0 0 0 200vmax rgb(0 0 0 / .3), 0 0 0 2px color-mix(in srgb, var(--accent, var(--phosphor)) 60%, transparent), 0 0 26px 3px color-mix(in srgb, var(--accent, var(--phosphor)) 30%, transparent); }
 @keyframes hint-spot-in { from { opacity: 0; transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .hint-spot { animation: none; transition: none; } }
+
+/* «Plegar» bajo los avisos abiertos: una tecla con su flecha hacia arriba, como un desplegable. */
+#messages#messages .sys-dots.open > .sys-more { display: inline-block; height: 26px; line-height: 26px; margin-top: 4px; padding: 0 10px 0 12px; border-radius: 999px; font: 500 12.5px var(--read); letter-spacing: 0; text-transform: lowercase; color: var(--text-2); transition: background calc(150ms * var(--motion-scale)) ease, color calc(150ms * var(--motion-scale)) ease; }
+#messages#messages .sys-dots.open > .sys-more::first-letter { text-transform: uppercase; }
+#messages#messages .sys-dots.open > .sys-more::after {
+  content: ''; display: inline-block; width: 12px; height: 12px; margin-left: 6px; vertical-align: -1px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.2 10 8 6.2l3.8 3.8' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.2 10 8 6.2l3.8 3.8' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform calc(180ms * var(--motion-scale)) ease;
+}
+#messages#messages .sys-dots.open > .sys-more:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
+#messages#messages .sys-dots.open > .sys-more:hover::after { transform: translateY(-1px); }
