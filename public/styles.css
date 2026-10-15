@@ -8105,44 +8105,60 @@ dialog#core .mother-cmd .copy { position: absolute; top: 8px; right: 8px; displa
 /* ==========================================================================================
    NOTICES THAT FOLD INTO DOTS (2026-10-14)
    ------------------------------------------------------------------------------------------
-   A notice says its piece and, ten seconds later, becomes a dot in the colour of its kind, in a
-   row with its neighbours; a click opens it again. Red is a diagnostic, amber a permission or a
-   warning, green something that went well, grey the rest. The open one wears the system plane.
+   A notice says its piece and, ten seconds later, folds into a row of the notices around it.
+   Folded, the row is one small dot in the colour of its first notice and «+N» for the rest, on
+   the same glass as mode · model · effort so it reads on any wallpaper. A click opens the row as
+   one card with every notice in order, each with its dot; another click, or Escape, folds it.
+   Red is a diagnostic, amber a permission or a warning, green something that went well, grey the
+   rest. Sizes carry !important: the wallpaper's rules for the room's lines would otherwise give a
+   folded notice their width and padding (it was a dot 0 px wide, only its ring showing).
    ========================================================================================== */
-#messages .sys-dots { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 7px; width: min(92%, 560px); margin: 8px auto; min-height: 12px; }
 #messages#messages .thread-inner > .system.folding { animation: notice-fold .22s ease forwards; }
 @keyframes notice-fold { to { opacity: 0; transform: scale(.94); } }
-#messages#messages .sys-dots > .system.folded {
-  --dot: var(--text-3);
-  margin: 0; cursor: pointer;
+#messages .sys-dots {
+  display: flex; align-items: center; gap: 6px; width: fit-content; max-width: min(92%, 560px); margin: 6px auto; padding: 4px 9px 4px 7px;
+  border-radius: 999px; cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: var(--text-2);
+  background: color-mix(in srgb, var(--bg) 62%, transparent); border: .5px solid color-mix(in srgb, var(--text) 10%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  transition: background .18s ease;
 }
+#messages .sys-dots:hover, #messages .sys-dots:focus-visible { background: color-mix(in srgb, var(--bg) 78%, transparent); outline: none; }
+#messages .sys-dots > .sys-more { font: inherit; color: inherit; }
+#messages#messages .sys-dots > .system.folded { --dot: var(--text-3); margin: 0; cursor: inherit; }
 #messages#messages .sys-dots > .system.folded[data-tone="crit"] { --dot: var(--terror, #d33); }
 #messages#messages .sys-dots > .system.folded[data-tone="warn"] { --dot: var(--warn, #e2a022); }
 #messages#messages .sys-dots > .system.folded[data-tone="ok"] { --dot: var(--ok, var(--phosphor, #2f9e44)); }
-#messages#messages .sys-dots > .system.folded:not(.peek) {
-  width: 10px; height: 10px; min-width: 0; padding: 0 !important; border: 0 !important; border-radius: 50% !important;
-  overflow: hidden; font-size: 0; line-height: 0; color: transparent;
-  background: var(--dot) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 16%, transparent) !important;
-  transition: transform .16s ease, box-shadow .16s ease;
-  animation: dot-in .3s cubic-bezier(.2, .9, .3, 1.25);
+/* Folded: the first notice is the dot; the rest are counted in «+N». */
+#messages#messages .sys-dots:not(.open) > .system.folded {
+  flex: none; width: 8px !important; height: 8px !important; min-width: 0 !important; max-width: none !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important;
+  overflow: hidden; font-size: 0; line-height: 0; color: transparent; text-shadow: none !important;
+  background: var(--dot) !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot) 22%, transparent) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  animation: dot-in .28s cubic-bezier(.2, .9, .3, 1.25);
 }
-#messages#messages .sys-dots > .system.folded.quiet:not(.peek) { animation: none; }
-#messages#messages .sys-dots > .system.folded:not(.peek) > * { display: none !important; }
-#messages#messages .sys-dots > .system.folded:not(.peek):hover,
-#messages#messages .sys-dots > .system.folded:not(.peek):focus-visible { transform: scale(1.35); box-shadow: 0 0 0 4px color-mix(in srgb, var(--dot) 24%, transparent) !important; outline: none; }
+#messages#messages .sys-dots:not(.open) > .system.folded:not(:first-child) { display: none !important; }
+#messages#messages .sys-dots:not(.open) > .system.folded > * { display: none !important; }
+#messages#messages .sys-dots > .system.folded.quiet { animation: none; }
 @keyframes dot-in { from { transform: scale(.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-#messages#messages .sys-dots > .system.folded.peek {
-  flex-basis: 100%; width: fit-content; max-width: 100%; margin-inline: auto; padding: 8px 16px 9px; border-radius: 18px;
-  background: var(--plane-system, color-mix(in srgb, var(--panel) 80%, transparent)) !important;
-  border-left: 3px solid var(--dot) !important;
-  animation: notice-peek .2s ease;
+/* Open: one card, every notice in order, each with its dot. No bar on the side. */
+#messages .sys-dots.open {
+  display: grid; gap: 2px; width: min(92%, 560px); padding: 6px; border-radius: 16px; cursor: default;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); border-color: color-mix(in srgb, var(--text) 12%, transparent);
+  box-shadow: 0 10px 30px -12px rgb(0 0 0 / .35); animation: notice-peek .2s ease;
 }
-#messages#messages .sys-dots > .system.folded.peek:is(.alert, .crit, .warn, .halted, .control) { background: color-mix(in srgb, currentColor 7%, var(--plane-solid, var(--panel))) !important; }
-#messages#messages .sys-dots > .system.folded.peek:focus-visible { outline: 2px solid color-mix(in srgb, var(--dot) 55%, transparent); outline-offset: 2px; }
+#messages#messages .sys-dots.open > .system.folded { color: var(--text-2) !important; }
+#messages#messages .sys-dots.open > .system.folded {
+  position: relative; width: auto !important; max-width: none !important; margin: 0 !important; padding: 7px 12px 8px 26px !important; border: 0 !important; border-radius: 10px !important;
+  text-align: left; background: transparent !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+#messages#messages .sys-dots.open > .system.folded:hover { background: color-mix(in srgb, var(--text) 4%, transparent) !important; }
+#messages#messages .sys-dots.open > .system.folded::before { content: ''; position: absolute; left: 11px; top: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
+#messages#messages .sys-dots.open > .system.folded > b:first-child { display: inline; margin-right: 6px; }
+#messages .sys-dots.open > .sys-more { justify-self: center; margin-top: 2px; padding: 3px 10px; border-radius: 999px; cursor: pointer; color: var(--text-3); }
+#messages .sys-dots.open > .sys-more:hover { color: var(--text); }
 @keyframes notice-peek { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  #messages#messages .sys-dots > .system.folded, #messages#messages .thread-inner > .system.folding { animation: none !important; transition: none !important; }
+  #messages#messages .sys-dots > .system.folded, #messages .sys-dots.open, #messages#messages .thread-inner > .system.folding { animation: none !important; transition: none !important; }
 }
 
 /* ==========================================================================================

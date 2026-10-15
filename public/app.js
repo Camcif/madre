@@ -6245,38 +6245,59 @@ function foldNotice(node, { quiet = false } = {}) {
     const after = node.nextElementSibling?.classList.contains('sys-dots') ? node.nextElementSibling : null;
     let strip = before ?? after;
     if (!strip) { strip = el('div', 'sys-dots'); node.before(strip); }
-    if (strip === after) strip.prepend(node); else strip.append(node);
-    if (before && after) { before.append(...after.children); after.remove(); }
+    // Notices go before the row's «+N», which stays last.
+    const into = (row, ...nodes) => { const more = row.querySelector(':scope > .sys-more'); if (more) more.before(...nodes); else row.append(...nodes); };
+    if (strip === after) strip.prepend(node); else into(strip, node);
+    if (before && after) { into(before, ...after.querySelectorAll(':scope > .system')); after.remove(); }
     node.classList.remove('folding');
     node.classList.toggle('quiet', quiet);
     node.classList.add('folded');
     node.dataset.tone = noticeTone(node);
-    node.tabIndex = 0;
-    node.setAttribute('role', 'button');
-    node.setAttribute('aria-expanded', 'false');
     node.title = noticeWords(node);
+    countStrip(strip);
   };
   if (quiet || matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
   node.classList.add('folding');
   setTimeout(finish, 220);
 }
-// One open at a time in a row of dots; a click on the open one, or Escape, folds it again.
-function peekNotice(node, open = !node.classList.contains('peek')) {
-  if (open) for (const other of node.parentElement?.querySelectorAll('.system.peek') ?? []) if (other !== node) peekNotice(other, false);
-  node.classList.toggle('peek', open);
-  node.classList.remove('quiet');
-  node.setAttribute('aria-expanded', String(open));
+// A row says how many it holds: its first dot, and «+N» for the rest.
+function countStrip(strip) {
+  const notices = strip.querySelectorAll(':scope > .system.folded');
+  let more = strip.querySelector(':scope > .sys-more');
+  if (!more) { more = el('span', 'sys-more'); strip.append(more); }
+  const open = strip.classList.contains('open');
+  more.textContent = open ? t('fold') : notices.length > 1 ? `+${notices.length - 1}` : '';
+  more.hidden = !open && notices.length < 2;
+  strip.tabIndex = 0;
+  strip.setAttribute('role', 'button');
+  strip.setAttribute('aria-expanded', String(open));
+  strip.setAttribute('aria-label', t('{n} notices', { n: notices.length }));
+  strip.title = open ? '' : [...notices].map(noticeWords).join('\n');
+}
+// The whole row opens at once, in order, and folds again on a click or Escape.
+function openStrip(strip, open = !strip.classList.contains('open')) {
+  if (open) for (const other of els.column.querySelectorAll('.sys-dots.open')) if (other !== strip) openStrip(other, false);
+  // Opening a row is reading it: the thread stops following the end, or the taller row would be
+  // scrolled away from under the click.
+  const last = !strip.nextElementSibling;
+  if (open && !last) pinnedToEnd = false;
+  strip.classList.toggle('open', open);
+  for (const node of strip.querySelectorAll(':scope > .system.folded')) node.classList.remove('quiet');
+  countStrip(strip);
+  if (open) requestAnimationFrame(() => strip.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
 }
 els.column.addEventListener('click', (event) => {
-  const node = event.target.closest?.('.sys-dots > .system.folded');
-  if (!node || event.target.closest('a, button')) return;
-  peekNotice(node);
+  const strip = event.target.closest?.('.sys-dots');
+  if (!strip || event.target.closest('a, button')) return;
+  // Open, only the fold key folds it: the notices themselves are read, and selected, in place.
+  if (strip.classList.contains('open') && !event.target.closest('.sys-more')) return;
+  openStrip(strip);
 });
 els.column.addEventListener('keydown', (event) => {
-  const node = event.target.closest?.('.sys-dots > .system.folded');
-  if (!node || event.target !== node) return;
-  if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); peekNotice(node); }
-  else if (event.key === 'Escape' && node.classList.contains('peek')) peekNotice(node, false);
+  const strip = event.target.closest?.('.sys-dots');
+  if (!strip || event.target !== strip) return;
+  if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openStrip(strip); }
+  else if (event.key === 'Escape' && strip.classList.contains('open')) openStrip(strip, false);
 });
 
 // Modern chats carry the reader along: a new human message or a working

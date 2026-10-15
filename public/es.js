@@ -4880,4 +4880,6 @@ export const ES = {
   'New: Connect MCP': 'Nuevo: Conectar MCP',
   "In Settings › Connect MCP, add the tools this project's agents can use — a command on this computer or an address on the internet — or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.":
     'En Ajustes › Conectar MCP agrega las herramientas que pueden usar los agentes de este proyecto —un comando en esta computadora o una dirección en internet— o trae las que ya usas en Claude Code, Codex, Gemini o Cursor.',
+  'fold': 'plegar',
+  '{n} notices': '{n} avisos',
 };
