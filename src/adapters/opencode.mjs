@@ -21,13 +21,15 @@ const readonlyConfig = {
 // Optional provider/model override (e.g. "openai/gpt-5.6-sol"). Without it,
 // OpenCode picks its own default provider, which may not be the one the user
 // actually signed in to.
-export function buildOpenCodeArgs({ projectRoot, prompt, model = process.env.PULSE_OPENCODE_MODEL, attachments = [] }) {
+export function buildOpenCodeArgs({ projectRoot, prompt, model = process.env.PULSE_OPENCODE_MODEL, effort = null, attachments = [] }) {
   return [
     '--pure',
     'run',
     '--format', 'json',
     '--agent', 'pulse-readonly',
     ...(model ? ['--model', model] : []),
+    // The model's reasoning rung, as OpenCode names it (`--variant`, 1.18).
+    ...(effort ? ['--variant', effort] : []),
     ...attachments.flatMap((file) => ['--file', file.path]),
     '--dir', projectRoot,
     prompt,
@@ -154,11 +156,11 @@ export function parseOpenCodeOutput(output) {
   return { text: text.join('').trim(), usage, ...(error ? { error } : {}) };
 }
 
-export function invokeOpenCode({ executable, projectRoot, prompt, timeoutMs = 120000, signal, model = null, attachments = [], lease = null, scopes = null, imageStudio = null, memoryServer = null, mcpServers = [], onProgress = null }) {
+export function invokeOpenCode({ executable, projectRoot, prompt, timeoutMs = 120000, signal, model = null, effort = null, attachments = [], lease = null, scopes = null, imageStudio = null, memoryServer = null, mcpServers = [], onProgress = null }) {
   return runReadonlyProcess({
     onProgress: onProgress ? (out) => onProgress({ chars: out.length }) : null,
     executable,
-    args: buildOpenCodeArgs({ projectRoot, prompt, attachments, ...(model ? { model } : {}) }),
+    args: buildOpenCodeArgs({ projectRoot, prompt, attachments, effort, ...(model ? { model } : {}) }),
     cwd: projectRoot,
     env: openCodeEnvironment(process.env, { lease, scopes, imageStudio, memoryServer, mcpServers }),
     timeoutMs,

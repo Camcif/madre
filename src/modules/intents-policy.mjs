@@ -41,7 +41,8 @@ export const INTENT_TIER = {
   design: 'deep',
 };
 
-export const effortLadder = (agentId) => EFFORTS[agentId] ?? null;
+// OpenCode's rungs are each model's (2026-10-14): with no one ladder to climb, Intenciones leaves it be.
+export const effortLadder = (agentId) => (agentId === 'opencode' ? null : EFFORTS[agentId] ?? null);
 
 const fold = (text) => String(text ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 

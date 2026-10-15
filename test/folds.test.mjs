@@ -354,7 +354,7 @@ test('notices: a pill whose dot says done, worth a look, or wrong — red only f
   // The colour lives in the dot alone.
   assert.match(css, /\.toast\[data-tone="wrong"\] \.toast-dot \{ background: var\(--danger\);/);
   // A plain shadow under it and no light around it: no halo over a photograph.
-  assert.match(css, /\.toast:not\(\[hidden\]\) \{[^}]*box-shadow: 0 1px 2px rgba\(0, 0, 0, \.18\), 0 6px 16px -8px rgba\(0, 0, 0, \.4\);/);
+  assert.match(css, /\.toast:not\(\[hidden\]\) \{[^}]*box-shadow: 0 0 0 \.5px color-mix\(in srgb, var\(--text\) 14%, transparent\), inset 0 1px 0 rgb\(255 255 255 \/ \.06\), 0 2px 4px rgba\(0, 0, 0, \.24\), 0 12px 28px -6px/);
   assert.ok(!/\.toast:not\(\[hidden\]\) \{[^}]*var\(--raise\)/.test(css), 'the notice wears the keys\' light again');
 });
 

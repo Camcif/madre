@@ -493,8 +493,8 @@ export const ES = {
     'Memorias para la búsqueda por significado, intercambios para resumir en notas y lo que le preguntes a @madre. Va a un puerto de esta computadora y ahí se queda.',
   'while Ollama is running':
     'mientras Ollama esté corriendo',
-  'Modules › AI on this computer':
-    'Módulos › IA en esta computadora',
+  'Modules › Local AI':
+    'Módulos › IA local',
   'the provider OpenCode is signed in to':
     'el proveedor con el que OpenCode tiene sesión',
   'its own provider':
@@ -660,7 +660,6 @@ export const ES = {
   'Kind of request': 'Tipo de pedido',
   'Level': 'Nivel',
   'Limits': 'Límites',
-  'Provider limits': 'Límites del proveedor',
   'Connection': 'Conexión',
   'Version': 'Versión',
   'Error reports': 'Reportes de errores',
@@ -805,7 +804,7 @@ export const ES = {
   'scripts run in the frame · nothing leaves, nothing is stored, nothing reaches MADRE':
     'los scripts corren dentro del marco · no sale nada, no se guarda nada, nada llega a MADRE',
 
-  'Searches and sums up the project\'s memory with AI on this computer (Ollama): free, and nothing leaves.': 'Busca y resume la memoria del proyecto con IA en esta computadora (Ollama): gratis y sin que nada salga.',
+  'Searches and sums up the project\'s memory with local AI (Ollama): free, and nothing leaves.': 'Busca y resume la memoria del proyecto con IA local (Ollama): gratis y sin que nada salga.',
   'a block in ~/.pulse/config.json': 'un bloque en ~/.pulse/config.json',
   "models in Ollama's own store when you press PULL": 'modelos en el almacén de Ollama cuando aprietas PULL',
   'Ollama running (the app, or ollama serve)': 'Ollama corriendo (la app, o ollama serve)',
@@ -965,9 +964,9 @@ export const ES = {
   'SEARCH': 'BÚSQUEDA',
   'CASCADE': 'CASCADA',
   'PASSES AT {n}': 'MÍNIMO PARA APROBAR: {n}',
-  'DOES THE MEMORY HAVE THE ANSWERS?': '¿LA MEMORIA TIENE LAS RESPUESTAS?',
-  'DOES THE MEMORY CONTRADICT ITSELF?': '¿LA MEMORIA SE CONTRADICE?',
-  'DOES THE LOCAL AI ANSWER LIKE THE AGENTS?': '¿LA IA LOCAL CONTESTA COMO LOS AGENTES?',
+  'Does the memory have the answers?': '¿La memoria tiene las respuestas?',
+  'Does the memory contradict itself?': '¿La memoria se contradice?',
+  'Does the local AI answer like the agents?': '¿La IA local contesta como los agentes?',
   'Real questions from this project, recall run at the moment each one was asked, scored against the reply that was actually given. It asks whether the answer was already in the archive, not whether it was right.':
     'Preguntas reales de este proyecto. Para cada una, MADRE repite el recuerdo automático tal como habría sido en ese momento y lo compara con la respuesta que se dio. Mide si la respuesta ya estaba en la memoria, no si era correcta.',
   'Contradictions the memory reviewer has not settled yet, memories taken out of use, and whether doubtful memories are being filed more often lately than they used to be.':
@@ -1908,16 +1907,16 @@ export const ES = {
     'Enciende Vista previa en Módulos. Si una página se ve rota en PREVIEW, casi siempre es porque pide algo de internet o de otro servidor, cosa que el marco prohíbe a propósito: ábrela con ABRIR EN CRUDO en una pestaña normal si confías en ella.',
 
   'Ollama: local smart search and a local archivist': 'Ollama: búsqueda por significado y resúmenes de memoria, en esta Mac',
-  'When Ollama runs on this machine with an embedding model and a chat model, MADRE embeds the memory locally (recall by meaning without any key) and distils memories with the local model first, before Gemini and the others. Nothing leaves the machine for remembering. Off or absent, everything falls back to the providers. The AI on this computer module, in Modules, shows what Ollama has, downloads the recommended models, and switches each role.':
-    'Cuando Ollama corre en esta computadora con un modelo de búsqueda por significado y uno de chat, MADRE hace la búsqueda por significado aquí mismo (sin ninguna llave de API) y hace las notas resumidas con el modelo local primero, antes que con Gemini y los demás. Para recordar no sale nada de tu computadora. Si Ollama está apagado o no está instalado, todo vuelve a los proveedores. El módulo IA en esta computadora, en Módulos, muestra qué tiene Ollama, te deja descargar los modelos recomendados y encender o apagar cada función.',
-  'Install Ollama (ollama.com), start it, then open AI on this computer in Modules, press RECHECK and download the models it suggests. Set PULSE_OLLAMA_MODEL or PULSE_OLLAMA_EMBED_MODEL to prefer others; PULSE_EMBED_PROVIDER=gemini keeps embeddings on Gemini even with Ollama running.':
-    'Instala Ollama (ollama.com), enciéndelo, luego abre IA en esta computadora en Módulos, pulsa Revisar otra vez y descarga los modelos que sugiere. Pon PULSE_OLLAMA_MODEL o PULSE_OLLAMA_EMBED_MODEL para preferir otros; PULSE_EMBED_PROVIDER=gemini deja la búsqueda por significado en Gemini aunque Ollama esté corriendo.',
+  'When Ollama runs on this machine with an embedding model and a chat model, MADRE embeds the memory locally (recall by meaning without any key) and distils memories with the local model first, before Gemini and the others. Nothing leaves the machine for remembering. Off or absent, everything falls back to the providers. The Local AI module, in Modules, shows what Ollama has, downloads the recommended models, and switches each role.':
+    'Cuando Ollama corre en esta computadora con un modelo de búsqueda por significado y uno de chat, MADRE hace la búsqueda por significado aquí mismo (sin ninguna llave de API) y hace las notas resumidas con el modelo local primero, antes que con Gemini y los demás. Para recordar no sale nada de tu computadora. Si Ollama está apagado o no está instalado, todo vuelve a los proveedores. El módulo IA local, en Módulos, muestra qué tiene Ollama, te deja descargar los modelos recomendados y encender o apagar cada función.',
+  'Install Ollama (ollama.com), start it, then open Local AI in Modules, press RECHECK and download the models it suggests. Set PULSE_OLLAMA_MODEL or PULSE_OLLAMA_EMBED_MODEL to prefer others; PULSE_EMBED_PROVIDER=gemini keeps embeddings on Gemini even with Ollama running.':
+    'Instala Ollama (ollama.com), enciéndelo, luego abre IA local en Módulos, pulsa Revisar otra vez y descarga los modelos que sugiere. Pon PULSE_OLLAMA_MODEL o PULSE_OLLAMA_EMBED_MODEL para preferir otros; PULSE_EMBED_PROVIDER=gemini deja la búsqueda por significado en Gemini aunque Ollama esté corriendo.',
 
   "@madre: the project's own memory, as an agent": '@madre: la memoria del proyecto, como agente',
   'When Ollama runs with a chat model, a fifth agent joins the project: @madre. It answers from the whole archive (distilled notes and exact quotes, cited as [#n]) and from what the message carries, locally, for free. It never writes, draws, browses or makes plans; when the project never discussed something it says so. Other agents may give it a plan step to check what was decided. It leaves the project when Ollama stops, and Diagnostics says so.':
     'Cuando Ollama corre con un modelo de chat, se suma un quinto agente al proyecto: @madre. Contesta desde toda la memoria del proyecto (notas resumidas y citas exactas, citadas como [#n]) y desde lo que traiga el mensaje, en local y gratis. Nunca escribe, ni dibuja, ni navega, ni hace planes; si el proyecto nunca habló de algo, lo dice. Otros agentes pueden darle un paso del plan para comprobar qué se decidió. Sale del proyecto cuando Ollama se apaga, y Diagnóstico lo avisa.',
-  'Start Ollama and download a chat model from AI on this computer in Modules; its @madre in the project switch turns the agent off if you do not want it. Ask it "what did we decide about …" or "did we ever discuss …".':
-    'Enciende Ollama y descarga un modelo de chat desde IA en esta computadora, en Módulos; su interruptor @madre en el proyecto apaga al agente si no lo quieres. Pregúntale «¿qué decidimos sobre…?» o «¿alguna vez hablamos de…?».',
+  'Start Ollama and download a chat model from Local AI in Modules; its @madre in the project switch turns the agent off if you do not want it. Ask it "what did we decide about …" or "did we ever discuss …".':
+    'Enciende Ollama y descarga un modelo de chat desde IA local, en Módulos; su interruptor @madre en el proyecto apaga al agente si no lo quieres. Pregúntale «¿qué decidimos sobre…?» o «¿alguna vez hablamos de…?».',
 
   'Installing a CLI: npm cannot write to the system folder': 'Instalar la app de un agente: npm no puede escribir en la carpeta del sistema',
   'A global npm install writes into a folder that belongs to the system. With Node installed from its own installer that folder needs an administrator, so npm stops with a permission error. MADRE does not ask for your password: when it sees that wall it installs the CLI into a folder of its own, ~/.pulse/tools, and looks there as well as along PATH. The agent works the same; only the file lives somewhere else.':
@@ -2028,27 +2027,18 @@ export const ES = {
   'web': 'web',
   'available': 'disponible',
   '{what}: not available from this CLI': '{what}: la app de este agente no lo puede hacer',
-  'budget tokens · local 5h window': 'límite de uso en tokens · ventana local de 5 h',
   "of the provider's {window} limit": 'del límite de {window} del proveedor',
   ' · window reset': ' · ventana reiniciada',
   '{window} limit': 'límite de {window}',
   '{pct}% · resets {when}': '{pct}% · se reinicia {when}',
-  '{pct}% · reset, awaiting fresh data': '{pct}% · reiniciada, esperando datos nuevos',
   'reported': 'reportado',
-  '{when} by {who}': '{when} por {who}',
   'the CLI': 'la app del agente',
   'provider limit': 'límite del proveedor',
   '{pct}% used': '{pct}% usado',
-  'not published by this CLI · Usage shows the local window': 'la app de este agente no lo informa · Uso muestra la ventana local',
   'local window': 'ventana local',
-  '{pct}% of {total} · 5h rolling': '{pct}% de {total} · últimas 5 h',
   ' · oldest turn drops {when}': ' · la respuesta más antigua deja de contar {when}',
-  'unbounded': 'sin límite',
-  'all-time in project': 'total del proyecto',
   'turns': 'respuestas',
   'last turn': 'última respuesta',
-  'cost (reported)': 'costo (reportado)',
-  'cost (estimated)': 'costo (estimado)',
   'Estimated at the API list price of {model} ({date}). Not a bill: a subscription may cost you nothing per turn.': 'Estimado al precio de lista de la API de {model} ({date}). No es un cobro: con una suscripción puede no costarte nada por respuesta.',
   'session': 'sesión',
   'unknown': 'sin determinar',
@@ -2057,10 +2047,6 @@ export const ES = {
   'not ready': 'no está listo',
   'via': 'vía',
   'timeout': 'tiempo límite',
-  "local window, not the provider's bill · ⚙ connections in Diagnostics":
-    'ventana local, no la factura del proveedor · ⚙ conexiones en Diagnóstico',
-  'provider limit as the CLI reports it · ⚙ connections in Diagnostics':
-    'el límite del proveedor tal como lo informa la app del agente · ⚙ conexiones en Diagnóstico',
 
   // El canal de releases.
   'MADRE {latest} is on npm · you run {current}': 'Ya salió MADRE {latest} · tú tienes la {current}',
@@ -3236,7 +3222,7 @@ export const ES = {
   'Details and checkups': 'Detalles y revisiones',
   'Refresh': 'Actualizar',
   'Who takes notes': 'Quién toma notas',
-  'An agent rereads recent conversations and saves only what is worth remembering. The cheapest one goes first; AI on this computer is free and private.': 'Un agente relee las conversaciones recientes y guarda solo lo que vale la pena recordar. Va primero el más barato; la IA en esta computadora es gratis y privada.',
+  'An agent rereads recent conversations and saves only what is worth remembering. The cheapest one goes first; local AI is free and private.': 'Un agente relee las conversaciones recientes y guarda solo lo que vale la pena recordar. Va primero el más barato; la IA local es gratis y privada.',
   'Who takes notes first': 'Quién toma notas primero',
   'Automatic · the cheapest one': 'Automático · el más barato',
   'local, free': 'local, gratis',
@@ -3256,27 +3242,21 @@ export const ES = {
   'Memories that are often used together come together.': 'Las memorias que suelen usarse juntas llegan juntas.',
   'Search by meaning': 'Buscar por significado',
   'Finds memories by what they mean, not only by exact words. Now: {what}.': 'Encuentra memorias por lo que significan, no solo por palabras exactas. Ahora: {what}.',
-  'Automatic · AI on this computer if running, else Gemini': 'Automático · IA en esta computadora si está encendida, si no Gemini',
+  'Automatic · Local AI if running, else Gemini': 'Automático · IA local si está encendida, si no Gemini',
   'no model yet': 'sin modelo aún',
   'Gemini · needs your key': 'Gemini · necesita tu llave de API',
   'Off · exact words only': 'Apagado · solo palabras exactas',
   'Some of these values are fixed by how MADRE was started; those win next time it starts.': 'Algunos valores los fija la forma en que se arrancó MADRE; esos mandan la próxima vez que arranque.',
   'Train your own AI': 'Entrena tu propia IA',
-  'Advanced: export what the project learned, train a model on this Mac, and @madre answers with it.': 'Avanzado: exporta lo que aprendió el proyecto, entrena un modelo en esta Mac y @madre contesta con él.',
+  'Advanced: export what the project learned, train a model on your computer, and @madre answers with it.': 'Avanzado: exporta lo que aprendió el proyecto, entrena un modelo en tu computadora y @madre contesta con él.',
   'Export': 'Exportar',
   'Training data': 'Datos de entrenamiento',
-  'Step by step · Macs with Apple chips only': 'Paso a paso · solo Mac con chip Apple',
-  'Export the dataset first. Each step is one command for your terminal: copy it, run it, come back. When the model exists in Ollama, @madre switches to it at the next recheck.': 'Primero exporta los datos de entrenamiento. Cada paso es un comando para tu terminal: cópialo, córrelo y regresa. Cuando el modelo exista en Ollama, @madre lo usa desde la siguiente revisión.',
   'Last export {when} · {train} to train · {valid} to check': 'Última exportación {when} · {train} para entrenar · {valid} para validar',
   'Not exported yet.': 'Aún sin exportar.',
   'Trained model {model} in use.': 'Modelo entrenado {model} en uso.',
   'No trained model yet.': 'Aún no hay modelo entrenado.',
   'The training recipe is unavailable.': 'La receta de entrenamiento no está disponible.',
-  'Once: a Python environment with mlx-lm': 'Una vez: un entorno de Python con mlx-lm',
-  'Train the LoRA · base {model} for {gb} GB': 'Entrenar el ajuste del modelo (LoRA) · base {model} para {gb} GB',
-  'Fuse the adapter into the base': 'Unir el ajuste con el modelo base',
-  'Register it in Ollama as {model}': 'Registrarlo en Ollama como {model}',
-  'Qwen needs a GGUF before Ollama reads it: {readme}, section 3, has the two lines. Then ask @madre ten things the project decided and five it never discussed before trusting it.': 'Qwen necesita un GGUF antes de que Ollama lo lea: {readme}, sección 3, tiene las dos líneas. Luego pregúntale a @madre diez cosas que el proyecto decidió y cinco que nunca discutió antes de confiar en él.',
+  'Register it in Ollama as {model}': 'Regístralo en Ollama como {model}',
   'One agent is enough to start. MADRE uses the AI apps already on this computer: install one here or sign in, and the project opens. Your passwords stay in each app; MADRE only checks you are signed in.': 'Con un agente basta para empezar. MADRE usa las apps de IA que ya tienes en esta computadora: instala una aquí o inicia sesión, y el proyecto se abre. Tus contraseñas se quedan en cada app; MADRE solo revisa que hayas iniciado sesión.',
   'Plans': 'Planes',
   'Whether an agent may split a job into steps for the others.': 'Si un agente puede dividir un trabajo en pasos para los demás.',
@@ -3395,7 +3375,7 @@ export const ES = {
   'What they can show': 'Lo que pueden mostrar',
   'These switches are the same ones as in MODULES.': 'Estos interruptores son los mismos que en MÓDULOS.',
   'Web pages, images and documents show as they look, safely. Off, you see their code.': 'Páginas web, imágenes y documentos se ven tal como son, de forma segura. Apagada, ves su código.',
-  'Browser for agents': 'Navegador para agentes',
+  'Test browser': 'Navegador de pruebas',
   'Agents can open and check your project\'s pages, without reaching anything else.': 'Los agentes pueden abrir y revisar las páginas de tu proyecto, sin llegar a nada más.',
   'Settings for files and servers': 'Ajustes de archivos y servidores',
   'Always': 'Siempre',
@@ -3491,7 +3471,7 @@ export const ES = {
   'Download ↗': 'Descargar ↗',
   'Without Ollama running, the project keeps using its providers.': 'Sin Ollama encendido, el proyecto sigue usando sus proveedores.',
   'Roles': 'Funciones',
-  'What AI on this computer does in this project.': 'Lo que hace la IA en esta computadora en este proyecto.',
+  'What Local AI does in this project.': 'Lo que hace la IA local en este proyecto.',
   'Archivist': 'Quien resume la memoria',
   'Download {model}': 'Descargar {model}',
   'No model for it yet.': 'Aún no hay modelo para esto.',
@@ -3604,7 +3584,7 @@ export const ES = {
   'Enter': 'Entrar',
   'Open Ollama': 'Abrir Ollama',
   'Start it, download its models and choose what it does in this project.': 'Enciéndelo, descarga sus modelos y elige qué hace en este proyecto.',
-  '@{agent} left the project: Ollama is not running. Start Ollama, or open Local AI in Modules.': '@{agent} salió del proyecto: Ollama no está corriendo. Enciende Ollama o abre IA en esta computadora en Módulos.',
+  '@{agent} left the project: Ollama is not running. Start Ollama, or open Local AI in Modules.': '@{agent} salió del proyecto: Ollama no está corriendo. Enciende Ollama o abre IA local en Módulos.',
   'Hide': 'Ocultar',
   'Updating {name}': 'Actualizando {name}',
   'Installing {name}': 'Instalando {name}',
@@ -4286,7 +4266,7 @@ export const ES = {
   'DIAGNOSTICS': 'DIAGNÓSTICO',
   'Token saver': 'Ahorro de tokens',
   'token saver': 'ahorro de tokens',
-  'AI on this computer': 'IA en esta computadora',
+  'Local AI': 'IA local',
   'Options': 'Opciones',
   'Images': 'Imágenes',
   'Continuity': 'Continuidad',
@@ -4358,7 +4338,7 @@ export const ES = {
   ' STOPALL if the room drifts.': ' STOPALL si el proyecto se desvía.',
   '@{agent} is capped at #{n} {label}; raise its max mode to #{wanted} in Settings › Permissions to arm {mode}.': '@{agent} tiene como límite #{n} {label}; sube su permiso máximo a #{wanted} en Ajustes › Permisos para desbloquear {mode}.',
   '@{agent} is capped at #{n} {label}; raise its MAX MODE to #{wanted} in CONNECTIONS to arm {mode}.': '@{agent} tiene como límite #{n} {label}; sube su permiso máximo a #{wanted} en Ajustes › Permisos para desbloquear {mode}.',
-  '@{agent} left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.': '@{agent} salió del proyecto: Ollama no está corriendo. Enciende Ollama o abre IA en esta computadora en Módulos.',
+  '@{agent} left the room: Ollama is not running. Start Ollama, or open Ollama in Modules.': '@{agent} salió del proyecto: Ollama no está corriendo. Enciende Ollama o abre IA local en Módulos.',
   // La segunda llave de #4: la misma, otra vez (2026-10-10).
   'Project, twice': 'Proyecto, dos veces',
   'Phrase, twice': 'Frase, dos veces',
@@ -4624,11 +4604,11 @@ export const ES = {
   'Height': 'Alto',
   // IA local por proyecto (src/local-ai.mjs): Inicio elige qué proyectos usan Ollama.
   'Say on or off.': 'Indica si se enciende o se apaga.',
-  'The Coordinator follows the AI on this computer switch of Modules.': 'El Coordinador sigue el interruptor de IA en esta computadora de Módulos.',
-  'Home turns the AI on this computer on in every project. Change it in Home › Settings › AI on this computer.': 'Inicio enciende la IA en esta computadora en todos los proyectos. Cámbialo en Inicio › Ajustes › IA en esta computadora.',
-  'off in this project · Home › Settings › AI on this computer': 'apagada en este proyecto · Inicio › Ajustes › IA en esta computadora',
-  'AI on this computer is off for every project.': 'La IA en esta computadora está apagada para todos los proyectos.',
-  'Home turns it on in every project, and «Active» switches it for all of them. To choose project by project, go to Home › Settings › AI on this computer.': 'Inicio la enciende en todos los proyectos, y «Activo» la cambia para todos. Para elegir proyecto por proyecto, ve a Inicio › Ajustes › IA en esta computadora.',
+  'The Coordinator follows the local AI switch of Modules.': 'El Coordinador sigue el interruptor de IA local de Módulos.',
+  'Home turns the local AI on in every project. Change it in Home › Settings › Local AI.': 'Inicio enciende la IA local en todos los proyectos. Cámbialo en Inicio › Ajustes › IA local.',
+  'off in this project · Home › Settings › Local AI': 'apagada en este proyecto · Inicio › Ajustes › IA local',
+  'Local AI is off for every project.': 'La IA local está apagada para todos los proyectos.',
+  'Home turns it on in every project, and «Active» switches it for all of them. To choose project by project, go to Home › Settings › Local AI.': 'Inicio la enciende en todos los proyectos, y «Activo» la cambia para todos. Para elegir proyecto por proyecto, ve a Inicio › Ajustes › IA local.',
   'Home chooses the projects one by one; «Active» switches this one here too.': 'Inicio elige los proyectos uno a uno; «Activo» también cambia este proyecto desde aquí.',
   'Each project decides on its own: «Active» is this project’s switch.': 'Cada proyecto decide por su cuenta: «Activo» es el interruptor de este proyecto.',
   'In this project': 'En este proyecto',
@@ -4638,23 +4618,23 @@ export const ES = {
   'Ollama is not running': 'Ollama no está encendido',
   'Every project uses it, new ones too.': 'Todos los proyectos la usan, también los nuevos.',
   'Only the projects you switch on below. New projects start without it.': 'Solo los proyectos que enciendas abajo. Los proyectos nuevos empiezan sin ella.',
-  'Each project decides in its own Settings › Modules › AI on this computer. New ones start with it.': 'Cada proyecto lo decide en sus Ajustes › Módulos › IA en esta computadora. Los nuevos empiezan con ella.',
+  'Each project decides in its own Settings › Modules › Local AI. New ones start with it.': 'Cada proyecto lo decide en sus Ajustes › Módulos › IA local. Los nuevos empiezan con ella.',
   'Home did not answer.': 'Inicio no respondió.',
   '{names} will use it when restarted: it was started before this setting existed.': '{names} tomará el cambio al reiniciarse: se abrió antes de que existiera este ajuste.',
-  'Ollama runs AI on this computer: it searches and sums up each project\'s memory and answers as @madre, free and private. Choose which projects use it.': 'Ollama corre IA en esta computadora: busca y resume la memoria de cada proyecto y contesta como @madre, gratis y privado. Elige qué proyectos la usan.',
+  'Ollama runs local AI: it searches and sums up each project\'s memory and answers as @madre, free and private. Choose which projects use it.': 'Ollama corre IA local: busca y resume la memoria de cada proyecto y contesta como @madre, gratis y privado. Elige qué proyectos la usan.',
   'Which projects': 'Qué proyectos',
   'Mode': 'Modo',
-  'Turn it on in a project, in Modules › AI on this computer.': 'Enciéndela desde un proyecto, en Módulos › IA en esta computadora.',
-  'Projects keep working with their agents meanwhile. Start it from a project, in Modules › AI on this computer.': 'Mientras, los proyectos siguen con sus agentes. Enciéndelo desde un proyecto, en Módulos › IA en esta computadora.',
+  'Turn it on in a project, in Modules › Local AI.': 'Enciéndela desde un proyecto, en Módulos › IA local.',
+  'Projects keep working with their agents meanwhile. Start it from a project, in Modules › Local AI.': 'Mientras, los proyectos siguen con sus agentes. Enciéndelo desde un proyecto, en Módulos › IA local.',
   'All of them use it. Choose «One by one» or «Manual» to turn some off.': 'Todos la usan. Elige «Uno a uno» o «Manual» para apagarla en algunos.',
   'A switch here is the same one the project shows in its Settings.': 'Cada interruptor es el mismo que el proyecto muestra en sus Ajustes.',
   'No projects yet': 'Todavía no hay proyectos',
   'Open · using it': 'Abierto · la usa',
-  'Open · without it': 'Abierto · sin IA en esta computadora',
+  'Open · without it': 'Abierto · sin IA local',
   'Closed · applies when it opens': 'Cerrado · se aplica al abrirlo',
   'Choose projects': 'Elegir proyectos',
   '{n} of {target} examples this project needs to train a model of its own': '{n} de {target} ejemplos que este proyecto necesita para entrenar su propio modelo',
-  'without AI on this computer': 'sin IA en esta computadora',
+  'without local AI': 'sin IA local',
   'The project serving this page was started before this setting existed. Restart it, or open Home from another project.': 'El proyecto que muestra esta página se abrió antes de que existiera este ajuste. Reinícialo, o abre Inicio desde otro proyecto.',
   // Uso de MADRE: el widget del autor (src/heartbeat.mjs, madre.run/api/usage).
   'MADRE usage': 'Uso de MADRE',
@@ -4704,8 +4684,8 @@ export const ES = {
     'Qué proyectos pueden consultar lo que otro aprendió y el acuerdo que firmó cada uno. Nada se comparte sin tu firma, y aquí puedes cancelar cualquier conexión.',
   'Your projects as a map. Drag one onto another to connect them, click one to go to it, and press Esc to come back.':
     'Tus proyectos como un mapa. Arrastra uno sobre otro para conectarlos, haz clic en uno para ir a él y presiona Esc para volver.',
-  'How Home looks and what its bar holds, your agents, the Coordinator, which projects use the AI on this computer, your projects and the version. ⌘ , opens it from anywhere.':
-    'Cómo se ve Inicio y qué lleva su barra, tus agentes, el Coordinador, qué proyectos usan la IA en esta computadora, tus proyectos y la versión. ⌘ , lo abre desde cualquier lugar.',
+  'How Home looks and what its bar holds, your agents, the Coordinator, which projects use the local AI, your projects and the version. ⌘ , opens it from anywhere.':
+    'Cómo se ve Inicio y qué lleva su barra, tus agentes, el Coordinador, qué proyectos usan la IA local, tus proyectos y la versión. ⌘ , lo abre desde cualquier lugar.',
   "How busy this Mac's processor is and how much memory is free. It updates on its own.":
     'Qué tan ocupado está el procesador de esta Mac y cuánta memoria queda libre. Se actualiza solo.',
   'The servers running in your open projects and whether they answer. A project shows here when its Preview is on.':
@@ -4714,11 +4694,11 @@ export const ES = {
     'Qué tan madura está la memoria de cada proyecto abierto y su punto más débil: lo que más la mejoraría.',
   "How far the Coordinator's own record is from training a model of its own.":
     'Cuánto le falta a la memoria del Coordinador para entrenar un modelo propio.',
-  'Ollama and its models, and how many examples each project has toward a model of its own (8/300 is 8 of 300). «Choose projects» sets which ones use the AI on this computer.':
-    'Ollama y sus modelos, y cuántos ejemplos lleva cada proyecto para entrenar el suyo (8/300 son 8 de 300). «Elegir proyectos» decide cuáles usan la IA en esta computadora.',
+  'Ollama and its models, and how many examples each project has toward a model of its own (8/300 is 8 of 300). «Choose projects» sets which ones use the local AI.':
+    'Ollama y sus modelos, y cuántos ejemplos lleva cada proyecto para entrenar el suyo (8/300 son 8 de 300). «Elegir proyectos» decide cuáles usan la IA local.',
   'Right-click it to change its size or take it off.': 'Haz clic derecho en él para cambiar su tamaño o quitarlo.',
-  'Since 1.0, Home became a board you arrange, with widgets; the AI on this computer is chosen project by project, and MADRE speaks more plainly. I tell you what changed, at your own pace.':
-    'Desde 1.0, Inicio es un tablero que acomodas, con widgets; la IA en esta computadora se elige proyecto por proyecto, y MADRE habla más claro. Te cuento qué cambió, a tu paso.',
+  'Since 1.0, Home became a board you arrange, with widgets; the local AI is chosen project by project, and MADRE speaks more plainly. I tell you what changed, at your own pace.':
+    'Desde 1.0, Inicio es un tablero que acomodas, con widgets; la IA local se elige proyecto por proyecto, y MADRE habla más claro. Te cuento qué cambió, a tu paso.',
   'Nothing you set up changed: your projects, agents and permissions are as you left them.':
     'Nada de lo que configuraste cambió: tus proyectos, agentes y permisos siguen como los dejaste.',
   'What is new since 1.0': 'Lo nuevo desde 1.0',
@@ -4892,4 +4872,42 @@ export const ES = {
   'Add widgets to Home': 'Agregar widgets a Inicio',
   // La píldora del recorrido en una barra angosta (2026-10-14).
   'Tour · {n}/{total}': 'Recorrido · {n}/{total}',
+  // La tarjeta de cada agente, ordenada (2026-10-14).
+  "of this project's limit · last 5 h": 'del límite de este proyecto · últimas 5 h',
+  'tokens in the last 5 h': 'tokens en las últimas 5 h',
+  '{used} of {total} tokens': '{used} de {total} tokens',
+  'Answers': 'Respuestas',
+  'Last answer': 'Última respuesta',
+  'Cost (estimated)': 'Costo (estimado)',
+  'Your plan': 'Tu plan',
+  "{agent}'s app does not say how much of your plan is left. What you see here is only what this project spent.": 'La app de {agent} no dice cuánto te queda de tu plan. Lo que ves aquí es solo lo que gastó este proyecto.',
+  'version {version}': 'versión {version}',
+  'waits up to {time}': 'espera hasta {time}',
+  'Connection and limits in Settings': 'Conexión y límites en Ajustes',
+  // Entrenar tu propia IA, en orden (2026-10-14).
+  "The training data are question-and-answer pairs taken from this project's conversations and notes, with private details hidden. With them a small model is adjusted on your computer, and @madre answers with it.": 'Los datos de entrenamiento son pares de pregunta y respuesta sacados de las conversaciones y notas de este proyecto, sin datos privados. Con ellos se ajusta un modelo pequeño en tu computadora, y @madre contesta con él.',
+  'Step by step': 'Paso a paso',
+  'Mac with Apple chip': 'Mac con chip Apple',
+  'Linux with NVIDIA': 'Linux con NVIDIA',
+  'Your computer': 'Tu computadora',
+  'Any Mac with an M chip. 16 GB of memory is enough for the small model.': 'Cualquier Mac con chip M. Con 16 GB de memoria alcanza para el modelo pequeño.',
+  'Experimental: MLX runs on Linux with an NVIDIA card (CUDA 12, compute capability 7.5 or newer, glibc 2.35, Python 3.10), but mlx-lm only promises Apple chips. Step 2 checks the card first.': 'Experimental: MLX corre en Linux con una tarjeta NVIDIA (CUDA 12, capacidad de cómputo 7.5 o mayor, glibc 2.35, Python 3.10), pero mlx-lm solo garantiza los chips de Apple. El paso 2 revisa la tarjeta primero.',
+  'Export the training data': 'Exporta los datos de entrenamiento',
+  'With «Export» above. Do it again whenever the project has grown.': 'Con «Exportar», arriba. Repítelo cuando el proyecto haya crecido.',
+  'Prepare Python, once': 'Prepara Python, una sola vez',
+  'A separate environment with mlx-lm, so nothing else on your computer changes.': 'Un entorno aparte con mlx-lm, para que nada más de tu computadora cambie.',
+  'A separate environment with MLX for CUDA and mlx-lm. It must print «CUDA: True»; if not, stop here.': 'Un entorno aparte con MLX para CUDA y mlx-lm. Debe decir «CUDA: True»; si no, detente aquí.',
+  'Train · base {model} for {gb} GB': 'Entrena · base {model} para {gb} GB',
+  'From 10 to 40 minutes. It learns from the exported pairs and leaves an adjustment («adapters»).': 'De 10 a 40 minutos. Aprende de los pares exportados y deja un ajuste («adapters»).',
+  'Join the adjustment with the base model': 'Une el ajuste con el modelo base',
+  'Turn it into a file Ollama reads (GGUF)': 'Conviértelo en un archivo que Ollama lee (GGUF)',
+  "Once, it downloads llama.cpp's converter.": 'La primera vez descarga el convertidor de llama.cpp.',
+  '@madre switches to it at the next recheck of Local AI.': '@madre lo usa desde la siguiente revisión de IA local.',
+  'Try it before trusting it': 'Pruébalo antes de confiar en él',
+  'Ask @madre ten things the project decided and five it never discussed. It should get the first right and say it never discussed the others; if it makes things up, remove it with «ollama rm {model}» and train with more pairs.': 'Pregúntale a @madre diez cosas que el proyecto decidió y cinco que nunca habló. Debe acertar las primeras y decir que nunca se hablaron las otras; si inventa, quítalo con «ollama rm {model}» y entrena con más pares.',
+  // El escalón sin razonar de OpenCode (2026-10-14).
+  'No reasoning: it answers straight away. For the simplest asks.': 'Sin razonar: contesta de inmediato. Para lo más sencillo.',
+  // Proveedores de OpenCode: el catálogo completo (2026-10-14).
+  'Most used': 'Más usados',
+  'All providers': 'Todos los proveedores',
 };

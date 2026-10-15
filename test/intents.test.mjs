@@ -14,7 +14,8 @@ const many = (n, verdict) => Array.from({ length: n }, () => verdict);
 test('intenciones: only agents whose CLI takes an effort per run get a suggestion', () => {
   const text = 'explica cómo funciona el destilador';
   for (const agent of ['gemini', 'opencode', 'madre', 'nobody', undefined]) assert.equal(suggestEffort({ text, agent }), null, `${agent} has no effort to suggest`);
-  for (const agent of Object.keys(EFFORTS)) assert.ok(suggestEffort({ text, agent }), `${agent} takes an effort and should get one`);
+  // OpenCode takes an effort too, but each model has its own rungs: no one ladder to suggest on.
+  for (const agent of Object.keys(EFFORTS).filter((id) => id !== 'opencode')) assert.ok(suggestEffort({ text, agent }), `${agent} takes an effort and should get one`);
 
   // A rule speaks in rungs every ladder has. If a CLI ever renames one, this is where it shows,
   // instead of as a suggestion the CLI rejects.

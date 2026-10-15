@@ -64,7 +64,7 @@ import { COPILOT_WINDOWS } from './room/copilot.mjs';
 import { OVERRIDE_GRACE, changeNeedsPhrase, keyHolds, mergeOverride, overrideSettings, phraseHash, publicOverride } from './override.mjs';
 import { extensionById, findOnPath, runInstaller } from './extensions.mjs';
 import { accountNoteFor, installPlanFor, looksLikeAdminProblem, loginPlanFor, looksLikeCodePrompt, probeAgentAuth, probeAll, TAKES_KEY } from './auth-probe.mjs';
-import { applyKey, keyPlanFor, OPENCODE_PROVIDERS, readOpenCodeProviders, removeOpenCodeKey } from './credentials.mjs';
+import { applyKey, keyPlanFor, openCodeKeyProviders, readOpenCodeProviders, removeOpenCodeKey } from './credentials.mjs';
 import { forgetSecret, readSecret, summary as vaultSummary, writeSecret } from './vault.mjs';
 import { applyConfigToEnv, loadConfig as readConfig, updateConfig } from './config.mjs';
 import { Privacy, normalizeTerms, privacySettings } from './privacy.mjs';
@@ -79,7 +79,7 @@ import { moduleUpdate } from './modules/updates.mjs';
 import { adoptStrays, chatIndex, chatLedger, createChat, deleteChat, isChatId, listChats, openChat as openChatIndex, projectFloor, renameChat, touchChat } from './chats.mjs';
 import { spawn } from 'node:child_process';
 import { cpus, freemem, loadavg, totalmem } from 'node:os';
-import { discoverModels, groupOpenCode, openCodeHidden, providerLabel, OPENCODE_OWN } from './models.mjs';
+import { discoverModels, groupOpenCode, openCodeHidden, parseOpenCodeVerbose, providerLabel, OPENCODE_OWN } from './models.mjs';
 import { observable } from './modules/intents-observe.mjs';
 import { normalizeMode, setImageModule } from './capabilities.mjs';
 import { resolveGeminiKey } from './image-studio.mjs';
@@ -2536,9 +2536,9 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/local-ai') {
         const patch = await body(request);
         if (typeof patch?.on !== 'boolean') return sendJson(response, 400, { error: t('Say on or off.') });
-        if (salasRoom) return sendJson(response, 409, { error: t('The Coordinator follows the AI on this computer switch of Modules.') });
+        if (salasRoom) return sendJson(response, 409, { error: t('The Coordinator follows the local AI switch of Modules.') });
         const status = await setLocalAiHere(patch.on);
-        if (!status) return sendJson(response, 409, { error: t('Home turns the AI on this computer on in every project. Change it in Home › Settings › AI on this computer.') });
+        if (!status) return sendJson(response, 409, { error: t('Home turns the local AI on in every project. Change it in Home › Settings › Local AI.') });
         return sendJson(response, 200, { project: status.project });
       }
       if (request.method === 'GET' && url.pathname === '/api/settings') {
@@ -3242,10 +3242,11 @@ export async function createPulseServer({
         return sendJson(response, result.status, result.body);
       }
       if (request.method === 'GET' && url.pathname === '/api/models') {
+        // `--verbose` adds each model's metadata, its «variants» (the reasoning rungs) among it.
         const listOpenCode = async (opencode) => {
-          const models = [];
-          await runInstaller({ command: opencode.path, args: ['models'], projectRoot: canonicalProjectRoot, timeoutMs: 20000, onLine: (line) => { if (/^[\w.-]+\/[\w.:-]+$/.test(line.trim())) models.push(line.trim()); } });
-          return models;
+          const lines = [];
+          await runInstaller({ command: opencode.path, args: ['models', '--verbose'], projectRoot: canonicalProjectRoot, timeoutMs: 30000, onLine: (line) => { lines.push(line); } });
+          return parseOpenCodeVerbose(lines);
         };
         return sendJson(response, 200, { models: await discoverModels({ agents, config: await readConfig(root), listOpenCode: url.searchParams.get('opencode') === '1' ? listOpenCode : async () => [] }) });
       }
@@ -3260,12 +3261,15 @@ export async function createPulseServer({
         const hidden = new Set(openCodeHidden(config));
         const signed = new Map((await readOpenCodeProviders({ home: credentialHome })).map((one) => [one.id, one.type]));
         const groups = new Map(groupOpenCode(names).map((group) => [group.id, group]));
-        const ids = [...new Set([...OPENCODE_PROVIDERS.map((one) => one.id), ...signed.keys(), ...groups.keys()])];
+        // Every provider a key opens, from OpenCode's own catalogue (credentials.mjs), plus the
+        // ones already signed in or listing models.
+        const keyable = new Map((await openCodeKeyProviders({ home: credentialHome })).map((one) => [one.id, one]));
+        const ids = [...new Set([...keyable.keys(), ...signed.keys(), ...groups.keys()])];
         const providers = ids.map((id) => {
-          const known = OPENCODE_PROVIDERS.find((one) => one.id === id);
+          const known = keyable.get(id);
           const own = id === OPENCODE_OWN;
           const via = own ? 'own' : signed.get(id) ?? null;
-          return { id, label: providerLabel(id), keyUrl: known?.keyUrl ?? null, takesKey: Boolean(known), via, models: groups.get(id)?.models ?? [], hidden: hidden.has(id) };
+          return { id, label: known?.label ?? providerLabel(id), keyUrl: known?.keyUrl ?? null, takesKey: Boolean(known), featured: Boolean(known?.featured), via, models: groups.get(id)?.models ?? [], hidden: hidden.has(id) };
         }).sort((a, b) => Number(Boolean(b.via)) - Number(Boolean(a.via)) || Number(a.via === 'own') - Number(b.via === 'own') || a.label.localeCompare(b.label));
         return sendJson(response, 200, { providers, default: process.env.PULSE_OPENCODE_MODEL ?? null });
       }

@@ -24,6 +24,18 @@ mlx_lm.lora --model Qwen/Qwen2.5-1.5B-Instruct --train --data dataset --iters 60
 mlx_lm.lora --model Qwen/Qwen2.5-1.5B-Instruct --adapter-path adapters --data dataset --test
 ```
 
+### Linux con NVIDIA (experimental)
+
+MLX publica un paquete para CUDA en Linux (CUDA 12, capacidad de cómputo 7.5 o mayor, controlador 550.54.14 o mayor, glibc 2.35, Python 3.10): <https://ml-explore.github.io/mlx/build/html/install.html>. mlx-lm solo documenta Apple silicon, así que pruébalo primero:
+
+```
+python3 -m venv ~/.madre-train && source ~/.madre-train/bin/activate
+pip install "mlx[cuda12]" mlx-lm
+python3 -c "import mlx.core as mx; print('CUDA:', mx.cuda.is_available())"   # debe decir True
+```
+
+Si dice `True`, los pasos de abajo son los mismos. Si no, no hay ruta probada en Linux todavía.
+
 `train.sh` en esta carpeta hace lo mismo con comprobaciones. En 16 GB usa el 1.5B; con 32 GB o más, `Qwen/Qwen2.5-3B-Instruct` o `Qwen/Qwen2.5-Coder-7B-Instruct` con `--batch-size 1`. Una ronda de 600 iteraciones tarda de 10 a 40 minutos.
 
 ## 3 · Servir en Ollama

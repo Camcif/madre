@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# MADRE AI · one LoRA round on this room's dataset with mlx-lm (Apple Silicon).
+# MADRE AI · one LoRA round on this room's dataset with mlx-lm (Apple Silicon; Linux with an
+# NVIDIA card through mlx[cuda12] is experimental: mlx-lm only promises Apple chips).
 #   docs/training/train.sh <room-dir> [base-model] [iters]
 set -euo pipefail
 ROOM="${1:?room dir, e.g. ~/.pulse/rooms/<sala>}"

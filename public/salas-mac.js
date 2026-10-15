@@ -1758,7 +1758,7 @@ const WIDGET_PAINT = {
       const count = el('small', null, one.trained ? t('trained · {name}', { name: one.trained }) : ready ? t('ready to train') : `${one.pairs}/${one.target}`);
       count.title = t('{n} of {target} examples this project needs to train a model of its own', { n: one.pairs, target: one.target });
       top.append(el('b', null, one.name));
-      if (one.localAi === false) { row.classList.add('sm-w-off'); top.append(el('span', 'sm-w-tag', t('without AI on this computer'))); }
+      if (one.localAi === false) { row.classList.add('sm-w-off'); top.append(el('span', 'sm-w-tag', t('without local AI'))); }
       top.append(count);
       row.append(top, meter(one.trained ? 1 : one.target ? one.pairs / one.target : 0));
       grid.append(row);
@@ -1841,7 +1841,7 @@ homeTour.firstOpen('home-settings', ui.gear, {
   opened: () => document.querySelector('dialog.sm-settings[open]'),
   inside: (box) => box.querySelector('.sm-settings-window'),
   title: () => t('Home settings'),
-  text: () => t('How Home looks and what its bar holds, your agents, the Coordinator, which projects use the AI on this computer, your projects and the version. ⌘ , opens it from anywhere.'),
+  text: () => t('How Home looks and what its bar holds, your agents, the Coordinator, which projects use the local AI, your projects and the version. ⌘ , opens it from anywhere.'),
 });
 // What each widget shows, the first time it is on Home: its own line, and how to change it.
 const WIDGET_GUIDE = {
@@ -1849,7 +1849,7 @@ const WIDGET_GUIDE = {
   servers: () => t('The servers running in your open projects and whether they answer. A project shows here when its Preview is on.'),
   memory: () => t('How grown each open project\'s memory is, and its weakest side: the one thing that would improve it most.'),
   coordinator: () => t('How far the Coordinator\'s own record is from training a model of its own.'),
-  models: () => t('Ollama and its models, and how many examples each project has toward a model of its own (8/300 is 8 of 300). «Choose projects» sets which ones use the AI on this computer.'),
+  models: () => t('Ollama and its models, and how many examples each project has toward a model of its own (8/300 is 8 of 300). «Choose projects» sets which ones use the local AI.'),
   usage: () => t('How many copies of MADRE are on, which versions and whether people come back. Only you see this.'),
 };
 function guideWidget(node, kind) {
@@ -3888,7 +3888,7 @@ const SET_CATS = {
   bar: { name: 'Top bar', icon: '<rect x="2.6" y="5.4" width="14.8" height="9.2" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.2 10h2.2M11.6 10h2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
   agents: { name: 'Agents', icon: '<circle cx="7" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="13.6" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 16c.6-2.3 2.2-3.6 4.2-3.6s3.6 1.3 4.2 3.6M9.6 13c.9-.4 2.4-.6 4-.6 2 0 3.6 1.3 4.2 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' },
   bishop: { name: 'Coordinator', icon: '<path d="M2.6 10c1.7-3.1 4.3-4.8 7.4-4.8s5.7 1.7 7.4 4.8c-1.7 3.1-4.3 4.8-7.4 4.8S4.3 13.1 2.6 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.3" fill="currentColor"/>' },
-  local: { name: 'AI on this computer', icon: '<rect x="5" y="5" width="10" height="10" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.6v2.4M12 2.6v2.4M8 15v2.4M12 15v2.4M2.6 8h2.4M2.6 12h2.4M15 8h2.4M15 12h2.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="10" r="1.8" fill="currentColor"/>' },
+  local: { name: 'Local AI', icon: '<rect x="5" y="5" width="10" height="10" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.6v2.4M12 2.6v2.4M8 15v2.4M12 15v2.4M2.6 8h2.4M2.6 12h2.4M15 8h2.4M15 12h2.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="10" r="1.8" fill="currentColor"/>' },
   projects: { name: 'Projects', icon: '<path d="M3.5 6.2c0-.9.7-1.6 1.6-1.6h3l1.6 1.8h5.2c.9 0 1.6.7 1.6 1.6v6.4c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' },
   release: { name: 'Version', icon: '<path d="M15.6 10a5.6 5.6 0 1 1-1.64-3.96" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M15.7 3.6v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
 };
@@ -3969,7 +3969,7 @@ function setStatus(id) {
   if (id === 'local') {
     if (!localSeen) return { line: localFailed ? t('Home did not answer.') : t('Reading…') };
     const on = localSeen.projects.filter((one) => one.on).length;
-    return { line: `${LOCAL_MODE_WORDS[localSeen.mode]()} · ${t('{n} of {total} projects', { n: on, total: localSeen.projects.length })}`, warn: !localSeen.master ? t('AI on this computer is off for every project.') : !localSeen.ollama.running ? t('Ollama is not running') : null };
+    return { line: `${LOCAL_MODE_WORDS[localSeen.mode]()} · ${t('{n} of {total} projects', { n: on, total: localSeen.projects.length })}`, warn: !localSeen.master ? t('Local AI is off for every project.') : !localSeen.ollama.running ? t('Ollama is not running') : null };
   }
   if (id === 'projects') {
     if (!data) return { line: t('Reading…') };
@@ -4195,7 +4195,7 @@ const LOCAL_MODE_WORDS = { auto: () => t('Automatic'), pick: () => t('One by one
 const LOCAL_MODE_SAYS = {
   auto: () => t('Every project uses it, new ones too.'),
   pick: () => t('Only the projects you switch on below. New projects start without it.'),
-  manual: () => t('Each project decides in its own Settings › Modules › AI on this computer. New ones start with it.'),
+  manual: () => t('Each project decides in its own Settings › Modules › Local AI. New ones start with it.'),
 };
 let localFailed = false;        // the last read got no answer: the sheet says so instead of «Reading…» forever
 async function loadLocal() {
@@ -4242,11 +4242,11 @@ function fillLocal(host) {
     return;
   }
   if (!localSeen) { host.append(el('p', 'settings-reading', t('Reading…'))); return; }
-  host.append(el('p', 'sx-intro', t('Ollama runs AI on this computer: it searches and sums up each project\'s memory and answers as @madre, free and private. Choose which projects use it.')));
+  host.append(el('p', 'sx-intro', t('Ollama runs local AI: it searches and sums up each project\'s memory and answers as @madre, free and private. Choose which projects use it.')));
   const mode = sxBlock(host, t('Which projects'), LOCAL_MODE_SAYS[localSeen.mode]());
   sxRow(mode, t('Mode'), null, localModeSeg());
-  if (!localSeen.master) sxRow(mode, t('AI on this computer is off for every project.'), t('Turn it on in a project, in Modules › AI on this computer.'));
-  else if (!localSeen.ollama.running) sxRow(mode, t('Ollama is not running'), t('Projects keep working with their agents meanwhile. Start it from a project, in Modules › AI on this computer.'));
+  if (!localSeen.master) sxRow(mode, t('Local AI is off for every project.'), t('Turn it on in a project, in Modules › Local AI.'));
+  else if (!localSeen.ollama.running) sxRow(mode, t('Ollama is not running'), t('Projects keep working with their agents meanwhile. Start it from a project, in Modules › Local AI.'));
   const list = sxBlock(host, t('Projects'), localSeen.mode === 'auto' ? t('All of them use it. Choose «One by one» or «Manual» to turn some off.') : t('A switch here is the same one the project shows in its Settings.'));
   if (!localSeen.projects.length) { sxRow(list, t('No projects yet'), null); return; }
   const pages = Math.ceil(localSeen.projects.length / LOCAL_PER_PAGE);

@@ -41,6 +41,9 @@ export const KNOWN_MODELS = {
 export const EFFORTS = {
   claude: ['low', 'medium', 'high', 'xhigh', 'max'],
   codex: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  // OpenCode's are each model's «variants» (`opencode run --variant`, 1.18): every rung any provider
+  // names. A model offers only its own, read from `opencode models --verbose` (2026-10-14).
+  opencode: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
 };
 // What a Codex with no cache to read is offered: the levels its models have always taken.
 const CODEX_SAFE = ['low', 'medium', 'high'];
@@ -168,9 +171,25 @@ export async function discoverModels({ agents = [], config = {}, home = homedir(
       effortsByModel = Object.fromEntries(Object.entries(read.byModel).map(([slug, one]) => [slug, { levels: one.levels, default: one.levels.includes(read.effort) ? read.effort : one.default }]));
       if (!efforts.includes(effortDefault)) effortDefault = (cliDefault && read.byModel[cliDefault]?.default) || null;
     }
-    if (agent.id === 'opencode' && agent.detected) {
-      discovered = await listOpenCode(agent).catch(() => []);
-      cliDefault = process.env.PULSE_OPENCODE_MODEL ?? null;
+    if (agent.id === 'opencode') {
+      // Nothing until a model is known: the rungs are the model's, never the whole union.
+      efforts = [];
+      if (agent.detected) {
+        const listed = await listOpenCode(agent).catch(() => []);
+        discovered = listed.map((one) => (typeof one === 'string' ? one : one?.name)).filter(Boolean);
+        cliDefault = process.env.PULSE_OPENCODE_MODEL ?? null;
+        const byModel = {};
+        for (const one of listed) {
+          if (!one || typeof one === 'string' || !Array.isArray(one.variants)) continue;
+          const levels = EFFORTS.opencode.filter((level) => one.variants.includes(level));
+          if (levels.length) byModel[one.name] = { levels, default: null };
+        }
+        if (Object.keys(byModel).length) {
+          effortsByModel = byModel;
+          effortsShared = [];
+          efforts = (cliDefault && byModel[cliDefault]?.levels) || [];
+        }
+      }
     }
     const custom = Array.isArray(config.models?.[agent.id]) ? config.models[agent.id] : [];
     // OpenCode speaks to many providers: what `opencode models` lists is already only the ones
@@ -194,6 +213,27 @@ export async function discoverModels({ agents = [], config = {}, home = homedir(
     };
   }
   return result;
+}
+
+// `opencode models --verbose` prints each model's name on a line of its own and then its JSON.
+// What is read is the name and the variants; a block that does not parse keeps its name.
+export function parseOpenCodeVerbose(lines = []) {
+  const out = [];
+  let current = null;
+  let body = [];
+  const close = () => {
+    if (!current) return;
+    let variants = [];
+    try { variants = Object.keys(JSON.parse(body.join('\n'))?.variants ?? {}); } catch { /* the name is still a model */ }
+    out.push({ name: current, variants });
+  };
+  for (const raw of lines) {
+    const line = String(raw ?? '');
+    if (/^[\w.-]+\/[\w.:/-]+$/.test(line.trim()) && !line.startsWith(' ')) { close(); current = line.trim(); body = []; continue; }
+    if (current) body.push(line);
+  }
+  close();
+  return out;
 }
 
 // ---- OpenCode's models by provider: `provider/model`, named as the person knows the provider.

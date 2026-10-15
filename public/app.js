@@ -2626,6 +2626,7 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') cl
 // dimmed when MADRE can read it (Codex's config.toml), so the human sees what they will get
 // without having chosen it.
 const EFFORT_WORDS = {
+  none: { label: 'None', hint: 'No reasoning: it answers straight away. For the simplest asks.' },
   minimal: { label: 'Minimal', hint: 'Answers almost at once. For lookups and one-line edits.' },
   low: { label: 'Low', hint: 'Quick and light. For clear, contained requests.' },
   medium: { label: 'Medium', hint: 'The everyday balance of speed and depth.' },
@@ -2663,7 +2664,8 @@ function effortInfo(id) {
 function ensureEfforts() {
   if (effortsAsked) return;
   effortsAsked = true;
-  fetch('/api/models').then((response) => response.json()).then((data) => { takeEfforts(data.models); renderPicker(); }).catch(() => {});
+  // OpenCode's rungs are its models': with one already chosen, its list is read too (slower).
+  fetch(`/api/models${state.chosenModel?.opencode ? '?opencode=1' : ''}`).then((response) => response.json()).then((data) => { takeEfforts(data.models); renderPicker(); }).catch(() => {});
 }
 
 function effortMeter(levels, level, { ghost = false } = {}) {
@@ -2982,7 +2984,7 @@ function toggleCopilotMenu(anchor, { keep = false } = {}) {
   title.append(toggle);
   const body = el('div', 'copilot-body');
   body.append(
-    el('p', null, t('The agent you write to drives the project: it edits, plans with the others and gives each step up to #3, and runs the safe commands — reading, tests, builds, local git — by itself.')),
+    el('p', 'copilot-lead', t('The agent you write to drives the project: it edits, plans with the others and gives each step up to #3, and runs the safe commands — reading, tests, builds, local git — by itself.')),
     el('p', 'copilot-never', t('It never deletes, never touches MADRE\'s folders or your secrets, and never pushes, publishes or sends anything off this computer: that stays with you.')),
   );
   if (on) {
@@ -6833,7 +6835,7 @@ const SETTINGS_ORDER = ['look', 'room', 'files', 'agents', 'memory', 'mcp', 'per
 const SETTINGS_INDEX = [
   ['look', 'Preview'], ['look', 'Language'], ['look', 'Theme'], ['look', 'Wallpaper'], ['look', 'Accent'], ['look', 'Bubbles'], ['look', 'Text'],
   ['room', 'Several at once'], ['room', 'Notifications'], ['room', 'Conversations at once'], ['room', 'Answers per conversation'], ['room', 'Agents may make plans'], ['room', 'Steps per plan'],
-  ['files', 'Files'], ['files', 'Your servers'], ['files', 'File viewer'], ['files', 'Preview'], ['files', "Browser for agents"],
+  ['files', 'Files'], ['files', 'Your servers'], ['files', 'File viewer'], ['files', 'Preview'], ['files', "Test browser"],
   ['room', 'Usage limit per agent'], ['room', 'Default time limit'], ['room', 'Silence limit'], ['room', 'Retries'], ['room', 'Model'],
   ['agents', 'Max mode'], ['agents', 'Starting mode'], ['agents', 'Web access'], ['agents', 'Generate images'], ['agents', 'Time limit'], ['agents', 'Sign in'],
   ['memory', 'Who takes notes first'], ['memory', 'Who may take notes'], ['memory', 'Room for memories'], ['memory', 'Related memories'], ['memory', 'Search by meaning'], ['memory', 'Training data'], ['memory', 'Details and checkups'],
@@ -12346,7 +12348,7 @@ function drawFilesSettings(host) {
   const show = sxBlock(host, t('What they can show'), t('These switches are the same ones as in MODULES.'));
   for (const [id, label, hint] of [
     ['ripley', t('Preview'), t('Web pages, images and documents show as they look, safely. Off, you see their code.')],
-    ['playwright', t("Browser for agents"), t('Agents can open and check your project\'s pages, without reaching anything else.')],
+    ['playwright', t("Test browser"), t('Agents can open and check your project\'s pages, without reaching anything else.')],
   ]) {
     const item = modules.items.find((one) => one.id === id);
     if (!item) { sxRow(show, label, t('Reading…')); continue; }
@@ -13928,14 +13930,14 @@ function moduleSheet(host, item) {
 // Ollama's local brain as rows: the server, its models, the roles it takes in this room.
 function ollamaBlock(host, item) {
   const info = item.ollama ?? { running: false, models: [], settings: {} };
-  const block = sxBlock(host, t('AI on this computer'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
+  const block = sxBlock(host, t('Local AI'), t('Ollama on this computer: no provider tokens, nothing leaves.'));
   const recheck = sxButton(t('Check again'), async () => { recheck.disabled = true; await fetch('/api/ollama/probe', { method: 'POST' }).catch(() => null); await refreshModules(); });
   sxRow(block, t('Server'), info.running ? t('Running · {host}', { host: info.host }) : t('Not running'), recheck);
   // Whether this project uses it, beside Home's choice for all of them (src/local-ai.mjs).
   const project = info.project;
   if (project && !project.home) {
-    const why = !project.master ? t('AI on this computer is off for every project.')
-      : project.mode === 'auto' ? t('Home turns it on in every project, and «Active» switches it for all of them. To choose project by project, go to Home › Settings › AI on this computer.')
+    const why = !project.master ? t('Local AI is off for every project.')
+      : project.mode === 'auto' ? t('Home turns it on in every project, and «Active» switches it for all of them. To choose project by project, go to Home › Settings › Local AI.')
         : project.mode === 'pick' ? t('Home chooses the projects one by one; «Active» switches this one here too.')
           : t('Each project decides on its own: «Active» is this project’s switch.');
     // The switch is the card's own «Active» (src/modules/ollama.mjs, toggle): this row says whose it is.
@@ -13959,7 +13961,7 @@ function ollamaBlock(host, item) {
     sxFoot(block, t('Without Ollama running, the project keeps using its providers.'));
     return;
   }
-  const roles = sxBlock(host, t('Roles'), t('What AI on this computer does in this project.'));
+  const roles = sxBlock(host, t('Roles'), t('What Local AI does in this project.'));
   for (const [role, model, present, label, hint] of [
     ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('Search by meaning'), info.embedModel ?? null],
     ['archivist', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('Archivist'), info.chatModel ?? null],
@@ -14403,52 +14405,75 @@ function openAgentPop(id, anchor, { back = null } = {}) {
     head.append(previous);
   }
   head.append(avatar(id, { size: 24 }));
-  head.append(el('b', null, agent.label));
-  head.append(el('span', 'vendor', vendorWord(id)));
+  const who = el('div', 'pop-who');
+  who.append(el('b', null, agent.label), el('span', 'vendor', vendorWord(id)));
+  head.append(who);
+  // The session in the corner: the one thing to know before asking it anything.
+  const lamp = session?.state === 'signed-in' ? 'ok' : session?.state === 'signed-out' || !agent.ready ? 'bad' : 'wait';
+  head.append(el('span', `pop-session ${lamp}`, session ? ({ 'signed-in': t('signed in'), 'signed-out': t('signed out') }[session.state] ?? t('unknown')) : agent.ready ? t('unknown') : t('not ready')));
   pop.append(head);
-  // The card reads top to bottom: how much is spent (one number, its gauge, when it comes back),
-  // then three short groups — the provider's limits, this room, the connection — each with its
-  // title, labels on the left and values on the right, then what the CLI can do.
+  // Read top to bottom (2026-10-14): one figure and its gauge, four plain numbers, what the
+  // provider says (or that it says nothing), the connection in one line, what it can do, and the
+  // way to its settings.
   const hero = el('div', 'pop-hero');
-  const big = el('div', 'big', official === null ? (formatTokens(agent.tokens ?? 0) || '0') : `${Math.round(official)}%`);
-  big.append(el('small', null, official === null ? t('budget tokens · local 5h window') : t("of the provider's {window} limit", { window: fmtWindow(agent.officialWindows?.primary?.windowMinutes ?? 300) })));
+  let figure;
+  let caption;
+  if (official !== null) {
+    figure = `${Math.round(official)}%`;
+    caption = t("of the provider's {window} limit", { window: fmtWindow(agent.officialWindows?.primary?.windowMinutes ?? 300) });
+  } else if (state.budget) {
+    figure = `${Math.round(percent)}%`;
+    caption = t("of this project's limit · last 5 h");
+  } else {
+    figure = formatTokens(agent.tokens ?? 0) || '0';
+    caption = t('tokens in the last 5 h');
+  }
+  const big = el('div', 'big', figure);
+  big.append(el('small', null, caption));
   hero.append(big);
   const gauge = el('div', `gauge${shown >= 80 ? ' hot' : ''}`);
   const fill = el('i'); fill.style.width = `${shown}%`; gauge.append(fill);
   hero.append(gauge);
-  if (official !== null) hero.append(el('div', 'pop-reset', (agent.officialResetAt ? t(' · resets {when}', { when: fmtReset(agent.officialResetAt) }) : t(' · window reset')).replace(/^\s*·\s*/, '')));
+  const under = official !== null
+    ? (agent.officialResetAt ? t(' · resets {when}', { when: fmtReset(agent.officialResetAt) }) : t(' · window reset')).replace(/^\s*·\s*/, '')
+    : state.budget ? t('{used} of {total} tokens', { used: formatTokens(agent.tokens ?? 0) || '0', total: formatTokens(state.budget) }) + (agent.rollsOverAt ? t(' · oldest turn drops {when}', { when: fmtReset(agent.rollsOverAt) }) : '') : null;
+  if (under) hero.append(el('div', 'pop-reset', under));
   pop.append(hero);
-  const group = (title) => {
-    const box = el('section', 'pop-group');
-    const dl = el('dl');
-    box.append(el('h4', null, title), dl);
-    pop.append(box);
-    return (k, v, cls) => { dl.append(el('dt', null, k)); dl.append(el('dd', cls, v)); };
-  };
-  const limits = group(t('Provider limits'));
+
+  const grid = el('div', 'pop-stats');
+  const stat = (label, value) => { const box = el('div', 'pop-stat'); box.append(el('span', null, label), el('b', null, value)); grid.append(box); };
+  stat(t('In this project'), `${formatTokens(agent.rawTokens ?? 0) || '0'} tok`);
+  stat(t('Answers'), String(stats.turns));
+  stat(t('Last answer'), stats.lastTurnMs ? `${fmtMs(stats.lastTurnMs)}${stats.lastTurnTokens ? ` · ${formatTokens(stats.lastTurnTokens)}` : ''}` : '—');
+  stat(stats.costEstimated ? t('Cost (estimated)') : t('Cost'), stats.cost > 0 ? `${stats.costEstimated ? '≈ ' : ''}${fmtUsd(stats.cost)}` : '—');
+  pop.append(grid);
+
+  const provider = el('section', 'pop-provider');
   if (agent.officialWindows) {
     const { primary, secondary } = agent.officialWindows;
-    if (primary) limits(t('{window} limit', { window: fmtWindow(primary.windowMinutes) }), primary.resetAt ? t('{pct}% · resets {when}', { pct: Math.round(primary.usedPercent), when: fmtReset(primary.resetAt) }) : t('{pct}% · reset, awaiting fresh data', { pct: Math.round(primary.usedPercent) }), primary.usedPercent >= 80 ? 'off' : null);
-    if (secondary) limits(t('{window} limit', { window: fmtWindow(secondary.windowMinutes) }), `${Math.round(secondary.usedPercent)}%${secondary.resetAt ? t(' · resets {when}', { when: fmtReset(secondary.resetAt) }) : ''}`, secondary.usedPercent >= 80 ? 'off' : null);
-    if (agent.officialObservedAt) limits(t('reported'), t('{when} by {who}', { when: fmtReset(agent.officialObservedAt), who: agent.officialSource?.replace('official:', '') ?? t('the CLI') }));
+    const line = (one) => {
+      const row = el('div', `pop-limit${one.usedPercent >= 80 ? ' hot' : ''}`);
+      row.append(el('span', null, t('{window} limit', { window: fmtWindow(one.windowMinutes) })), el('b', null, one.resetAt ? t('{pct}% · resets {when}', { pct: Math.round(one.usedPercent), when: fmtReset(one.resetAt) }) : `${Math.round(one.usedPercent)}%`));
+      provider.append(row);
+    };
+    provider.append(el('h4', null, t('Your plan')));
+    if (primary) line(primary);
+    if (secondary) line(secondary);
   } else if (Number.isFinite(agent.officialPercent)) {
-    limits(t('provider limit'), t('{pct}% used', { pct: Math.round(official ?? 0) }));
+    provider.append(el('h4', null, t('Your plan')), el('p', 'pop-note', t('{pct}% used', { pct: Math.round(official ?? 0) })));
   } else {
-    limits(t('provider limit'), t('not published by this CLI · Usage shows the local window'));
+    provider.append(el('p', 'pop-note', t("{agent}'s app does not say how much of your plan is left. What you see here is only what this project spent.", { agent: agent.label })));
   }
-  const room = group(t('This project'));
-  room(t('local window'), state.budget ? t('{pct}% of {total} · 5h rolling', { pct: Math.round(percent), total: formatTokens(state.budget) }) + (agent.rollsOverAt ? t(' · oldest turn drops {when}', { when: fmtReset(agent.rollsOverAt) }) : '') : t('unbounded'));
-  if (agent.rawTokens) room(t('all-time in project'), `${formatTokens(agent.rawTokens)} tok`);
-  room(t('turns'), String(stats.turns));
-  room(t('last turn'), `${fmtMs(stats.lastTurnMs)}${stats.lastTurnTokens ? ` · ${formatTokens(stats.lastTurnTokens)} tok` : ''}`);
-  if (stats.cost > 0) room(stats.costEstimated ? t('cost (estimated)') : t('cost (reported)'), `${stats.costEstimated ? '≈ ' : ''}${fmtUsd(stats.cost)}`);
-  const link = group(t('Connection'));
-  link(t('session'), session ? ({ 'signed-in': t('signed in'), 'signed-out': t('signed out') }[session.state] ?? t('unknown')) : agent.ready ? t('unknown') : t('not ready'), `session-lamp ${session?.state === 'signed-in' ? 'ok' : session?.state === 'signed-out' || !agent.ready ? 'bad' : 'wait'}`);
-  if (session?.detail) link(t('via'), session.detail);
-  link(t('timeout'), `${Math.round((state.timeouts[id] ?? 180000) / 1000)}s`);
-  if (agent.version) link(t('version'), agent.version);
+  pop.append(provider);
+
+  const timeout = Math.round((state.timeouts[id] ?? 180000) / 1000);
+  const meta = [session?.detail, agent.version ? t('version {version}', { version: agent.version }) : null, t('waits up to {time}', { time: timeout >= 120 ? t('{n} min', { n: Math.round(timeout / 60) }) : `${timeout}s` })].filter(Boolean);
+  pop.append(el('p', 'pop-meta', meta.join(' · ')));
   pop.append(capabilityBadges(id));
-  pop.append(el('div', 'foot', official === null ? t("local window, not the provider's bill · ⚙ connections in Diagnostics") : t('provider limit as the CLI reports it · ⚙ connections in Diagnostics')));
+  const go = el('button', 'pop-go', t('Connection and limits in Settings'));
+  go.type = 'button';
+  go.addEventListener('click', (event) => { event.stopPropagation(); closeAgentPop(); openSettingsOn('agents', { agent: id }); });
+  pop.append(go);
   pop.dataset.for = id;
   pop.dataset.from = back ? 'crew' : 'sphere';
   placeAgentPop(anchor);
@@ -15666,9 +15691,9 @@ async function drawMemoryDashboard(glance, analysis, stamp) {
 /* ---------- the three tests ---------- */
 
 const EXAM_NAMES = {
-  coverage: t('DOES THE MEMORY HAVE THE ANSWERS?'),
-  consistency: t('DOES THE MEMORY CONTRADICT ITSELF?'),
-  match: t('DOES THE LOCAL AI ANSWER LIKE THE AGENTS?'),
+  coverage: t('Does the memory have the answers?'),
+  consistency: t('Does the memory contradict itself?'),
+  match: t('Does the local AI answer like the agents?'),
 };
 const EXAM_ABOUT = {
   coverage: t('Real questions from this project, recall run at the moment each one was asked, scored against the reply that was actually given. It asks whether the answer was already in the archive, not whether it was right.'),
@@ -16006,7 +16031,7 @@ function drawMemory(host, data) {
   aside.append(sxButton(t('Refresh'), () => void drawMemoryDashboard(glance, analysis, stamp)));
   void drawMemoryDashboard(glance, analysis, stamp);
 
-  const keep = sxBlock(host, t('Who takes notes'), t('An agent rereads recent conversations and saves only what is worth remembering. The cheapest one goes first; AI on this computer is free and private.'));
+  const keep = sxBlock(host, t('Who takes notes'), t('An agent rereads recent conversations and saves only what is worth remembering. The cheapest one goes first; local AI is free and private.'));
   sxRow(keep, t('Who takes notes first'), null, select([['auto', t('Automatic · the cheapest one')], ...mem.candidates.map((c) => [c.id, `@${c.id}${c.local ? ` · ${c.label}` : ''}`])], mem.archivist, (value) => save({ archivist: value }, value === 'auto' ? t('notes: the cheapest agent goes first.') : t('notes: @{agent} goes first.', { agent: value })), t('Who takes notes first')));
   const allowed = new Set(mem.archivists ?? mem.candidates.map((c) => c.id));
   const who = el('div', 'sx-chips');
@@ -16032,7 +16057,7 @@ function drawMemory(host, data) {
   sxRow(recall, t('Related memories'), t('Memories that are often used together come together.'), cascade);
   const embedNow = mem.embedder ? mem.embedder : t('off');
   sxRow(recall, t('Search by meaning'), t('Finds memories by what they mean, not only by exact words. Now: {what}.', { what: embedNow }), select([
-    ['auto', t('Automatic · AI on this computer if running, else Gemini')],
+    ['auto', t('Automatic · Local AI if running, else Gemini')],
     ['ollama', `Ollama · ${t('local')}${mem.ollama.embedModel ? ` · ${mem.ollama.embedModel}` : ` · ${t('no model yet')}`}`],
     ['gemini', t('Gemini · needs your key')],
     ['off', t('Off · exact words only')],
@@ -16040,7 +16065,7 @@ function drawMemory(host, data) {
   if (mem.envWins) sxFoot(recall, t('Some of these values are fixed by how MADRE was started; those win next time it starts.'));
 
   // The dataset behind MADRE AI, and the recipe that trains on it, outside MADRE.
-  const train = sxBlock(host, t('Train your own AI'), t('Advanced: export what the project learned, train a model on this Mac, and @madre answers with it.'));
+  const train = sxBlock(host, t('Train your own AI'), t('Advanced: export what the project learned, train a model on your computer, and @madre answers with it.'));
   const datasetHint = el('span', 'sx-hint', t('Reading…'));
   const exportButton = sxButton(t('Export'), async () => {
     exportButton.disabled = true;
@@ -16050,31 +16075,53 @@ function drawMemory(host, data) {
   }, { title: t('Saves the training files in the project, with private data hidden') });
   const datasetRow = sxRow(train, t('Training data'), null, exportButton);
   datasetRow.querySelector('.sx-words').append(datasetHint);
+  // What it is, then the recipe in order (2026-10-14): one command per step, for a Mac with an
+  // Apple chip or — tried, not promised — Linux with an NVIDIA card through MLX's CUDA package.
+  train.append(el('p', 'sx-hint sx-train-what', t('The training data are question-and-answer pairs taken from this project\'s conversations and notes, with private details hidden. With them a small model is adjusted on your computer, and @madre answers with it.')));
   const recipe = el('details', 'sx-more');
-  recipe.append(el('summary', null, t('Step by step · Macs with Apple chips only')));
+  recipe.append(el('summary', null, t('Step by step')));
+  let platform = /Mac/i.test(navigator.platform ?? '') || !/Linux/i.test(navigator.userAgent ?? '') ? 'mac' : 'linux';
   const steps = el('ol', 'sx-steps');
-  recipe.append(el('p', 'sx-hint', t('Export the dataset first. Each step is one command for your terminal: copy it, run it, come back. When the model exists in Ollama, @madre switches to it at the next recheck.')), steps);
+  const pickRow = el('div', 'sx-train-platform');
+  const platformNote = el('p', 'sx-hint');
+  recipe.append(pickRow, platformNote, steps);
   train.append(recipe);
+  let lastPayload = null;
+  const drawPlatform = () => {
+    pickRow.replaceChildren(sxSeg([{ value: 'mac', text: t('Mac with Apple chip') }, { value: 'linux', text: t('Linux with NVIDIA') }], platform, (value) => { platform = value; showDataset(lastPayload); }, { label: t('Your computer') }));
+    platformNote.textContent = platform === 'mac'
+      ? t('Any Mac with an M chip. 16 GB of memory is enough for the small model.')
+      : t('Experimental: MLX runs on Linux with an NVIDIA card (CUDA 12, compute capability 7.5 or newer, glibc 2.35, Python 3.10), but mlx-lm only promises Apple chips. Step 2 checks the card first.');
+  };
   const showDataset = (payload) => {
+    lastPayload = payload;
     const d = payload?.dataset;
     const exported = d ? t('Last export {when} · {train} to train · {valid} to check', { when: new Date(d.exportedAt).toLocaleString(), train: d.train, valid: d.valid }) : t('Not exported yet.');
     const trained = payload?.trained ? t('Trained model {model} in use.', { model: payload.trained }) : t('No trained model yet.');
     datasetHint.textContent = `${exported} ${trained}`;
+    drawPlatform();
     const info = payload?.training;
     steps.replaceChildren();
     if (!info) { steps.append(el('li', 'sx-hint', t('The training recipe is unavailable.'))); return; }
     const quote = (path) => `"${path.replace(/\/$/, '')}"`;
-    for (const [label, command] of [
-      [t('Once: a Python environment with mlx-lm'), 'python3 -m venv ~/.madre-train && source ~/.madre-train/bin/activate && pip install mlx-lm'],
-      [t('Train the LoRA · base {model} for {gb} GB', { model: info.baseModel, gb: info.memoryGb }), `source ~/.madre-train/bin/activate && bash ${quote(`${info.recipeDir}train.sh`)} ${quote(info.roomDir)} ${info.baseModel}`],
-      [t('Fuse the adapter into the base'), `source ~/.madre-train/bin/activate && cd ${quote(info.roomDir)} && mlx_lm.fuse --model ${info.baseModel} --adapter-path adapters --save-path fused`],
-      [t('Register it in Ollama as {model}', { model: info.modelName }), `cd ${quote(info.roomDir)} && cp ${quote(`${info.recipeDir}Modelfile`)} . && ollama create ${info.modelName} -f Modelfile`],
-    ]) {
+    const venv = 'source ~/.madre-train/bin/activate';
+    const setup = platform === 'mac'
+      ? 'python3 -m venv ~/.madre-train && source ~/.madre-train/bin/activate && pip install mlx-lm'
+      : 'python3 -m venv ~/.madre-train && source ~/.madre-train/bin/activate && pip install "mlx[cuda12]" mlx-lm && python3 -c "import mlx.core as mx; print(\'CUDA:\', mx.cuda.is_available())"';
+    const step = (label, about, command = null) => {
       const li = el('li');
-      li.append(el('b', null, label), sxCommand(command));
+      li.append(el('b', null, label));
+      if (about) li.append(el('span', 'sx-hint', about));
+      if (command) li.append(sxCommand(command));
       steps.append(li);
-    }
-    steps.append(el('li', 'sx-hint', t('Qwen needs a GGUF before Ollama reads it: {readme}, section 3, has the two lines. Then ask @madre ten things the project decided and five it never discussed before trusting it.', { readme: quote(`${info.recipeDir}README.md`) })));
+    };
+    step(t('Export the training data'), t('With «Export» above. Do it again whenever the project has grown.'));
+    step(t('Prepare Python, once'), platform === 'mac' ? t('A separate environment with mlx-lm, so nothing else on your computer changes.') : t('A separate environment with MLX for CUDA and mlx-lm. It must print «CUDA: True»; if not, stop here.'), setup);
+    step(t('Train · base {model} for {gb} GB', { model: info.baseModel, gb: info.memoryGb }), t('From 10 to 40 minutes. It learns from the exported pairs and leaves an adjustment («adapters»).'), `${venv} && bash ${quote(`${info.recipeDir}train.sh`)} ${quote(info.roomDir)} ${info.baseModel}`);
+    step(t('Join the adjustment with the base model'), null, `${venv} && cd ${quote(info.roomDir)} && mlx_lm.fuse --model ${info.baseModel} --adapter-path adapters --save-path fused`);
+    step(t('Turn it into a file Ollama reads (GGUF)'), t('Once, it downloads llama.cpp\'s converter.'), `${venv} && cd ${quote(info.roomDir)} && git clone --depth 1 https://github.com/ggml-org/llama.cpp && pip install -r llama.cpp/requirements.txt && python3 llama.cpp/convert_hf_to_gguf.py fused --outfile madre.gguf --outtype q8_0`);
+    step(t('Register it in Ollama as {model}', { model: info.modelName }), t('@madre switches to it at the next recheck of Local AI.'), `cd ${quote(info.roomDir)} && cp ${quote(`${info.recipeDir}Modelfile`)} . && ollama create ${info.modelName} -f Modelfile`);
+    step(t('Try it before trusting it'), t('Ask @madre ten things the project decided and five it never discussed. It should get the first right and say it never discussed the others; if it makes things up, remove it with «ollama rm {model}» and train with more pairs.', { model: info.modelName }));
   };
   fetch('/api/dataset').then((response) => response.json()).then(showDataset).catch(() => showDataset(null));
 }
@@ -16192,7 +16239,15 @@ function drawOpenCodeSettings(host, s) {
     if (!waiting.length) return;
     const which = el('select', 'sx-input');
     which.setAttribute('aria-label', t('Provider'));
-    for (const provider of waiting) { const option = el('option', null, provider.label); option.value = provider.id; which.append(option); }
+    // Many providers (OpenCode's whole catalogue): the usual ones first, then all, by name.
+    const option = (provider) => { const one = el('option', null, provider.label); one.value = provider.id; return one; };
+    const featured = waiting.filter((one) => one.featured);
+    const rest = waiting.filter((one) => !one.featured).sort((a, b) => a.label.localeCompare(b.label));
+    if (featured.length && rest.length) {
+      const top = el('optgroup'); top.label = t('Most used'); top.append(...featured.map(option));
+      const all = el('optgroup'); all.label = t('All providers'); all.append(...rest.map(option));
+      which.append(top, all);
+    } else for (const provider of waiting) which.append(option(provider));
     const input = el('input', 'sx-input mono');
     input.type = 'password'; input.autocomplete = 'off'; input.spellcheck = false;
     const where = el('a', 'oc-where', t('Where do I get one?'));
@@ -16369,7 +16424,7 @@ function drawPermissions(host, data) {
     setMemoryAccess(choice);
     toast(choice === 'ask' ? t('The Memory map asks for the project name again.') : choice === 'never' ? t('The Memory map will not ask again in this project.') : t('The Memory map will not ask until {time}.', { time: clockTime(memoryAccess()?.until) }), { tone: 'done' });
     renderSettings();
-  }, { label: t('Don\'t ask again') }), { stack: true });
+  }, { label: t('Don\'t ask again') }));
 
   // Who may reach which mode: the ceiling of every agent in one table. The mode a message starts in
   // stays on each agent's sheet.
@@ -18320,7 +18375,7 @@ const BAR_BUILT = {
 // They ride with the crew when it is there, and lead the keys when it is not: where they always were.
 const BAR_CONTEXTUAL = ['#steps-pill', '#tour-pill-slot', '#handoff-pill', '#update-pill', '#stop-all'];
 // A module's name before the board has answered; once it has, the module says its own.
-const BAR_MODULE_NAMES = { ash: 'Token saver', ollama: 'AI on this computer', intents: 'Suggested effort' };
+const BAR_MODULE_NAMES = { ash: 'Token saver', ollama: 'Local AI', intents: 'Suggested effort' };
 const BAR_MINUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 8h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const barKit = {
   node: document.querySelector('#bar'),

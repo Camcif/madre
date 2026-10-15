@@ -36,6 +36,32 @@ export const OPENCODE_PROVIDERS = [
   { id: 'google', label: 'Google AI Studio', keyUrl: 'https://aistudio.google.com/app/apikey' },
 ];
 
+// The rest of the providers OpenCode knows (2026-10-14): its own catalogue, models.dev, which it
+// caches itself. Those a single key opens can be wired from MADRE; the ones that need an account
+// id, a region or a second secret stay with `opencode auth login`. Read only, never fetched.
+export const OPENCODE_FEATURED = ['anthropic', 'openai', 'google', 'openrouter', 'groq', 'deepseek', 'mistral', 'xai', 'togetherai', 'fireworks-ai', 'cerebras', 'perplexity', 'huggingface', 'deepinfra', 'moonshotai', 'zai', 'cohere', 'vercel'];
+export async function readOpenCodeCatalog({ home = homedir(), env = process.env } = {}) {
+  const raw = await readIfThere(join(env.XDG_CACHE_HOME || join(home, '.cache'), 'opencode', 'models.json'));
+  let data = {};
+  try { data = JSON.parse(raw ?? '{}') ?? {}; } catch { data = {}; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
+  const out = [];
+  for (const [id, one] of Object.entries(data)) {
+    if (!/^[\w.-]{1,60}$/.test(id) || !one || typeof one !== 'object' || !Array.isArray(one.env) || one.env.length !== 1) continue;
+    out.push({ id, label: typeof one.name === 'string' && one.name.trim() ? one.name.trim().slice(0, 60) : id, docUrl: typeof one.doc === 'string' && /^https:\/\//.test(one.doc) ? one.doc : null });
+  }
+  return out;
+}
+// Every provider a key can be pasted for: MADRE's own four first (their key pages), then the
+// catalogue's, each once, the popular ones marked.
+export async function openCodeKeyProviders({ home = homedir(), env = process.env } = {}) {
+  const catalog = await readOpenCodeCatalog({ home, env });
+  const byId = new Map(OPENCODE_PROVIDERS.map((one) => [one.id, { ...one, featured: true }]));
+  for (const one of catalog) if (!byId.has(one.id)) byId.set(one.id, { id: one.id, label: one.label, keyUrl: one.docUrl, featured: OPENCODE_FEATURED.includes(one.id) });
+  const rank = (one) => { const at = OPENCODE_FEATURED.indexOf(one.id); return at < 0 ? Infinity : at; };
+  return [...byId.values()].sort((a, b) => Number(b.featured) - Number(a.featured) || rank(a) - rank(b));
+}
+
 // What the room offers for each agent that cannot be signed in with a click.
 export function keyPlanFor(id) {
   if (id === 'claude') {
@@ -140,7 +166,7 @@ async function applyClaudeKey(key, { home, probe }) {
 
 // ---- OpenCode: an entry in its auth.json, confirmed by asking `opencode auth list`.
 async function applyOpenCodeKey(key, { home, provider, executable, run }) {
-  const known = OPENCODE_PROVIDERS.some((item) => item.id === provider);
+  const known = typeof provider === 'string' ? (await openCodeKeyProviders({ home })).find((item) => item.id === provider) : null;
   if (!known) return { ok: false, error: 'Pick the provider this key belongs to.' };
   const file = join(home, '.local', 'share', 'opencode', 'auth.json');
   await mkdir(join(home, '.local', 'share', 'opencode'), { recursive: true });
@@ -153,8 +179,9 @@ async function applyOpenCodeKey(key, { home, provider, executable, run }) {
     await chmod(file, OWNER_ONLY).catch(() => {});
     // OpenCode itself is the judge: if its own listing does not show the provider, the shape
     // MADRE wrote is not the shape it reads, and nothing should be left behind.
-    const listed = await run(executable, ['auth', 'list']);
-    if (!new RegExp(provider, 'i').test(listed)) {
+    // It lists the provider by its name («Together AI»), sometimes by its id.
+    const listed = String(await run(executable, ['auth', 'list'])).toLowerCase();
+    if (!listed.includes(provider.toLowerCase()) && !listed.includes(String(known.label).toLowerCase())) {
       await restore(file, before);
       return { ok: false, error: `OpenCode does not list ${provider} after the key was written, so MADRE put the file back. Run \`opencode auth login\` in a terminal for this one.` };
     }

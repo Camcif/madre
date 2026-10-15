@@ -1193,9 +1193,12 @@ dialog.mother::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(
 .effort-meter.ghost i.on { background: color-mix(in srgb, var(--tone) 45%, var(--text-3)); }
 
 .model-menu.effort-menu { --tone: var(--agent, var(--phosphor)); width: min(400px, calc(100vw - 24px)); padding: 12px 14px 10px; }
-.effort-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 2px 2px 12px; }
-/* The title reads whole on its own line; AUTO goes under it and never covers it (2026-10-14). */
-.effort-head .model-menu-title { flex: 1 1 100%; margin: 0; white-space: normal; overflow: visible; line-height: 1.4; }
+.effort-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 2px 12px; }
+/* The title on the left and AUTO in the right corner, on the same line (2026-10-14): the title
+   keeps its room and is cut before it is covered; a long AUTO reading is cut instead of the title. */
+.effort-head .model-menu-title { flex: 1 1 auto; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+.effort-head .effort-auto { margin-left: auto; max-width: 52%; }
+.effort-head .effort-auto .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Letting the CLI decide: a small switch beside the title, lit while it is the choice. */
 .effort-auto { display: inline-flex; align-items: center; gap: 7px; flex: none; height: 26px; padding: 0 10px 0 9px; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; color: var(--text-2); font: inherit; cursor: pointer; transition: color var(--motion) var(--ease-out), border-color var(--motion) var(--ease-out), background-color var(--motion) var(--ease-out); }
 .effort-auto .auto-dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; transition: background-color var(--motion) var(--ease-out); }
@@ -1532,6 +1535,8 @@ dialog.viewer::backdrop { background: rgba(0,0,0,.7); backdrop-filter: blur(4px)
 .viewer-nav { display: inline-flex; gap: 4px; }
 .viewer-nav .nav { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); border-radius: 7px; cursor: pointer; font: inherit; font-size: 14px; line-height: 1; }
 .viewer-nav .nav:hover { color: var(--text); border-color: var(--text-3); }
+/* The browser's reload is the bar's reload mark (2026-10-14), the same drawing, still. */
+.viewer-nav .nav.reload svg { width: 14px; height: 14px; }
 .viewer-nav .nav:disabled { opacity: .35; cursor: default; }
 .viewer-errors { display: grid; gap: 6px; padding: 8px 16px; border-bottom: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 7%, transparent); font-family: var(--mono); font-size: 11px; }
 .viewer-errors:not([hidden]) + .viewer-body { height: auto; max-height: calc(100% - 46px); }
@@ -5282,10 +5287,12 @@ dialog.custom-window::backdrop { display: none; }
 .copilot-menu .copilot-title b { flex: 1; color: var(--text); font-size: 11px; }
 .copilot-menu .copilot-title .copilot-icon { color: var(--madre-green); }
 .copilot-menu .copilot-body { display: grid; gap: 8px; padding: 0 2px 2px; font-family: var(--read, inherit); letter-spacing: 0; }
+/* Three weights (2026-10-14): what it does reads first; what it never does is the small print. */
 .copilot-menu .copilot-body p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
-.copilot-menu .copilot-body .copilot-never { color: var(--text-3); }
+.copilot-menu .copilot-body .copilot-lead { font-size: 14px; line-height: 1.45; color: var(--text); font-weight: 400; }
+.copilot-menu .copilot-body .copilot-never { padding-top: 8px; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.5; color: color-mix(in srgb, var(--text) 46%, transparent); }
 .copilot-menu .copilot-body .copilot-state { color: var(--madre-green); font-weight: 600; }
-.copilot-menu .copilot-body .copilot-foot { font-size: 11.5px; color: var(--text-3); }
+.copilot-menu .copilot-body .copilot-foot { font-size: 11px; color: var(--text-3); }
 .copilot-menu .copilot-how { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
 /* A message under the copilot: the box wears green, not EDIT's red. */
 .composer.copilot .field { border-color: var(--madre-green); --ring: 0 0 0 3px color-mix(in srgb, var(--madre-green) 16%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--madre-green) 16%, transparent); }
@@ -6061,7 +6068,15 @@ select.sx-input { width: auto; max-width: 100%; padding-right: 8px; cursor: poin
 .sx-more > :not(summary) { margin: 0 16px 14px; }
 .sx-steps { display: grid; gap: 12px; margin: 10px 16px 16px; padding-left: 18px; }
 .sx-steps li { display: grid; gap: 6px; font-size: 12.5px; }
-.sx-steps li b { font-weight: 500; }
+.sx-steps li b { font-weight: 600; color: var(--text); }
+/* The training recipe, numbered and explained (2026-10-14). */
+.sx-steps { counter-reset: step; list-style: none; padding-left: 0; gap: 14px; }
+.sx-steps li { position: relative; padding-left: 34px; counter-increment: step; }
+.sx-steps li::before { content: counter(step); position: absolute; left: 0; top: -1px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--phosphor) 16%, transparent); color: var(--phosphor); font: 600 11.5px/1 var(--read); }
+.sx-steps li .sx-hint { font-size: 12px; line-height: 1.45; color: var(--text-2); }
+.sx-train-what { margin: 0 16px 10px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.sx-train-platform { margin: 10px 16px 6px; }
+.sx-more > .sx-hint { margin: 0 16px; }
 
 /* An agent's card: its colour on the avatar and the name, where it lives in small print. */
 .sx-agent .sx-head { align-items: center; }
@@ -6153,6 +6168,8 @@ select.sx-input { width: auto; max-width: 100%; padding-right: 8px; cursor: poin
 .settings-detail .sx-analysis :is(.mem-strip-head b, .mem-strip-head span, .mem-axis span, summary b, summary .caret, th, td, .mem-signal .top b, .mem-bar .name, .exams > .note, .exam-head b, .exam-head .verdict, .exam-bullet span, .exam > .note:not(.about), .exam .actions button, .exam .actions .note)::first-letter { text-transform: uppercase; }
 .settings-detail .sx-analysis .mem-strip-head b, .settings-detail .sx-analysis .mem-bar .name { color: var(--text); }
 .settings-detail .sx-analysis .mem-signal .top b, .settings-detail .sx-analysis .exam-head b { font-size: 12.5px; font-weight: 500; }
+/* The review's questions are written in sentence case; lowering them would turn «IA» into «ia». */
+.settings-detail .sx-analysis .exam-head b { text-transform: none; }
 .settings-detail .sx-analysis .exams .said { font-family: var(--read); font-size: 12.5px; line-height: 1.5; }
 .settings-detail .sx-analysis .mem-cols i:not(.zero) { background: color-mix(in srgb, #3fb6d9 70%, transparent); }
 .settings-detail .sx-analysis .mem-cols i.now { background: #3fb6d9; }
@@ -6800,7 +6817,9 @@ dialog.mods-window { width: 1040px; height: 720px; container: modswin / inline-s
   display: inline-flex; align-items: center; gap: 9px;
   padding: 9px 16px 9px 13px; border: 0; border-radius: 20px;
   background: var(--surface, var(--panel)); color: var(--text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .18), 0 6px 16px -8px rgba(0, 0, 0, .4);
+  /* It floats over the canvas (2026-10-14): a rim, a near shadow and a far one, so it reads lifted
+     off any wallpaper or thread under it. */
+  box-shadow: 0 0 0 .5px color-mix(in srgb, var(--text) 14%, transparent), inset 0 1px 0 rgb(255 255 255 / .06), 0 2px 4px rgba(0, 0, 0, .24), 0 12px 28px -6px rgba(0, 0, 0, .5), 0 28px 60px -18px rgba(0, 0, 0, .45);
   font-family: var(--read); font-size: 13px; font-weight: 450; line-height: 1.4; text-align: left;
   max-width: min(560px, calc(100% - 32px)); width: max-content;
 }
@@ -6825,7 +6844,7 @@ dialog.mods-window { width: 1040px; height: 720px; container: modswin / inline-s
 #messages .row > .avatar.gradient { box-shadow: none !important; }
 #messages .row > .avatar svg { width: 64%; height: 64%; opacity: 1; }
 
-:root[data-scheme="light"] .toast:not([hidden]) { box-shadow: 0 1px 2px rgba(20, 30, 20, .1), 0 6px 16px -8px rgba(20, 30, 20, .28); }
+:root[data-scheme="light"] .toast:not([hidden]) { box-shadow: 0 0 0 .5px rgba(20, 30, 20, .08), 0 2px 4px rgba(20, 30, 20, .1), 0 12px 28px -6px rgba(20, 30, 20, .22), 0 28px 60px -18px rgba(20, 30, 20, .2); }
 
 /* ==========================================================================================
    MU/TH/UR · the remedies, as a window of the room
@@ -7851,6 +7870,32 @@ dialog.viewer .viewer-seg .viewer-seg-btn:not([hidden]) + .viewer-open { margin-
 .agent-pop .pop-group dd { font-family: var(--read, var(--sans)); font-size: 12.5px; line-height: 1.35; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .agent-pop .caps { margin-top: 12px !important; padding-top: 12px; border-top: 1px solid var(--line); }
 .agent-pop .foot { margin-top: 10px; font-size: 9px; line-height: 1.5; }
+/* The agent's card, ordered (2026-10-14): name and session, one figure, four numbers, the plan, a
+   line for the connection, what it can do and the way to its settings. */
+.agent-pop .head { gap: 10px; }
+.agent-pop .pop-who { display: grid; gap: 1px; min-width: 0; }
+.agent-pop .pop-who .vendor { margin: 0; font-family: var(--read, var(--sans)); font-size: 11.5px; letter-spacing: 0; color: var(--text-3); }
+.agent-pop .pop-session { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; height: 22px; padding: 0 9px; border-radius: 999px; background: color-mix(in srgb, var(--text) 6%, transparent); font-family: var(--read, var(--sans)); font-size: 11.5px; color: var(--text-2); white-space: nowrap; }
+.agent-pop .pop-session::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+.agent-pop .pop-session.ok::before { background: #34c759; }
+.agent-pop .pop-session.wait::before { background: var(--warn); }
+.agent-pop .pop-session.bad::before { background: var(--danger); }
+.agent-pop .pop-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.agent-pop .pop-stat { display: grid; gap: 3px; padding: 9px 11px; border-radius: 11px; background: color-mix(in srgb, var(--text) 4.5%, transparent); min-width: 0; }
+.agent-pop .pop-stat span { font-family: var(--read, var(--sans)); font-size: 11px; color: var(--text-3); }
+.agent-pop .pop-stat b { font-family: var(--read, var(--sans)); font-size: 14px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-pop .pop-provider { display: grid; gap: 5px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.agent-pop .pop-provider h4 { margin: 0 0 2px; font-family: var(--read, var(--sans)); font-size: 12px; font-weight: 600; color: var(--text); letter-spacing: 0; text-transform: none; }
+.agent-pop .pop-limit { display: flex; justify-content: space-between; gap: 12px; font-family: var(--read, var(--sans)); font-size: 12px; color: var(--text-2); }
+.agent-pop .pop-limit b { font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
+.agent-pop .pop-limit.hot b { color: var(--crit); }
+.agent-pop .pop-note { margin: 0; font-family: var(--read, var(--sans)); font-size: 12px; line-height: 1.45; color: var(--text-2); }
+.agent-pop .pop-meta { margin: 10px 0 0; font-family: var(--read, var(--sans)); font-size: 11.5px; line-height: 1.45; color: var(--text-3); }
+.agent-pop .caps { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px !important; padding-top: 0; border-top: 0; }
+.agent-pop .caps .cap { padding: 3px 8px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 5%, transparent); font-family: var(--read, var(--sans)); font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+.agent-pop .caps .cap.on { background: color-mix(in srgb, var(--agent, var(--phosphor)) 13%, transparent); color: color-mix(in srgb, var(--agent, var(--phosphor)) 75%, var(--text)); }
+.agent-pop .pop-go { width: 100%; margin-top: 12px; height: 32px; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); font-family: var(--read, var(--sans)); font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.agent-pop .pop-go:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--text) 12%, transparent); outline: 0; }
 
 /* The agent picker: the chosen agent at full colour; the others dimmed, until the pointer finds one. */
 .picker .avatar.pick:not([aria-checked="true"]) { filter: saturate(.55) brightness(.94); opacity: .55; transition: opacity calc(160ms * var(--motion-scale, 1)) var(--ease-out), filter calc(160ms * var(--motion-scale, 1)) var(--ease-out); }
@@ -7942,6 +7987,37 @@ dialog#core .mother-close { height: 30px; padding: 0 13px; border: 0; border-rad
 dialog#core .mother-close:hover { box-shadow: var(--key-over, var(--key-rest)); color: var(--phosphor); }
 dialog#core .mother-close:active { box-shadow: var(--key-down, var(--key-rest)); }
 dialog#core .mother-boot { display: none; }
+/* «Lo que se envía» in the room's hand (2026-10-14): the title over its line on the left, the
+   buttons every window has on the right, centred tabs, and the console's capitals gone from what
+   used to be MU/TH/UR's (the verdict, «next», the memory review, the roles and fields). */
+dialog#core .mother-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title actions" "sub actions"; align-items: center; gap: 2px 16px; padding: 16px 16px 14px 24px; }
+dialog#core .mother-title { grid-area: title; line-height: 1.25; }
+dialog#core .mother-sub { grid-area: sub; flex: none; line-height: 1.35; }
+dialog#core .mother-actions { grid-area: actions; align-items: center; gap: 10px; }
+dialog#core .core-copy-all { height: 30px; font-family: var(--read); font-size: 12.5px; font-weight: 550; letter-spacing: 0; text-transform: none; }
+dialog#core .core-tab { display: grid; justify-items: center; text-align: center; }
+dialog#core .core-tab .meta { max-width: 100%; }
+dialog#core .mem-verdict .says, dialog#core .mem-verdict > p:not(.maturity-next) { margin: 0; font-family: var(--read); font-size: 13px; line-height: 1.5; letter-spacing: 0; text-transform: none; color: var(--text-2); text-shadow: none; }
+dialog#core .mem-verdict .says b { margin-right: 6px; font-size: 13px; letter-spacing: 0; color: var(--text); }
+dialog#core .mem-verdict .maturity-next { padding: 11px 14px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent); box-shadow: none; font-family: var(--read); font-size: 12.5px; line-height: 1.5; letter-spacing: 0; text-transform: none; color: var(--text); }
+dialog#core .mem-verdict .maturity-next b { margin-right: 8px; font-size: 12.5px; font-weight: 600; letter-spacing: 0; color: var(--phosphor); }
+dialog#core .mem-verdict .maturity-next .where { font-size: 12px; letter-spacing: 0; color: var(--text-3); }
+dialog#core :is(.exams, .exam .verdict, .exam-head b, .exams .note, .exam .note, .exam-bullet span, .exam .said, .exam .actions button) { font-family: var(--read); letter-spacing: 0; text-transform: none; text-shadow: none; }
+dialog#core .exam-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+dialog#core .exam-head b { font-size: 13px; font-weight: 600; color: var(--text); }
+dialog#core .exam .verdict { flex: none; padding: 2px 8px; border: 0; border-radius: 7px; font-size: 11.5px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-2); }
+dialog#core .exam.passed .verdict { background: color-mix(in srgb, var(--phosphor) 16%, transparent); color: var(--phosphor); }
+dialog#core .exam.failed .verdict { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+dialog#core .exam :is(.note, .said) { font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+dialog#core .exam-bullet span { font-size: 11.5px; color: var(--text-3); }
+dialog#core .exam .actions button { height: 28px; padding: 0 12px; border: 0; border-radius: 8px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); font-size: 12px; box-shadow: none; cursor: pointer; }
+dialog#core .exam .actions button.primary { background: var(--phosphor); color: var(--phosphor-ink); }
+dialog#core .core-role { color: var(--text); }
+dialog#core .core-role input { width: 15px; height: 15px; accent-color: var(--phosphor); }
+dialog#core .core-role-words b { font-family: var(--read); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text); }
+dialog#core .core-role-words .detail { font-family: var(--read); font-size: 12px; letter-spacing: 0; color: var(--text-3); }
+dialog#core .core-field { font-family: var(--read); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+dialog#core .core-pick select, dialog#core .core-field select { font-family: var(--read) !important; font-size: 12.5px !important; letter-spacing: 0 !important; text-transform: none !important; }
 dialog#core .mother-foot { padding: 9px 22px 11px; border-top: 1px solid var(--line); font-family: var(--read); font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--text-3); text-align: center; }
 /* The body: tabs, the strip that says for whom, the pane, and the question line. */
 dialog#core .core-body { min-height: 0; gap: 12px; padding: 14px 22px 14px; }
@@ -8534,6 +8610,17 @@ dialog.tour-bonjour::backdrop { background: transparent; }
   .shell > .bar { gap: 8px; }
   .shell > .bar .brand { width: 40px; overflow: hidden; flex: none; }
   .shell > .bar .tour-pill-slot, .shell > .bar-home #reload-button { display: none !important; }
+}
+/* The room's bar knows its own width (2026-10-14): split beside a second conversation and the
+   browser it is narrow on a wide screen, where the screen's media queries never fire. */
+.shell > .bar:not(.bar-home) { container: roombar / inline-size; }
+@container roombar (max-width: 760px) {
+  .tour-pill-go[data-short] { font-size: 0; }
+  .tour-pill-go[data-short]::after { content: attr(data-short); font-size: 12px; }
+}
+@container roombar (max-width: 470px) {
+  .bar-left .brand { width: 40px; overflow: hidden; flex: none; }
+  .tour-pill-slot { display: none !important; }
 }
 /* A narrow bar (2026-10-14): the pill says «Recorrido · 3/13»; the full sentence stays its name. */
 @media (max-width: 1180px) {
