@@ -6312,6 +6312,23 @@ function countStrip(strip) {
   strip.setAttribute('aria-label', t('{n} notices', { n: notices.length }));
   strip.title = open ? '' : [...notices].map(noticeWords).join('\n');
 }
+// Read open, the same notice said several times in a row is one line with «×N»: the others stay
+// in the row (and in its count), only hidden while it is open.
+function groupRepeats(strip) {
+  let lead = null;
+  let times = 1;
+  for (const node of strip.querySelectorAll(':scope > .system.folded')) {
+    node.classList.remove('repeat');
+    delete node.dataset.times;
+    node.style.removeProperty('--times');
+    if (lead && noticeWords(node) === noticeWords(lead)) {
+      node.classList.add('repeat');
+      times += 1;
+      lead.dataset.times = String(times);
+      lead.style.setProperty('--times', `"×${times}"`);
+    } else { lead = node; times = 1; }
+  }
+}
 // The whole row opens at once, in order, and folds again on a click or Escape.
 function openStrip(strip, open = !strip.classList.contains('open')) {
   if (open) for (const other of els.column.querySelectorAll('.sys-dots.open')) if (other !== strip) openStrip(other, false);
@@ -6321,6 +6338,7 @@ function openStrip(strip, open = !strip.classList.contains('open')) {
   if (open && !last) pinnedToEnd = false;
   strip.classList.toggle('open', open);
   for (const node of strip.querySelectorAll(':scope > .system.folded')) node.classList.remove('quiet');
+  groupRepeats(strip);
   countStrip(strip);
   if (open) requestAnimationFrame(() => strip.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
 }

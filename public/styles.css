@@ -9337,3 +9337,40 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 #messages#messages .sys-dots.open > .sys-more:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
 #messages#messages .sys-dots.open > .sys-more:hover::after { transform: translateY(-1px); }
 @media (prefers-reduced-motion: reduce) { #messages .sys-dots > .sys-more::after { transition: none; } }
+
+/* Los avisos abiertos como una lista que se lee (2026-10-15): cada uno con su punto, la etiqueta
+   pequeña arriba y lo que dice debajo en letra de lectura; una línea fina entre uno y otro; la
+   memoria, las barras de límite y los comandos alineados a la izquierda como lo demás; lo repetido
+   seguido, una sola vez con «×N» (groupRepeats, app.js). */
+#messages#messages .sys-dots.open { gap: 0; width: min(92%, 600px); padding: 6px 6px 8px; border-radius: 18px; }
+#messages#messages .sys-dots.open > .system.folded {
+  display: block; padding: 11px 14px 12px 34px !important; border-radius: 12px !important;
+  font: 400 13.5px/1.5 var(--read) !important; letter-spacing: 0 !important; text-transform: none !important; text-align: left !important;
+  color: var(--text-2) !important;
+}
+#messages#messages .sys-dots.open > .system.folded + .system.folded:not(.repeat)::after { content: ''; position: absolute; left: 34px; right: 14px; top: 0; height: 1px; background: color-mix(in srgb, var(--text) 7%, transparent); }
+#messages#messages .sys-dots.open > .system.folded:hover::after, #messages#messages .sys-dots.open > .system.folded:hover + .system.folded::after { opacity: 0; }
+#messages#messages .sys-dots.open > .system.folded::before { left: 14px; top: 16px; width: 8px; height: 8px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot) 18%, transparent); }
+#messages#messages .sys-dots.open > .system.folded.repeat { display: none !important; }
+/* La etiqueta: su propia línea, pequeña, en el tono del aviso. */
+#messages#messages .sys-dots.open > .system.folded > b:first-child {
+  display: block; width: fit-content; margin: 0 0 3px; font: 600 10px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--dot) 70%, var(--text-2));
+}
+#messages#messages .sys-dots.open > .system.folded:is([data-tone="info"], :not([data-tone])) > b:first-child { color: var(--text-3); }
+#messages#messages .sys-dots.open > .system.folded[data-times] > b:first-child::after { content: var(--times); margin-left: 8px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-2); font-weight: 600; letter-spacing: .04em; }
+#messages#messages .sys-dots.open > .system.folded > b:not(:first-child) { font-weight: 600; color: var(--text); }
+/* La barra de un límite: bajo el texto, a la izquierda, fina. */
+#messages#messages .sys-dots.open > .system.folded .gauge { display: block; width: min(100%, 280px); height: 4px; margin: 9px 0 1px; border-radius: 4px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+#messages#messages .sys-dots.open > .system.folded .gauge .now { display: block; height: 100%; border-radius: inherit; background: var(--dot); }
+/* El comando de un módulo: un trozo de código, no una caja con borde. */
+#messages#messages .sys-dots.open > .system.folded .cmd { display: block; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 7px 0 0; padding: 3px 9px; border: 0 !important; box-shadow: none !important; outline: 0; border-radius: 7px; background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); font: 400 12px/1.5 var(--mono); letter-spacing: 0; text-transform: none; overflow-wrap: anywhere; }
+/* La memoria: como los demás, a la izquierda; quién, en su píldora; la cuenta en voz baja. */
+#messages#messages .sys-dots.open > .system.folded.claim { display: block; width: auto; }
+#messages#messages .sys-dots.open > .system.folded.claim > .claim-head { font-size: 10px; }
+#messages#messages .sys-dots.open > .system.folded.claim > .claim-head .who { display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 999px; background: color-mix(in srgb, var(--agent, var(--text)) 14%, transparent); color: color-mix(in srgb, var(--agent, var(--text)) 80%, var(--text)); letter-spacing: .06em; }
+#messages#messages .sys-dots.open > .system.folded.claim .claim-body { display: block; font-size: 13.5px; color: var(--text-2); }
+#messages#messages .sys-dots.open > .system.folded.claim .claim-note { display: block; margin-top: 2px; font: 400 12px/1.5 var(--read); letter-spacing: 0; text-transform: none; color: var(--text-3); }
+#messages#messages .sys-dots.open > .system.folded.claim .claim-acts { justify-content: flex-start; }
+#messages#messages .sys-dots.open > .sys-more { justify-self: center; margin-top: 8px; }
+#messages#messages .sys-dots.open > .system.folded.claim > * { margin-left: 0 !important; margin-right: 0 !important; max-width: none !important; text-align: left !important; justify-self: start !important; }
