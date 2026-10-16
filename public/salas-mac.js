@@ -1881,7 +1881,7 @@ function welcomeHome() {
     let tries = 0;
     const sayAdd = async () => {
       const key = document.getElementById('sm-add-widgets');
-      if (!key || document.querySelector('dialog[open]') || !(await homeTour.hint('new-add-widgets', key, { title: t('New: add widgets'), text: t('This key opens «Add to Home»: the widgets you can put here and the tiles you took off.') }))) {
+      if (!key || document.querySelector('dialog[open]') || !(await homeTour.hint('new-add-widgets', key, { title: t('New: add widgets'), text: t('This button opens «Add to Home»: choose the widgets you want to see here, or bring back the ones you removed.') }))) {
         if ((tries += 1) < 6) setTimeout(sayAdd, 6000)?.unref?.();
       }
     };

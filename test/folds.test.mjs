@@ -487,7 +487,9 @@ test('1.0.2: what is new is said with first-time cards, one at a time, with no w
   assert.equal(notesFor('1.0.2'), null, 'a patch opened the «what is new» board');
   for (const id of ['new-copilot', 'new-mcp', 'new-finder', 'new-memory-access', 'new-dots']) assert.match(app, new RegExp(`\\{ id: '${id}', button: `));
   // A key kept behind «more» is pointed at there, and a card with nothing to point at waits.
-  assert.match(app, /const anchorOf = \(hint\) => shown\(hint\.button\) \?\? shown\(hint\.spill\);/);
+  assert.match(app, /const anchorOf = \(hint\) => \(hint\.onScreen \? inView\(hint\.button\) : shown\(hint\.button\)\) \?\? shown\(hint\.spill\);/);
+  // The dots are pointed at where the person is reading, not at the top of the thread.
+  assert.match(app, /\{ id: 'new-dots', button: '#messages \.sys-dots:not\(\.open\)', onScreen: true,/);
   assert.match(app, /if \(!next\) \{ if \(pending\.length && \(newHintTries \+= 1\) <= 10\) showNewHints\(30000\); return; \}/);
   assert.match(home, /homeTour\.hint\('new-add-widgets', key, /);
 });

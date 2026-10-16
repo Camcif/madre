@@ -17963,11 +17963,11 @@ for (const id of Object.keys(FIRST_TOUCH)) document.querySelector(FIRST_TOUCH[id
 // notices). Only when the room is quiet — no dialog open, no
 // other card — one after the other, each pointing at where it lives.
 const NEW_HINTS = [
-  { id: 'new-copilot', button: '.copilot-chip', title: t('New: Copilot'), text: t('Turn it on from the robot and, for the time you choose, the agent you write to drives the project: it edits, plans and runs the safe commands by itself. It asks for the #3 key once.') },
-  { id: 'new-mcp', button: '#custom-button', panel: '#settings', title: t('New: Outside tools (MCP)'), text: t('In Settings › Outside tools (MCP), let this project\'s agents use other apps and services — a program on this computer or a service online — or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.') },
-  { id: 'new-finder', button: '#tree-button', spill: '.bar-more', title: t('New: the Finder keeps up'), text: t('It refreshes by itself after each answer and each command, and a dot on a folder shows which agent last touched something inside it.') },
-  { id: 'new-memory-access', button: '#nostromo-bar', spill: '.bar-more', title: t('New: the memory without the name'), text: t('The Memory map can stop asking for the project name for 1, 8 or 24 hours, or for good: «Don\'t ask again…» in its confirmation, or Settings › Permissions.') },
-  { id: 'new-dots', button: '#messages .sys-dots', title: t('New: notices fold into dots'), text: t('After 10 seconds a notice folds into a dot of its colour; a click opens them all, in order. The ones that ask for something stay open.') },
+  { id: 'new-copilot', button: '.copilot-chip', title: t('New: Copilot'), text: t('Let an agent work on its own for a while. Press the robot, choose how long, and the agent you write to can change files, make plans and run safe commands without asking you each time. It asks for your permission only once.') },
+  { id: 'new-mcp', button: '#custom-button', panel: '#settings', title: t('New: Outside tools (MCP)'), text: t('Agents can now use other apps and services: a program on this computer or one on the internet. Add them in Settings › Outside tools (MCP). If you already set some up in Claude Code, Codex, Gemini or Cursor, you can bring them over.') },
+  { id: 'new-finder', button: '#tree-button', spill: '.bar-more', title: t('New: your files stay up to date'), text: t('The file list updates by itself after every answer and every command. A colored dot on a folder tells you which agent changed something inside.') },
+  { id: 'new-memory-access', button: '#nostromo-bar', spill: '.bar-more', title: t('New: open the memory faster'), text: t('The Memory map asks you to type the project name before it opens. You can skip that step for 1, 8 or 24 hours, or always: choose «Don\'t ask again…» when it asks, or go to Settings › Permissions.') },
+  { id: 'new-dots', button: '#messages .sys-dots:not(.open)', onScreen: true, title: t('New: notices shrink into dots'), text: t('To keep the chat clean, notices shrink into a small dot after 10 seconds. Click the dot to read them again. The ones that need something from you stay open.') },
 ];
 // Asked again while a card has nothing to point at, a few times only: a timer that never stops would
 // keep a page (and a test) alive for nothing.
@@ -17978,7 +17978,13 @@ function showNewHints(delay = 2500) {
   setTimeout(() => {
     // Where it lives, or «more» when the bar keeps that key behind it.
     const shown = (selector) => { const node = selector && document.querySelector(selector); return node?.getClientRects().length ? node : null; };
-    const anchorOf = (hint) => shown(hint.button) ?? shown(hint.spill);
+    // Something in the conversation is pointed at where the person is reading: the latest one in
+    // view, not the first of the thread (that one is at the very top, scrolled away).
+    const inView = (selector) => [...document.querySelectorAll(selector)].filter((node) => {
+      const box = node.getBoundingClientRect();
+      return box.width && box.bottom > 60 && box.top < window.innerHeight - 160;
+    }).at(-1) ?? null;
+    const anchorOf = (hint) => (hint.onScreen ? inView(hint.button) : shown(hint.button)) ?? shown(hint.spill);
     const pending = NEW_HINTS.filter((hint) => !hintsSeen()[hint.id]);
     const next = pending.find(anchorOf);
     // Nothing to point at yet (no folded notice, a key not on screen): asked again later.
@@ -17986,8 +17992,8 @@ function showNewHints(delay = 2500) {
     // Not over something the person is already reading: tried again later, never stacked.
     if (document.querySelector('dialog[open], .hint-card') || !els.onboarding.hidden) { showNewHints(8000); return; }
     try { localStorage.setItem(HINTS_KEY, JSON.stringify({ ...hintsSeen(), [next.id]: true })); } catch { return; }
-    const behind = !shown(next.button);
-    showFirstTouch(behind ? { ...next, text: `${next.text} ${t('It is in «more», on the bar.')}` } : next, anchorOf(next));
+    const behind = !next.onScreen && !shown(next.button);
+    showFirstTouch(behind ? { ...next, text: `${next.text} ${t('You\'ll find it under «More», on the top bar.')}` } : next, anchorOf(next));
     const card = document.querySelector('.hint-card');
     const watch = setInterval(() => { if (!card?.isConnected) { clearInterval(watch); showNewHints(600); } }, 400);
     watch?.unref?.();

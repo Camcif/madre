@@ -9395,3 +9395,5 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 #messages#messages .sys-dots.single > .system.folded { width: 6px !important; height: 6px !important; box-shadow: none !important; }
 #messages#messages .sys-dots:not(.open):not(.single) { opacity: .8; transition: opacity calc(180ms * var(--motion-scale)) ease; }
 #messages#messages .sys-dots:not(.open):is(:hover, :focus-visible) { opacity: 1; background: color-mix(in srgb, var(--bg) 78%, transparent); }
+/* El contexto compartido no lleva etiqueta: empieza con palabras y sus @agentes van en la frase. */
+#messages#messages .sys-dots.open > .system.folded.handoff > b:first-child { display: inline; margin: 0; font: 600 13.5px/1.5 var(--read); letter-spacing: 0; text-transform: none; color: var(--text); }
