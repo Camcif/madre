@@ -382,3 +382,27 @@ test('i18n: a MADRE nobody has set speaks the browser\'s language — Spanish in
   assert.match(server, /await updateConfig\(root, \{ language \}\);\n        languageChosen = true;/);
   assert.match(home, /if \(answer\.languageChosen === false && !languageAdopted\) \{/);
 });
+
+test('i18n · «Mac» only where MADRE runs on one; elsewhere the machine is «the computer», in both languages and both sides', async () => {
+  const page = await import('../public/i18n.js');
+  const server = await import('../src/i18n.mjs');
+  for (const side of [page, server]) {
+    const was = side.setHostIsMac(false);
+    try {
+      assert.equal(side.hostWords('MADRE does not know that project on this Mac.'), 'MADRE does not know that project on this computer.');
+      assert.equal(side.hostWords('The Mac offers to continue; your Mac too.'), 'The computer offers to continue; your computer too.');
+      assert.equal(side.hostWords('Escrito en esta Mac. Tu Mac lo guarda; se hace en la Mac.'), 'Escrito en esta computadora. Tu computadora lo guarda; se hace en la computadora.');
+      // Hardware named on purpose stays.
+      assert.equal(side.hostWords('Any Mac with an M chip.'), 'Any Mac with an M chip.');
+      assert.equal(side.hostWords('Cualquier Mac con chip M · Mac con chip Apple'), 'Cualquier Mac con chip M · Mac con chip Apple');
+      side.setHostIsMac(true);
+      assert.equal(side.hostWords('on this Mac'), 'on this Mac');
+    } finally { side.setHostIsMac(was); }
+  }
+  const was = page.setHostIsMac(false);
+  try {
+    setLanguage('es');
+    assert.equal(t('MADRE does not know that project on this Mac.'), 'MADRE no conoce ese proyecto en esta computadora.');
+    assert.equal(pick({ en: 'on your Mac', es: 'en tu Mac' }), 'en tu computadora');
+  } finally { page.setHostIsMac(was); setLanguage(DEFAULT_LANGUAGE); }
+});

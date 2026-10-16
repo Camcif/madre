@@ -30,6 +30,7 @@ For the people who use it, this is a patch: there is no greeting, no tour and no
 - **Floating windows come back one at a time.** Opening the files or any other window from the bar no longer brings back the ones you had sent to the edge; each one comes back when you ask for it.
 - **MADRE opens in your language.** The first time, if nobody has chosen one, MADRE takes your browser's language: Spanish in any of its variants, English for any other. It is saved as if you had chosen it, so Home and every project follow it, and you can change it any time in Settings › Appearance. Anyone who already chose a language notices nothing.
 - **MADRE in English outside the app too.** The README, the changelog, the trademarks and the user documentation (reference, SDK, internals, connectors, roadmap, training and the report collector) have an English version (`README.en.md`, `CHANGELOG.en.md`, `TRADEMARKS.en.md`, `docs/en/`), and each version's notes on GitHub come in both languages. Spanish stays the original.
+- **«Mac» only on a Mac.** Where it runs on another computer, such as Linux, MADRE says «this computer» instead of «this Mac», in both languages; what names Apple hardware («a Mac with an M chip») does not change.
 - **The English says the same as the Spanish.** 215 phrases rewritten with the new names and without jargon (lease, key, aberration, sentinel, HOLD/BRIDGE…).
 
 ## 1.0.1 · 2026-10-14

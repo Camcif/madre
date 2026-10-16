@@ -13,6 +13,7 @@ import { createPulseServer, projectRoomId } from '../src/server.mjs';
 import { callTool, openMemory } from '../src/mcp/memory-server.mjs';
 import { phonePolicy } from '../src/bridge/policy.mjs';
 import { summary as vaultSummary } from '../src/vault.mjs';
+import { hostWords } from '../src/i18n.mjs';
 import {
   CHANNEL_HEADER, NO_SUCH_LINK, activeContracts, askEnlace, channelKey, channelKeyFile, channelKeySummary, contractId, countRecent,
   linkTraffic, mayServe, normalizeContract, noteCrossing, readsFrom, receivesOrders, revokeContract, sameKey, servingRooms, signContract,
@@ -436,7 +437,7 @@ test('enlaces · the room that serves holds every lock, and hands over only what
     assert.deepEqual(recorded, [['enlace.received', { contract: fresh.id, from: idA, count: 1, turn: 'turn-1', agent: 'codex' }]]);
     assert.equal(await countRecent(join(state, 'rooms', idB), fresh.id, 'received'), 1);
     assert.deepEqual(await askEnlace({ port: portA, contract: contract.id, asking: idB, key }), { refused: NO_SUCH_LINK, status: 404 });
-    assert.deepEqual(await askEnlace({ port: portA, contract: fresh, asking: idB, key: 'not-the-key' }), { refused: 'That is not the key of this Mac.', status: 403 });
+    assert.deepEqual(await askEnlace({ port: portA, contract: fresh, asking: idB, key: 'not-the-key' }), { refused: hostWords('That is not the key of this Mac.'), status: 403 });
     assert.deepEqual(await askEnlace({ port: 1, contract: fresh, asking: idB, key, timeoutMs: 500 }), { unreachable: true });
     const calls = [];
     const fake = async (url, init) => { calls.push({ url: String(url), init }); return new Response(JSON.stringify({ error: 'Not found.' }), { status: 404 }); };

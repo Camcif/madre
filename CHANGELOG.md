@@ -30,6 +30,7 @@ Para quien la usa es un parche: no hay saludo, recorrido ni «Qué hay de nuevo�
 - **Las ventanas vuelven de una en una.** Abrir los archivos o cualquier otra ventana desde la barra ya no trae de vuelta las que habías mandado al borde; cada una vuelve cuando la pides.
 - **MADRE se abre en tu idioma.** La primera vez, si nadie lo ha elegido, MADRE toma el idioma de tu navegador: español en cualquiera de sus variantes, inglés para cualquier otro. Se guarda como si lo hubieras elegido, así que Inicio y todos los proyectos lo siguen, y se cambia cuando quieras en Ajustes › Apariencia. Quien ya eligió idioma no nota nada.
 - **MADRE también en inglés fuera de la app.** El README, el CHANGELOG, las marcas y la documentación de uso (referencia, SDK, internos, conectores, hoja de ruta, entrenamiento y recolector de reportes) tienen su versión en inglés (`README.en.md`, `CHANGELOG.en.md`, `TRADEMARKS.en.md`, `docs/en/`), y las notas de cada versión en GitHub van en los dos idiomas. El español sigue siendo el original.
+- **«Mac» solo en una Mac.** Donde corre en otra computadora, como Linux, MADRE dice «esta computadora» en vez de «esta Mac», en los dos idiomas; lo que habla de hardware de Apple («Mac con chip M») no cambia.
 - **El inglés dice lo mismo que el español.** 215 frases reescritas con los nombres nuevos y sin jerga (lease, key, aberration, sentinel, HOLD/BRIDGE…).
 
 ## 1.0.1 · 2026-10-14

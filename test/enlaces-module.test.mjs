@@ -13,6 +13,7 @@ import { createPulseServer, projectRoomId } from '../src/server.mjs';
 import { phonePolicy } from '../src/bridge/policy.mjs';
 import { CHANNEL_HEADER, NO_SUCH_LINK, channelKey, countRecent, receivesOrders, signContract } from '../src/enlaces.mjs';
 import enlaces, { BRIEF, ENLACE_TOOLS, SERVER_NAME, TOOLS, callTool, handleRequest } from '../src/modules/enlaces.mjs';
+import { hostWords } from '../src/i18n.mjs';
 
 // ENLACES, the door an agent reads through (docs/MACROVERSO.md, phase 3c): the module that hands a
 // turn the MCP server `pulse-enlaces` only when a signed link lets this room read, the server's
@@ -218,7 +219,7 @@ test('enlaces · the module, the tool, the asking side, the notices, and signing
     assert.deepEqual([traffic.lastAgent, traffic.lastRoom], ['codex', idB], 'Salas says who read last, and from which room');
     const cardB = (await (await fetch(`http://127.0.0.1:${portB}/api/extensions`)).json()).extensions.find((one) => one.id === 'enlaces');
     assert.deepEqual(cardB.status, { installed: true, detail: 'on · one connection lets this project read · 3 readings in 24 h' });
-    assert.equal(cardB.summary, 'What other projects know, when a signed connection lets this project read it. Read-only; nothing leaves this Mac.');
+    assert.equal(cardB.summary, hostWords('What other projects know, when a signed connection lets this project read it. Read-only; nothing leaves this Mac.'));
 
     // ---- The tools, in process, as the agent would see them.
     const roomsSeen = await callTool('enlace_rooms', {}, { env });

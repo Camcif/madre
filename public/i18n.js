@@ -52,15 +52,30 @@ export function fill(text, vars) {
   return String(text).replace(/\{(\w+)\}/g, (whole, name) => (Object.hasOwn(vars, name) ? String(vars[name]) : whole));
 }
 
+// «Mac» only where MADRE runs on one (2026-10-15). It installs on Linux too, so a sentence about
+// the machine it runs on («this Mac», «tu Mac», «la Mac») says «computer»/«computadora» anywhere
+// else. The page is always opened on the machine that serves it (127.0.0.1), so the browser's own
+// platform is that machine's. Hardware named on purpose — «a Mac with an M chip» — has no article
+// in front and is left as it is.
+let hostIsMac = /mac/i.test(String(globalThis.navigator?.userAgentData?.platform ?? globalThis.navigator?.platform ?? ''));
+export const setHostIsMac = (value) => { hostIsMac = Boolean(value); return hostIsMac; };
+export function hostWords(text) {
+  if (hostIsMac || typeof text !== 'string' || !text.includes('Mac')) return text;
+  return text
+    .replace(/\b(this|your|the|This|Your|The) Mac\b/g, '$1 computer')
+    .replace(/(^|[^\p{L}])(esta|tu|la|Esta|Tu|La) Mac\b/gu, '$1$2 computadora');
+}
+
 export function t(text, vars = null) {
   const said = CATALOGUES[current]?.[text] ?? text;
-  return fill(said, vars);
+  return fill(hostWords(said), vars);
 }
 
 // A table that carries both languages: `{ en: …, es: … }` anywhere inside it. Whole objects,
 // whole arrays — the shape is the table's own and this only chooses the side.
 export function pick(value) {
   if (Array.isArray(value)) return value.map(pick);
+  if (typeof value === 'string') return hostWords(value);
   if (!value || typeof value !== 'object') return value;
   if (Object.hasOwn(value, 'en') && Object.hasOwn(value, current)) return pick(value[current] ?? value.en);
   const out = {};

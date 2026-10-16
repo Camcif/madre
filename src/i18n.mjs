@@ -24,9 +24,21 @@ export function setLanguage(id) {
   return current;
 }
 
+// «Mac» only on a Mac (2026-10-15): MADRE installs on Linux too, and a sentence about the machine
+// it runs on says «computer» there. Same rule as public/i18n.js (hostWords); hardware named on
+// purpose («a Mac with an M chip») has no article in front and is left alone.
+let hostIsMac = process.platform === 'darwin';
+export const setHostIsMac = (value) => { hostIsMac = Boolean(value); return hostIsMac; };
+export function hostWords(text) {
+  if (hostIsMac || typeof text !== 'string' || !text.includes('Mac')) return text;
+  return text
+    .replace(/\b(this|your|the|This|Your|The) Mac\b/g, '$1 computer')
+    .replace(/(^|[^\p{L}])(esta|tu|la|Esta|Tu|La) Mac\b/gu, '$1$2 computadora');
+}
+
 export function t(text, vars = null) {
   if (typeof text !== 'string' || !text) return text;
-  const said = CATALOGUES[current]?.[text] ?? text;
+  const said = hostWords(CATALOGUES[current]?.[text] ?? text);
   if (!vars) return said;
   return said.replace(/\{(\w+)\}/g, (whole, name) => (Object.hasOwn(vars, name) ? String(vars[name]) : whole));
 }
