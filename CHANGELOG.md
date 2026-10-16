@@ -4,7 +4,9 @@ Todas las versiones publicadas de `@jossuealcala/madre`. Fechas en ISO.
 
 Una versión se cierra cuando está en npm: hasta entonces su sección se llama **Sin publicar** y puede crecer. Cada versión publicada tiene exactamente una etiqueta `vX.Y.Z`, una release en GitHub y una sección aquí; el parche puede llegar a dos dígitos (`0.2.10`) antes de subir el menor. Ver `docs/ROADMAP.md` para el criterio de qué sube cada número.
 
-## 1.0.2 · Sin publicar
+## 1.0.3 · Sin publicar
+
+## 1.0.2 · 2026-10-16
 
 **Licencia nueva.** Desde 1.0.2, MADRE es software libre bajo la **GNU AGPL v3** con [términos adicionales](ADDITIONAL-TERMS.md) según su sección 7: cualquiera puede usarlo, estudiarlo, modificarlo y hacer forks, también con fines comerciales, siempre que su versión siga abierta con la misma licencia y mantenga visible la autoría —«MADRE ‹versión› · © 2026 Jossue Alcalá» en la esquina de cada proyecto y de Inicio, con enlace a jossuealcala.com, o «Desarrollado con MADRE de Jossue Alcalá» si lleva otro nombre—. Ajustes › Actualizaciones y errores › **Licencia y autoría** dice todo esto en la app. Hasta la 1.0.1, MADRE se publicó con licencia Apache 2.0, y esas versiones la conservan.
 

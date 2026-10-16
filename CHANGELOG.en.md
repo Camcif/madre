@@ -4,7 +4,9 @@ Every published version of `@jossuealcala/madre`. Dates in ISO format.
 
 A version closes when it is on npm: until then its section is called **Unreleased** and it can keep growing. Each published version has exactly one `vX.Y.Z` tag, one GitHub release and one section here; the patch number can reach two digits (`0.2.10`) before the minor goes up. See `docs/ROADMAP.md` for the criteria on what bumps each number. This is the English translation of [CHANGELOG.md](CHANGELOG.md); the Spanish file is the original.
 
-## 1.0.2 · Unreleased
+## 1.0.3 · Unreleased
+
+## 1.0.2 · 2026-10-16
 
 **New license.** From 1.0.2, MADRE is free software under the **GNU AGPL v3** with [additional terms](ADDITIONAL-TERMS.md) under its Section 7: anyone can use it, study it, modify it and fork it, commercially too, as long as their version stays open under the same license and keeps the authorship visible —«MADRE ‹version› · © 2026 Jossue Alcalá» in the corner of every project and of Home, linked to jossuealcala.com, or «Built with MADRE by Jossue Alcalá» under another name. Settings › Updates and errors › **License and authorship** says all of this in the app. Up to 1.0.1, MADRE was published under the Apache License 2.0, and those versions keep it.
 
