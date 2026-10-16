@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // CORREO: MADRE's first connector. It gives a turn one tool, send_email, that hands a message to
 // the human's own mail account over SMTP+TLS, with the human's own app password.
 //

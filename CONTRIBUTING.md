@@ -14,7 +14,7 @@ node ./bin/madre.mjs start --no-open    # the room from source, URL in the termi
 
 ## Sign your work
 
-Every commit carries a `Signed-off-by:` line (`git commit -s`). It is the [Developer Certificate of Origin](https://developercertificate.org): you wrote the change, or have the right to submit it, and it goes in under the project's [Apache 2.0](LICENSE) licence. Contributions are credited in the history; MADRE's name, logo and NOTICE stay as they are ([TRADEMARKS.md](TRADEMARKS.md)).
+Every commit carries a `Signed-off-by:` line (`git commit -s`). It is the [Developer Certificate of Origin](https://developercertificate.org): you wrote the change, or have the right to submit it, and it goes in under the project's licence: the [GNU AGPL v3](LICENSE) with the [additional terms](ADDITIONAL-TERMS.md) of its Section 7. Contributions are credited in the history; MADRE's name, logo, NOTICE and the author's attribution on screen stay as they are ([TRADEMARKS.md](TRADEMARKS.md)).
 
 ## What a good change looks like
 

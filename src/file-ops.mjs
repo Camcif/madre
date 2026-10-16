@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Copying and moving a file, from the human's own hands.
 //
 // Everything else in MADRE that writes into a project is an agent under a permission mode. This

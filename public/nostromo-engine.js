@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // NOSTROMO's engine: the physics and the painters of the archive as a body in space, lifted out
 // of the room's page so the Macroverso can draw every room the way its own NOSTROMO is drawn —
 // with these very functions, not a copy of them (docs/MACROVERSO.md, phase 3a).

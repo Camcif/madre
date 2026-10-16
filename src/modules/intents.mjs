@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Intenciones: how hard each agent should think for the message being written.
 //
 // It reads the request, the conversation it belongs to and what this project has measured, and

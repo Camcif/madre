@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // GitHub, as the GITHUB module and its MCP server both speak to it.
 //
 // Two ways in, and the order matters. First the `gh` CLI, if this computer has it and it is

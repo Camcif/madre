@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The error sentinel: what MADRE tells its author when something goes wrong
 // that MU/TH/UR cannot explain. A failure that matches no known condition, or a
 // crash of the process, becomes a report: the error redacted (no home paths,

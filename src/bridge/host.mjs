@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Who keeps the bridge up. Every room on this Mac offers to; the port decides.
 //
 // No process of its own and nothing to start: each room, every few seconds, asks whether a phone

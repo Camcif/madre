@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Privacy: terms that must never travel through a room. ERROR-001 in a real room
 // showed the channel: an agent's own configuration (organisation instructions,
 // the account it runs under) leaks into its reply, the reply enters the shared

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The editor: a file of the project, written by the human's own hand.
 //
 // A textarea does the typing — the caret, the selection, IME, spellcheck off, the browser's own

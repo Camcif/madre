@@ -2,22 +2,30 @@
 
 **Español** · [English below](#english)
 
-El código de MADRE es libre bajo la [licencia Apache 2.0](LICENSE): puedes usarlo, estudiarlo,
-modificarlo, hacer forks y distribuirlos, también con fines comerciales. **El nombre no viene
+El código de MADRE es software libre bajo la [GNU AGPL v3](LICENSE), con
+[términos adicionales](ADDITIONAL-TERMS.md) según su sección 7: puedes usarlo, estudiarlo,
+modificarlo, hacer forks y distribuirlos, también con fines comerciales, siempre que tu versión
+siga abierta bajo la misma licencia y mantenga visible la autoría. **El nombre no viene
 incluido.** «MADRE», su logo y madre.run son marcas de Jossue Alcalá, y la licencia no da
-permiso de usarlas (sección 6). Esta página dice qué sí y qué no.
+derechos para usarlas (sección 7(e)). Esta página dice qué sí y qué no. Las versiones 1.0.1 y
+anteriores siguen bajo la licencia Apache 2.0 con la que se publicaron.
 
 ## Lo que siempre debe hacer un fork
 
-- **Decir de dónde viene.** Conserva el archivo [`NOTICE`](NOTICE) con la línea
-  `Based on MADRE by Jossue Alcalá — https://madre.run`. La licencia lo exige (sección 4.d).
-- **Conservar los avisos de copyright** de los archivos que vengan de MADRE (sección 4.c).
-- **Indicar que lo cambiaste** en los archivos que modifiques (sección 4.b).
+- **Mantener visible la autoría.** En la esquina de cada proyecto y de Inicio,
+  «MADRE <versión> · © 2026 Jossue Alcalá» con enlace a https://jossuealcala.com, o, con otro
+  nombre, «Desarrollado con MADRE de Jossue Alcalá» con el mismo enlace; y la misma atribución en
+  sus avisos legales. Lo exigen los términos adicionales (sección 7(b)).
+- **Decir de dónde viene.** Conserva [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) y
+  [`ADDITIONAL-TERMS.md`](ADDITIONAL-TERMS.md), con la línea
+  `Based on MADRE by Jossue Alcalá — https://madre.run`.
+- **Seguir abierto.** Tu versión se licencia también bajo la GNU AGPL v3 con estos términos, y si
+  la ofreces por red, ofreces también su código fuente (sección 13).
+- **Indicar que lo cambiaste** y no presentarla como MADRE ni como hecha por Jossue Alcalá
+  (secciones 5(a) y 7(c)).
 
 Te pedimos además que la frase «Basado en MADRE» aparezca donde tu proyecto diga quién lo hizo:
-el README, la pantalla «Acerca de» o el pie de página. Y que conserves la esquina de cada proyecto
-y de Inicio, «MADRE <versión> · © 2026 Jossue Alcalá» con su enlace a https://jossuealcala.com,
-o que con otro nombre diga «Desarrollado con MADRE de Jossue Alcalá» con el mismo enlace.
+el README, la pantalla «Acerca de» o el pie de página.
 
 ## Lo que sí puedes hacer sin pedir permiso
 
@@ -45,17 +53,22 @@ política puede cambiar; la versión vigente es la de este repositorio.
 
 ## English
 
-MADRE's code is free under the [Apache License 2.0](LICENSE): use it, study it, modify it, fork
-it and redistribute it, commercially too. **The name is not included.** "MADRE", its logo and
-madre.run are trademarks of Jossue Alcalá, and the License grants no permission to use them
-(Section 6).
+MADRE's code is free software under the [GNU AGPL v3](LICENSE), with
+[additional terms](ADDITIONAL-TERMS.md) under its Section 7: use it, study it, modify it, fork it
+and redistribute it, commercially too, as long as your version stays open under the same license
+and keeps the authorship visible. **The name is not included.** "MADRE", its logo and madre.run
+are trademarks of Jossue Alcalá, and the License grants no rights to use them (Section 7(e)).
+Versions 1.0.1 and earlier remain under the Apache License 2.0 they were published with.
 
-**Every fork must:** keep the [`NOTICE`](NOTICE) file with the line
-`Based on MADRE by Jossue Alcalá — https://madre.run` (required by Section 4(d)); keep the
-copyright notices of files that come from MADRE (4(c)); and mark the files it changed (4(b)). We
-also ask that "Based on MADRE" appears wherever your project says who made it, and that the
-corner of every project and of Home keeps «MADRE <version> · © 2026 Jossue Alcalá» linked to
-https://jossuealcala.com (or, under another name, «Built with MADRE by Jossue Alcalá»).
+**Every fork must:** keep showing, in the corner of every project and of Home,
+«MADRE <version> · © 2026 Jossue Alcalá» linked to https://jossuealcala.com (or, under another
+name, «Built with MADRE by Jossue Alcalá» with the same link), and the same attribution in its
+legal notices (Section 7(b)); keep [`NOTICE`](NOTICE), [`LICENSE`](LICENSE) and
+[`ADDITIONAL-TERMS.md`](ADDITIONAL-TERMS.md), with the line
+`Based on MADRE by Jossue Alcalá — https://madre.run`; stay under the GNU AGPL v3 with these
+terms and, if offered over a network, offer its source code (Section 13); and be marked as
+changed, never presented as MADRE or as made by Jossue Alcalá (Sections 5(a) and 7(c)). We also
+ask that "Based on MADRE" appears wherever your project says who made it.
 
 **You may, without asking:** use MADRE as is, under its name; redistribute it unmodified under
 its name; say your project is "based on MADRE", "made for MADRE" or "compatible with MADRE" without

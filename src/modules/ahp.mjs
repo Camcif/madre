@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // AHP+: the one module that writes into the project, through a confirmed npx
 // command. Verified project state, checkpoints and handoffs in .ahp/.
 

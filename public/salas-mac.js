@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // SALAS on the Mac: every room this Mac knows, open or asleep, in one place (docs/MACROVERSO.md,
 // phase 1). The room that serves this page answers for all of them (src/salas.mjs): it lists
 // them, opens one that is asleep, asks one to close, and stops every agent in every room. A room
@@ -10,7 +12,7 @@ import { brandOf, monogram } from './brands.js';
 import { startReviewAsk } from './review-ask.js';
 import { startTour } from './tour.js';
 import { dropStickyHover } from './touch.js';
-import { drawAttribution } from './attribution.js';
+import { drawAttribution, drawLegal } from './attribution.js';
 
 // Where nothing can hover (a tablet), a tapped key does not stay lit (public/touch.js).
 dropStickyHover();
@@ -4347,6 +4349,7 @@ function fillRelease(host) {
     const late = sxBlock(host, t('Projects on an older MADRE'), t('They keep running the version they started with until you restart them. What is running in them stops.'), { aside: behind.length > 1 ? sxButton(t('Restart all'), () => void restartAll(), { tone: 'primary' }) : null });
     for (const room of behind) sxRow(late, roomLabel(room), `MADRE ${room.open.version}`, sxButton(t('Restart'), () => { settingsSheet?.close(); void restartRoom(room); }));
   }
+  drawLegal(host);
 }
 async function updateHome(info, key, said) {
   key.disabled = true;

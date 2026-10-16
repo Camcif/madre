@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // MU/TH/UR's private channel. When someone strikes at her memory core, MOTHER
 // tells her children (the agents) in a code the console cannot read; the room
 // shows the code, the agents get the words. The channel lives in

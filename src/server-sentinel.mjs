@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The servers sentinel: what this project has listening, kept watch over while the room is open.
 //
 // RIPLEY opens a project's own dev server; this is what knows which servers those are. Only the

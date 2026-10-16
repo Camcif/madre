@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // ENLACES (docs/MACROVERSO.md, fase 3c): what other rooms on this Mac know, when a signed link
 // lets this room read it. The link itself — the contract, the key of the channel, the room that
 // serves and its locks — lives in src/enlaces.mjs and in the ENLACES section of src/server.mjs.

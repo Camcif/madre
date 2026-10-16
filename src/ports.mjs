@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // What is listening on this computer, so RIPLEY can look at it.
 //
 // A room that renders a project's files but cannot open the project's own dev server is half a

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The two tests behind Intenciones: is a cheaper rung enough for this project?
 //
 // A suggestion is only worth what it was measured against, and the room's ordinary use can never

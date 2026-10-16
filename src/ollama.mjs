@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Ollama: the local intelligence MADRE leans on when it is there. Embeddings
 // for recall by meaning and a model to distil memories, both on this machine,
 // so remembering costs no tokens elsewhere and nothing leaves. Nothing here is

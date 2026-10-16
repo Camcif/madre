@@ -11,7 +11,7 @@
   <a href="https://github.com/jossuealcacao-exe/madre/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/jossuealcacao-exe/madre/ci.yml?style=flat-square&label=CI&color=9bff66&labelColor=050605"></a>
   <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A5%2022.5-9bff66?style=flat-square&labelColor=050605">
   <img alt="dependencies" src="https://img.shields.io/badge/dependencias-0-9bff66?style=flat-square&labelColor=050605">
-  <img alt="license" src="https://img.shields.io/badge/licencia-Apache--2.0-9bff66?style=flat-square&labelColor=050605">
+  <img alt="license" src="https://img.shields.io/badge/licencia-AGPL--3.0-9bff66?style=flat-square&labelColor=050605">
 </p>
 
 <br>
@@ -230,11 +230,14 @@ MADRE es gratis y seguirá siéndolo. Si te ahorra tiempo y quieres que siga cre
 puedes [apadrinarla](https://github.com/sponsors/jossuealcacao-exe). Nada del producto
 cambia según lo que hagas con ese enlace.
 
-Apache-2.0 · [Jossue Alcalá](https://jossuealcala.com/en/)
+AGPL-3.0 con términos adicionales · © 2026 [Jossue Alcalá](https://jossuealcala.com)
 
-El código es libre: úsalo, modifícalo y haz forks. El nombre **MADRE**, su logo y madre.run son
-marcas de Jossue Alcalá. Un fork que se distribuya conserva el archivo [`NOTICE`](NOTICE) con la línea
-«Based on MADRE by Jossue Alcalá», y si cambia el código lleva otro nombre. Qué sí y qué no:
+El código es software libre bajo la [GNU AGPL v3](LICENSE) con [términos adicionales](ADDITIONAL-TERMS.md):
+úsalo, modifícalo y haz forks, siempre que tu versión siga abierta con la misma licencia y conserve
+visible la autoría —«MADRE ‹versión› · © 2026 Jossue Alcalá» en la esquina de cada proyecto y de Inicio,
+con enlace a jossuealcala.com, o «Desarrollado con MADRE de Jossue Alcalá» si lleva otro nombre—. El
+nombre **MADRE**, su logo y madre.run son marcas de Jossue Alcalá: una versión modificada lleva otro
+nombre. Hasta la 1.0.1, MADRE se publicó con licencia Apache 2.0. Qué se puede y qué no:
 [TRADEMARKS.md](TRADEMARKS.md).
 
 <br>

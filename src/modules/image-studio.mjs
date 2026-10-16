@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Image Studio: MADRE's own MCP image server on the Gemini image models, for
 // the CLIs that cannot draw natively. A switch and a model in config.json.
 

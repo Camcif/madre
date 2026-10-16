@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // @madre: the room's own intelligence. A local model (Ollama) that answers
 // from what the room remembers: the whole archive, not only the recent window,
 // plus the files the human points at. It never writes, never delegates, never

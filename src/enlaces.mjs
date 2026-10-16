@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Links between rooms (docs/MACROVERSO.md, phase 3b): the contract two rooms sign, the key that
 // proves a caller is a MADRE process on this Mac, the side that asks, and the counters of what
 // crossed. A link reads; nothing here writes in another room.

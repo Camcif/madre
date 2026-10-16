@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // A project has one memory and many conversations.
 //
 // The archive, the crew, the modules and the privacy list belong to the project: they are what

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The three tests that answer "is this room ready to be developed with?"
 //
 // The maturity reading counts what the archive is made of. It cannot tell you whether the archive

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 import { fileURLToPath } from 'node:url';
 
 // How MADRE attaches the room's memory to a CLI as an MCP server, every turn:

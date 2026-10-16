@@ -9,7 +9,7 @@
   <a href="https://github.com/jossuealcacao-exe/madre/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/jossuealcacao-exe/madre/ci.yml?style=flat-square&label=CI&color=9bff66&labelColor=050605"></a>
   <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A5%2022.5-9bff66?style=flat-square&labelColor=050605">
   <img alt="dependencies" src="https://img.shields.io/badge/dependencies-0-9bff66?style=flat-square&labelColor=050605">
-  <img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-9bff66?style=flat-square&labelColor=050605">
+  <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-9bff66?style=flat-square&labelColor=050605">
 </p>
 
 <br>
@@ -228,11 +228,14 @@ MADRE is free and will stay that way. If it saves you time and you want it to ke
 you can [sponsor it](https://github.com/sponsors/jossuealcacao-exe). Nothing in the product
 changes based on what you do with that link.
 
-Apache-2.0 · [Jossue Alcalá](https://jossuealcala.com/en/)
+AGPL-3.0 with additional terms · © 2026 [Jossue Alcalá](https://jossuealcala.com/en/)
 
-The code is free: use it, modify it and fork it. The name **MADRE**, its logo and madre.run are
-trademarks of Jossue Alcalá. A fork that is distributed keeps the [`NOTICE`](NOTICE) file with the line
-"Based on MADRE by Jossue Alcalá", and if it changes the code it goes by another name. What's allowed and what isn't:
+The code is free software under the [GNU AGPL v3](LICENSE) with [additional terms](ADDITIONAL-TERMS.md):
+use it, modify it and fork it, as long as your version stays open under the same license and keeps the
+authorship visible —«MADRE ‹version› · © 2026 Jossue Alcalá» in the corner of every project and of Home,
+linked to jossuealcala.com, or «Built with MADRE by Jossue Alcalá» under another name. The name
+**MADRE**, its logo and madre.run are trademarks of Jossue Alcalá: a modified version goes by another
+name. Up to 1.0.1, MADRE was published under the Apache License 2.0. What's allowed and what isn't:
 [TRADEMARKS.en.md](TRADEMARKS.en.md).
 
 <br>

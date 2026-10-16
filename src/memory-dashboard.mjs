@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // What the MEMORY dashboard draws, shaped from counts the archive already keeps.
 //
 // Pure functions. The room hands in `RoomMemory#activity()` and the stats it already reports;

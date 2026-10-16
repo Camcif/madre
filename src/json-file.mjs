@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Small files that more than one thing changes at once (2026-10-12, Lote 2 of the 1.0 review): the
 // tour, the review ask, a project's record of where it is, the list of a room's conversations.
 // Each was read, changed and written with nothing between two changes, so the second one wrote

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The archivist: every so often the cheapest allowed agent reads what nobody
 // has distilled and keeps the few notes worth remembering. Scheduling by count
 // or by quiet, one batch per run, a bench for whoever fails, a report to the

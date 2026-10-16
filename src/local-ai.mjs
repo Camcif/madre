@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Which projects use the local AI (Ollama), decided from Home (2026-10-13).
 //
 // Ollama is one per computer and its switches live in ~/.pulse/config.json, which every project

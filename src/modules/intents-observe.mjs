@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Intenciones, learned from real use: how each turn the human already paid for went.
 //
 // The calibration (intents-calibration.mjs) asks real questions again, at two rungs, and a judge

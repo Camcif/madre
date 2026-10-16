@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 import { archiveQuestion, modeAskedWithTime, MODE_WINDOWS, windowFor } from './routing.js';
 import { calledByName, abduct } from './abduction.js';
 import { brandOf, monogram } from './brands.js';
@@ -9,7 +11,7 @@ import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
 import { spotlight, startTour as startWelcome } from './tour.js';
 import { dropStickyHover } from './touch.js';
-import { drawAttribution } from './attribution.js';
+import { drawAttribution, drawLegal } from './attribution.js';
 // Where nothing can hover (a phone), a tapped key does not stay lit (public/touch.js).
 dropStickyHover();
 // Made the first time the room asks for it (roomTour, below), which can be while this file is
@@ -18253,6 +18255,7 @@ function drawRelease(section, info) {
   }, { disabled: Boolean(info.envWins), label: t('Look for new versions') });
   sxRow(block, t('Look for new versions'), t('Once a day MADRE checks whether there\'s a new version. Only the app\'s name is sent.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
   if (info.enabled) sxRow(block, t('Last check'), when ?? t('Not yet.'), sxButton(t('Check now'), () => void loadVersion({ force: true })));
+  drawLegal(section);
 
   if (!info.available) return;
   const canRestart = info.install !== 'source';

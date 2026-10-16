@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The vault: where a connector's secret lives.
 //
 // Until now MADRE held none. A key for Gemini or OpenCode is written where THAT CLI looks for it

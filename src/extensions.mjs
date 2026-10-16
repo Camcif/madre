@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 import { spawn } from 'node:child_process';
 import { MODULES, moduleById, describeModules } from './modules/index.mjs';
 export { gitToplevel, findOnPath } from './modules/helpers.mjs';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // MADRE's durable room memory, two layers in one SQLite file next to the ledger.
 //   entries   everything ever said in the room outside GHOST, indexed for
 //             full-text recall: exact quotes handed to a turn when they match.

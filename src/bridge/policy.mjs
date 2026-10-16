@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // What a phone may do in a room (docs/MOBILE.md, section 4).
 //
 // A list of what passes, not of what does not: a route the room grows tomorrow stays on the Mac

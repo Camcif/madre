@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // MADRE en español.
 //
 // La clave es la frase en inglés tal como está escrita en el código; el valor es lo que dice
@@ -4844,6 +4846,17 @@ export const ES = {
   'Copilot on. Say what you want done; it edits, plans and checks on its own.': 'Copiloto encendido. Di qué quieres lograr; edita, planea y revisa por su cuenta.',
   '@madre is in the project · {version}': '@madre está en el proyecto · {version}',
   '@madre left the project: Ollama has no chat model running': '@madre salió del proyecto: Ollama no tiene un modelo de chat corriendo',
+  // Licencia y autoría (public/attribution.js, 2026-10-15).
+  'License and authorship': 'Licencia y autoría',
+  "© {year} {author}. MADRE is free software: you can share it and change it under the {license}, with additional terms that keep its author's attribution visible. It comes with no warranty of any kind.": '© {year} {author}. MADRE es software libre: puedes compartirlo y modificarlo bajo la {license}, con términos adicionales que mantienen visible la atribución de su autor. Se ofrece sin ninguna garantía.',
+  'Made by {author}': 'Hecho por {author}',
+  'Every copy and every version based on MADRE keeps this attribution visible.': 'Toda copia y toda versión basada en MADRE mantiene visible esta atribución.',
+  'The license': 'La licencia',
+  'Read': 'Leer',
+  'The additional terms': 'Los términos adicionales',
+  'Author attribution, origin and trademarks (Section 7).': 'Atribución del autor, origen y marcas (sección 7).',
+  'The source code': 'El código fuente',
+  'Whoever offers a modified MADRE must offer its source code too.': 'Quien ofrezca un MADRE modificado debe ofrecer también su código fuente.',
   'New: Copilot': 'Nuevo: Copiloto',
   'Let an agent work on its own for a while. Press the robot, choose how long, and the agent you write to can change files, make plans and run safe commands without asking you each time. It asks for your permission only once.': 'Deja que un agente trabaje solo por un rato. Presiona el robot, elige cuánto tiempo, y el agente al que le escribes podrá cambiar archivos, armar planes y correr comandos seguros sin preguntarte cada vez. Te pide permiso una sola vez.',
   'New: Outside tools (MCP)': 'Nuevo: Herramientas externas (MCP)',

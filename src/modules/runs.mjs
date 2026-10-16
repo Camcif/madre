@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Runs: letting an agent ask the human to run a command instead of asking them to copy it.
 //
 // Below #4 AIRLOCK an agent cannot run anything, and some answers turn on a command anyway: the

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Ash changes only the requested shape of an answer. This policy is pure and local: it neither
 // rewrites the human's request nor changes model, context, tools or permissions.
 

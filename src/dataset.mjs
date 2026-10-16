@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The dataset behind MADRE AI: every exchange the room kept (never GHOST),
 // redacted, as chat pairs a small model can learn from, plus the distilled
 // notes. Written next to the room's ledger in the format mlx-lm and most

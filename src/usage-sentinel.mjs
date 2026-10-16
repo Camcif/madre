@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 import { t } from './i18n.mjs';
 
 const severity = { normal: 0, warning: 1, critical: 2, exhausted: 3 };

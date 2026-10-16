@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // How the person wants MADRE to look, once for every page (2026-10-12). Each project is its own
 // origin — another port — and Home is one more, so what a browser keeps for one is invisible to
 // the others: the dark theme chosen in Home left every project light. The choices live here, in

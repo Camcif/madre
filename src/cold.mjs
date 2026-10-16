@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Cold zones: the part of the archive nothing has ever reached for.
 //
 // A memory is cold when three things are true at once, and the three together are what make the

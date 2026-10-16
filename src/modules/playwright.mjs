@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // PLAYWRIGHT: a headless browser for the crew, pointed only at this MADRE. Agents open the
 // RIPLEY preview of project files, click, read the console and take screenshots into the turn's
 // scratch folder. Runs @playwright/mcp per turn, isolated, with allowed origins limited to the

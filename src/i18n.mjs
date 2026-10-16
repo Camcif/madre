@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The room's language, on this side of the wire.
 //
 // The catalogue is the page's: public/es.js, one file for the whole product, because a sentence

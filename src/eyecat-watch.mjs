@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // EYECAT, as the room runs it. The judgement lives in eyecat.mjs; this schedules it, picks who
 // may answer, and puts what comes back in front of the human.
 //

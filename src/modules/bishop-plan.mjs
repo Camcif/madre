@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // BISHOP's plans, without the room around them (docs/MACROVERSO.md, fases 4b y 4c): the block a
 // reply ends with, what each of its lines means on this Mac, and the record the buttons act on.
 // Nothing here sends, signs or starts anything; src/modules/bishop.mjs does, after a human press

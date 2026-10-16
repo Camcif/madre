@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: AGPL-3.0-only
+   MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md */
 /* SALAS on the Mac (salas-mac.html). The tokens are the room's (styles.css, loaded first): the same
    ground, panels, bevel and accent, so leaving a room for SALAS is not leaving MADRE. The sky is
    painted once, in CSS: three glows and two layers of fixed stars, nothing that moves. */

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // What a version brings, said to the person who just got it.
 //
 // After an update the room opens once on a sheet of what is new: a few things, each said plainly,

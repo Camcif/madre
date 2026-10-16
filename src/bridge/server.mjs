@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The bridge: the one thing on this Mac a phone can reach (docs/MOBILE.md, MOV-001).
 //
 // Rooms keep listening on 127.0.0.1 and keep refusing anything that does not call them by that

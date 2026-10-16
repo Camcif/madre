@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Embeddings for the room memory: meaning-aware recall on top of the lexical
 // index. Gemini's embedding model through the user's own key (the same key
 // Image Studio and the Gemini CLI use); no key, no embeddings, and recall stays

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The words an agent reads at the start of a turn. Pure: everything the room
 // knows is handed in, nothing is looked up. Order matters: who you are, what
 // you may do, what the room remembers, what was said, what is asked.

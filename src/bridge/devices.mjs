@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // The phones that may reach this Mac, and the networks where they may.
 //
 // One file, `~/.pulse/devices.json`, owner-only, shared by every room on this Mac: any of them can

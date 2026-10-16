@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// MADRE · © 2026 Jossue Alcalá · GNU AGPL v3 with additional terms (Section 7): ADDITIONAL-TERMS.md
 // Tiny argv reader for the MADRE CLI. Accepts `--name value` and
 // `--name=value`, and remembers which options the user set explicitly so the
 // room can choose sensible defaults (like the next free port) only when they
