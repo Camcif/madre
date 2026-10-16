@@ -9400,12 +9400,12 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 /* El contexto compartido no lleva etiqueta: empieza con palabras y sus @agentes van en la frase. */
 #messages#messages .sys-dots.open > .system.folded.handoff > b:first-child { display: inline; margin: 0; font: 600 13.5px/1.5 var(--read); letter-spacing: 0; text-transform: none; color: var(--text); }
 
-/* Lo que queda detrás de la caja de escribir (2026-10-15): la conversación se desvanece justo antes
-   de la caja (--dock-h la mide app.js, measureDock) en vez de asomarse bajo modo · modelo y detrás
+/* Lo que queda detrás de la caja de escribir (2026-10-15): la conversación se desvanece en los últimos
+   18 px antes de la caja (más largo se veía como un resplandor sobre las tarjetas) (--dock-h la mide app.js, measureDock) en vez de asomarse bajo modo · modelo y detrás
    de la versión. El final de la conversación sigue subiendo por encima: el hilo ya deja ese aire. */
 :root:not(.via-phone) #messages.thread {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--dock-h, 0px) - 40px), transparent calc(100% - var(--dock-h, 0px) + 6px));
-  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--dock-h, 0px) - 40px), transparent calc(100% - var(--dock-h, 0px) + 6px));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--dock-h, 0px) - 14px), transparent calc(100% - var(--dock-h, 0px) + 4px));
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--dock-h, 0px) - 14px), transparent calc(100% - var(--dock-h, 0px) + 4px));
 }
 /* La barra del proyecto junto a dos paneles (2026-10-15): angosta en una pantalla ancha. Por
    debajo de 760 px «Primeros pasos» queda en su anillo y su cuenta (la frase sigue en su nombre y
@@ -9419,3 +9419,7 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
   .shell > .bar:not(.bar-home) .project:not(.chat-here) { font-size: 11px; }
   .shell > .bar:not(.bar-home) .project:not(.chat-here)::after { content: none; }
 }
+/* Cerrada, la salida de un /run no da su ancho a la píldora (2026-10-15): sus líneas largas (un
+   `cloc`, una tabla) la estiraban de lado a lado aunque no se vieran. Ocupa el ancho de la píldora
+   sin pedirlo; abierta, vuelve a medir lo suyo. */
+:root[data-term="pill"] #messages#messages .command-card.terminal:not(.open) .term-out { width: 0; min-width: 100%; }
