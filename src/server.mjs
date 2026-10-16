@@ -2181,7 +2181,7 @@ export async function createPulseServer({
       if (request.method === 'POST' && url.pathname === '/api/salas/enlaces/recall') {
         const payload = await body(request).catch(() => ({}));
         if (request.headers.origin === undefined) return sendJson(response, 403, { error: t('This is changed by you, from Home.') });
-        if (typeof payload.recall !== 'boolean') return sendJson(response, 422, { error: t('recall can only be on or off.') });
+        if (typeof payload.recall !== 'boolean') return sendJson(response, 422, { error: t('automatic recall can only be on or off.') });
         const contract = await recallContract(root, String(payload.id ?? ''), payload.recall, { salas: salasRoomId(root) });
         if (!contract) return sendJson(response, 404, { error: NO_SUCH_LINK });
         return sendJson(response, 200, { contract });
@@ -3362,7 +3362,7 @@ export async function createPulseServer({
       // The human ran some lines of a request and hands back what there is, without the rest.
       if (request.method === 'POST' && url.pathname === '/api/runs/return') {
         const payload = await body(request).catch(() => ({}));
-        if (typeof payload.responseMessageId !== 'string') return sendJson(response, 400, { error: t('Name the request to hand back.') });
+        if (typeof payload.responseMessageId !== 'string') return sendJson(response, 400, { error: t('Say which request to hand back.') });
         const here = await scopeOf(url);
         if (here.error) return sendJson(response, 404, here);
         const outcome = await here.room.returnRun({ responseMessageId: payload.responseMessageId, returnCap: viaPhone ? PHONE_MAX_MODE : 3 });
@@ -3502,7 +3502,7 @@ export async function createPulseServer({
         // A copilot message at #3 goes with the copilot's window instead of a pass; from this
         // computer only. With the window closed it is said, and the page asks for the key again.
         if (payload.copilot === true && (viaPhone || !copilotNow())) {
-          if (!viaPhone) return sendJson(response, 409, { error: t('The copilot is off: it ended or was stopped. Turn it on again, or send with the #3 key.'), copilotOff: true });
+          if (!viaPhone) return sendJson(response, 409, { error: t('The copilot is off: it ended or was stopped. Turn it on again, or send and confirm #3.'), copilotOff: true });
           delete payload.copilot;
         }
         // Modes are checked before the turn is accepted, so the composer

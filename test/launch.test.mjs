@@ -85,7 +85,7 @@ test('launch: the floor under the document shows the command, the isolation and 
   assert.match(app, /WHAT MADRE WOULD RUN TO DELIVER IT/);
   assert.match(app, /WHAT KEEPS IT TO THIS TURN/);
   assert.match(app, /NAMES ONLY\. NO VALUE IS EVER SHOWN HERE\./);
-  assert.match(app, /CONNECTED TOOLS \(MCP\) IT CAN USE/);
+  assert.match(app, /OUTSIDE TOOLS \(MCP\) IT CAN USE/);
   assert.match(app, /NOTHING IS RUN FROM HERE/);
   assert.match(css, /\.core-doc, \.core-launch, \.core-outbound \{/);
 });

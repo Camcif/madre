@@ -2519,9 +2519,9 @@ function renderPicker() {
       grace.type = 'button';
       grace.dataset.mode = String(mode);
       grace.dataset.agent = current.id;
-      grace.title = t('{label} does not ask you to confirm again for @{agent} until this runs out. Click to close it now.', { label: MODES[mode].label, agent: current.id });
+      grace.title = t('{label} does not ask you to confirm again for @{agent} until this runs out. Click to end it now.', { label: MODES[mode].label, agent: current.id });
       grace.append(el('b', null, `#${mode}`), el('span', null, t('open')), el('span', 'left', graceWords(left)), el('i', null, '×'));
-      grace.addEventListener('click', (event) => { event.stopPropagation(); closeOverrideGrace(mode, current.id); toast(t('Diagnostics › {label} closed for @{agent}: the next message asks you to confirm again.', { label: MODES[mode].label, agent: current.id }), { tone: 'done' }); });
+      grace.addEventListener('click', (event) => { event.stopPropagation(); closeOverrideGrace(mode, current.id); toast(t('Diagnostics › {label} locked again for @{agent}: the next message asks you to confirm again.', { label: MODES[mode].label, agent: current.id }), { tone: 'done' }); });
       text.append(grace);
       break;
     }
@@ -2645,7 +2645,7 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') cl
 // dimmed when MADRE can read it (Codex's config.toml), so the human sees what they will get
 // without having chosen it.
 const EFFORT_WORDS = {
-  none: { label: 'None', hint: 'No reasoning: it answers straight away. For the simplest asks.' },
+  none: { label: 'None', hint: 'No reasoning: it answers straight away. For the simplest requests.' },
   minimal: { label: 'Minimal', hint: 'Answers almost at once. For lookups and one-line edits.' },
   low: { label: 'Low', hint: 'Quick and light. For clear, contained requests.' },
   medium: { label: 'Medium', hint: 'The everyday balance of speed and depth.' },
@@ -2997,13 +2997,13 @@ function toggleCopilotMenu(anchor, { keep = false } = {}) {
   box.setAttribute('aria-label', t('Copilot'));
   box.addEventListener('change', async () => {
     if (box.checked) { box.checked = false; openCopilotKey(copilotUI.chosen); return; }
-    try { applyCopilot(await (await fetch('/api/copilot/off', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json()); toast(t('Copilot off. Each #3 asks for its key again.'), { tone: 'done' }); } catch (error) { toast(t('Could not reach MADRE: {error}', { error: error.message })); }
+    try { applyCopilot(await (await fetch('/api/copilot/off', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json()); toast(t('Copilot off. Each #3 message asks you to confirm again.'), { tone: 'done' }); } catch (error) { toast(t('Could not reach MADRE: {error}', { error: error.message })); }
   });
   toggle.append(box, el('i'));
   title.append(toggle);
   const body = el('div', 'copilot-body');
   body.append(
-    el('p', 'copilot-lead', t('The agent you write to drives the project: it edits, plans with the others and gives each step up to #3, and runs the safe commands — reading, tests, builds, local git — by itself.')),
+    el('p', 'copilot-lead', t('The agent you write to drives the project: it edits, makes plans with the other agents (each step can go up to #3 EDIT), and runs the safe commands — reading, tests, builds, local git — on its own.')),
     el('p', 'copilot-never', t('It never deletes, never touches MADRE\'s folders or your secrets, and never pushes, publishes or sends anything off this computer: that stays with you.')),
   );
   if (on) {
@@ -3011,7 +3011,7 @@ function toggleCopilotMenu(anchor, { keep = false } = {}) {
   } else {
     const how = el('div', 'copilot-how');
     how.append(el('span', null, t('For')), sxSeg(copilotUI.windows.map((minutes) => ({ value: String(minutes), text: copilotWindowWords(minutes) })), String(copilotUI.chosen), (value) => { copilotUI.chosen = Number(value); }, { label: t('How long the copilot lasts') }));
-    body.append(how, el('p', 'copilot-foot', t('It asks for the #3 key once. STOP ALL ends it.')));
+    body.append(how, el('p', 'copilot-foot', t('It asks you to confirm #3 only once. STOP ALL ends it.')));
   }
   copilotMenu.replaceChildren(title, body);
   copilotMenu.hidden = false;
@@ -3277,7 +3277,7 @@ function openOverride(id, { raise = false, mode = 3, then = null, cancelled = nu
     if (!slot && override.form) { slot = el('div', 'tour-hint-slot'); override.form.before(slot); }
     if (slot) void roomTour().hint('key4', slot, { inside: true, title: t('#4 asks you to confirm twice'), text: t('With #4 the agent may run commands, publish and deploy: what leaves your Mac does not come back. That is why the confirmation is typed twice.') });
   }
-  override.brief.textContent = override.copilot ? t('The agent you write to edits the project and runs the safe commands by itself, with no key per message, until it ends.') : OVERRIDE_BRIEF[mode].what(id);
+  override.brief.textContent = override.copilot ? t('The agent you write to edits the project and runs the safe commands by itself, without asking you to confirm each message, until it ends.') : OVERRIDE_BRIEF[mode].what(id);
   override.safe.textContent = override.copilot ? t('It never deletes, pushes, publishes or deploys; each change gets a restore point; STOP ALL ends it.') : OVERRIDE_BRIEF[mode].safe();
   override.raised.hidden = !raise;
   override.raised.textContent = raise ? t('This also raises its max mode to #{n}.', { n: mode }) : '';
@@ -4154,7 +4154,7 @@ function paintUncharged(cost) {
   if (total <= 0) return;
   const span = stamp.querySelector('.uncharged') ?? el('span', 'uncharged');
   span.textContent = t('{n} uncharged', { n: formatTokens(total) });
-  span.title = t('{cached} tokens this agent\'s app read back from its own cache instead of charging them again (measured). {unsent} tokens MADRE did not need to send the agent (estimated at {rate} characters per token). Neither is the Token saver: the Token saver shortens the answer, and its figure is above the bubble.', {
+  span.title = t('{cached} tokens this agent\'s app read back from its own cache, billed at a lower price than new input (measured). {unsent} tokens MADRE did not need to send the agent (estimated at {rate} characters per token). Neither is the Token saver: the Token saver shortens the answer, and its figure is above the bubble.', {
     cached: cached.toLocaleString(), unsent: unsent.toLocaleString(), rate: CH_PER_TOKEN,
   });
   // Before the running total, after the turn's own bill: read left to right it is what this turn
@@ -4469,7 +4469,7 @@ function attachModeAsk(payload, { sequence = null } = {}) {
   const actions = el('div', 'mode-actions');
   const go = el('button', 'mode-go');
   go.type = 'button';
-  const goWords = () => { go.textContent = minutes ? t('GRANT #{n} · {m} MIN · LET IT GO ON', { n: wanted, m: minutes }) : t('GRANT #{n} · LET IT GO ON', { n: wanted }); };
+  const goWords = () => { go.textContent = minutes ? t('GRANT #{n} FOR {m} MIN AND CONTINUE', { n: wanted, m: minutes }) : t('GRANT #{n} AND CONTINUE', { n: wanted }); };
   goWords();
   let time = null;
   if (windows.length > 1) {
@@ -4915,7 +4915,7 @@ function renderLeaseMissing(event) {
   // Its keys speak in sentences, as the room's keys do now; the agent as the room writes it.
   const resend = el('button', 'resend', askWords(t('RESEND TO @{agent} WITH CREATE', { agent })));
   resend.type = 'button';
-  resend.title = t('Send this same request from you, with permission to create files.');
+  resend.title = t('Send this same request again yourself, with permission to create files.');
   resend.addEventListener('click', async () => {
     resend.disabled = true;
     try {
@@ -4970,7 +4970,7 @@ function renderModeRequest(event) {
     }
   };
   const once = el('button', 'grant', t('GRANT ONCE')); once.type = 'button'; once.title = mode >= 3 ? t('Unlock #{mode} for this step only.', { mode }) : t('Allow creation for this step only.');
-  const plan = el('button', 'grant plan', t('GRANT FOR PLAN')); plan.type = 'button'; plan.title = mode >= 3 ? t('Unlock #{mode} for the remaining steps of this plan.', { mode }) : t('Every remaining step of this plan that can write shares one create-permission folder.');
+  const plan = el('button', 'grant plan', t('GRANT FOR PLAN')); plan.type = 'button'; plan.title = mode >= 3 ? t('Unlock #{mode} for the remaining steps of this plan.', { mode }) : t('Every remaining step of this plan that can write uses the same folder for new files.');
   const deny = el('button', 'deny', t('DENY')); deny.type = 'button'; deny.title = t('The step continues in read-only mode.');
   once.addEventListener('click', () => decide('once', once));
   plan.addEventListener('click', () => decide('plan', plan));
@@ -5634,7 +5634,7 @@ function renderBishopProposal(event) {
       els.input.value = `@${agent} #${mode} ${text}`;
       els.input.dispatchEvent(new Event('input', { bubbles: true }));
       els.input.focus();
-      toast(t('Diagnostics › written in the Write box. Sending it asks you to confirm, as always.'));
+      toast(t('Diagnostics › the order is now in the Write box. Sending it asks you to confirm, as always.'));
     });
     node.append(arm);
   }
@@ -5922,7 +5922,7 @@ function retryLonger({ messageId, target, timeout, partial }) {
     els.input.value = [asked?.text ?? '', note].filter(Boolean).join('\n\n');
     // CREATE comes back by itself; CONTROL and AIRLOCK ask for their keys again, from the chip.
     if ((asked?.mode ?? 1) === 2) setMode(2);
-    else if ((asked?.mode ?? 1) >= 3) toast(t('Diagnostics › #{n} needs you to confirm again: choose it on the mode chip before sending.', { n: asked.mode }));
+    else if ((asked?.mode ?? 1) >= 3) toast(t('Diagnostics › #{n} needs you to confirm again: choose it in the mode selector before sending.', { n: asked.mode }));
     autosize();
     els.input.focus();
     retry.textContent = t('IN THE BOX · SEND IT WHEN READY');
@@ -6050,7 +6050,7 @@ function renderEventNode(event) {
       node = el('div', `system copilot${started ? ' granted' : ''}`);
       const when = started ? new Date(event.payload.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
       node.append(el('b', null, t('copilot › ')), started
-        ? t('on until {time}: the agent you write to drives the project, with no key per message', { time: when })
+        ? t('on until {time}: the agent you write to drives the project without asking you to confirm each message', { time: when })
         : { time: t('off: its time ran out'), stopall: t('off: STOP ALL ended it'), human: t('off: you turned it off') }[event.payload.reason] ?? t('off'));
       if (!replaying) void loadCopilot();
       state.lastSender = null;
@@ -6302,7 +6302,7 @@ function countStrip(strip) {
   let more = strip.querySelector(':scope > .sys-more');
   if (!more) { more = el('span', 'sys-more'); strip.append(more); }
   const open = strip.classList.contains('open');
-  more.textContent = open ? t('fold') : notices.length > 1 ? `+${notices.length - 1}` : '';
+  more.textContent = open ? t('collapse') : notices.length > 1 ? `+${notices.length - 1}` : '';
   more.hidden = !open && notices.length < 2;
   // A row of one is only its dot, centred in a round badge.
   strip.classList.toggle('single', !open && notices.length < 2);
@@ -6718,7 +6718,7 @@ function drawCustom() {
     section(t('LANGUAGE'), null, languages, t('The whole interface. The page reloads in it when you accept.')),
     section(t('THEME'), null, themes, t('Automatic follows your system. The whole project changes, not only the conversation.')),
     section(t('WALLPAPER'), null, (() => { const box = el('div', 'paper-box'); box.append(papers); if (paperTune.children.length) box.append(paperTune); return box; })(), PHOTO_WALLPAPERS.has(draft.wallpaper)
-      ? t('The project\'s background can be a photograph, as a layer or as a mesh of its own colours: choose how strong it looks and how much the photograph blurs.')
+      ? t('The project\'s background can be a photograph, shown as a layer or as a mesh of its colors: choose how strong it looks and how much the photograph blurs.')
       : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.')),
     section(t('ACCENT'), named, swatches, t('Each colour in dark (top) and in light (bottom): on a light ground it deepens so it can be read. The conversation and the buttons wear it; the permission modes keep their own.')),
     section(t('BUBBLES'), null, segmented('bubbles')),
@@ -6747,7 +6747,7 @@ function drawCustom() {
     paperBox.append(papers);
     if (paperTune.children.length) paperBox.append(paperTune);
     const paperBlock = sxBlock(page, t('Wallpaper'), PHOTO_WALLPAPERS.has(draft.wallpaper)
-      ? t('The project\'s background can be a photograph, as a layer or as a mesh of its own colours: choose how strong it looks and how much the photograph blurs.')
+      ? t('The project\'s background can be a photograph, shown as a layer or as a mesh of its colors: choose how strong it looks and how much the photograph blurs.')
       : t('Behind the conversation, in this window and in every conversation beside it. Light and dark each have their own.'));
     paperBlock.rows.append(paperBox);
     const talk = sxBlock(page, t('Conversation'));
@@ -10756,7 +10756,7 @@ function paintIntentTried(box, once) {
   box.classList.remove('up');
   box.append(el('span', 'free-what', once.from
     ? t('This one goes at {level} · if it falls short, MADRE will notice and go back to {from}', { level, from: effortLabel(once.from).toUpperCase() })
-    : t('This one goes at {level} · if it falls short, MADRE will notice and go back to the CLI default', { level })));
+    : t('This one goes at {level} · if it falls short, MADRE will notice and go back to the agent\'s default level', { level })));
   box.append(el('span', 'intent-basis trial', t('Trial')));
   const undo = el('button', 'free-later', t('Undo'));
   undo.type = 'button';
@@ -11458,7 +11458,7 @@ els.composer.addEventListener('submit', async (event) => {
       // The pass ran out (the project restarted, or the permission it held ended): the key is
       // asked again, and the message goes once it is in.
       // The copilot ended while this was being written: said, and the next #3 asks for its key.
-      if (result.copilotOff) { applyCopilot({ active: false }); toast(t('The copilot ended. Send again with the #3 key, or turn it on again.')); return; }
+      if (result.copilotOff) { applyCopilot({ active: false }); toast(t('The copilot ended. Send again and confirm #3, or turn it on again.')); return; }
       if (result.needsKey && sentMode >= 3 && addressed) {
         closeOverrideGrace(sentMode, addressed);
         openOverride(addressed, { mode: sentMode, then: () => els.composer.requestSubmit() });
@@ -12103,11 +12103,11 @@ function renderEyecat(event) {
     }).then((res) => res.json()).catch(() => null);
     if (!response || response.error) {
       for (const button of actions.querySelectorAll('button')) button.disabled = false;
-      toast(response?.error ?? t('The memory reviewer could not be answered.'));
+      toast(response?.error ?? t('Your answer did not reach the memory reviewer.'));
     }
   };
   const confirm = el('button', 'primary', t('IT IS FALSE'));
-  confirm.title = t('Marks it as a doubtful memory and stops using it in answers. Reversible from the memory map.');
+  confirm.title = t('Marks it as a doubtful memory and stops using it in answers. Reversible from the Memory map.');
   confirm.addEventListener('click', () => { void answer('confirm'); });
   const dismiss = el('button', null, t('IT STANDS'));
   dismiss.title = t('The project was right. This contradiction is never flagged again.');
@@ -12178,7 +12178,7 @@ function mcpStatus() {
   if (!servers.length) return { line: t('No outside tools yet') };
   const ready = servers.filter((one) => one.enabled && !one.problem && one.tools?.length).length;
   const stuck = servers.filter((one) => one.enabled && (one.problem || one.needsAuth));
-  return { line: t('{ready} of {total} tools ready', { ready, total: servers.length }), warn: stuck.length ? t('{names} need you', { names: stuck.map((one) => one.label).join(', ') }) : null };
+  return { line: t('{ready} of {total} tools ready', { ready, total: servers.length }), warn: stuck.length ? t(stuck.length === 1 ? '{names} needs you' : '{names} need you', { names: stuck.map((one) => one.label).join(', ') }) : null };
 }
 async function mcpCall(path, body = null, { method = body ? 'POST' : 'GET' } = {}) {
   const response = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -12362,7 +12362,7 @@ function drawMcpImport(host) {
     const label = el('label', 'mcp-pick');
     label.append(box);
     const secrets = one.env.length + one.headers.length;
-    sxRow(block, `${one.name} · ${one.source}`, `${one.where}${secrets ? ` · ${t('{n} keys to keep safe', { n: secrets })}` : ''}${one.taken ? ` · ${t('already here')}` : one.disabled ? ` · ${t('off in that app')}` : ''}`, label);
+    sxRow(block, `${one.name} · ${one.source}`, `${one.where}${secrets ? ` · ${t('{n} secrets to keep safe', { n: secrets })}` : ''}${one.taken ? ` · ${t('already in this project')}` : one.disabled ? ` · ${t('off in that app')}` : ''}`, label);
   }
   const actions = el('div', 'mcp-actions');
   if (found.length) {
@@ -12979,7 +12979,7 @@ async function renderEconomy(box) {
   // different kinds have no shape to draw, and drawing one anyway is how a panel starts lying.
   const strip = el('div', 'economy-strip');
   for (const [value, label, hint] of [
-    [count(read.billed ?? read.turns), t('TURNS BILLED'), t('every turn this project has been billed for')],
+    [count(read.billed ?? read.turns), t('ANSWERS BILLED'), t('every turn this project has been billed for')],
     [count((totals.input ?? 0) + (totals.created ?? 0)), t('INPUT CHARGED'), t('fresh reading, plus what was written into a cache (billed too) · the cache read back is apart')],
     [count(totals.output), t('OUTPUT CHARGED'), t('tokens the agent writes in its answer · the more expensive part')],
     [count(saved.tokens), t('NOT CHARGED IN FULL'), t('read back from a cache (a fraction of the price, or of the plan) plus what was never sent')],
@@ -13013,7 +13013,7 @@ async function renderEconomy(box) {
     free.append(cardHead('home', t('TURNS THE PROJECT ANSWERED ITSELF')));
     metrics(free, [
       [t('FREE TURNS'), count(read.free.turns), t('answered by @madre on this computer · no provider, no bill')],
-      [t('OF EVERY TURN'), pct(read.free.share), t('of the turns measured in this project')],
+      [t('OF EVERY TURN'), pct(read.free.share), t('of the answers measured in this project')],
       [t('A PAID TURN'), read.free.paidOutputMedian ? `${count(read.free.paidOutputMedian)}↑` : '—', t('the typical (median) paid answer here · what the others cost, not what these would have')],
     ]);
     free.append(el('p', 'note', t('These turns have no bill because nothing left this computer to answer them. MADRE does not say what they would have cost somewhere else: nobody measured that.')));
@@ -13048,7 +13048,7 @@ async function renderEconomy(box) {
   // The tools a turn carried. A server's tool list goes into every call a CLI makes inside a turn;
   // the middle turn with it against the middle turn without it, per agent, with the counts behind.
   if (read.servers?.length) {
-    third.append(el('p', 'unit-note', t('Fresh input tokens of a typical (median) turn with each tool server attached, and without it.')));
+    third.append(el('p', 'unit-note', t('Fresh input tokens of a typical (median) turn with each outside tool (MCP) connected, and without it.')));
     for (const one of read.servers) {
       third.append(el('p', 'note', t('@{agent} · {server}: {with} with it ({nWith} turns) · {without} without it ({nWithout} turns)', { agent: one.agent, server: one.server, with: count(one.medianWith), nWith: one.with, without: count(one.medianWithout), nWithout: one.without })));
     }
@@ -13125,7 +13125,7 @@ function ashComparison(box, ash) {
         group.append(row);
       }
     } else {
-      group.append(el('p', 'ash-waiting', t('{n} turns with TOKEN SAVER, {m} without · {min} of each are needed to compare', {
+      group.append(el('p', 'ash-waiting', t('{n} answers with TOKEN SAVER, {m} without · {min} of each are needed to compare', {
         n: agent.on.turns, m: agent.off.turns, min: ash.minTurns,
       })));
     }
@@ -13507,7 +13507,7 @@ function builtinCard(item) {
     const status = el('dl', 'ollama-status');
     const put = (k, v) => { status.append(el('dt', null, k), el('dd', null, v)); };
     put(t('SERVER'), info.running ? t('running · {host}', { host: info.host }) : t('not running'));
-    put(t('SMART SEARCH'), info.embedModel ? `${info.embedModel}${info.settings.embeddings === false ? t(' · off') : ''}` : t('no embedding model'));
+    put(t('SEARCH BY MEANING'), info.embedModel ? `${info.embedModel}${info.settings.embeddings === false ? t(' · off') : ''}` : t('no embedding model'));
     put(t('ARCHIVIST'), info.chatModel ? `${info.chatModel}${info.settings.archivist === false ? t(' · off') : ''}` : t('no chat model'));
     if (info.models?.length) put(t('MODELS'), info.models.map((model) => model.name).join(', '));
     read.append(status);
@@ -13520,7 +13520,7 @@ function builtinCard(item) {
       const roles = cardBlock(panel, t('ROLES'));
       const row = el('div', 'card-toggles');
       for (const [role, model, present, label] of [
-        ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('SMART SEARCH')],
+        ['embeddings', item.recommended?.embed ?? 'nomic-embed-text', Boolean(info.embedModel), t('SEARCH BY MEANING')],
         ['archivist', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('ARCHIVIST')],
         ['agent', item.recommended?.chat ?? 'qwen2.5:3b', Boolean(info.chatModel), t('@madre in the project')],
       ]) {
@@ -14955,7 +14955,7 @@ async function fillCoreBoard() {
     const local = el('div', 'mem-kpis');
     memTile(local, { label: t('SERVER'), value: o.running ? (o.version ? `v${o.version}` : t('ON')) : t('OFF'), sub: o.running ? o.host : (o.error ?? t('not running')) });
     memTile(local, { label: t('CHAT'), value: o.madreModel ?? o.chatModel ?? '—', sub: o.madreModel ? t('TRAINED FOR THIS PROJECT') : t('NOT TRAINED FOR THIS PROJECT YET') }).classList.add('word');
-    memTile(local, { label: t('SMART SEARCH'), value: o.embedModel ?? '—', sub: d?.vectors ? t('{n} SEARCHABLE BY MEANING', { n: memFmt((d.vectors.memories ?? 0) + (d.vectors.entries ?? 0)) }) : t('RECALL MATCHES WORDS ONLY') }).classList.add('word');
+    memTile(local, { label: t('SEARCH BY MEANING'), value: o.embedModel ?? '—', sub: d?.vectors ? t('{n} SEARCHABLE BY MEANING', { n: memFmt((d.vectors.memories ?? 0) + (d.vectors.entries ?? 0)) }) : t('RECALL MATCHES WORDS ONLY') }).classList.add('word');
     const measured = state.localModel?.checked;
     memTile(local, { label: t('MEASURED HERE'), value: measured ? `${measured.matched}/${measured.n}` : '—', sub: measured ? t('LANDED WHERE THE AGENTS DID · {verdict}', { verdict: measured.passed ? t('READY') : t('NOT YET') }) : t('NOT MEASURED YET'), meter: measured?.n ? measured.matched / measured.n : null });
     board.append(local);
@@ -14969,7 +14969,7 @@ async function fillCoreBoard() {
         const row = el('div', 'mem-signal');
         const top = el('div', 'top');
         top.append(el('b', null, model.name), el('span', null, formatSize(model.size || 0)));
-        const role = [model.name === o.madreModel ? '@MADRE' : null, model.name === o.chatModel ? t('CHAT') : null, model.name === o.embedModel ? t('SMART SEARCH') : null].filter(Boolean);
+        const role = [model.name === o.madreModel ? '@MADRE' : null, model.name === o.chatModel ? t('CHAT') : null, model.name === o.embedModel ? t('SEARCH BY MEANING') : null].filter(Boolean);
         const facts = [...role, model.details?.parameter_size, model.details?.quantization_level, model.family].filter(Boolean);
         row.append(top, memMeter((model.size || 0) / largest));
         if (facts.length) row.append(el('span', 'detail', facts.join(' · ')));
@@ -15017,7 +15017,7 @@ async function fillCoreBoard() {
       return label;
     };
     does.append(
-      role('embeddings', t('SMART SEARCH'), t('Prepares each memory so recall can find it by meaning.')),
+      role('embeddings', t('SEARCH BY MEANING'), t('Prepares each memory so recall can find it by meaning.')),
       role('archivist', t('ARCHIVIST'), t('Distils the exchanges into memories, on this computer.')),
       role('agent', '@MADRE', t('Answers in the project as the fifth agent.')),
     );
@@ -15043,7 +15043,7 @@ async function fillCoreBoard() {
     }
     embed.addEventListener('change', () => save({ embedProvider: embed.value }, t('search by meaning: {what}.', { what: embed.options[embed.selectedIndex].textContent.toLowerCase() })));
     const field = (word, control) => { const label = el('label', 'core-field'); label.append(el('span', 'k', word), control); return label; };
-    reads.append(field(t('ARCHIVIST'), archivist), field(t('SMART SEARCH'), embed));
+    reads.append(field(t('ARCHIVIST'), archivist), field(t('SEARCH BY MEANING'), embed));
     if (mem.envWins) reads.append(el('p', 'note', t('AN ENVIRONMENT VARIABLE IS SETTING SOME OF THIS, AND IT WINS OVER WHAT YOU CHOOSE HERE.')));
   }
   if (grid.childElementCount) board.append(grid);
@@ -15293,7 +15293,7 @@ function renderCoreLaunch(launch) {
   const servers = [...(launch.memoryServer ? [{ ...launch.memoryServer, brief: t('the archive of this project, read and written through MADRE') }] : []), ...(launch.mcpServers ?? [])]
     .filter((server, at, all) => all.findIndex((other) => other.name === server.name) === at);
   if (servers.length) {
-    floor.append(brewHead(t('CONNECTED TOOLS (MCP) IT CAN USE'), `${servers.length}`));
+    floor.append(brewHead(t('OUTSIDE TOOLS (MCP) IT CAN USE'), `${servers.length}`));
     const rows = el('div', 'brew-rows');
     for (const server of servers) {
       const value = el('span');
@@ -15750,7 +15750,7 @@ const EXAM_NAMES = {
 const EXAM_ABOUT = {
   coverage: t('Real questions from this project, recall run at the moment each one was asked, scored against the reply that was actually given. It asks whether the answer was already in the archive, not whether it was right.'),
   consistency: t('Contradictions the memory reviewer has not settled yet, memories taken out of use, and whether doubtful memories are being filed more often lately than they used to be.'),
-  match: t('Real questions answered here by one of your agents, asked again of the local model with this project\'s memory behind it, and compared against the answer given at the time. It takes minutes and spends nothing.'),
+  match: t('Real questions answered here by one of your agents, asked again of the Local AI with this project\'s memory behind it, and compared against the answer given at the time. It takes minutes and spends nothing.'),
 };
 
 function examRow(id, state, run, pass = null) {
@@ -16104,9 +16104,9 @@ function drawMemory(host, data) {
   sxRow(keep, t('Or after'), t('Or take notes after this many quiet minutes.'), sxNumber(mem.idleMinutes, t('min'), { min: 1, label: t('Or after'), wire: { toPatch: (value) => ({ memory: { idleMinutes: value } }), describe: (value) => t('or after {n} quiet minutes.', { n: value }) } }));
 
   const recall = sxBlock(host, t('Using memories'), t('How many memories each answer uses, and how they are found.'));
-  sxRow(recall, t('Room for memories'), t('The most of what an agent reads that may be memories.'), sxNumber(Math.round(mem.recallShare * 100), '%', { min: 0, step: 5, label: t('Room for memories'), wire: { toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("memories may take up to {n}% of what each agent reads.", { n: Math.min(60, value) }) } }));
+  sxRow(recall, t('Room for memories'), t('At most, how much of what an agent reads can be memories.'), sxNumber(Math.round(mem.recallShare * 100), '%', { min: 0, step: 5, label: t('Room for memories'), wire: { toPatch: (value) => ({ memory: { recallShare: Math.min(60, value) / 100 } }), describe: (value) => t("memories may take up to {n}% of what each agent reads.", { n: Math.min(60, value) }) } }));
   const cascade = sxSwitch(mem.cascade !== false, (on) => save({ cascade: on }, on ? t('related memories come along too.') : t('only memories that match come along.')), { label: t('Related memories') });
-  sxRow(recall, t('Related memories'), t('Memories that are often used together come together.'), cascade);
+  sxRow(recall, t('Related memories'), t('Memories that are often used together are brought in together.'), cascade);
   const embedNow = mem.embedder ? mem.embedder : t('off');
   sxRow(recall, t('Search by meaning'), t('Finds memories by what they mean, not only by exact words. Now: {what}.', { what: embedNow }), select([
     ['auto', t('Automatic · Local AI if running, else Gemini')],
@@ -16167,11 +16167,11 @@ function drawMemory(host, data) {
       if (command) li.append(sxCommand(command));
       steps.append(li);
     };
-    step(t('Export the training data'), t('With «Export» above. Do it again whenever the project has grown.'));
+    step(t('Export the training data'), t('Use «Export» above. Do it again whenever the project has grown.'));
     step(t('Prepare Python, once'), platform === 'mac' ? t('A separate environment with mlx-lm, so nothing else on your computer changes.') : t('A separate environment with MLX for CUDA and mlx-lm. It must print «CUDA: True»; if not, stop here.'), setup);
     step(t('Train · base {model} for {gb} GB', { model: info.baseModel, gb: info.memoryGb }), t('From 10 to 40 minutes. It learns from the exported pairs and leaves an adjustment («adapters»).'), `${venv} && bash ${quote(`${info.recipeDir}train.sh`)} ${quote(info.roomDir)} ${info.baseModel}`);
     step(t('Join the adjustment with the base model'), null, `${venv} && cd ${quote(info.roomDir)} && mlx_lm.fuse --model ${info.baseModel} --adapter-path adapters --save-path fused`);
-    step(t('Turn it into a file Ollama reads (GGUF)'), t('Once, it downloads llama.cpp\'s converter.'), `${venv} && cd ${quote(info.roomDir)} && git clone --depth 1 https://github.com/ggml-org/llama.cpp && pip install -r llama.cpp/requirements.txt && python3 llama.cpp/convert_hf_to_gguf.py fused --outfile madre.gguf --outtype q8_0`);
+    step(t('Turn it into a file Ollama reads (GGUF)'), t('The first time, it downloads llama.cpp\'s converter.'), `${venv} && cd ${quote(info.roomDir)} && git clone --depth 1 https://github.com/ggml-org/llama.cpp && pip install -r llama.cpp/requirements.txt && python3 llama.cpp/convert_hf_to_gguf.py fused --outfile madre.gguf --outtype q8_0`);
     step(t('Register it in Ollama as {model}', { model: info.modelName }), t('@madre switches to it at the next recheck of Local AI.'), `cd ${quote(info.roomDir)} && cp ${quote(`${info.recipeDir}Modelfile`)} . && ollama create ${info.modelName} -f Modelfile`);
     step(t('Try it before trusting it'), t('Ask @madre ten things the project decided and five it never discussed. It should get the first right and say it never discussed the others; if it makes things up, remove it with «ollama rm {model}» and train with more pairs.', { model: info.modelName }));
   };
@@ -16434,7 +16434,7 @@ function drawPermissions(host, data) {
   }
   sxFoot(keys, t('#4 always asks you to confirm: it runs commands, and what leaves the machine does not come back.'));
 
-  const phrase = sxBlock(host, t('Your phrase'), t('MADRE never stores the phrase itself, only a scrambled print of it, and it never leaves this Mac.'));
+  const phrase = sxBlock(host, t('Your phrase'), t('MADRE never stores the phrase itself, only a fingerprint of it, and it never leaves this Mac.'));
   const field = el('input', 'sx-input');
   field.type = 'password';
   field.autocomplete = 'new-password';
@@ -16463,13 +16463,13 @@ function drawPermissions(host, data) {
     const options = mode === 3 ? [0, 5, 15, 30] : [0, 5];
     sxRow(grace, `#${mode} ${MODES[mode].label}`, mode === 4 ? t('Never longer than 5 minutes.') : t('Raising an agent\'s max mode always asks, remembered permission or not.'), sxSeg(options.map((minutes) => ({ value: minutes, text: minutes ? t('{n} min', { n: minutes }) : t('Off') })), config.grace[mode] ?? 0, (minutes) => {
       if (!minutes) closeOverrideGrace(mode);
-      return saveOverride({ grace: { [mode]: minutes } }, minutes ? t('#{n} {label} holds {minutes} min after you confirm it.', { n: mode, label: MODES[mode].label, minutes }) : t('#{n} {label} asks you to confirm every message.', { n: mode, label: MODES[mode].label }));
+      return saveOverride({ grace: { [mode]: minutes } }, minutes ? t('#{n} {label} stays unlocked for {minutes} min after you confirm it.', { n: mode, label: MODES[mode].label, minutes }) : t('#{n} {label} asks you to confirm every message.', { n: mode, label: MODES[mode].label }));
     }, { label: t('Remember permission for #{n}', { n: mode }) }));
   }
 
   // The Memory map asks for the project name; here it can stop asking for a while, or for good
   // (2026-10-14). Kept in this browser, for this project only.
-  const access = sxBlock(host, t('Memory access'), t('Opening the Memory map asks for the project name. Choose how long it does not ask again.'));
+  const access = sxBlock(host, t('Memory access'), t('Opening the Memory map asks for the project name. Choose how long to skip that.'));
   access.id = 'perm-memory';
   const held = memoryAccess();
   sxRow(access, t('Don\'t ask again'), memoryAccessLine(held), sxSeg(MEMORY_ACCESS.map(([value, words]) => ({ value, text: words() })), held?.choice ?? 'ask', (choice) => {
@@ -17708,7 +17708,7 @@ async function nostromoTraffic(card = frontCard()) {
     const dot = el('i');
     dot.style.setProperty('--kind', MEMORY_COLORS[taken.kind] ?? MEMORY_COLORS.fact);
     row.append(dot, el('span', 'what', taken.text), el('b', null, t('TAKEN DOWN')));
-    row.title = t('This doubtful memory took that memory out of every future turn.');
+    row.title = t('This doubtful memory took that memory out of every future answer.');
     if (other) row.addEventListener('click', () => showNostromoCard(other));
     fired.append(row);
   }
@@ -17718,7 +17718,7 @@ async function nostromoTraffic(card = frontCard()) {
     const dot = el('i');
     dot.style.setProperty('--kind', MEMORY_COLORS[traffic.refutedBy.kind] ?? MEMORY_COLORS.aberration);
     row.append(dot, el('span', 'what', traffic.refutedBy.text), el('b', null, t('REFUTES IT')));
-    row.title = t('A doubtful memory took this memory out of every future turn.');
+    row.title = t('A doubtful memory took this memory out of every future answer.');
     if (other) row.addEventListener('click', () => showNostromoCard(other));
     fired.append(row);
   }
@@ -17966,7 +17966,7 @@ const NEW_HINTS = [
   { id: 'new-copilot', button: '.copilot-chip', title: t('New: Copilot'), text: t('Let an agent work on its own for a while. Press the robot, choose how long, and the agent you write to can change files, make plans and run safe commands without asking you each time. It asks for your permission only once.') },
   { id: 'new-mcp', button: '#custom-button', panel: '#settings', title: t('New: Outside tools (MCP)'), text: t('Agents can now use other apps and services: a program on this computer or one on the internet. Add them in Settings › Outside tools (MCP). If you already set some up in Claude Code, Codex, Gemini or Cursor, you can bring them over.') },
   { id: 'new-finder', button: '#tree-button', spill: '.bar-more', title: t('New: your files stay up to date'), text: t('The file list updates by itself after every answer and every command. A colored dot on a folder tells you which agent changed something inside.') },
-  { id: 'new-memory-access', button: '#nostromo-bar', spill: '.bar-more', title: t('New: open the memory faster'), text: t('The Memory map asks you to type the project name before it opens. You can skip that step for 1, 8 or 24 hours, or always: choose «Don\'t ask again…» when it asks, or go to Settings › Permissions.') },
+  { id: 'new-memory-access', button: '#nostromo-bar', spill: '.bar-more', title: t('New: open the memory faster'), text: t('The Memory map asks you to type the project name before it opens. You can skip that step for 1, 8 or 24 hours, or for good: choose «Don\'t ask again…» when it asks, or go to Settings › Permissions.') },
   { id: 'new-dots', button: '#messages .sys-dots:not(.open)', onScreen: true, title: t('New: notices shrink into dots'), text: t('To keep the chat clean, notices shrink into a small dot after 10 seconds. Click the dot to read them again. The ones that need something from you stay open.') },
 ];
 // Asked again while a card has nothing to point at, a few times only: a timer that never stops would
@@ -18250,7 +18250,7 @@ function drawRelease(section, info) {
     try { await fetch('/api/updates/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ check: on }) }); toast(on ? t('Diagnostics › Look for new versions on: one check a day.') : t('Diagnostics › Look for new versions off: no request leaves for npm.')); await loadVersion(); }
     catch (error) { box.checked = !on; box.disabled = false; toast(t('The setting was not saved: {error}', { error: error.message })); }
   }, { disabled: Boolean(info.envWins), label: t('Look for new versions') });
-  sxRow(block, t('Look for new versions'), t('Once a day MADRE checks whether there\'s a new version. Only its name is sent.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
+  sxRow(block, t('Look for new versions'), t('Once a day MADRE checks whether there\'s a new version. Only the app\'s name is sent.') + (info.envWins ? ` ${t('Set by PULSE_UPDATE_CHECK.')}` : ''), check);
   if (info.enabled) sxRow(block, t('Last check'), when ?? t('Not yet.'), sxButton(t('Check now'), () => void loadVersion({ force: true })));
 
   if (!info.available) return;
@@ -18386,7 +18386,7 @@ function drawSentinel(section) {
   both.append(...(spanish ? [viaForm, viaIssue] : [viaIssue, viaForm]));
   sxRow(block, t('Tell the author'), t('What failed, or what you wish MADRE did.'), both);
   if (!reports.length) return;
-  const list = sxBlock(section, t('Reports'), t('Private details are removed from each one. You can read it before sending.'));
+  const list = sxBlock(section, t('Reports'), t('Private details are removed from each one. You can read each report before sending it.'));
   for (const report of reports.slice(0, 20)) {
     const who = report.kind === 'crash' ? t('Crash') : `@${report.agent ?? t('project')}`;
     const line = String(report.error).split('\n')[0].slice(0, 200);

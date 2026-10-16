@@ -153,7 +153,7 @@ export function resolveLinks({ links, rooms, contracts, salas }) {
     if (!link.kinds.every((kind) => LINK_KINDS.includes(kind))) return { ...base, status: 'blocked', why: 'Name what crosses: decision, fact, preference or question.' };
     let orders = null;
     if (link.orders !== null) {
-      if (base.from !== salas && base.to !== salas) return { ...base, status: 'blocked', why: 'Orders go only on a connection with the Coordinator.' };
+      if (base.from !== salas && base.to !== salas) return { ...base, status: 'blocked', why: 'Orders only travel over a connection with the Coordinator.' };
       orders = { allowed: true, maxMode: Math.min(link.orders, MAX_ORDER_MODE), perHour: 6 };
     }
     const receives = orders ? (base.from === salas ? base.to : base.from) : null;

@@ -28,7 +28,7 @@ export function verdictFor({ maturity = null, exams = {}, cold = null, asks = 0 
     return {
       headline: stage?.label ?? null,
       says: consistency.says,
-      next: { text: t('Settle the {n} contradictions the memory reviewer found. Until they are settled, everything built on this memory inherits them.', { n: consistency.open }), where: where('nostromo') },
+      next: { text: (consistency.open === 1 ? t('Settle the contradiction the memory reviewer found. Until it is settled, everything built on this memory inherits it.') : t('Settle the {n} contradictions the memory reviewer found. Until they are settled, everything built on this memory inherits them.', { n: consistency.open })), where: where('nostromo') },
     };
   }
 

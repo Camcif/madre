@@ -124,7 +124,7 @@ export function normalizeContract(raw, { now = new Date(), salas = null } = {}) 
   const revoked = isoOrNull(raw.revoked, 'revoked');
   // Fase 3e: the room that reads also gets, on each turn, up to RECALL_NOTES of these notes without
   // asking. Off unless the human ticks it; a reading like any other, counted against `perHour`.
-  if (raw.recall !== undefined && raw.recall !== null && typeof raw.recall !== 'boolean') fail('recall can only be on or off.');
+  if (raw.recall !== undefined && raw.recall !== null && typeof raw.recall !== 'boolean') fail('automatic recall can only be on or off.');
   const recall = raw.recall === true;
 
   const orders = raw.orders && typeof raw.orders === 'object' ? raw.orders : {};

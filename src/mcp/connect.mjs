@@ -209,7 +209,7 @@ export async function discoverOAuth(serverUrl, { fetchImpl = globalThis.fetch } 
     authMeta = null;
   }
   if (!authMeta) return { ok: false, problem: 'The server does not publish how to sign in to it (no OAuth metadata). Use a token instead.' };
-  if (!authMeta.registration_endpoint) return { ok: false, problem: 'The server signs in only clients it already knows; it does not let MADRE register. Use a token instead.' };
+  if (!authMeta.registration_endpoint) return { ok: false, problem: 'The server only accepts clients it already knows; it does not let MADRE register. Use a token instead.' };
   return { ok: true, resource: resourceMeta?.resource ?? url.toString(), scopes: resourceMeta?.scopes_supported ?? authMeta.scopes_supported ?? [], authorization: authMeta };
 }
 

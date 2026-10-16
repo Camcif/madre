@@ -18,8 +18,8 @@ export const ES = {
   'In this project, a typical answer uses {on} output tokens with TOKEN SAVER ({onTurns} answers) and {off} without it ({offTurns}). You choose when to ask for compact answers, so these are different tasks, not the same task twice.':
     'En este proyecto, una respuesta típica usa {on} tokens de salida con AHORRO DE TOKENS ({onTurns} respuestas) y {off} sin él ({offTurns}). Tú decides cuándo pedir respuestas compactas, así que se comparan tareas distintas, no la misma tarea dos veces.',
   '{n} uncharged': '{n} tokens no cobrados',
-  "{cached} tokens this agent's app read back from its own cache instead of charging them again (measured). {unsent} tokens MADRE did not need to send the agent (estimated at {rate} characters per token). Neither is the Token saver: the Token saver shortens the answer, and its figure is above the bubble.":
-    '{cached} tokens que la app del agente leyó de su caché sin volver a cobrarlos (medido). {unsent} tokens que MADRE no tuvo que enviarle al agente (estimado a {rate} caracteres por token). Nada de esto es el Ahorro de tokens: ese acorta la respuesta y su cifra está arriba de la burbuja.',
+  "{cached} tokens this agent's app read back from its own cache, billed at a lower price than new input (measured). {unsent} tokens MADRE did not need to send the agent (estimated at {rate} characters per token). Neither is the Token saver: the Token saver shortens the answer, and its figure is above the bubble.":
+    '{cached} tokens que la app del agente leyó de su caché, cobrados a un precio menor que la entrada nueva (medido). {unsent} tokens que MADRE no tuvo que enviarle al agente (estimado a {rate} caracteres por token). Nada de esto es el Ahorro de tokens: ese acorta la respuesta y su cifra está arriba de la burbuja.',
   'TOKENS SAVED': 'TOKENS AHORRADOS',
   'input the CLI did not charge again · {pct} of the input': 'entrada que la app del agente no volvió a cobrar · {pct} de la entrada',
   'SPENT ON INPUT': 'GASTADO EN ENTRADA',
@@ -50,7 +50,7 @@ export const ES = {
   'Trial': 'Prueba',
   'Try {level} on this one': 'Probar {level} en esta pregunta',
   'This one goes at {level} · if it falls short, MADRE will notice and go back to {from}': 'Esta pregunta va con {level} · si no alcanza, MADRE lo notará y volverá a {from}',
-  'This one goes at {level} · if it falls short, MADRE will notice and go back to the CLI default': 'Esta pregunta va con {level} · si no alcanza, MADRE lo notará y volverá al nivel predeterminado del agente',
+  'This one goes at {level} · if it falls short, MADRE will notice and go back to the agent\'s default level': 'Esta pregunta va con {level} · si no alcanza, MADRE lo notará y volverá al nivel predeterminado del agente',
   'Undo': 'Deshacer',
   '{level} fell short last time': '{level} no alcanzó la última vez',
   'Back to {level}': 'Volver a {level}',
@@ -71,7 +71,7 @@ export const ES = {
   'answered by @madre on this computer · no provider, no bill':
     'contestados por @madre en esta computadora · sin proveedor, sin factura',
   'OF EVERY TURN': 'DEL TOTAL',
-  'of the turns measured in this project': 'de las respuestas contadas en este proyecto',
+  'of the answers measured in this project': 'de las respuestas contadas en este proyecto',
   'A PAID TURN': 'UNA RESPUESTA PAGADA',
   'the typical (median) paid answer here · what the others cost, not what these would have':
     'la respuesta pagada típica (la mediana) aquí · lo que costaron las otras, no lo que habrían costado estas',
@@ -87,7 +87,7 @@ export const ES = {
     'Deja que un agente te dé una decisión como botones en vez de un párrafo, cuando hay tres o más opciones reales. Mientras está encendido cuesta unos 135 tokens por respuesta, y se cuentan en Consumo.',
   'Pressing one sends it to @{agent} · #3 and #4 ask you to confirm first': 'Al presionar una se le manda a @{agent} · #3 y #4 te piden confirmar antes',
   '◉ decided here · {n}': '◉ decidido aquí · {n}',
-  'TURNS BILLED': 'RESPUESTAS CON COSTO',
+  'ANSWERS BILLED': 'RESPUESTAS CON COSTO',
   '{n} characters': '{n} caracteres',
   ' · ALWAYS': ' · SIEMPRE',
   'Characters each block adds to one prompt.': 'Caracteres que cada bloque añade a cada mensaje para el agente',
@@ -118,7 +118,7 @@ export const ES = {
   'You will type the project name, as always. Then @{agent} gets your permission and continues.':
     'Para confirmar, escribe el nombre del proyecto, como siempre. Después @{agent} recibe tu permiso y continúa.',
   '@{agent} gets your permission for one message and continues.': '@{agent} recibe tu permiso solo para este mensaje y continúa.',
-  'GRANT #{n} · LET IT GO ON': 'CONCEDER #{n} Y CONTINUAR',
+  'GRANT #{n} AND CONTINUE': 'CONCEDER #{n} Y CONTINUAR',
   'GRANT #{n} · GIVE IT ANOTHER INSTRUCTION': 'CONCEDER #{n} Y AGREGAR INSTRUCCIONES',
   'Unlocks #{n} in the box below, so you can add instructions before sending.':
     'Activa el permiso #{n} en la caja de mensaje para que agregues instrucciones antes de enviar.',
@@ -126,7 +126,7 @@ export const ES = {
   '#{n} {label} granted': '#{n} {label} concedido',
   'Permission granted: #{n} {label}. Go ahead with what you proposed.': 'Permiso concedido: #{n} {label}. Sigue con lo que propusiste.',
   ' · for {m} min': ' · por {m} min',
-  'GRANT #{n} · {m} MIN · LET IT GO ON': 'CONCEDER #{n} · {m} MIN Y CONTINUAR',
+  'GRANT #{n} FOR {m} MIN AND CONTINUE': 'CONCEDER #{n} · {m} MIN Y CONTINUAR',
   'How long the permission holds': 'Cuánto dura el permiso',
   'this message': 'este mensaje',
   'YOUR SERVERS': 'TUS SERVIDORES',
@@ -167,7 +167,7 @@ export const ES = {
   'STATUS': 'ESTADO',
   'NOT USED': 'NO SE USA',
   'No module by that name is loaded.': 'No hay ningún módulo cargado con ese nombre.',
-  'Gemini tried to hand this turn to one of its own subagents. MADRE does not allow that: a subagent answers outside the permission MADRE controls, so nothing it wrote would be checked, shown or undoable.':
+  'Gemini tried to hand this task to one of its own subagents. MADRE does not allow that: a subagent answers outside the permission MADRE controls, so nothing it wrote would be checked, shown or undoable.':
     'Gemini intentó pasarle esta tarea a uno de sus propios subagentes. MADRE no lo permite: un subagente responde fuera del permiso que MADRE controla, así que nada de lo que escribiera se podría comprobar, mostrar ni deshacer.',
   'Ask again saying it should do the work itself, without subagents.':
     'Vuelve a pedirlo diciéndole que haga el trabajo él mismo, sin subagentes.',
@@ -198,7 +198,7 @@ export const ES = {
   'You marked the reply it came from as good. Confirmed: it is used in answers.':
     'Marcaste como buena la respuesta de la que salió. Confirmada: se usa en las respuestas.',
   'Quarantined: it is false, or it came from a reply you marked bad. It is never used in answers.':
-    'En cuarentena: es falsa, o salió de una respuesta que marcaste mal. Nunca se usa en las respuestas.',
+    'En cuarentena: es falsa, o salió de una respuesta que marcaste como mala. Nunca se usa en las respuestas.',
   'Discarded: kept only so it is not learned again. It is never used in answers.':
     'Descartada: se guarda solo para no volver a aprenderla. Nunca se usa en las respuestas.',
   'New file': 'Archivo nuevo',
@@ -263,7 +263,7 @@ export const ES = {
   'with TOKEN SAVER': 'con AHORRO DE TOKENS',
   'without TOKEN SAVER': 'sin AHORRO DE TOKENS',
   '{n}↑ · {turns} turns': '{n}↑ · {turns} respuestas',
-  '{n} turns with TOKEN SAVER, {m} without · {min} of each are needed to compare':
+  '{n} answers with TOKEN SAVER, {m} without · {min} of each are needed to compare':
     '{n} respuestas con AHORRO DE TOKENS, {m} sin AHORRO DE TOKENS · se necesitan {min} de cada tipo para comparar',
   'The median answer of each group, not an average. You choose when to ask for compact answers, so the two groups are different tasks, not the same task twice — MADRE does not claim a percentage saved.':
     'Se muestra la respuesta mediana de cada grupo, no un promedio. Tú decides cuándo pedir respuestas compactas, así que los dos grupos son tareas distintas, no la misma tarea repetida: por eso MADRE no afirma un porcentaje de ahorro.',
@@ -327,7 +327,7 @@ export const ES = {
   'version unknown': 'versión desconocida',
   'HAS A FREE OPTION': 'TIENE OPCIÓN GRATIS',
   'PASTE API KEY': 'PEGAR LLAVE DE API',
-  'signs in from your terminal:': 'inicia sesión desde su propia terminal:',
+  'signs in from your terminal:': 'inicia sesión desde tu terminal:',
   'Or do it from a terminal: {command}': 'O hazlo desde la terminal: {command}',
 
   // ── EL COMPOSITOR ─────────────────────────────────────────────────────────
@@ -432,7 +432,7 @@ export const ES = {
   'WHAT KEEPS IT TO THIS TURN': 'LO QUE LO LIMITA A ESTA RESPUESTA',
   'ENVIRONMENT IT IS GIVEN': 'VARIABLES DE ENTORNO QUE RECIBE',
   'NAMES ONLY. NO VALUE IS EVER SHOWN HERE.': 'SOLO NOMBRES. AQUÍ NUNCA SE MUESTRA UN VALOR.',
-  'CONNECTED TOOLS (MCP) IT CAN USE': 'HERRAMIENTAS CONECTADAS (MCP) QUE PUEDE USAR',
+  'OUTSIDE TOOLS (MCP) IT CAN USE': 'HERRAMIENTAS EXTERNAS (MCP) QUE PUEDE USAR',
   'the archive of this project, read and written through MADRE':
     'la memoria de este proyecto, que lee y escribe a través de MADRE',
 
@@ -466,13 +466,13 @@ export const ES = {
   'The name of a package, to read the version of its latest release. Nothing about you or your project.':
     'El nombre de un paquete, para leer la versión de su última publicación. Nada sobre ti ni sobre tu proyecto.',
   'at most once a day per package, while Look for new versions is on':
-    'como mucho una vez al día por paquete, mientras la búsqueda de versiones esté encendida',
+    'como mucho una vez al día por paquete, mientras «Buscar versiones nuevas» esté encendido',
   'Settings › Version and reports › Look for new versions · or PULSE_UPDATE_CHECK=0':
     'Ajustes › Versión y reportes › Buscar versiones nuevas · o PULSE_UPDATE_CHECK=0',
   'The name of a repository, to read the tag of its latest release. Nothing about you or your project.':
     'El nombre de un repositorio, para leer la etiqueta de su última publicación. Nada sobre ti ni sobre tu proyecto.',
   'at most once a day per repository, while Look for new versions is on':
-    'como mucho una vez al día por repositorio, mientras la búsqueda de versiones esté encendida',
+    'como mucho una vez al día por repositorio, mientras «Buscar versiones nuevas» esté encendido',
   'the author\'s error collector':
     'el servicio de reportes de errores del autor de MADRE',
   'An unknown condition: what broke, where in MADRE, and the version. Paths are cut back and your words are not in it.':
@@ -627,7 +627,7 @@ export const ES = {
     'un servidor de herramientas conectadas (MCP) en cada respuesta, que el proyecto enciende y apaga',
   // Bajo NECESITA es un requisito, no una acción: «necesita: se engancha» no concuerda.
   'attached only inside a permission to create with images on':
-    'solo se conecta dentro de un permiso para crear que tenga imágenes encendido',
+    'solo se conecta dentro de un permiso para crear con las imágenes activadas',
   'a Gemini API key with credits (the one the Gemini CLI stores, or GEMINI_API_KEY)':
     'una llave de API de Gemini con créditos (la que guarda la app de Gemini CLI, o GEMINI_API_KEY)',
 
@@ -743,7 +743,7 @@ export const ES = {
   'OPEN THE TEST': 'ABRIR LA PRUEBA',
   // La ventana de la prueba rápida, sobre la sala.
   'INTENCIONES': 'INTENCIONES',
-  'Intenciones · quick test': 'Esfuerzo sugerido · prueba rápida',
+  'Suggested effort · quick test': 'Esfuerzo sugerido · prueba rápida',
   'QUICK TEST · YOU JUDGE, BLIND': 'PRUEBA RÁPIDA · TÚ JUZGAS, A CIEGAS',
   'lookups': 'búsquedas',
   'explanations': 'explicaciones',
@@ -804,7 +804,7 @@ export const ES = {
   'scripts run in the frame · nothing leaves, nothing is stored, nothing reaches MADRE':
     'los scripts corren dentro del marco · no sale nada, no se guarda nada, nada llega a MADRE',
 
-  'Searches and sums up the project\'s memory with local AI (Ollama): free, and nothing leaves.': 'Busca y resume la memoria del proyecto con IA local (Ollama): gratis y sin que nada salga.',
+  'Searches and sums up the project\'s memory with local AI (Ollama): free, and nothing leaves your computer.': 'Busca y resume la memoria del proyecto con IA local (Ollama): gratis y sin que nada salga de tu computadora.',
   'a block in ~/.pulse/config.json': 'un bloque en ~/.pulse/config.json',
   "models in Ollama's own store when you press PULL": 'modelos en el almacén de Ollama cuando aprietas PULL',
   'Ollama running (the app, or ollama serve)': 'Ollama corriendo (la app, o ollama serve)',
@@ -928,7 +928,7 @@ export const ES = {
     '@{agent} arranca en #2 CREAR: cada respuesta puede agregar archivos al proyecto.',
   '@{agent} starts in #1 CHAT ONLY; turn on #2 CREATE when you want files.':
     '@{agent} empieza en #1 SOLO CONVERSAR; activa #2 CREAR cuando quieras que cree archivos.',
-  'The starting mode was not saved: {error}': 'El permiso al empezar no se guardó: {error}',
+  'The starting mode was not saved: {error}': 'El modo inicial no se guardó: {error}',
   'RECHECK': 'REVISAR OTRA VEZ',
   '{command} · runs here, streamed to the project': '{command} · se ejecuta aquí y el resultado se ve en el proyecto',
   'The install could not start.': 'La instalación no pudo empezar. Inténtalo de nuevo.',
@@ -971,8 +971,8 @@ export const ES = {
     'Preguntas reales de este proyecto. Para cada una, MADRE repite el recuerdo automático tal como habría sido en ese momento y lo compara con la respuesta que se dio. Mide si la respuesta ya estaba en la memoria, no si era correcta.',
   'Contradictions the memory reviewer has not settled yet, memories taken out of use, and whether doubtful memories are being filed more often lately than they used to be.':
     'Contradicciones que el revisor de memoria todavía no resuelve, memorias que se dejaron de usar, y si últimamente aparecen más memorias dudosas que antes.',
-  "Real questions answered here by one of your agents, asked again of the local model with this project's memory behind it, and compared against the answer given at the time. It takes minutes and spends nothing.":
-    'Preguntas reales que aquí contestó uno de tus agentes, hechas otra vez al modelo local con la memoria de este proyecto, y comparadas con la respuesta de aquel día. Tarda minutos y no gasta nada.',
+  "Real questions answered here by one of your agents, asked again of the Local AI with this project's memory behind it, and compared against the answer given at the time. It takes minutes and spends nothing.":
+    'Preguntas reales que aquí contestó uno de tus agentes, hechas otra vez a la IA local con la memoria de este proyecto, y comparadas con la respuesta de aquel día. Tarda minutos y no gasta nada.',
   'PASSES': 'PASA',
   'NOT YET': 'TODAVÍA NO',
   'NOT RUN': 'SIN PROBAR',
@@ -1112,6 +1112,8 @@ export const ES = {
   '{hits} of {n} questions this project actually asked had their answer already in the archive, matched by {method}{control}.':
     '{hits} de {n} preguntas que este proyecto hizo de verdad ya tenían su respuesta en la memoria, emparejadas por {method}{control}.',
   'The memory reviewer found {n} contradictions nobody has settled.': 'El revisor de memoria encontró {n} contradicciones que nadie ha resuelto.',
+  'The memory reviewer found 1 contradiction nobody has settled.': 'El revisor de memoria encontró 1 contradicción que nadie ha resuelto.',
+  'Settle the contradiction the memory reviewer found. Until it is settled, everything built on this memory inherits it.': 'Resuelve la contradicción que encontró el revisor de memoria. Mientras no se resuelva, todo lo que se construya sobre esta memoria la hereda.',
   'Nothing is open, but doubtful memories are being filed more often lately than they used to be.':
     'No hay nada abierto, pero últimamente se están archivando memorias dudosas más seguido que antes.',
   'Nothing contradicts anything: {standing} notes stand, {refuted} were taken out of circulation.':
@@ -1132,8 +1134,8 @@ export const ES = {
   'AGAINST': 'EN CONTRA',
   'WHAT SEEMS TRUE': 'LO QUE PARECE CIERTO',
   'IT IS FALSE': 'ES FALSA',
-  'Marks it as a doubtful memory and stops using it in answers. Reversible from the memory map.':
-    'La marca como memoria dudosa y deja de usarla en las respuestas. Se puede deshacer desde el mapa de memoria.',
+  'Marks it as a doubtful memory and stops using it in answers. Reversible from the Memory map.':
+    'La marca como memoria dudosa y deja de usarla en las respuestas. Se puede deshacer desde el Mapa de memoria.',
   'IT STANDS': 'SE QUEDA',
   'The project was right. This contradiction is never flagged again.': 'El proyecto tenía razón. Esta contradicción no se vuelve a señalar.',
   'DEV': 'DEV',
@@ -1355,7 +1357,7 @@ export const ES = {
   'Mesh': 'Malla',
   'Intensity': 'Intensidad',
   'Blur': 'Desenfoque',
-  "The project's background can be a photograph, as a layer or as a mesh of its own colours: choose how strong it looks and how much the photograph blurs.": 'El fondo del proyecto puede ser una fotografía, como capa o como una malla con sus propios colores: elige qué tan intensa se ve y cuánto se desenfoca.',
+  "The project's background can be a photograph, shown as a layer or as a mesh of its colors: choose how strong it looks and how much the photograph blurs.": 'El fondo del proyecto puede ser una fotografía, como capa o como una malla con los colores de la foto: elige qué tan intensa se ve y cuánto se desenfoca.',
   ' · {n} related': ' · {n} relacionadas',
   '◉ memory saved': '◉ memoria guardada',
   'Saved by @{agent} for every future turn · #{from}–#{through}. Click to see it in the memory map.':
@@ -1417,7 +1419,7 @@ export const ES = {
   '{n} changes to existing files were put back: CREATE only adds.': '{n} cambios a archivos que ya existían se deshicieron: CREAR solo agrega archivos nuevos.',
   'RETRY WITH MORE TIME · {n}s': 'REINTENTAR CON MÁS TIEMPO · {n}s',
   'You were cut off by the time limit. These files already exist: {files}. Finish what is missing; do not start over.': 'Te cortó el tiempo límite. Estos archivos ya existen: {files}. Termina lo que falta; no empieces de nuevo.',
-  'Diagnostics › #{n} needs you to confirm again: choose it on the mode chip before sending.': 'Diagnóstico › #{n} necesita que confirmes otra vez: elígelo en el selector de modo antes de enviar.',
+  'Diagnostics › #{n} needs you to confirm again: choose it in the mode selector before sending.': 'Diagnóstico › #{n} necesita que confirmes otra vez: elígelo en el selector de modo antes de enviar.',
   'IN THE BOX · SEND IT WHEN READY': 'EN LA CAJA · ENVÍALO CUANDO QUIERAS',
   'Git could not list the changes ({reason}). The restore point from before the turn is still there.': 'Git no pudo listar los cambios ({reason}). El punto de restauración de antes de la respuesta sigue ahí.',
   'UNDO · GO BACK TO THE RESTORE POINT': 'DESHACER · VOLVER AL PUNTO DE RESTAURACIÓN',
@@ -1427,14 +1429,14 @@ export const ES = {
   "project restored to the restore point before @{agent}'s turn · {restored} restored · {removed} removed":
     'proyecto restaurado a como estaba antes de la respuesta de @{agent} · {restored} restaurados · {removed} quitados',
   'RESEND TO @{agent} WITH CREATE': 'REENVIAR A @{agent} CON CREAR',
-  'Send this same request from you, with permission to create files.': 'Vuelve a enviar esta misma petición a tu nombre, con permiso para crear archivos.',
+  'Send this same request again yourself, with permission to create files.': 'Vuelve a enviar esta misma petición tú mismo, con permiso para crear archivos.',
   'RESENT WITH CREATE': 'REENVIADO CON CREAR',
   'It could not be resent: {error}': 'No se pudo reenviar: {error}',
   'ALWAYS FOR THIS AGENT': 'SIEMPRE PARA ESTE AGENTE',
   'GRANT ONCE': 'PERMITIR UNA VEZ',
   'GRANT FOR PLAN': 'PERMITIR PARA EL PLAN',
-  'Every remaining step of this plan that can write shares one create-permission folder.':
-    'Todos los pasos de este plan que todavía pueden escribir comparten la misma carpeta con permiso para crear.',
+  'Every remaining step of this plan that can write uses the same folder for new files.':
+    'Todos los pasos de este plan que todavía pueden escribir usan la misma carpeta para archivos nuevos.',
   'DENY': 'NEGAR',
   'anywhere in the project · existing files stay untouched': 'donde sea en el proyecto · los archivos que ya existen no se tocan',
   ' · scratch ': ' · borrador ',
@@ -1499,9 +1501,9 @@ export const ES = {
     'Deja de sugerir esta pregunta. No se borra ni se cambia nada.',
   'No theme shared with another memory yet.': 'Todavía no comparte tema con ninguna otra memoria.',
   'TAKEN DOWN': 'DADA DE BAJA',
-  'This doubtful memory took that memory out of every future turn.': 'Esta memoria dudosa dejó esa memoria fuera de las próximas respuestas.',
+  'This doubtful memory took that memory out of every future answer.': 'Esta memoria dudosa dejó esa memoria fuera de las próximas respuestas.',
   'REFUTES IT': 'LA CONTRADICE',
-  'A doubtful memory took this memory out of every future turn.': 'Una memoria dudosa dejó esta memoria fuera de las próximas respuestas.',
+  'A doubtful memory took this memory out of every future answer.': 'Una memoria dudosa dejó esta memoria fuera de las próximas respuestas.',
   'PRESS AGAIN TO FORGET · FOREVER': 'VUELVE A APRETAR PARA OLVIDAR · PARA SIEMPRE',
   'FORGET THIS MEMORY': 'OLVIDAR ESTA MEMORIA',
   'FORGETTING…': 'OLVIDANDO…',
@@ -1770,7 +1772,7 @@ export const ES = {
 
   'Where the usage numbers come from': 'De dónde salen los números de uso',
   'Each sphere\'s usage shows the provider\'s real limit when the CLI publishes it: Codex writes its 5-hour and weekly windows (used %, reset time) into every session rollout under ~/.codex/sessions; Claude Code\'s /usage comes from Anthropic\'s OAuth usage endpoint; MADRE can ask it with the token Claude Code keeps in the keychain when you start with PULSE_CLAUDE_USAGE=1 (macOS may ask once to allow the keychain read). Gemini and OpenCode publish nothing locally, so their usage shows MADRE\'s own rolling 5-hour window of budget tokens. A window whose reset time has passed counts as empty until the CLI reports again, and the failure monitor says "clear" when a full window resets.':
-    'El uso de cada esfera muestra el límite real de tu plan cuando la app del agente lo publica: Codex escribe sus ventanas de 5 horas y semanal (% usado, hora de reinicio) en cada sesión bajo ~/.codex/sessions; el /usage de Claude Code viene del servicio de uso de Anthropic, y MADRE puede consultarlo con la credencial que Claude Code guarda en el llavero si arrancas con PULSE_CLAUDE_USAGE=1 (macOS puede pedirte permiso una vez para leer el llavero). Gemini y OpenCode no publican nada en tu computadora, así que su uso muestra la ventana propia de MADRE: las últimas 5 horas de tokens contra su límite de uso. Una ventana cuya hora de reinicio ya pasó cuenta como vacía hasta que la app vuelva a reportar, y el monitor de fallas dice «claro» cuando una ventana entera se reinicia.',
+    'El uso de cada esfera muestra el límite real de tu plan cuando la app del agente lo publica: Codex escribe sus ventanas de 5 horas y semanal (% usado, hora de reinicio) en cada sesión bajo ~/.codex/sessions; el /usage de Claude Code viene del servicio de uso de Anthropic, y MADRE puede consultarlo con la credencial que Claude Code guarda en el llavero si arrancas con PULSE_CLAUDE_USAGE=1 (macOS puede pedirte permiso una vez para leer el llavero). Gemini y OpenCode no publican nada en tu computadora, así que su uso muestra la ventana propia de MADRE: las últimas 5 horas de tokens contra su límite de uso. Una ventana cuya hora de reinicio ya pasó cuenta como vacía hasta que la app vuelva a reportar, y el monitor de fallas dice «liberado» cuando una ventana entera se reinicia.',
   'Click a sphere to see both windows and when they reset. If a sphere\'s usage looks stale, run one turn with that agent: Codex only rewrites its limits when it runs. Set PULSE_OFFICIAL_QUOTA=0 to stop reading provider limits altogether.':
     'Haz clic en una esfera para ver las dos ventanas y cuándo se reinician. Si el uso de una esfera se ve viejo, pídele algo a ese agente: Codex solo actualiza sus límites cuando trabaja. Pon PULSE_OFFICIAL_QUOTA=0 para dejar de leer por completo los límites del proveedor.',
 
@@ -1804,13 +1806,13 @@ export const ES = {
 
   'Gemini: generating images': 'Gemini: generar imágenes',
   'Gemini CLI 0.60 has no image-generation tool in headless mode, even though Google offers image models. MADRE fills the gap with the Images module: its own MCP server exposing generate_image on the Gemini API image models, attached to Gemini only inside a permission to create with images on, billing your Gemini key.':
-    'La app de Gemini 0.60 no puede generar imágenes cuando otra app la usa por detrás, aunque Google sí ofrece modelos de imagen. MADRE cubre ese hueco con el módulo Imágenes: su propia herramienta conectada (MCP) generate_image, que usa los modelos de imagen de la API de Gemini; se conecta a Gemini solo dentro de un permiso para crear con imágenes activado, y se cobra a tu llave de API de Gemini.',
+    'La app de Gemini 0.60 no puede generar imágenes cuando otra app la usa por detrás, aunque Google sí ofrece modelos de imagen. MADRE cubre ese hueco con el módulo Imágenes: su propia herramienta externa (MCP) generate_image, que usa los modelos de imagen de la API de Gemini; se conecta a Gemini solo dentro de un permiso para crear con imágenes activado, y se cobra a tu llave de API de Gemini.',
   'Turn Images on in Modules (it needs a Gemini API key with credits), then switch on Generate images for Gemini in Settings → Agents. Without the module, ask @codex or let the orchestrator route the image step to it.':
     'Enciende Imágenes en Módulos (necesita una llave de API de Gemini con créditos) y luego activa Generar imágenes para Gemini en Ajustes → Agentes. Sin el módulo, pídeselo a @codex o deja que el agente que coordina le pase ese paso.',
 
   'Claude Code: generating images': 'Claude Code: generar imágenes',
   "Claude Code has no image-generation tool; Claude models describe and reason about images, they do not render them. The Images module gives Claude the MCP tool generate_image (MADRE's own server on the Gemini API), attached with --mcp-config only inside a permission to create.":
-    'Claude Code no tiene herramienta para generar imágenes; los modelos de Claude describen y razonan sobre imágenes, pero no las dibujan. El módulo Imágenes le da a Claude la herramienta generate_image (una herramienta conectada, MCP, propia de MADRE que usa la API de Gemini), solo dentro de un permiso para crear.',
+    'Claude Code no tiene herramienta para generar imágenes; los modelos de Claude describen y razonan sobre imágenes, pero no las dibujan. El módulo Imágenes le da a Claude la herramienta generate_image (una herramienta externa (MCP) propia de MADRE que usa la API de Gemini), solo dentro de un permiso para crear.',
   'Turn Images on in Modules, switch on Generate images for Claude in Settings → Agents, then use CREATE. Or route the image step to @codex.':
     'Enciende Imágenes en Módulos, activa Generar imágenes para Claude en Ajustes → Agentes y usa CREAR. O mándale ese paso a @codex.',
 
@@ -1826,7 +1828,7 @@ export const ES = {
   "Switch on Web access for that agent in Settings → Agents; it saves at once. It applies to every turn of that agent; content fetched is sent to its provider.":
     'Activa Acceso a la web para ese agente en Ajustes → Agentes; se guarda al instante. Aplica a todas sus respuestas; lo que traiga de la web se envía a su proveedor.',
 
-  'Commands and mentions in the Write box': 'Comandos y menciones en el campo',
+  'Commands and mentions in the Write box': 'Comandos y menciones en la caja de Escribir',
   'Type "/" for the project\'s commands: /create turns on permission to create, /image routes an image request to an agent that can draw, /stopall is the brake, /git (Git) and /ahp (Continuity) run read-only in the project and post a fact card everyone, agents included, can read. Type "@" to mention an agent; the name becomes a label. Type "!" to point at a project file ("!src/room.mjs:12-20" for lines): the agent reads it first. In the viewer, click a line number (Shift+click for a range) and REVIEW WITH sends those lines to an agent.':
     'Escribe «/» para los comandos del proyecto: /create activa el permiso para crear, /image le manda una petición de imagen a un agente que sepa dibujar, /stopall detiene todo, y /git (Git) y /ahp (Continuidad) corren en solo lectura sobre el proyecto y publican una ficha que todos —agentes incluidos— pueden leer. Escribe «@» para mencionar a un agente; el nombre se vuelve una etiqueta. Escribe «!» para señalar un archivo del proyecto («!src/room.mjs:12-20» para líneas): el agente lo lee primero. En el visor, haz clic en un número de línea (Shift+clic para un rango) y REVISAR CON le manda esas líneas a un agente.',
   'A struck-through command is a module that is not available in this project: open Modules to install it or turn it on (Git needs a git repository; Continuity needs to be installed).':
@@ -1897,8 +1899,8 @@ export const ES = {
   'Memory map: opening, reading and forgetting': 'Mapa de memoria: abrir, leer y olvidar',
   'The Memory map is the human\'s view of the archive, from Diagnostics. Opening the memory asks for the project name: the name of the project folder, exactly as EDIT does; a wrong one answers UNABLE TO COMPUTE. Access stays open until the page reloads. Inside, every distilled memory is a planet around the project\'s core; drag to move, wheel to zoom, click a planet for its card. The only edit is FORGET (two presses): the note leaves every future turn, the ledger stays. If the archive answers SEALED with a number of minutes, wait them out: repeated strikes at the core close it for a while and the Write box reads INTRUDER until it opens again.':
     'El Mapa de memoria es la vista de la memoria para ti, desde Diagnóstico. Para abrirla hay que confirmar con el nombre del proyecto: el nombre de la carpeta, igual que en EDITAR; si es incorrecto, contesta IMPOSIBLE DE PROCESAR. El acceso sigue abierto hasta que recargues la página. Adentro, cada nota resumida es un planeta alrededor del núcleo del proyecto; arrastra para mover, usa la rueda para acercar y haz clic en un planeta para ver su ficha. Lo único que se puede cambiar es OLVIDAR (dos toques): la nota deja de usarse en las próximas respuestas y el historial no cambia. Si contesta SELLADO con un número de minutos, espéralos: varios intentos fallidos lo bloquean un rato y la caja de Escribir dice INTRUSO hasta que se vuelva a abrir.',
-  'Type the folder name shown in the project header as the project name. To find a memory quickly, ask an agent to search instead. Avoid guessing names: several wrong ones in a row lock it for a while.':
-    'Escribe como nombre del proyecto el nombre de carpeta que aparece en su encabezado. Para encontrar una memoria rápido, mejor pídele a un agente que la busque. Evita probar nombres al azar: varios errores seguidos lo bloquean un rato.',
+  'Type the folder name shown in the project header as the project name. To find a memory quickly, ask an agent to search instead. Avoid guessing names: several wrong ones in a row lock the Memory map for a while.':
+    'Escribe como nombre del proyecto el nombre de carpeta que aparece en su encabezado. Para encontrar una memoria rápido, mejor pídele a un agente que la busque. Evita probar nombres al azar: varios errores seguidos bloquean el Mapa de memoria un rato.',
 
   'Preview: rendering HTML, SVG and Markdown in the viewer': 'Vista previa: ver HTML, SVG y Markdown en el visor',
   'With Preview on (in Modules), the file viewer renders .html and .svg through /preview/project/<path> inside a sealed frame: the page\'s own scripts run, but the frame has no origin, no network, no forms and no way to reach MADRE, and it loads CSS, JS, images and fonts only from the project through MADRE. Relative links work. Markdown renders in place; PREVIEW / SOURCE switches. Off, those files show as text with a note. 412 means Preview is off. Plain /api/files always serves HTML as text.':
@@ -1910,7 +1912,7 @@ export const ES = {
   'When Ollama runs on this machine with an embedding model and a chat model, MADRE embeds the memory locally (recall by meaning without any key) and distils memories with the local model first, before Gemini and the others. Nothing leaves the machine for remembering. Off or absent, everything falls back to the providers. The Local AI module, in Modules, shows what Ollama has, downloads the recommended models, and switches each role.':
     'Cuando Ollama corre en esta computadora con un modelo de búsqueda por significado y uno de chat, MADRE hace la búsqueda por significado aquí mismo (sin ninguna llave de API) y hace las notas resumidas con el modelo local primero, antes que con Gemini y los demás. Para recordar no sale nada de tu computadora. Si Ollama está apagado o no está instalado, todo vuelve a los proveedores. El módulo IA local, en Módulos, muestra qué tiene Ollama, te deja descargar los modelos recomendados y encender o apagar cada función.',
   'Install Ollama (ollama.com), start it, then open Local AI in Modules, press RECHECK and download the models it suggests. Set PULSE_OLLAMA_MODEL or PULSE_OLLAMA_EMBED_MODEL to prefer others; PULSE_EMBED_PROVIDER=gemini keeps embeddings on Gemini even with Ollama running.':
-    'Instala Ollama (ollama.com), enciéndelo, luego abre IA local en Módulos, pulsa Revisar otra vez y descarga los modelos que sugiere. Pon PULSE_OLLAMA_MODEL o PULSE_OLLAMA_EMBED_MODEL para preferir otros; PULSE_EMBED_PROVIDER=gemini deja la búsqueda por significado en Gemini aunque Ollama esté corriendo.',
+    'Instala Ollama (ollama.com), enciéndelo, luego abre IA local en Módulos, pulsa REVISAR OTRA VEZ y descarga los modelos que sugiere. Pon PULSE_OLLAMA_MODEL o PULSE_OLLAMA_EMBED_MODEL para preferir otros; PULSE_EMBED_PROVIDER=gemini deja la búsqueda por significado en Gemini aunque Ollama esté corriendo.',
 
   "@madre: the project's own memory, as an agent": '@madre: la memoria del proyecto, como agente',
   'When Ollama runs with a chat model, a fifth agent joins the project: @madre. It answers from the whole archive (distilled notes and exact quotes, cited as [#n]) and from what the message carries, locally, for free. It never writes, draws, browses or makes plans; when the project never discussed something it says so. Other agents may give it a plan step to check what was decided. It leaves the project when Ollama stops, and Diagnostics says so.':
@@ -1945,8 +1947,8 @@ export const ES = {
     'El panel a la izquierda del lienzo las lista: abre una, o empieza otra desde abajo. Borrar una elimina su conversación y nada más: las notas resumidas que salieron de ella son memoria del proyecto y se quedan. Si MADRE dice que el proyecto ya está abierto, usa ese proyecto y abre una conversación dentro, en vez de arrancar un segundo servidor.',
 
   'Doubtful memories: what the project established is false': 'Memorias dudosas: lo que el proyecto ya sabe que es falso',
-  'A doubtful memory is a claim the project established is false, kept on purpose rather than deleted: it is what the local model learns not to repeat. It never travels into a turn, and the note it refutes is taken out of circulation with it — a refuted memory is never recalled again, by words or by meaning. The memory reviewer watches for two agents saying opposite things about the same subject and raises the pair for a third agent to judge, one that took no part in either side. Confirming files the doubtful memory and quarantines what it refutes; dismissing says the project was right and the pair is never raised again. Forgetting a doubtful memory gives its note back.':
-    'Una memoria dudosa es una afirmación que el proyecto estableció como falsa, guardada a propósito en vez de borrada: es lo que el modelo local aprende a no repetir. Nunca se usa en una respuesta, y la nota que contradice deja de usarse con ella: una memoria refutada no se vuelve a recordar, ni por palabras ni por significado. MADRE vigila que dos agentes no digan cosas opuestas sobre el mismo tema y, si pasa, le pide a un tercer agente, que no participó en ninguno de los dos lados, que decida. Confirmar guarda la memoria dudosa y aparta lo que contradice; descartar dice que el proyecto tenía razón y ese par no se vuelve a señalar. Olvidar una memoria dudosa devuelve su nota.',
+  'A doubtful memory is a claim the project established is false, kept on purpose rather than deleted: it is what the local model learns not to repeat. It never travels into a turn, and the note it refutes is taken out of circulation with it — a refuted memory is never recalled again, by words or by meaning. The memory reviewer watches for two agents saying opposite things about the same subject and raises the pair for a third agent to judge, one that took no part in either side. Confirming files the doubtful memory and quarantines what it refutes; dismissing says the project was right and the pair is never raised again. Forgetting a doubtful memory puts the note it refuted back in use.':
+    'Una memoria dudosa es una afirmación que el proyecto estableció como falsa, guardada a propósito en vez de borrada: es lo que el modelo local aprende a no repetir. Nunca se usa en una respuesta, y la nota que contradice deja de usarse con ella: una memoria refutada no se vuelve a recordar, ni por palabras ni por significado. MADRE vigila que dos agentes no digan cosas opuestas sobre el mismo tema y, si pasa, le pide a un tercer agente, que no participó en ninguno de los dos lados, que decida. Confirmar guarda la memoria dudosa y aparta lo que contradice; descartar dice que el proyecto tenía razón y ese par no se vuelve a señalar. Olvidar una memoria dudosa vuelve a poner en uso la nota que contradecía.',
   'The Memory map shows them as collapsed bodies: open one to read what it took down, or clear it if the project was wrong about being wrong. The second test of the Memory review, in Settings → Memory, reports open contradictions.':
     'El Mapa de memoria las muestra como cuerpos colapsados: abre una para leer qué descartó, o quítala si el proyecto se equivocó al marcarla como falsa. La segunda prueba de la Revisión de la memoria, en Ajustes → Memoria, muestra las contradicciones pendientes.',
 
@@ -1963,7 +1965,7 @@ export const ES = {
     'El Mapa de memoria muestra SIN USAR · N en su encabezado cuando hay alguna; al apretarlo se marca cada una en el mapa. Abre una y su ficha te dice el número sin rodeos, con OLVIDAR a un toque. Preguntar por ella es la otra salida: el proyecto te escribe esa pregunta bajo PREGUNTAR.',
 
   'Memory review: whether the archive works': 'Revisión de la memoria: si de verdad funciona',
-  'The six readings count what the archive is made of; they cannot say whether it works, because nothing about a pile of notes says whether the right one comes back when it is needed. COVERAGE takes real questions from this project, runs recall at the exact point each was asked, and scores what came back against the reply that was actually given. CONSISTENCY reads the contradictions the memory reviewer still holds and whether doubtful memories are being filed more often lately. MATCH puts real questions one of your agents (Codex, Claude, Gemini or OpenCode) answered back to the local model with this archive behind it. All three measure against a control, because everything in one project is about the same handful of subjects and any two pieces of it read as close to an embedder: to count, what the archive handed over has to beat what it would have handed over for a different question.':
+  'The six readings count what the archive is made of; they cannot say whether it works, because nothing about a pile of notes says whether the right one comes back when it is needed. COVERAGE takes real questions from this project, runs recall at the exact point each was asked, and scores what came back against the reply that was actually given. CONSISTENCY reads the contradictions the memory reviewer still holds and whether doubtful memories are being filed more often lately. MATCH asks the local model, with this archive behind it, real questions that one of your agents (Codex, Claude, Gemini or OpenCode) already answered. All three measure against a control, because everything in one project is about the same handful of subjects and any two pieces of it look alike to search by meaning: to count, what the archive handed over has to beat what it would have handed over for a different question.':
     'Las seis lecturas dicen de qué está hecha la memoria; no pueden decir si funciona, porque una pila de notas no dice si la correcta aparece cuando hace falta. COBERTURA toma preguntas reales de este proyecto, corre el recuerdo automático en el momento exacto en que se hizo cada una, y califica lo que encontró contra la respuesta que de verdad se dio. CONSISTENCIA revisa las contradicciones pendientes y si últimamente se guardan memorias dudosas más seguido. COINCIDENCIA le hace al modelo local preguntas reales que contestó uno de los agentes principales (Codex, Claude, Gemini u OpenCode), con esta memoria de apoyo. Las tres miden contra un control, porque en un proyecto todo habla del mismo puñado de temas y para la búsqueda por significado dos fragmentos cualesquiera parecen cercanos: para contar, lo que la memoria entregó tiene que ganarle a lo que habría entregado para otra pregunta.',
   'Read the one sentence and the one instruction at the top of Settings → Memory; the readings and the tests are in Analysis and tests, below it. The free test is read as the panel opens, the cheap one keeps itself fresh once a day while the embeddings are local, and the slow one is yours to start and to stop. None of them spends a provider turn.':
     'Lee la frase y la instrucción que están hasta arriba de Ajustes → Memoria; las lecturas y las pruebas están más abajo, en Análisis y pruebas. La prueba gratis se calcula al abrir el panel, la barata se actualiza una vez al día mientras la búsqueda por significado sea local, y la lenta la arrancas y la detienes tú. Ninguna gasta una respuesta de un proveedor.',
@@ -2051,8 +2053,8 @@ export const ES = {
   // El canal de releases.
   'MADRE {latest} is on npm · you run {current}': 'Ya salió MADRE {latest} · tú tienes la {current}',
   'The update did not start: {error}': 'La actualización no arrancó: {error}',
-  'Diagnostics › Look for new versions on: one check a day.': 'Diagnóstico › búsqueda de actualizaciones encendida: MADRE revisa una vez al día.',
-  'Diagnostics › Look for new versions off: no request leaves for npm.': 'Diagnóstico › búsqueda de actualizaciones apagada: MADRE no consulta npm para nada.',
+  'Diagnostics › Look for new versions on: one check a day.': 'Diagnóstico › Buscar versiones nuevas encendido: MADRE revisa una vez al día.',
+  'Diagnostics › Look for new versions off: no request leaves for npm.': 'Diagnóstico › Buscar versiones nuevas apagado: MADRE no consulta npm para nada.',
   'The setting was not saved: {error}': 'El ajuste no se guardó: {error}',
 
   // El centinela.
@@ -2129,7 +2131,7 @@ export const ES = {
   'Before writing anything, ask me what I want to build and propose a plan in steps.': 'Antes de escribir nada, pregúntame qué quiero construir y propón un plan por pasos.',
   'Which stack would you use for a small web app that anyone can open, and why?': '¿Qué tecnología usarías para una app web pequeña que cualquiera pueda abrir, y por qué?',
   'First conversation': 'Primera conversación',
-  'Fresh input tokens of a typical (median) turn with each tool server attached, and without it.': 'Tokens de entrada nuevos en una respuesta típica (la mediana), con cada servidor de herramientas conectado y sin él.',
+  'Fresh input tokens of a typical (median) turn with each outside tool (MCP) connected, and without it.': 'Tokens de entrada nuevos en una respuesta típica (la mediana), con cada herramienta externa (MCP) conectada y sin ella.',
   '@{agent} · {server}: {with} with it ({nWith} turns) · {without} without it ({nWithout} turns)': '@{agent} · {server}: {with} con él ({nWith} respuestas) · {without} sin él ({nWithout} respuestas)',
   'it did not answer within {seconds}s': 'no contestó en {seconds} s',
   'it exited with code {code} before it spoke': 'se cerró con el código {code} antes de responder',
@@ -2183,7 +2185,7 @@ export const ES = {
   'Permission mode for this message · {hint}': 'Modo de permiso de este mensaje · {hint}',
   'default model': 'modelo por defecto',
   ' · model for this request': ' · modelo para esta petición',
-  ' · max mode #{cap}': ' · máximo permitido #{cap}',
+  ' · max mode #{cap}': ' · permiso máximo #{cap}',
   'NOW': 'AHORA',
   'RAISE TO #{n} ›': 'SUBIR A #{n} ›',
   'LOCKED': 'BLOQUEADO',
@@ -2433,7 +2435,7 @@ export const ES = {
   '# Settings → Agents → the agent → Web access':
     '# Ajustes → Agentes → el agente → Acceso a la web',
   '# type / or @ in the Write box':
-    '# escribe / o @ en el campo',
+    '# escribe / o @ en la caja de Escribir',
   '# chip: TO @codex  #1 CHAT ONLY ▾  → choose':
     '# el chip: PARA @codex  #1 SOLO CONVERSAR ▾  → elige',
   '# Settings → Permissions → Who may do what':
@@ -2541,7 +2543,7 @@ export const ES = {
   'Diagnostics › {what} was recorded by the failure monitor. Open Diagnostics to report it.':
     'Diagnóstico › el monitor de fallas registró {what}. Abre Diagnóstico para reportarlo.',
   'a crash': 'un cierre inesperado',
-  'an unexpected problem': 'un problema no identificado',
+  'an unexpected problem': 'un problema inesperado',
   'light': 'claro',
   'dark': 'oscuro',
   'could not list: {error}': 'no se pudo listar: {error}',
@@ -2575,7 +2577,7 @@ export const ES = {
   '{name} not installed · {why}': '{name} no está instalado · {why}',
   '{pct}% · judged by @{judge}': '{pct}% · evaluado por @{judge}',
   'judged by @{judge}': 'evaluado por @{judge}',
-  'The memory reviewer could not be answered.': 'No se pudo responder al revisor de memoria.',
+  'Your answer did not reach the memory reviewer.': 'No se pudo enviar tu respuesta al revisor de memoria.',
   'FILED AS A DOUBTFUL MEMORY · THE MEMORY IT REFUTES IS NO LONGER USED IN ANSWERS':
     'ARCHIVADA COMO MEMORIA DUDOSA · LA MEMORIA QUE CONTRADICE YA NO SE USA EN LAS RESPUESTAS',
   'THE PROJECT STANDS BY IT': 'EL PROYECTO LA SOSTIENE',
@@ -2620,7 +2622,7 @@ export const ES = {
   'read back from the CLI cache, plus what was never sent': 'reutilizados de la caché (memoria temporal) del agente, más lo que nunca se envió',
   'FROM CACHE': 'DE LA CACHÉ',
   'NEVER SENT': 'NUNCA SE ENVIÓ',
-  'part of what MADRE sends the agent that this answer did not need': 'contexto de MADRE que esa respuesta no necesitaba',
+  'part of what MADRE sends the agent that this answer did not need': 'parte de lo que MADRE le manda al agente y esta respuesta no necesitaba',
   'SPENT ON OUTPUT': 'GASTADO EN SALIDA',
   'output tokens, the dearer half': 'tokens de salida (lo que escriben los agentes), la parte más cara',
   'TURNS': 'RESPUESTAS',
@@ -2628,7 +2630,7 @@ export const ES = {
   'SERVER': 'SERVIDOR',
   'running · {host}': 'encendido · {host}',
   'not running': 'apagado',
-  'SMART SEARCH': 'BÚSQUEDA POR SIGNIFICADO',
+  'SEARCH BY MEANING': 'BÚSQUEDA POR SIGNIFICADO',
   ' · off': ' · apagado',
   'no embedding model': 'sin modelo para búsqueda por significado',
   'no chat model': 'sin modelo de chat',
@@ -2656,7 +2658,7 @@ export const ES = {
   'TOKEN SAVER OFF · agents answer at their own length.': 'AHORRO DE TOKENS APAGADO · los agentes contestan con el largo que quieran.',
   'Token saver could not change state: {error}': 'El ahorro de tokens no pudo cambiar de estado: {error}',
   'CANNOT BE TURNED OFF': 'NO SE PUEDE APAGAR',
-  '{name} could not be turned on or off.': '{name} no se pudo encender ni apagar.',
+  '{name} could not be turned on or off.': '{name} no se pudo encender o apagar.',
   'IDE adapters for the agents detected here: {agents}.': 'Adaptadores para editores de código (IDE) de los agentes detectados aquí: {agents}.',
   'The reload failed: {error}': 'La recarga falló: {error}',
   "Remove {name}? Its file {file} is deleted. MADRE's own modules cannot be removed.":
@@ -2694,7 +2696,7 @@ export const ES = {
   'Memory map › {n} of {total} memories have had their chances and were never the answer. Ringed on the map.':
     'Mapa de memoria › {n} de {total} memorias han tenido oportunidad y nunca se han usado. Están marcadas en el mapa.',
   'UNUSED': 'SIN USAR',
-  '{pct}% similar in meaning': '{pct}% de parecido',
+  '{pct}% similar in meaning': '{pct}% parecido en significado',
   'REMOVE THIS DOUBTFUL MEMORY': 'QUITAR ESTA MEMORIA DUDOSA',
   'UNUSED · the archive has been opened {n} times since this was written and never once carried it, and it shares a subject with nothing':
     'SIN USAR · la memoria se ha consultado {n} veces desde que se escribió y ninguna vez se usó, y no comparte tema con nada',
@@ -2856,11 +2858,11 @@ export const ES = {
   'on · agents may ask you to run commands': 'encendido · los agentes pueden pedirte que corras comandos',
   'off · agents describe the command in prose': 'apagado · los agentes describen el comando en prosa',
   'Lets an agent ask you to run a command it cannot run in its mode (tests, a build, a linter). Each command is a button: nothing runs until you press it, it runs from the project root with no shell, a restore point is taken first, and when it has run the output goes back to the agent that asked, which goes on. Costs about 300 tokens of instruction per turn below FULL ACCESS while it is on.':
-    'Deja que un agente te pida correr un comando que su nivel de permiso no le deja correr (pruebas, un build, un linter). Cada comando es un botón y nada corre hasta que lo presionas. Corre desde la raíz del proyecto sin shell; antes se guarda un punto de restauración y, al terminar, el resultado vuelve al agente que lo pidió para que siga. Mientras está encendido, cuesta unos 300 tokens por respuesta en los niveles por debajo de #4 ACCESO TOTAL.',
+    'Deja que un agente te pida correr un comando que su nivel de permiso no le deja correr (pruebas, un build, un linter). Cada comando es un botón y nada corre hasta que lo presionas. Corre desde la carpeta principal del proyecto, sin terminal; antes se guarda un punto de restauración y, al terminar, el resultado vuelve al agente que lo pidió para que siga. Mientras está encendido, cuesta unos 300 tokens por respuesta en los niveles por debajo de #4 ACCESO TOTAL.',
   'Name the request and the line to run.': 'Di qué petición y qué línea correr.',
   'Command requests are off. Enable them in MODULES.': 'Las peticiones de comandos están apagadas. Enciéndelas en Módulos.',
-  'A command is already running; wait for it or STOPALL.': 'Ya corre un comando; espera a que termine o usa DETENER TODO.',
-  '@{agent} holds {mode} of this project; run it when the turn ends.': '@{agent} tiene {mode} en este proyecto; córrelo cuando termine su respuesta.',
+  'A command is already running; wait for it to finish or press STOP ALL.': 'Ya corre un comando; espera a que termine o usa DETENER TODO.',
+  '@{agent} is working in {mode} on this project; run it when its turn ends.': '@{agent} está trabajando en {mode} en este proyecto; córrelo cuando termine su respuesta.',
   '@{agent} asks you to run': '@{agent} te pide correr',
   'RUNNING': 'CORRIENDO',
   'WILL NOT RUN': 'NO CORRE',
@@ -2869,7 +2871,7 @@ export const ES = {
   'Runs {command} from the project root, with no shell. A restore point is taken first.':
     'Ejecuta {command} en la carpeta principal del proyecto, sin terminal (shell). Antes se guarda un punto de restauración.',
   'Each line runs when you press it · from the project root, no shell':
-    'Cada línea se ejecuta cuando la presionas · en la carpeta principal del proyecto, sin terminal',
+    'Cada línea corre cuando la presionas · desde la carpeta principal del proyecto, sin terminal',
   'When they have run, the output goes back to @{agent} and it goes on at #{n} {label}.':
     'Al terminar, el resultado vuelve a @{agent} y sigue con #{n} {label}.',
   'When they have run, the output goes back to @{agent} and it goes on.':
@@ -2885,7 +2887,7 @@ export const ES = {
   'The command you asked for ran. Go on with what you proposed.': 'Ya corrió el comando que pediste. Sigue con lo que propusiste.',
   'The {n} commands you asked for ran. Go on with what you proposed.': 'Ya corrieron los {n} comandos que pediste. Sigue con lo que propusiste.',
   '{n} of the {total} commands you asked for ran. Go on with what you proposed.': 'Corrieron {n} de los {total} comandos que pediste. Sigue con lo que propusiste.',
-  'Name the request to hand back.': 'Di qué petición devolver.',
+  'Say which request to hand back.': 'Falta indicar qué petición devolver.',
   'MADRE is closing.': 'MADRE se está cerrando.',
   'Those results were already handed back.': 'Ese resultado ya se devolvió.',
   'Nothing of that request has run yet.': 'Todavía no corre nada de esa petición.',
@@ -3176,7 +3178,7 @@ export const ES = {
   'Exchanges': 'Intercambios',
   'Memories': 'Memorias',
   'Answers that used memories': 'Respuestas que usaron memorias',
-  'Not noted yet': 'Sin notas aún',
+  'Not noted yet': 'Aún sin pasar a notas',
   'Exchanges not turned into notes yet.': 'Intercambios que aún no se pasan a notas.',
   'All caught up.': 'Todo al día.',
   'Memory progress': 'Avance de la memoria',
@@ -3237,9 +3239,9 @@ export const ES = {
   'Using memories': 'Uso de memorias',
   'How many memories each answer uses, and how they are found.': 'Cuántas memorias usa cada respuesta y cómo se encuentran.',
   'Room for memories': 'Espacio para memorias',
-  'The most of what an agent reads that may be memories.': 'Lo máximo de lo que lee un agente que pueden ser memorias.',
+  'At most, how much of what an agent reads can be memories.': 'Cuánto de lo que lee un agente puede ser memoria, como máximo.',
   'Related memories': 'Memorias relacionadas',
-  'Memories that are often used together come together.': 'Las memorias que suelen usarse juntas llegan juntas.',
+  'Memories that are often used together are brought in together.': 'Las memorias que suelen usarse juntas se traen juntas.',
   'Search by meaning': 'Buscar por significado',
   'Finds memories by what they mean, not only by exact words. Now: {what}.': 'Encuentra memorias por lo que significan, no solo por palabras exactas. Ahora: {what}.',
   'Automatic · Local AI if running, else Gemini': 'Automático · IA local si está encendida, si no Gemini',
@@ -3270,13 +3272,13 @@ export const ES = {
   'Every 5 hours, in tokens: the unit AI use is measured in.': 'Cada 5 horas, en tokens: la unidad con que se mide el uso de la IA.',
   'Default time limit': 'Tiempo límite por defecto',
   'How long an agent may take before the project stops waiting. Each agent can have its own in Agents.': 'Cuánto puede tardar un agente antes de que el proyecto deje de esperar. Cada agente puede tener el suyo en Agentes.',
-  'Gemini sometimes takes a while to start; this is how long to wait for it.': 'A veces Gemini tarda en empezar; esto es cuánto se le espera.',
+  'Gemini sometimes takes a while to start; this is how long to wait for it.': 'A veces Gemini tarda en arrancar; aquí eliges cuánto tiempo esperarlo.',
   'Silence limit': 'Límite de silencio',
   'Seconds without any output before the attempt is dropped.': 'Segundos sin recibir nada antes de cancelar el intento.',
   'Retries': 'Reintentos',
   'How many times a silent attempt is tried again.': 'Cuántas veces se reintenta cuando no llega ninguna respuesta.',
   'Model': 'Modelo',
-  'Words to hide': 'Palabras ocultas',
+  'Words to hide': 'Palabras por ocultar',
   'Replaced with': 'Se reemplazan con',
   'Checking the project…': 'Revisando el proyecto…',
   'Erase private data': 'Borrar datos privados',
@@ -3306,7 +3308,7 @@ export const ES = {
   'Up to date': 'Al día',
   'Open': 'Abrir',
   'Look for new versions': 'Buscar versiones nuevas',
-  'Once a day MADRE checks whether there\'s a new version. Only its name is sent.': 'Una vez al día MADRE revisa si hay una versión nueva. Solo se envía su nombre.',
+  'Once a day MADRE checks whether there\'s a new version. Only the app\'s name is sent.': 'Una vez al día MADRE revisa si hay una versión nueva. Solo se envía el nombre de la app.',
   'Set by PULSE_UPDATE_CHECK.': 'Lo fija PULSE_UPDATE_CHECK.',
   'Last check': 'Última revisión',
   'Not yet.': 'Aún no.',
@@ -3341,7 +3343,7 @@ export const ES = {
   'Tell the author': 'Contarle al autor',
   'What failed, or what you wish MADRE did.': 'Lo que falló, o lo que quisieras que MADRE hiciera.',
   'Reports': 'Reportes',
-  'Private details are removed from each one. You can read it before sending.': 'Cada uno se guarda sin datos privados. Puedes leerlo antes de enviarlo.',
+  'Private details are removed from each one. You can read each report before sending it.': 'Cada uno se guarda sin datos privados. Puedes leerlo antes de enviarlo.',
   'Crash': 'Cierre inesperado',
   'Sent': 'Enviado',
   'Names you don\'t want saved or shared: a company, a brand, a domain. MADRE swaps them out before anything is saved or reaches another agent.': 'Nombres que no quieres que se guarden ni se compartan: una empresa, una marca, un dominio. MADRE los cambia antes de guardar nada o pasárselo a otro agente.',
@@ -3356,7 +3358,7 @@ export const ES = {
   'The page reloads in it when you choose to.': 'La página se recarga en ese idioma cuando tú lo decidas.',
   'Opens your browser to sign in with ChatGPT.': 'Abre tu navegador para iniciar sesión con ChatGPT.',
   'Opens your browser to sign in with your Claude account.': 'Abre tu navegador para iniciar sesión con tu cuenta de Claude.',
-  'Gemini signs in from your terminal: run `gemini`, type /auth, pick "Use Gemini API key" (get one at aistudio.google.com/app/apikey) or Google login.': 'Gemini inicia sesión desde su propia terminal: corre `gemini`, escribe /auth y elige "Use Gemini API key" (consigue una en aistudio.google.com/app/apikey) o el inicio de sesión de Google.',
+  'Gemini signs in from your terminal: run `gemini`, type /auth, pick "Use Gemini API key" (get one at aistudio.google.com/app/apikey) or Google login.': 'Gemini inicia sesión desde tu terminal: corre `gemini`, escribe /auth y elige "Use Gemini API key" (consigue una en aistudio.google.com/app/apikey) o el inicio de sesión de Google.',
   'Pick a provider and paste its key or complete its OAuth flow.': 'Elige un proveedor y pega su llave de API o inicia sesión en su página.',
   'Files and local sites': 'Archivos y sitios locales',
   'Files as a window': 'Archivos en ventana',
@@ -3512,9 +3514,9 @@ export const ES = {
   'Problems': 'Problemas',
   'Nothing matches that. Try a symptom, an agent, or a word like timeout, login, port or budget.': 'Nada coincide con eso. Prueba un síntoma, un agente o una palabra como tiempo, sesión, puerto o límite.',
   '1 problem in this project': '1 problema en este proyecto',
-  '{label} does not ask you to confirm again for @{agent} until this runs out. Click to close it now.': '{label} no vuelve a pedir confirmación para @{agent} hasta que termine este tiempo. Haz clic para cerrarlo ahora.',
+  '{label} does not ask you to confirm again for @{agent} until this runs out. Click to end it now.': '{label} no vuelve a pedir confirmación para @{agent} hasta que termine este tiempo. Haz clic para terminarlo ahora.',
   'open': 'abierto',
-  'Diagnostics › {label} closed for @{agent}: the next message asks you to confirm again.': 'Diagnóstico › {label} cerrado para @{agent}: el siguiente mensaje vuelve a pedir confirmación.',
+  'Diagnostics › {label} locked again for @{agent}: the next message asks you to confirm again.': 'Diagnóstico › {label} se volvió a bloquear para @{agent}: el siguiente mensaje vuelve a pedir confirmación.',
   'The project': 'El proyecto',
   'Your phrase': 'Tu frase',
   'Just confirm': 'Solo confirmar',
@@ -3531,7 +3533,7 @@ export const ES = {
   'Save a phrase below first.': 'Primero guarda una frase abajo.',
   '#{n} {label} now asks for: {key}.': '#{n} {label} ahora pide: {key}.',
   '#4 always asks you to confirm: it runs commands, and what leaves the machine does not come back.': '#4 siempre pide confirmar: puede ejecutar comandos, y lo que sale de la computadora no se puede deshacer.',
-  'MADRE never stores the phrase itself, only a scrambled print of it, and it never leaves this Mac.': 'MADRE nunca guarda la frase, solo una huella cifrada de ella, y nunca sale de esta Mac.',
+  'MADRE never stores the phrase itself, only a fingerprint of it, and it never leaves this Mac.': 'MADRE nunca guarda la frase, solo una huella de ella, y nunca sale de esta Mac.',
   'Type a new phrase to replace it': 'Escribe una frase nueva para reemplazarla',
   'At least 8 characters': 'Al menos 8 caracteres',
   'Replace': 'Reemplazar',
@@ -3550,7 +3552,7 @@ export const ES = {
   'Never longer than 5 minutes.': 'Nunca más de 5 minutos.',
   'Raising an agent\'s max mode always asks, remembered permission or not.': 'Subir el permiso máximo de un agente siempre pide confirmar, aunque ya hayas dado permiso antes.',
   'Off': 'Apagada',
-  '#{n} {label} holds {minutes} min after you confirm it.': '#{n} {label} dura {minutes} min después de confirmarlo.',
+  '#{n} {label} stays unlocked for {minutes} min after you confirm it.': '#{n} {label} sigue desbloqueado {minutes} min después de confirmarlo.',
   '#{n} {label} asks you to confirm every message.': '#{n} {label} pide confirmar en cada mensaje.',
   'Remember permission for #{n}': 'Recordar permiso para #{n}',
   'Who may do what': 'Qué puede hacer cada agente',
@@ -3825,16 +3827,16 @@ export const ES = {
   ' · plan {plan} stopped sending orders on its own ({why}); the rest wait for you to send them': ' · el plan {plan} dejó de enviar órdenes automáticamente ({why}); las que faltan esperan a que las envíes tú',
   'The Coordinator proposes #{n} {label} to @{agent} · order {step} of {total} · plan {plan}': 'El Coordinador propone #{n} {label} a @{agent} · orden {step} de {total} · plan {plan}',
   'Unlock and send': 'Desbloquear y enviar',
-  'Diagnostics › written in the Write box. Sending it asks you to confirm, as always.': 'Diagnóstico › quedó escrita en la caja de Escribir. Al enviarla te pide confirmar, como siempre.',
+  'Diagnostics › the order is now in the Write box. Sending it asks you to confirm, as always.': 'Diagnóstico › la orden quedó en la caja de Escribir. Al enviarla se te pedirá confirmar, como siempre.',
   'an order failed': 'una orden falló',
   'The Coordinator proposes #{n} to @{agent}: confirm it to unlock it': 'El Coordinador propone el permiso #{n} a @{agent}: confírmalo para desbloquearlo',
-  'The Coordinator waits for you to confirm: {reason}': 'El Coordinador espera que confirmes: {reason}',
-  'The Coordinator waits for you to confirm': 'El Coordinador espera que confirmes',
+  'The Coordinator waits for you to confirm: {reason}': 'El Coordinador espera a que confirmes: {reason}',
+  'The Coordinator waits for you to confirm': 'El Coordinador espera a que confirmes',
   'That proposal is not waiting to be taken to its project.': 'Esa propuesta ya no está esperando a enviarse a su proyecto.',
   'Write the question after /bishop.': 'Escribe la pregunta después de /bishop.',
   'A question is between 1 and {n} characters.': 'Una pregunta tiene entre 1 y {n} caracteres.',
   'The Coordinator did not wake up. Go back to Home and ask again.': 'El Coordinador no despertó. Vuelve a Inicio y pregunta de nuevo.',
-  'Asked the Coordinator in Home. The answer comes here, for you only: the agents of this project do not read it without a connection.': 'Pregunta enviada al Coordinador en Inicio. La respuesta llega aquí, solo para ti: los agentes de este proyecto no la leen sin una conexión.',
+  'Your question went to the Coordinator in Home. The answer comes here, for you only: this project\'s agents cannot read it without a connection.': 'Pregunta enviada al Coordinador en Inicio. La respuesta llega aquí, solo para ti: los agentes de este proyecto no la leen sin una conexión.',
   'That order is not running.': 'Esa orden no está corriendo.',
   'That connection is not in this project.': 'Esa conexión no está en este proyecto.',
   'That connection is not waiting to be signed.': 'Esa conexión no está esperando tu firma.',
@@ -3844,7 +3846,7 @@ export const ES = {
   'The Coordinator is answering something else. Ask again in a moment.': 'El Coordinador está respondiendo otra cosa. Vuelve a preguntar en un momento.',
   'The Coordinator does not share its notes with other projects.': 'El Coordinador no comparte sus notas con otros proyectos.',
   'Name what crosses: decision, fact, preference or question.': 'Indica qué se comparte: decisión, hecho, preferencia o pregunta.',
-  'Orders go only on a connection with the Coordinator.': 'Las órdenes solo se pueden enviar en una conexión con el Coordinador.',
+  'Orders only travel over a connection with the Coordinator.': 'Las órdenes solo se pueden enviar por una conexión con el Coordinador.',
   'That connection is already in force.': 'Esa conexión ya está vigente.',
   'more than 2 connections': 'más de 2 conexiones',
   'The guardian of your projects, in Home. It answers about every connected project, proposes orders and connections, and you decide what leaves and what is signed. Any project can raise it with /bishop.': 'Cuida tus proyectos desde Inicio. Responde sobre cada proyecto conectado, propone órdenes y conexiones, y tú decides qué se envía y qué se firma. Desde cualquier proyecto le puedes preguntar con /bishop.',
@@ -3877,7 +3879,7 @@ export const ES = {
   'Automatic: up to #2 leave on their own': 'Automático: hasta #2 se envían solas',
   'The Coordinator signs them, for 7 days at most': 'Las firma el Coordinador, por 7 días como máximo',
   'You sign them': 'Los firmas tú',
-  'Always within the connection. #3 and #4 always wait for your confirmation in their project; a failure or STOP ALL stops what leaves on its own.': 'Siempre dentro de lo que permite la conexión. #3 y #4 siempre esperan tu confirmación en su proyecto; un fallo o DETENER TODO detienen las órdenes que se envían solas.',
+  'Always within what the connection allows. #3 and #4 always wait for your confirmation in their project; an error or STOP ALL halts the orders that go out on their own.': 'Siempre dentro de lo que permite la conexión. #3 y #4 siempre esperan tu confirmación en su proyecto; un fallo o DETENER TODO detienen las órdenes que se envían solas.',
   'A connection with orders is always signed by you. A connection the Coordinator signed is revoked with one press, in Home.': 'Una conexión con órdenes siempre la firmas tú. Una que firmó el Coordinador se revoca con un toque en Inicio.',
   'No ready agent. Choose one when it is available.': 'Ningún agente está listo. Elige uno cuando lo esté.',
   'on · @{agent} · only answers': 'encendido · @{agent} · solo responde',
@@ -3893,7 +3895,7 @@ export const ES = {
   // S-021 and fase 3e: who read through a link, for which turn; and recall on every turn.
   'That reading does not belong to a turn running in this project.': 'Esa lectura no pertenece a una respuesta en curso en este proyecto.',
   'This is changed by you, from Home.': 'Esto lo cambias tú, desde Inicio.',
-  'recall can only be on or off.': 'el recuerdo automático solo puede estar encendido o apagado.',
+  'automatic recall can only be on or off.': 'el recuerdo automático solo puede estar encendido o apagado.',
   'Through a connection you signed: read-only, counted in both projects.': 'Por una conexión que firmaste: solo lectura, registrada en el historial de los dos proyectos.',
   'Always include': 'Incluir siempre',
   'last by @{agent} of {room}, {when}': 'última lectura: @{agent} de {room}, {when}',
@@ -4004,7 +4006,7 @@ export const ES = {
   " · with {room} · both read each other's {kinds}, read-only": ' · con {room} · los dos se leen: {kinds}; solo lectura',
   ' · until {date}': ' · hasta {date}',
   'Connections': 'Conexiones',
-  'A connection lets one project read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes already used in answers are shared.': 'Una conexión deja que un proyecto lea las notas resumidas de otro. Es solo lectura: no cambia nada en el otro proyecto. Solo se comparten las notas que ya se usan en las respuestas. La conexión la firmas tú, aquí.',
+  'A connection lets one project read the summarized notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes already used in answers are shared.': 'Una conexión deja que un proyecto lea las notas resumidas de otro. Es solo lectura: no cambia nada en el otro proyecto. Solo se comparten las notas que ya se usan en las respuestas. La conexión la firmas tú, aquí.',
   '{reader} reads from {source}': '{reader} consulta a {source}',
   '{a} and {b} read each other': '{a} y {b} se consultan entre sí',
   'until {date}': 'hasta {date}',
@@ -4178,14 +4180,14 @@ export const ES = {
   'Waiting on you': 'Te esperan',
   // The lobby, second round (2026-10-10): MADRE's summary, recent decisions, what needs you.
   'Recent summary': 'Resumen reciente',
-  'Summarise again': 'Resumir de nuevo',
+  'Summarize again': 'Resumir de nuevo',
   'Reading your conversations…': 'Leyendo tus conversaciones…',
   'No conversations in the last two weeks. What you work on in any project shows here, summarised by MADRE.': 'No hay conversaciones en las últimas dos semanas. Lo que trabajes en cualquier proyecto aparece aquí, resumido por MADRE.',
   'MADRE is summarising your latest conversations…': 'MADRE está resumiendo tus últimas conversaciones…',
   'MADRE\'s local model is off: this is the last summary it wrote.': 'El modelo local de MADRE está apagado: este es el último resumen que escribió.',
   'MADRE\'s local model is off: these are your latest conversations, as they are.': 'El modelo local de MADRE está apagado: estas son tus últimas conversaciones, tal cual.',
   'MADRE could not summarise them this time: these are your latest conversations, as they are.': 'MADRE no pudo resumirlas esta vez: estas son tus últimas conversaciones, tal cual.',
-  'There is newer work than this summary: it is written again in a few minutes, or now if you press Summarise again.': 'Hay trabajo más reciente que este resumen: se actualiza solo en unos minutos, o ahora si tocas «Resumir de nuevo».',
+  'There is newer work than this summary: it updates itself in a few minutes, or now if you press Summarize again.': 'Hay trabajo más reciente que este resumen: se actualiza solo en unos minutos, o ahora si tocas «Resumir de nuevo».',
   'Written by MADRE on this Mac from your latest conversations.': 'Escrito por MADRE en esta Mac a partir de tus últimas conversaciones.',
   'Recent decisions': 'Decisiones recientes',
   'Reading the open projects…': 'Leyendo los proyectos abiertos…',
@@ -4352,7 +4354,7 @@ export const ES = {
   'The version the registry gave ({version}) is not one MADRE installs.': 'La versión que publicó npm ({version}) no es una que MADRE pueda instalar.',
   'Unlock #3 or #4 for an agent of this project.': 'Desbloquea #3 o #4 para un agente de este proyecto.',
   'Too many wrong confirmations. Wait a minute and try again.': 'Demasiadas confirmaciones equivocadas. Espera un minuto e inténtalo de nuevo.',
-  'Type your current phrase to change how modes are confirmed.': 'Escribe tu frase actual para cambiar las palabras de confirmación.',
+  'Type your current phrase to change how modes are confirmed.': 'Escribe tu frase actual para cambiar cómo desbloqueas los modos.',
   '#{n} needs your confirmation. Unlock it again and send.': '#{n} necesita tu confirmación. Desbloquéalo otra vez y envía.',
   'Your current phrase': 'Tu frase actual',
   'Your phrase guards a mode: to change anything here, type it first.': 'Tu frase protege un modo: para cambiar algo aquí, escríbela primero.',
@@ -4618,7 +4620,7 @@ export const ES = {
   'Ollama is not running': 'Ollama no está encendido',
   'Every project uses it, new ones too.': 'Todos los proyectos la usan, también los nuevos.',
   'Only the projects you switch on below. New projects start without it.': 'Solo los proyectos que enciendas abajo. Los proyectos nuevos empiezan sin ella.',
-  'Each project decides in its own Settings › Modules › Local AI. New ones start with it.': 'Cada proyecto lo decide en sus Ajustes › Módulos › IA local. Los nuevos empiezan con ella.',
+  'Each project decides in its own Modules › Local AI. New ones start with it.': 'Cada proyecto lo decide en sus Módulos › IA local. Los nuevos empiezan con ella.',
   'Home did not answer.': 'Inicio no respondió.',
   '{names} will use it when restarted: it was started before this setting existed.': '{names} tomará el cambio al reiniciarse: se abrió antes de que existiera este ajuste.',
   'Ollama runs local AI: it searches and sums up each project\'s memory and answers as @madre, free and private. Choose which projects use it.': 'Ollama corre IA local: busca y resume la memoria de cada proyecto y contesta como @madre, gratis y privado. Elige qué proyectos la usan.',
@@ -4671,7 +4673,7 @@ export const ES = {
   'Extra features for this project, like apps. Each tile says what it does and what it needs; nothing is installed until you ask.':
     'Funciones extra para este proyecto, como apps. Cada mosaico dice qué hace y qué necesita; nada se instala hasta que lo pidas.',
   'When something fails, describe it in your own words: Diagnostics says what is going on and gives you the button that fixes it.':
-    'Cuando algo falla, descríbelo con tus palabras: Diagnóstico te dice qué pasa y te da la tecla que lo resuelve.',
+    'Cuando algo falla, descríbelo con tus palabras: Diagnóstico te dice qué pasa y te da el botón que lo resuelve.',
   'Everything MADRE remembers about this project, as stars. Drag to turn it, use the wheel to zoom in, and click a star to read that memory.':
     'Todo lo que MADRE recuerda de este proyecto, como estrellas. Arrastra para girarlo, usa la rueda para acercarte y haz clic en una estrella para leer esa memoria.',
   'The agents this project can call, and whether each one is ready. Their sessions are set in Settings › Agents.':
@@ -4717,14 +4719,15 @@ export const ES = {
   // Ajustes › Conectar MCP (2026-10-14): servidores MCP de este proyecto, revisados antes de usarse.
   'Outside tools (MCP)': 'Herramientas externas (MCP)',
   'No outside tools yet': 'Todavía no hay herramientas externas',
-  'no servers yet': 'todavía no hay servidores',
+  'no tools yet': 'todavía no hay herramientas',
   '{ready} of {total} tools ready': '{ready} de {total} herramientas listas',
   '{names} need you': '{names} te necesitan',
-  'Import from your apps': 'Importar de tus apps',
+  '{names} needs you': '{names} te necesita',
+  'Import from your apps': 'Importar desde tus apps',
   'Add a tool': 'Agregar herramienta',
   'Let the agents use other apps and services: a program on this computer or a service online. MADRE checks each one first; if one fails, the agents carry on without it.': 'Deja que los agentes usen otras apps y servicios: un programa en esta computadora o un servicio en internet. MADRE revisa cada uno antes; si uno falla, los agentes siguen sin él.',
   'Add one by hand, or bring the ones you already use in Claude Code, Codex, Gemini or Cursor.':
-    'Agrega uno a mano o trae los que ya usas en Claude Code, Codex, Gemini o Cursor.',
+    'Agrega una a mano o trae las que ya usas en Claude Code, Codex, Gemini o Cursor.',
   'Tools that only look things up work from #1 CHAT ONLY. Tools that do things — send, write, publish — only from the mode you choose: #4 FULL ACCESS unless you lower it. Keys stay locked in MADRE, never in your files.': 'Las herramientas que solo consultan funcionan desde #1 SOLO CONVERSAR. Las que hacen cosas —enviar, escribir, publicar— solo desde el modo que elijas: #4 ACCESO TOTAL, salvo que lo bajes. Las llaves se guardan bajo llave en MADRE, nunca en tus archivos.',
   'address': 'dirección',
   'sign-in needed': 'falta iniciar sesión',
@@ -4741,13 +4744,13 @@ export const ES = {
   'Can act from': 'Puede actuar desde',
   'reads': 'lee',
   'acts': 'actúa',
-  'A name for it, and how MADRE reaches it. MADRE checks it as soon as you save.': 'Un nombre y cómo lo alcanza MADRE. Se revisa en cuanto lo guardas.',
-  'A short word: it is how the agents see it.': 'Una palabra corta: así lo ven los agentes.',
+  'A name for it, and how MADRE reaches it. MADRE checks it as soon as you save.': 'Un nombre y cómo se conecta MADRE con ella. Se revisa en cuanto la guardas.',
+  'A short word: it is how the agents see it.': 'Una palabra corta: así la ven los agentes.',
   'Where it lives': 'Dónde está',
   'On this computer': 'En esta computadora',
   'On the internet': 'En internet',
   'Command': 'Comando',
-  'The command its instructions give you to start it.': 'El comando que sus instrucciones te dan para arrancarlo.',
+  'The command its instructions give you to start it.': 'El comando que indican sus instrucciones para arrancarla.',
   'value': 'valor',
   'Variables': 'Variables',
   'Token': 'Token',
@@ -4760,11 +4763,11 @@ export const ES = {
   'None': 'Ninguno',
   'Save and sign in': 'Guardar e iniciar sesión',
   'Save and check': 'Guardar y revisar',
-  '{name} is connected · {n} tools': '{name} quedó conectado · {n} herramientas',
-  'Tools you already set up in other apps. Nothing is copied until you import; then MADRE keeps their keys safe and checks each one.': 'Herramientas que ya configuraste en otras apps. No se copia nada hasta que importas; entonces MADRE guarda sus llaves y revisa cada una.',
+  '{name} is connected · {n} tools': '{name} quedó conectada · {n} herramientas',
+  'Tools you already set up in other apps. Nothing is copied until you import; then MADRE keeps their keys safe and checks each one.': 'Herramientas que ya configuraste en otras apps. No se copia nada hasta que importas; entonces MADRE guarda sus llaves de forma segura y revisa cada una.',
   'No outside tools were found in .mcp.json, opencode.json, Claude Code, Codex, Gemini CLI or Cursor.': 'No se encontraron herramientas externas en .mcp.json, opencode.json, Claude Code, Codex, Gemini CLI ni Cursor.',
-  '{n} keys to keep safe': '{n} llaves para guardar',
-  'already here': 'ya está aquí',
+  '{n} secrets to keep safe': '{n} datos secretos que MADRE protege',
+  'already in this project': 'ya está en este proyecto',
   'off in that app': 'apagado en esa app',
   'Import and check': 'Importar y revisar',
   '{ok} of {n} imported tools answered': 'Respondieron {ok} de {n} herramientas importadas',
@@ -4772,7 +4775,7 @@ export const ES = {
   'That server is not connected in this project.': 'Ese servidor no está conectado en este proyecto.',
   'The server did not let MADRE register: {problem}': 'El servidor no dejó que MADRE se registrara: {problem}',
   'This sign-in expired': 'Este inicio de sesión venció',
-  'Start it again from Settings › Outside tools (MCP).': 'Empiézalo de nuevo desde Ajustes › Herramientas externas (MCP).',
+  'Sign in again from Settings › Outside tools (MCP).': 'Vuelve a iniciar sesión desde Ajustes › Herramientas externas (MCP).',
   'The sign-in was not completed': 'El inicio de sesión no se completó',
   'The server said: {problem}': 'El servidor dijo: {problem}',
   '{name} is connected to this project with {n} tools. You can close this tab and go back to MADRE.':
@@ -4792,11 +4795,11 @@ export const ES = {
   '{name} is not a variable name.': '{name} no es un nombre de variable.',
   '{name} is not a header name.': '{name} no es un nombre de encabezado.',
   'The server does not publish how to sign in to it (no OAuth metadata). Use a token instead.': 'El servidor no publica cómo iniciar sesión (no tiene datos de OAuth). Usa un token.',
-  'The server signs in only clients it already knows; it does not let MADRE register. Use a token instead.': 'El servidor solo acepta clientes que ya conoce y no deja que MADRE se registre. Usa un token.',
-  'MCP servers you add to this project, for its agents: a command on this computer or an address on the internet. Each one is started and checked before any turn gets it; tools that read work from #1, tools that act from the mode you choose.':
-    'Servidores MCP que agregas a este proyecto para sus agentes: un comando en esta computadora o una dirección en internet. Cada uno se arranca y se revisa antes de entregárselo a una respuesta; las herramientas que leen funcionan desde #1 y las que actúan, desde el modo que elijas.',
-  "the list of servers beside this project's room, never in the project": 'la lista de servidores junto a la sala de este proyecto, nunca dentro del proyecto',
-  "its secrets in MADRE's vault, never in the list": 'sus secretos en la bodega de MADRE, nunca en la lista',
+  'The server only accepts clients it already knows; it does not let MADRE register. Use a token instead.': 'El servidor solo acepta clientes que ya conoce y no deja que MADRE se registre. Usa un token.',
+  'MCP servers you add to this project, for its agents: a command on this computer or an address on the internet. Each one is started and checked before any agent can use it; tools that read work from #1, tools that act from the mode you choose.':
+    'Servidores MCP que agregas a este proyecto para sus agentes: un comando en esta computadora o una dirección en internet. Cada uno se arranca y se revisa antes de que un agente lo use; las herramientas que leen funcionan desde #1 y las que actúan, desde el modo que elijas.',
+  "the list of servers, kept in MADRE's own folder for this project, never inside the project": 'la lista de servidores, guardada en la carpeta de MADRE para este proyecto, nunca dentro del proyecto',
+  "its secrets in MADRE's vault, never in the list": 'sus secretos, guardados de forma segura en MADRE, nunca en la lista',
   'nothing; a server is checked when you add it': 'nada; cada servidor se revisa cuando lo agregas',
   '{name} · an MCP server you connected': '{name} · un servidor MCP que conectaste',
   'the sign-in: how to sign in, the registration of MADRE and the token': 'el inicio de sesión: cómo se inicia, el registro de MADRE y el token',
@@ -4812,32 +4815,32 @@ export const ES = {
   'copilot › ': 'copiloto › ',
   'Copilot on · {left} left. Click to see it or turn it off.': 'Copiloto encendido · quedan {left}. Haz clic para verlo o apagarlo.',
   'Copilot: let the agent you write to drive the project for a while.': 'Copiloto: deja que el agente al que le escribes conduzca el proyecto un rato.',
-  'Copilot off. Each #3 asks for its key again.': 'Copiloto apagado. Cada #3 vuelve a pedir su llave.',
-  'The agent you write to drives the project: it edits, plans with the others and gives each step up to #3, and runs the safe commands — reading, tests, builds, local git — by itself.':
-    'El agente al que le escribes conduce el proyecto: edita, arma planes con los demás y le da a cada paso hasta #3, y corre solo los comandos seguros: leer, pruebas, compilar y git local.',
+  'Copilot off. Each #3 message asks you to confirm again.': 'Copiloto apagado. Cada mensaje en #3 vuelve a pedirte confirmación.',
+  'The agent you write to drives the project: it edits, makes plans with the other agents (each step can go up to #3 EDIT), and runs the safe commands — reading, tests, builds, local git — on its own.':
+    'El agente al que le escribes conduce el proyecto: edita, arma planes con los demás agentes (cada paso puede llegar hasta #3 EDITAR) y corre por su cuenta los comandos seguros: leer, probar, compilar y git local.',
   "It never deletes, never touches MADRE's folders or your secrets, and never pushes, publishes or sends anything off this computer: that stays with you.":
     'Nunca borra, nunca toca las carpetas de MADRE ni tus secretos, y nunca sube, publica ni envía nada fuera de esta computadora: eso se queda contigo.',
   'On until {time} · {left} left': 'Encendido hasta las {time} · quedan {left}',
   'For': 'Por',
   'How long the copilot lasts': 'Cuánto dura el copiloto',
-  'It asks for the #3 key once. STOP ALL ends it.': 'Pide la llave de #3 una sola vez. DETENER TODO lo apaga.',
+  'It asks you to confirm #3 only once. STOP ALL ends it.': 'Te pide confirmar #3 una sola vez. DETENER TODO lo apaga.',
   'Turn the copilot on for {time}': 'Encender el copiloto por {time}',
-  'The agent you write to edits the project and runs the safe commands by itself, with no key per message, until it ends.':
-    'El agente al que le escribes edita el proyecto y corre solo los comandos seguros, sin llave en cada mensaje, hasta que termine.',
+  'The agent you write to edits the project and runs the safe commands by itself, without asking you to confirm each message, until it ends.':
+    'El agente al que le escribes edita el proyecto y corre por su cuenta los comandos seguros, sin pedirte confirmar cada mensaje, hasta que termine.',
   'It never deletes, pushes, publishes or deploys; each change gets a restore point; STOP ALL ends it.':
     'Nunca borra, sube, publica ni despliega; cada cambio tiene punto de restauración; DETENER TODO lo apaga.',
   'Copilot on.': 'Copiloto encendido.',
   'Copilot on for {time}. Write to the agent that should drive.': 'Copiloto encendido por {time}. Escríbele al agente que quieres que conduzca.',
   '@{agent} answered as your copilot': '@{agent} contestó como tu copiloto',
-  'on until {time}: the agent you write to drives the project, with no key per message': 'encendido hasta las {time}: el agente al que le escribes conduce el proyecto, sin llave en cada mensaje',
+  'on until {time}: the agent you write to drives the project without asking you to confirm each message': 'encendido hasta las {time}: el agente al que le escribes conduce el proyecto sin pedirte confirmar cada mensaje',
   'off: its time ran out': 'apagado: se acabó su tiempo',
   'off: STOP ALL ended it': 'apagado: lo detuvo DETENER TODO',
   'off: you turned it off': 'apagado: lo apagaste tú',
-  'The copilot ended. Send again with the #3 key, or turn it on again.': 'El copiloto terminó. Envía de nuevo con la llave de #3 o vuelve a encenderlo.',
+  'The copilot ended. Send again and confirm #3, or turn it on again.': 'El copiloto terminó. Envía de nuevo y confirma #3, o vuelve a encenderlo.',
   'The copilot is turned on from the computer, not from the phone.': 'El copiloto se enciende desde la computadora, no desde el teléfono.',
   'Choose how long the copilot lasts: up to 24 hours.': 'Elige cuánto dura el copiloto: hasta 24 horas.',
-  'The copilot is off: it ended or was stopped. Turn it on again, or send with the #3 key.': 'El copiloto está apagado: terminó o lo detuvieron. Vuelve a encenderlo o envía con la llave de #3.',
-  'The copilot ran commands by itself {n} times in a row; the next ones wait for you. Write to it to go on.': 'El copiloto corrió comandos solo {n} veces seguidas; los siguientes esperan por ti. Escríbele para que siga.',
+  'The copilot is off: it ended or was stopped. Turn it on again, or send and confirm #3.': 'El copiloto está apagado: terminó o lo detuvieron. Vuelve a encenderlo o envía y confirma #3.',
+  'The copilot ran commands by itself {n} times in a row; the next ones wait for you. Write to it to go on.': 'El copiloto corrió comandos por su cuenta {n} veces seguidas; los siguientes te esperan. Escríbele para que siga.',
   'Copilot on. Say what you want done; it edits, plans and checks on its own.': 'Copiloto encendido. Di qué quieres lograr; edita, planea y revisa por su cuenta.',
   '@madre is in the project · {version}': '@madre está en el proyecto · {version}',
   '@madre left the project: Ollama has no chat model running': '@madre salió del proyecto: Ollama no tiene un modelo de chat corriendo',
@@ -4848,13 +4851,13 @@ export const ES = {
   'New: your files stay up to date': 'Nuevo: tus archivos al día',
   'The file list updates by itself after every answer and every command. A colored dot on a folder tells you which agent changed something inside.': 'La lista de archivos se actualiza sola después de cada respuesta y de cada comando. Un punto de color en una carpeta te dice qué agente cambió algo adentro.',
   'New: open the memory faster': 'Nuevo: abre la memoria más rápido',
-  'The Memory map asks you to type the project name before it opens. You can skip that step for 1, 8 or 24 hours, or always: choose «Don\'t ask again…» when it asks, or go to Settings › Permissions.': 'El Mapa de memoria te pide escribir el nombre del proyecto antes de abrirse. Puedes saltarte ese paso por 1, 8 o 24 horas, o siempre: elige «No volver a pedir…» cuando te lo pida, o ve a Ajustes › Permisos.',
+  'The Memory map asks you to type the project name before it opens. You can skip that step for 1, 8 or 24 hours, or for good: choose «Don\'t ask again…» when it asks, or go to Settings › Permissions.': 'El Mapa de memoria te pide escribir el nombre del proyecto antes de abrirse. Puedes saltarte ese paso por 1, 8 o 24 horas, o para siempre: elige «No volver a preguntar…» cuando te lo pida, o ve a Ajustes › Permisos.',
   'New: notices shrink into dots': 'Nuevo: los avisos se hacen puntos',
   'To keep the chat clean, notices shrink into a small dot after 10 seconds. Click the dot to read them again. The ones that need something from you stay open.': 'Para que el chat se vea limpio, los avisos se hacen un puntito después de 10 segundos. Haz clic en el punto para volver a leerlos. Los que necesitan algo de ti se quedan abiertos.',
   'You\'ll find it under «More», on the top bar.': 'Lo encuentras en «Más», en la barra de arriba.',
   'New: add widgets': 'Nuevo: agrega widgets',
   'This button opens «Add to Home»: choose the widgets you want to see here, or bring back the ones you removed.': 'Este botón abre «Agregar a Inicio»: elige los widgets que quieres ver aquí o regresa los que quitaste.',
-  'fold': 'plegar',
+  'collapse': 'contraer',
   '{n} notices': '{n} avisos',
   '{agent} is not installed on this computer.': '{agent} no está instalado en esta computadora.',
   'Suggested effort': 'Esfuerzo sugerido',
@@ -4865,9 +4868,8 @@ export const ES = {
   'does things': 'hace cosas',
   // Ajustes › Permisos › Acceso a la memoria (2026-10-14): el Mapa de memoria sin pedir el nombre por un rato.
   'Memory access': 'Acceso a la memoria',
-  'Opening the Memory map asks for the project name. Choose how long it does not ask again.': 'Abrir el Mapa de memoria pide el nombre del proyecto. Elige cuánto tiempo no lo vuelve a pedir.',
-  "Don't ask again": 'No volver a pedir',
-  "Don't ask again…": 'No volver a pedir…',
+  'Opening the Memory map asks for the project name. Choose how long to skip that.': 'Abrir el Mapa de memoria pide el nombre del proyecto. Elige por cuánto tiempo no volver a pedirlo.',
+  "Don't ask again…": 'No volver a preguntar…',
   'Always ask': 'Pedir siempre',
   'It asks every time.': 'Lo pide cada vez.',
   'It does not ask in this project.': 'No lo pide en este proyecto.',
@@ -4892,7 +4894,7 @@ export const ES = {
   'waits up to {time}': 'espera hasta {time}',
   'Connection and limits in Settings': 'Conexión y límites en Ajustes',
   // Entrenar tu propia IA, en orden (2026-10-14).
-  "The training data are question-and-answer pairs taken from this project's conversations and notes, with private details hidden. With them a small model is adjusted on your computer, and @madre answers with it.": 'Los datos de entrenamiento son pares de pregunta y respuesta sacados de las conversaciones y notas de este proyecto, sin datos privados. Con ellos se ajusta un modelo pequeño en tu computadora, y @madre contesta con él.',
+  "The training data are question-and-answer pairs taken from this project's conversations and notes, with private details hidden. With them a small model is adjusted on your computer, and @madre answers with it.": 'Los datos de entrenamiento son pares de pregunta y respuesta sacados de las conversaciones y notas de este proyecto, con los datos privados ocultos. Con ellos se ajusta un modelo pequeño en tu computadora, y @madre contesta con él.',
   'Step by step': 'Paso a paso',
   'Mac with Apple chip': 'Mac con chip Apple',
   'Linux with NVIDIA': 'Linux con NVIDIA',
@@ -4900,20 +4902,20 @@ export const ES = {
   'Any Mac with an M chip. 16 GB of memory is enough for the small model.': 'Cualquier Mac con chip M. Con 16 GB de memoria alcanza para el modelo pequeño.',
   'Experimental: MLX runs on Linux with an NVIDIA card (CUDA 12, compute capability 7.5 or newer, glibc 2.35, Python 3.10), but mlx-lm only promises Apple chips. Step 2 checks the card first.': 'Experimental: MLX corre en Linux con una tarjeta NVIDIA (CUDA 12, capacidad de cómputo 7.5 o mayor, glibc 2.35, Python 3.10), pero mlx-lm solo garantiza los chips de Apple. El paso 2 revisa la tarjeta primero.',
   'Export the training data': 'Exporta los datos de entrenamiento',
-  'With «Export» above. Do it again whenever the project has grown.': 'Con «Exportar», arriba. Repítelo cuando el proyecto haya crecido.',
+  'Use «Export» above. Do it again whenever the project has grown.': 'Con «Exportar», arriba. Repítelo cuando el proyecto haya crecido.',
   'Prepare Python, once': 'Prepara Python, una sola vez',
-  'A separate environment with mlx-lm, so nothing else on your computer changes.': 'Un entorno aparte con mlx-lm, para que nada más de tu computadora cambie.',
+  'A separate environment with mlx-lm, so nothing else on your computer changes.': 'Un entorno aparte con mlx-lm, para no cambiar nada más en tu computadora.',
   'A separate environment with MLX for CUDA and mlx-lm. It must print «CUDA: True»; if not, stop here.': 'Un entorno aparte con MLX para CUDA y mlx-lm. Debe decir «CUDA: True»; si no, detente aquí.',
   'Train · base {model} for {gb} GB': 'Entrena · base {model} para {gb} GB',
   'From 10 to 40 minutes. It learns from the exported pairs and leaves an adjustment («adapters»).': 'De 10 a 40 minutos. Aprende de los pares exportados y deja un ajuste («adapters»).',
   'Join the adjustment with the base model': 'Une el ajuste con el modelo base',
-  'Turn it into a file Ollama reads (GGUF)': 'Conviértelo en un archivo que Ollama lee (GGUF)',
-  "Once, it downloads llama.cpp's converter.": 'La primera vez descarga el convertidor de llama.cpp.',
+  'Turn it into a file Ollama reads (GGUF)': 'Conviértelo en un archivo que Ollama pueda leer (GGUF)',
+  "The first time, it downloads llama.cpp's converter.": 'La primera vez descarga el convertidor de llama.cpp.',
   '@madre switches to it at the next recheck of Local AI.': '@madre lo usa desde la siguiente revisión de IA local.',
   'Try it before trusting it': 'Pruébalo antes de confiar en él',
-  'Ask @madre ten things the project decided and five it never discussed. It should get the first right and say it never discussed the others; if it makes things up, remove it with «ollama rm {model}» and train with more pairs.': 'Pregúntale a @madre diez cosas que el proyecto decidió y cinco que nunca habló. Debe acertar las primeras y decir que nunca se hablaron las otras; si inventa, quítalo con «ollama rm {model}» y entrena con más pares.',
+  'Ask @madre ten things the project decided and five it never discussed. It should get the first right and say it never discussed the others; if it makes things up, remove it with «ollama rm {model}» and train with more pairs.': 'Pregúntale a @madre diez cosas que el proyecto decidió y cinco de las que nunca se habló. Debe acertar las primeras y decir que de las otras nunca se habló; si inventa, quítalo con «ollama rm {model}» y entrena con más pares.',
   // El escalón sin razonar de OpenCode (2026-10-14).
-  'No reasoning: it answers straight away. For the simplest asks.': 'Sin razonar: contesta de inmediato. Para lo más sencillo.',
+  'No reasoning: it answers straight away. For the simplest requests.': 'Sin razonar: contesta de inmediato. Para lo más sencillo.',
   // Proveedores de OpenCode: el catálogo completo (2026-10-14).
   'Most used': 'Más usados',
   'All providers': 'Todos los proveedores',

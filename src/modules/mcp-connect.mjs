@@ -149,15 +149,15 @@ export default defineModule({
   name: 'Outside tools (MCP)',
   vendor: 'MADRE',
   version: '1.0.0',
-  summary: 'MCP servers you add to this project, for its agents: a command on this computer or an address on the internet. Each one is started and checked before any turn gets it; tools that read work from #1, tools that act from the mode you choose.',
-  creates: ['the list of servers beside this project\'s room, never in the project', 'its secrets in MADRE\'s vault, never in the list'],
+  summary: 'MCP servers you add to this project, for its agents: a command on this computer or an address on the internet. Each one is started and checked before any agent can use it; tools that read work from #1, tools that act from the mode you choose.',
+  creates: ['the list of servers, kept in MADRE\'s own folder for this project, never inside the project', 'its secrets in MADRE\'s vault, never in the list'],
   requires: ['nothing; a server is checked when you add it'],
   card: 'settings',
   settings: { enabled: true },
   async status(ctx) {
     const { servers } = await readMcp(ctx.stateRoot, ctx.projectRoot);
     const ready = servers.filter((one) => one.enabled && !one.problem && one.tools?.length).length;
-    return { status: { installed: true, detail: servers.length ? t('{ready} of {total} tools ready', { ready, total: servers.length }) : t('no servers yet') } };
+    return { status: { installed: true, detail: servers.length ? t('{ready} of {total} tools ready', { ready, total: servers.length }) : t('no tools yet') } };
   },
   async toolsForTurn(ctx, turn) {
     const { servers } = await readMcp(ctx.stateRoot, ctx.projectRoot);
@@ -274,7 +274,7 @@ export default defineModule({
         const state = url.searchParams.get('state') ?? '';
         const flow = pending.get(state);
         pending.delete(state);
-        if (!flow) return page(t('This sign-in expired'), t('Start it again from Settings › Outside tools (MCP).'));
+        if (!flow) return page(t('This sign-in expired'), t('Sign in again from Settings › Outside tools (MCP).'));
         if (url.searchParams.get('error')) return page(t('The sign-in was not completed'), t('The server said: {problem}', { problem: String(url.searchParams.get('error_description') ?? url.searchParams.get('error')).replace(/[<>&]/g, '') }));
         const done = await exchangeCode({ authorization: flow.authorization, clientId: flow.clientId, redirectUri: flow.redirectUri, code: url.searchParams.get('code') ?? '', verifier: flow.verifier, resource: flow.resource }).catch((error) => ({ ok: false, problem: error.message }));
         if (!done.ok) return page(t('The sign-in was not completed'), t('The server said: {problem}', { problem: String(done.problem).replace(/[<>&]/g, '') }));

@@ -898,8 +898,8 @@ export class Room {
     const command = request?.commands?.[index];
     if (!command) return { ok: false, status: 404, error: t('That command request is not in this project.') };
     if (!command.argv) return { ok: false, status: 422, error: `That line does not run: it ${whyText(command)}.` };
-    if (this.#runBusy || this.#runDesk.busy) return { ok: false, status: 409, error: t('A command is already running; wait for it or STOPALL.') };
-    if (this.#controlDesk.holder) return { ok: false, status: 409, error: t('@{agent} holds {mode} of this project; run it when the turn ends.', { agent: this.#controlDesk.holder.agent, mode: MODES[this.#controlDesk.holder.mode ?? 3].label }) };
+    if (this.#runBusy || this.#runDesk.busy) return { ok: false, status: 409, error: t('A command is already running; wait for it to finish or press STOP ALL.') };
+    if (this.#controlDesk.holder) return { ok: false, status: 409, error: t('@{agent} is working in {mode} on this project; run it when its turn ends.', { agent: this.#controlDesk.holder.agent, mode: MODES[this.#controlDesk.holder.mode ?? 3].label }) };
     // A line pressed from a phone hands its results back at #2 at most, the phone's own ceiling.
     this.#returnCap.set(responseMessageId, Math.min(this.#returnCap.get(responseMessageId) ?? 3, Number(returnCap) || 1));
     // Taken before the first await below: two presses in a row must not both get through.

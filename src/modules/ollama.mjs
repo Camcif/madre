@@ -49,7 +49,7 @@ export default defineModule({
   name: 'Local AI',
   vendor: 'MADRE · LOCAL INTELLIGENCE',
   tracks: { name: 'ollama', github: 'ollama/ollama' },
-  summary: 'Searches and sums up the project\'s memory with local AI (Ollama): free, and nothing leaves.',
+  summary: 'Searches and sums up the project\'s memory with local AI (Ollama): free, and nothing leaves your computer.',
   creates: ['nothing in the project', 'a block in ~/.pulse/config.json', 'models in Ollama\'s own store when you press PULL'],
   requires: ['Ollama running (the app, or ollama serve)', 'an embedding model and a chat model \u00b7 MADRE can pull the recommended ones'],
   settings: { enabled: true, embeddings: true, archivist: true, agent: true },

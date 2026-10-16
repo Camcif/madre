@@ -778,7 +778,7 @@ function drawWork() {
   w.note.textContent = state === 'working' ? t('MADRE is summarising your latest conversations…')
     : state === 'unavailable' ? (bullets.length ? t('MADRE\'s local model is off: this is the last summary it wrote.') : t('MADRE\'s local model is off: these are your latest conversations, as they are.'))
     : state === 'failed' ? t('MADRE could not summarise them this time: these are your latest conversations, as they are.')
-    : work.stale ? t('There is newer work than this summary: it is written again in a few minutes, or now if you press Summarise again.')
+    : work.stale ? t('There is newer work than this summary: it updates itself in a few minutes, or now if you press Summarize again.')
     : t('Written by MADRE on this Mac from your latest conversations.');
   if (typeof fitTiles === 'function') fitTiles();
 }
@@ -844,7 +844,7 @@ function drawLinks(projects) {
   ui.linksSum.textContent = enlaces.length
     ? [enlaces.length === 1 ? t('1 in force') : t('{n} in force', { n: enlaces.length }), t('{n} reads in 24 h', { n: reads })].join(' · ')
     : enough ? t('No connections yet.') : t('Add a project to connect it.');
-  ui.linksNote.textContent = t('A connection lets one project read the distilled notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes already used in answers are shared.');
+  ui.linksNote.textContent = t('A connection lets one project read the summarized notes of another, read-only, by a contract you sign here. Nothing is written across, and only notes already used in answers are shared.');
   ui.links.replaceChildren(...enlaces.map(linkRow));
   if (!enlaces.length && ui.linksSheet.open) ui.linksSheet.close();
   drawMap(projects, enlaces);
@@ -4149,7 +4149,7 @@ function fillLook(host) {
     paperBox.append(tune);
   }
   sxBlock(page, t('Wallpaper'), photo
-    ? t('The project\'s background can be a photograph, as a layer or as a mesh of its own colours: choose how strong it looks and how much the photograph blurs.')
+    ? t('The project\'s background can be a photograph, shown as a layer or as a mesh of its colors: choose how strong it looks and how much the photograph blurs.')
     : t('Behind Home, and behind the conversation of the project served at this address. Light and dark each have their own.')).rows.append(paperBox);
 
   // Home's own: its cards, its text, the order of its projects. The conversation's bubbles and text
@@ -4214,7 +4214,7 @@ const LOCAL_MODE_WORDS = { auto: () => t('Automatic'), pick: () => t('One by one
 const LOCAL_MODE_SAYS = {
   auto: () => t('Every project uses it, new ones too.'),
   pick: () => t('Only the projects you switch on below. New projects start without it.'),
-  manual: () => t('Each project decides in its own Settings › Modules › Local AI. New ones start with it.'),
+  manual: () => t('Each project decides in its own Modules › Local AI. New ones start with it.'),
 };
 let localFailed = false;        // the last read got no answer: the sheet says so instead of «Reading…» forever
 async function loadLocal() {
@@ -4570,7 +4570,7 @@ function translateStatic() {
   ui.bishop.tab.setAttribute('aria-label', t('Open the Coordinator in a new tab'));
   ui.bishop.about.textContent = t('Your Coordinator. It reads across your projects, signs the connections between them and carries an order from one to another.');
   ui.work.title.textContent = t('Recent summary');
-  ui.work.again.textContent = t('Summarise again');
+  ui.work.again.textContent = t('Summarize again');
   ui.waiting.title.textContent = t('Waiting on you');
   ui.linksTileTitle.textContent = t('Connections');
   ui.link.textContent = t('Connect projects');

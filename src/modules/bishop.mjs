@@ -270,7 +270,7 @@ const base = defineModule({
       const name = (await knownRooms(ctx.stateRoot)).find((room) => room.id === here)?.name ?? here;
       const sent = key ? await post(home.open.port, '/api/x/bishop/consult', { from: here, name, question }, key) : { ok: false, answer: { error: t('The internal key that connects the projects is missing.') } };
       if (!sent.ok) return { ok: false, title: 'Coordinator', text: sent.answer?.error ?? t('That project did not answer.') };
-      return { ok: true, title: 'Coordinator', text: t('Asked the Coordinator in Home. The answer comes here, for you only: the agents of this project do not read it without a connection.') };
+      return { ok: true, title: 'Coordinator', text: t('Your question went to the Coordinator in Home. The answer comes here, for you only: this project\'s agents cannot read it without a connection.') };
     },
   }],
   // Every event of every room. Outside Salas: the order turns, so one can be stopped. In Salas:
@@ -526,7 +526,7 @@ const bishop = Object.freeze({
       controls.push({
         key: 'mode', label: 'ORDERS', type: 'select', options: BISHOP_MODES, value: modeOf(ctx),
         choices: BISHOP_MODES.map((value) => ({ value, label: ORDER_CHOICES[value] })),
-        note: 'Always within the connection. #3 and #4 always wait for your confirmation in their project; a failure or STOP ALL stops what leaves on its own.',
+        note: 'Always within what the connection allows. #3 and #4 always wait for your confirmation in their project; an error or STOP ALL halts the orders that go out on their own.',
       });
       controls.push({
         key: 'links', label: 'CONNECTIONS TO READ', type: 'select', options: LINK_SIGNERS, value: signerOf(ctx),
