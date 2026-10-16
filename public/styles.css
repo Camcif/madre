@@ -9374,3 +9374,18 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 #messages#messages .sys-dots.open > .system.folded.claim .claim-acts { justify-content: flex-start; }
 #messages#messages .sys-dots.open > .sys-more { justify-self: center; margin-top: 8px; }
 #messages#messages .sys-dots.open > .system.folded.claim > * { margin-left: 0 !important; margin-right: 0 !important; max-width: none !important; text-align: left !important; justify-self: start !important; }
+/* La cabecera en una sola línea (2026-10-15): lo primero que cede es la pregunta citada (se corta
+   con «…»), luego modelo, esfuerzo y las demás insignias; el nombre y lo cobrado no se cortan. */
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who { flex-wrap: nowrap; border-radius: 14px; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who > span:first-child,
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .spent { flex: none; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who :is(.badge, .to-agent) { flex: none; }
+/* Solo lo que es una frase (de dónde viene una orden, «orden 1 de 1 · …») puede cortarse. */
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge:not(.model, .mode, .ash) { flex: 0 1 auto; min-width: 60px; }
+/* Con el chat angosto se callan primero los que se pueden leer en otro lado: el esfuerzo (lo dice
+   el sello de tu mensaje) y, más angosto, el ahorro de tokens (lo dice la caja de escribir). */
+#messages .thread-inner { container: thread / inline-size; }
+@container thread (max-width: 540px) { :root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.effort { display: none; } }
+@container thread (max-width: 430px) { :root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.ash { display: none; } }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .reply { flex: 1 1 0; min-width: 0; max-width: max-content; }
+:root:not([data-lab04]) #messages#messages .row.assistant .col > .who .reply:empty { display: none; }
