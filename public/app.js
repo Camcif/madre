@@ -9,6 +9,7 @@ import { resay } from './resay.js';
 import { startReviewAsk } from './review-ask.js';
 import { spotlight, startTour as startWelcome } from './tour.js';
 import { dropStickyHover } from './touch.js';
+import { drawAttribution } from './attribution.js';
 // Where nothing can hover (a phone), a tapped key does not stay lit (public/touch.js).
 dropStickyHover();
 // Made the first time the room asks for it (roomTour, below), which can be while this file is
@@ -9938,6 +9939,10 @@ function measureDock() {
   // depended on where the box stood at that instant, and Safari once left 906px of nothing.
   const lift = pageScrolls() && typeof getComputedStyle === 'function' ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--kb')) || 0 : 0;
   const height = Math.max(0, Math.ceil(pageScrolls() ? box.height + lift : shell.getBoundingClientRect().bottom - box.top));
+  // Where the type box itself begins (the strip above it — open questions, offers — is not it):
+  // the thread fades out in the last few pixels before that edge (styles.css, --type-gap).
+  const field = els.composer.querySelector?.('.field')?.getBoundingClientRect?.();
+  if (field && !pageScrolls()) shell.style.setProperty('--type-gap', `${Math.max(0, Math.ceil(shell.getBoundingClientRect().bottom - field.top))}px`);
   if (height === measureDock.last) return;
   const stay = atBottom();
   measureDock.last = height;
@@ -10183,13 +10188,9 @@ if (SPLIT_CHAT && !Array.isArray(initial.events)) {
   els.column.replaceChildren(el('div', 'empty', t('This conversation is no longer here.')));
   await new Promise(() => {});
 }
-// The corner of the room: which MADRE this is, and whose it is, readable on any wallpaper. The
-// notice is NOTICE's, word for word — a copyright line the page invents for itself is a copyright
-// line that drifts from the one that counts.
-if (initial.version) {
-  const corner = document.querySelector('#colophon');
-  if (corner) corner.replaceChildren(el('b', null, `MADRE ${initial.version}`), document.createTextNode('\u00a0·\u00a0© 2026 Jossue Alcalá'));
-}
+// The corner of the room: which MADRE this is, and whose it is, readable on any wallpaper, and a
+// link to its author (public/attribution.js: NOTICE's attribution, the same on Home).
+if (initial.version) drawAttribution(document.querySelector('#colophon'), initial.version);
 void adoptLanguage(initial.language, initial.languageChosen);
 // Whether the copilot is on for this project, so the robot and the mode say so from the start.
 void loadCopilot().then(() => showNewHints());

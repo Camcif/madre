@@ -15,7 +15,9 @@ permission to use them (Section 6). This page says what is allowed and what isn'
 - **Mark that you changed them** in the files you modify (Section 4(b)).
 
 We also ask that the phrase "Based on MADRE" appears wherever your project says who made it:
-the README, the "About" screen or the footer.
+the README, the "About" screen or the footer. And that you keep the corner of every project and
+of Home, «MADRE <version> · © 2026 Jossue Alcalá» with its link to https://jossuealcala.com, or
+that under another name it says «Built with MADRE by Jossue Alcalá» with the same link.
 
 ## What you can do without asking
 

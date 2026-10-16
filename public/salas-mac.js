@@ -10,6 +10,7 @@ import { brandOf, monogram } from './brands.js';
 import { startReviewAsk } from './review-ask.js';
 import { startTour } from './tour.js';
 import { dropStickyHover } from './touch.js';
+import { drawAttribution } from './attribution.js';
 
 // Where nothing can hover (a tablet), a tapped key does not stay lit (public/touch.js).
 dropStickyHover();
@@ -2305,10 +2306,7 @@ async function refresh() {
   for (const room of answer.rooms ?? []) if (room.open) failed.delete(room.id);
   ui.foot.textContent = t('Every project runs on this Mac, on its own, with its own memory.');
   // The room's corner (app.js, #colophon): the version this Home runs, and NOTICE's own line.
-  if (answer.version) {
-    ui.colophon.replaceChildren(el('b', null, `MADRE ${answer.version}`), document.createTextNode('\u00a0·\u00a0© 2026 Jossue Alcalá'));
-    ui.colophon.hidden = false;
-  }
+  if (answer.version) drawAttribution(ui.colophon, answer.version);
   draw();
 }
 

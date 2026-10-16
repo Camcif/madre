@@ -387,7 +387,7 @@ test('bar: NOSTROMO is a brain in the bar that beats, and the corner says the ve
   assert.match(app, /document\.querySelector\('#nostromo-bar'\)\?\.addEventListener\('click', \(\) => nostromo\.button\?\.click\(\)\);/);
   assert.match(css, /\.bar \.nostromo-bar:hover \.brain-glyph, \.bar \.nostromo-bar:focus-visible \.brain-glyph \{ animation: brain-beat/);
   assert.ok(!app.includes('github.com/sponsors'), 'the corner asks for support again');
-  assert.match(app, /corner\.replaceChildren\(el\('b', null, `MADRE \$\{initial\.version\}`\)/);
+  assert.match(app, /drawAttribution\(document\.querySelector\('#colophon'\), initial\.version\)/);
 });
 
 test('bar: right-click opens it for editing, AJUSTES stays last, and the choice is kept in this browser', async () => {

@@ -11,6 +11,12 @@ of your distribution:
 
     Based on MADRE by Jossue Alcalá — https://madre.run
 
+In the program. MADRE shows, in the corner of every project and of Home,
+«MADRE <version> · © 2026 Jossue Alcalá», linked to https://jossuealcala.com.
+That corner is where MADRE displays its attribution notices. We ask every
+version and every fork to keep it there, as it is or, under another name, as
+«Built with MADRE by Jossue Alcalá» with the same link.
+
 "MADRE", the MADRE logo and madre.run are trademarks of Jossue Alcalá. The
 License grants no permission to use them (Section 6). A modified version must
 be distributed under a different name and logo; saying that it is based on
@@ -22,3 +28,8 @@ MADRE es de Jossue Alcalá. Cualquier versión o fork que se distribuya debe
 conservar este archivo y la línea «Based on MADRE by Jossue Alcalá —
 https://madre.run». El nombre MADRE, su logo y madre.run son marcas de Jossue
 Alcalá: una versión modificada lleva otro nombre. Ver TRADEMARKS.md.
+
+En el programa, la esquina de cada proyecto y de Inicio dice «MADRE <versión> ·
+© 2026 Jossue Alcalá», con enlace a https://jossuealcala.com. Pedimos a cada
+versión y a cada fork que la conserve así o, con otro nombre, como «Desarrollado
+con MADRE de Jossue Alcalá», con el mismo enlace.

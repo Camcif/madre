@@ -15,7 +15,9 @@ permiso de usarlas (sección 6). Esta página dice qué sí y qué no.
 - **Indicar que lo cambiaste** en los archivos que modifiques (sección 4.b).
 
 Te pedimos además que la frase «Basado en MADRE» aparezca donde tu proyecto diga quién lo hizo:
-el README, la pantalla «Acerca de» o el pie de página.
+el README, la pantalla «Acerca de» o el pie de página. Y que conserves la esquina de cada proyecto
+y de Inicio, «MADRE <versión> · © 2026 Jossue Alcalá» con su enlace a https://jossuealcala.com,
+o que con otro nombre diga «Desarrollado con MADRE de Jossue Alcalá» con el mismo enlace.
 
 ## Lo que sí puedes hacer sin pedir permiso
 
@@ -51,7 +53,9 @@ madre.run are trademarks of Jossue Alcalá, and the License grants no permission
 **Every fork must:** keep the [`NOTICE`](NOTICE) file with the line
 `Based on MADRE by Jossue Alcalá — https://madre.run` (required by Section 4(d)); keep the
 copyright notices of files that come from MADRE (4(c)); and mark the files it changed (4(b)). We
-also ask that "Based on MADRE" appears wherever your project says who made it.
+also ask that "Based on MADRE" appears wherever your project says who made it, and that the
+corner of every project and of Home keeps «MADRE <version> · © 2026 Jossue Alcalá» linked to
+https://jossuealcala.com (or, under another name, «Built with MADRE by Jossue Alcalá»).
 
 **You may, without asking:** use MADRE as is, under its name; redistribute it unmodified under
 its name; say your project is "based on MADRE", "made for MADRE" or "compatible with MADRE" without
