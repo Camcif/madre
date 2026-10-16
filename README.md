@@ -45,7 +45,7 @@ MADRE usa las sesiones que esas CLIs ya tienen en tu máquina.
 
 - **Inicio**: todos tus proyectos en un lugar, abiertos o dormidos, con lo que pasó en cada uno.
 - **El Coordinador**: un agente que lee entre tus proyectos, firma conexiones y lleva órdenes de uno a otro.
-- **Conexiones**: un proyecto consulta lo que otro ya aprendió, solo si tú lo firmas.
+- **Conexiones**: un proyecto consulta lo que otro ya aprendió, solo con una conexión que firmas tú o, si lo permites, el Coordinador.
 - **Permisos a tu manera**: de `#0` Incógnito a `#4` Acceso total, con la llave que tú eliges.
 - **Ajustes y Diagnóstico**: todo lo que configuras en una ventana, y el remedio cuando algo falla.
 - **Módulos como apps**, varias conversaciones a la vez y un editor de código en el visor.
@@ -74,7 +74,7 @@ Hoy eso son cuatro ventanas, cuatro contextos y tú copiando y pegando entre ell
   <img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/media/1.0/ksp-inicio.webp" alt="Inicio de MADRE 1.0: el Coordinador con su resumen reciente, quién te espera, las conexiones y una tarjeta por proyecto" width="100%">
 </p>
 
-`madre` abre **Inicio**. La primera vez te acompaña en tres pasos: conectar tus agentes (una vez para todos tus proyectos), agregar tus carpetas y abrir las que vas a usar. Cada tarjeta dice si un agente trabaja, si alguien te espera y qué se decidió mientras no estabas.
+`npx @jossuealcala/madre` abre **Inicio**. La primera vez te acompaña en tres pasos: conectar tus agentes (una vez para todos tus proyectos), agregar tus carpetas y abrir las que vas a usar. Cada tarjeta dice si un agente trabaja, si alguien te espera y qué se decidió mientras no estabas.
 
 ## Un Coordinador que ve todos tus proyectos
 
@@ -137,7 +137,7 @@ Cada panel se abre al lado o en una ventana que mueves. Varias conversaciones tr
 
 ## Hazla tuya
 
-MADRE trae doce módulos —Ahorro de tokens, Intenciones, IA local, GitHub, Continuidad y más—, en un tablero como de apps. El siguiente lo escribes tú, o se lo pides a un agente.
+MADRE trae doce módulos —Ahorro de tokens, Esfuerzo sugerido, IA local, GitHub, Continuidad y más—, en un tablero como de apps. El siguiente lo escribes tú, o se lo pides a un agente.
 
 **Un módulo es un archivo.** Sin build, sin dependencias, sin registrarse en ningún lado. Lo copias a una carpeta, recargas y aparece con su interruptor, sus ajustes y su ficha. Con uno puedes añadir un comando `/loquesea` que el proyecto entiende, darle a los agentes una herramienta que antes no tenían, cambiar cómo se comporta MADRE, o conectarla con algo que ya usas.
 
@@ -189,7 +189,7 @@ Necesitas **Node 22.5** o superior y al menos una de estas CLIs con sesión inic
 npx @jossuealcala/madre
 ```
 
-Desde cualquier carpeta, abre **Inicio** en `http://127.0.0.1:4317/salas`: todos tus proyectos en un lugar, con el Coordinador arriba. La primera vez te acompaña en tres pasos: **conectar tus agentes** (instalar y firmar cada CLI ahí mismo, una vez para todos tus proyectos), **agregar tus proyectos** (eliges las carpetas; agregarlas no las abre) y **abrir** los que vas a usar. Cada proyecto corre por su cuenta, con su propia memoria.
+Desde cualquier carpeta, abre **Inicio** en `http://127.0.0.1:4317/salas`: todos tus proyectos en un lugar, con el Coordinador arriba. La primera vez te acompaña en tres pasos: **conectar tus agentes** (instalar cada CLI e iniciar sesión ahí mismo, una vez para todos tus proyectos), **agregar tus proyectos** (eliges las carpetas; agregarlas no las abre) y **abrir** los que vas a usar. Cada proyecto corre por su cuenta, con su propia memoria.
 
 Si prefieres entrar directo a un proyecto, como antes:
 
@@ -201,6 +201,8 @@ npx @jossuealcala/madre start
 ```
 npx @jossuealcala/madre doctor    # qué hay instalado, quién tiene sesión
 ```
+
+**Actualizar.** `npx @jossuealcala/madre` sin versión baja la más reciente cada vez que arranca: ciérrala y vuelve a abrirla, o usa el aviso de versión nueva dentro de MADRE, que la actualiza con un clic. Si la instalaste con `npm install -g`, vuelve a instalarla: `npm install -g @jossuealcala/madre@latest`.
 
 MADRE habla **español** e **inglés**: la primera vez se abre en el idioma de tu navegador, y en Ajustes › Apariencia lo cambias cuando quieras.
 

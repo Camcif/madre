@@ -43,7 +43,7 @@ MADRE uses the sessions those CLIs already have on your machine.
 
 - **Home**: all your projects in one place, open or asleep, with what happened in each one.
 - **The Coordinator**: an agent that reads across your projects, signs connections and carries orders from one to another.
-- **Connections**: one project looks up what another has already learned, only if you sign it.
+- **Connections**: one project looks up what another has already learned, only through a connection that you sign or, if you allow it, the Coordinator.
 - **Permissions your way**: from `#0` Incognito to `#4` Full access, with the key you choose.
 - **Settings and Diagnostics**: everything you configure in one window, and the fix when something breaks.
 - **Modules as apps**, several conversations at once and a code editor in the viewer.
@@ -72,7 +72,7 @@ Today that's four windows, four contexts and you copying and pasting between the
   <img src="https://raw.githubusercontent.com/jossuealcacao-exe/madre/main/docs/media/1.0/ksp-inicio.webp" alt="MADRE 1.0 Home: the Coordinator with its recent summary, who is waiting for you, the connections and one card per project" width="100%">
 </p>
 
-`madre` opens **Home**. The first time, it walks you through three steps: connect your agents (once for all your projects), add your folders and open the ones you'll use. Each card says whether an agent is working, whether someone is waiting for you and what was decided while you were away.
+`npx @jossuealcala/madre` opens **Home**. The first time, it walks you through three steps: connect your agents (once for all your projects), add your folders and open the ones you'll use. Each card says whether an agent is working, whether someone is waiting for you and what was decided while you were away.
 
 ## A Coordinator that sees all your projects
 
@@ -142,7 +142,7 @@ MADRE comes with twelve modules —Token saver, Suggested effort, Local AI, GitH
 **Or you don't write it.** In the text box:
 
 ```
-/module un comando que me diga qué cambió en el repo esta semana
+/module a command that tells me what changed in the repo this week
 ```
 
 The agent reads the SDK, writes the file, and MADRE shows you a card to review it before installing it. It never installs itself, and no agent can write to the modules folder.
@@ -165,7 +165,7 @@ This matters more than any feature.
 
 **There is no cloud.** MADRE has no server, no account, no backend. It runs on `127.0.0.1` and dies when you close the terminal.
 
-**Your keys, where they're needed and nowhere else.** When you give an agent's key, MADRE writes it to the file where that CLI looks for it, locked to your user, and keeps no copy. An integration has no CLI to give it to, so that one —and only that one— MADRE keeps, in its own vault on your machine, with permissions for your user only, accepted only from this computer. Never in its config, its log, its logs, or anything an agent reads: the card only shows that one is saved and how many characters it has.
+**Your keys, where they're needed and nowhere else.** When you give an agent's key, MADRE writes it to the file where that CLI looks for it, locked to your user, and keeps no copy. An integration has no CLI to give it to, so that one —and only that one— MADRE keeps, in its own vault on your machine, with permissions for your user only, accepted only from this computer. Never in its config, its records or its logs, or anything an agent reads: the card only shows that one is saved and how many characters it has.
 
 **Nothing goes out on its own.** What an agent reads travels to *its* provider, with your account and your limits — as if you had run it in your terminal, because that's exactly what MADRE does. What MADRE looks up on its own is declared, along with what turns it off: the daily check for new versions (npm and GitHub), your Claude plan's quota, Gemini embeddings and images if you turn them on, and crash reports, off by default. And once a day, always, a notice that this copy is still in use: a random identifier, the MADRE version, the operating system and the Node version. No name, email, IP or anything from your projects; it's how the author knows how many people use MADRE.
 
@@ -192,13 +192,15 @@ From any folder, it opens **Home** at `http://127.0.0.1:4317/salas`: all your pr
 If you'd rather go straight into a project, as before:
 
 ```
-cd tu-proyecto
+cd your-project
 npx @jossuealcala/madre start
 ```
 
 ```
 npx @jossuealcala/madre doctor    # what's installed, who's signed in
 ```
+
+**Updating.** `npx @jossuealcala/madre` with no version fetches the newest one each time it starts: close it and open it again, or use the new-version notice inside MADRE, which updates it in one click. If you installed it with `npm install -g`, install it again: `npm install -g @jossuealcala/madre@latest`.
 
 MADRE speaks **Spanish** and **English**: the first time, it opens in your browser's language, and you can change it any time in Settings › Appearance.
 
