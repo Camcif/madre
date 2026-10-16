@@ -9389,3 +9389,9 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 @container thread (max-width: 430px) { :root:not([data-lab04]) #messages#messages .row.assistant .col > .who .badge.ash { display: none; } }
 :root:not([data-lab04]) #messages#messages .row.assistant .col > .who .reply { flex: 1 1 0; min-width: 0; max-width: max-content; }
 :root:not([data-lab04]) #messages#messages .row.assistant .col > .who .reply:empty { display: none; }
+/* El punto de un aviso solo (2026-10-15): más chico y casi transparente, para no ensuciar el
+   lienzo; vuelve a verse entero al pasar o al enfocarlo. La fila con «+N» se atenúa menos. */
+#messages#messages .sys-dots.single { padding: 3px; margin-block: 2px; border-color: transparent; background: color-mix(in srgb, var(--bg) 30%, transparent); -webkit-backdrop-filter: none; backdrop-filter: none; opacity: .5; transition: opacity calc(180ms * var(--motion-scale)) ease, background calc(180ms * var(--motion-scale)) ease; }
+#messages#messages .sys-dots.single > .system.folded { width: 6px !important; height: 6px !important; box-shadow: none !important; }
+#messages#messages .sys-dots:not(.open):not(.single) { opacity: .8; transition: opacity calc(180ms * var(--motion-scale)) ease; }
+#messages#messages .sys-dots:not(.open):is(:hover, :focus-visible) { opacity: 1; background: color-mix(in srgb, var(--bg) 78%, transparent); }
