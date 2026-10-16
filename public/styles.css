@@ -9431,3 +9431,13 @@ dialog.tour-bonjour:focus, dialog.tour-bonjour:focus-visible, dialog.whats-new:f
 .colophon-link { color: inherit; text-decoration: none; border-radius: inherit; }
 .colophon-link:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .colophon-link:focus-visible { outline: 2px solid var(--accent, var(--phosphor)); outline-offset: 3px; }
+/* Lo que está fuera de la pantalla no se dibuja (2026-10-15): cada pieza de la conversación lleva
+   content-visibility:auto, así que el navegador no la mide ni la pinta hasta que se acerca, y
+   recuerda su alto una vez vista (contain-intrinsic-size: auto). Buscar con ⌘F, seleccionar y
+   saltar a una cita siguen funcionando. El margen de recorte deja ver las sombras y los anillos
+   que salen un poco de su caja. */
+#messages .thread-inner > :is(.row, .choice, .command-card, .system, .sys-dots) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
+  overflow-clip-margin: 28px;
+}

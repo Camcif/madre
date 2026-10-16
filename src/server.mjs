@@ -8,6 +8,7 @@ import { probePort, framable } from './ports.mjs';
 import { ControlDesk } from './room/control.mjs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { homedir, hostname } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -112,6 +113,41 @@ import { CHANNEL_HEADER, MAX_LIMIT as ENLACE_MAX_LIMIT, NO_SUCH_LINK, NOTICES as
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 const publicDirectory = join(sourceDirectory, '..', 'public');
+
+// The page's own scripts and styles (2026-10-15): an ETag from the file's size and time, so a
+// reload that finds them unchanged gets «304» and the browser reuses its copy — and the code it
+// already compiled — instead of reading 2.5 MB again; and gzip for whoever asks, compressed once per
+// change of the file. `no-cache` still revalidates every time, so an edit shows on the next load.
+// Only the compressed copy is kept in memory (~0.6 MB for all of them); the plain file is read when
+// a client does not take gzip.
+const assetCache = new Map();
+async function sendAsset(request, response, file, type) {
+  const info = await stat(file);
+  const tag = `W/"${info.size.toString(36)}-${Math.floor(info.mtimeMs).toString(36)}"`;
+  const headers = { 'content-type': type, 'cache-control': 'no-cache', etag: tag, vary: 'accept-encoding' };
+  if (request.headers['if-none-match'] === tag) { response.writeHead(304, headers); return response.end(); }
+  const gzip = /\bgzip\b/.test(String(request.headers['accept-encoding'] ?? '')) && info.size > 8192;
+  if (gzip) {
+    let held = assetCache.get(file);
+    if (held?.tag !== tag) { held = { tag, body: gzipSync(await readFile(file), { level: 6 }) }; assetCache.set(file, held); }
+    response.writeHead(200, { ...headers, 'content-encoding': 'gzip', 'content-length': held.body.length });
+    return response.end(held.body);
+  }
+  const body = await readFile(file);
+  response.writeHead(200, { ...headers, 'content-length': body.length });
+  return response.end(body);
+}
+
+// The record as a page opening it needs it (2026-10-15). `quota.updated` is how full each agent's
+// window is, read again every few minutes; the page keeps only the last reading of each agent, so
+// every older one was downloaded, parsed and drawn for nothing — 87% of a long conversation's
+// record, and seconds of drawing. The ledger keeps them all; the page gets the newest of each.
+export function forThePage(events) {
+  const lastQuota = new Map();
+  for (const event of events) if (event?.type === 'quota.updated') lastQuota.set(event.payload?.agent ?? null, event);
+  const keep = new Set(lastQuota.values());
+  return events.filter((event) => event?.type !== 'quota.updated' || keep.has(event));
+}
 
 function sendJson(response, status, value) {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -1634,14 +1670,10 @@ export async function createPulseServer({
         return response.end(html);
       }
       if (request.method === 'GET' && ['/app.js', '/nostromo-engine.js', '/brands.js', '/troubleshooting.js', '/inquiry.js', '/i18n.js', '/es.js', '/resay.js', '/syntax.js', '/editor.js', '/routing.js', '/abduction.js', '/review-ask.js', '/loader.js', '/tour.js', '/tour-chapters.js', '/touch.js', '/attribution.js'].includes(url.pathname)) {
-        const js = await readFile(join(publicDirectory, url.pathname.slice(1)));
-        response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
-        return response.end(js);
+        return sendAsset(request, response, join(publicDirectory, url.pathname.slice(1)), 'text/javascript; charset=utf-8');
       }
       if (request.method === 'GET' && url.pathname === '/styles.css') {
-        const css = await readFile(join(publicDirectory, 'styles.css'));
-        response.writeHead(200, { 'content-type': 'text/css; charset=utf-8' });
-        return response.end(css);
+        return sendAsset(request, response, join(publicDirectory, 'styles.css'), 'text/css; charset=utf-8');
       }
       const abductionAssets = new Map([
         ['/assets/abduction-cat.png', 'abduction-cat.png'],
@@ -1795,9 +1827,7 @@ export async function createPulseServer({
         return response.end(html);
       }
       if (request.method === 'GET' && (url.pathname === '/salas-mac.js' || url.pathname === '/salas-mac.css' || url.pathname === '/macroverso.js')) {
-        const file = await readFile(join(publicDirectory, url.pathname.slice(1)));
-        response.writeHead(200, { 'content-type': url.pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8', 'cache-control': 'no-cache' });
-        return response.end(file);
+        return sendAsset(request, response, join(publicDirectory, url.pathname.slice(1)), url.pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8');
       }
       // A widget of Home, read here (homeWidget above): only from this Mac's own pages.
       if (request.method === 'GET' && url.pathname === '/api/salas/widget') {
@@ -2306,7 +2336,7 @@ export async function createPulseServer({
           capabilities: room.capabilities(),
           quotaSources: quotaMonitor.snapshot(),
           budgetWindow: room.budgetWindow(),
-          events: await store.readAll(),
+          events: forThePage(await store.readAll()),
         });
       }
       if (request.method === 'GET' && url.pathname === '/api/events') {

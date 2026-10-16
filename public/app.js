@@ -6233,10 +6233,10 @@ function renderEventNode(event) {
   // says something about itself: in a new project @madre's arrival used to take it away before
   // anyone had written a word.
   if (event.type.startsWith('message.') || event.type === 'command.output' || event.type === 'run.requested') removeEmpty();
-  const stickToBottom = scroller.height - scroller.top - scroller.view < 120;
+  const stickToBottom = !drawingRecord && scroller.height - scroller.top - scroller.view < 120;
   els.column.append(tidySystemLine(node));
   scheduleFold(node);
-  followTurn(event, node, stickToBottom);
+  if (!drawingRecord) followTurn(event, node, stickToBottom);
 }
 
 // The room's notices fold into dots (2026-10-14). «CREATE · @codex may create…», «a plan is still
@@ -6363,6 +6363,15 @@ els.column.addEventListener('keydown', (event) => {
 // indicator scrolls to the end; an answer scrolls to its start so a long
 // reply is read from the top. Live events only, never during the replay.
 let replaying = true;
+// A whole record drawn at once (opening the conversation, catching up after a reconnection): no
+// event reads the column's height or scrolls on its own — each read made the browser lay the
+// whole growing column out again, twice per event, and a 166-message conversation took 11 s to
+// open. The column goes to its end once, when the record is drawn.
+let drawingRecord = false;
+function drawRecord(events) {
+  drawingRecord = true;
+  try { for (const event of events) renderEvent(event); } finally { drawingRecord = false; }
+}
 function followTurn(event, node, stickToBottom) {
   if (replaying) { if (stickToBottom) scrollToEnd(); return; }
   const isTurn = event.type === 'agent.started' || (event.type === 'message.created' && event.payload.role === 'user');
@@ -10323,7 +10332,12 @@ function boot() {
   // this call had slipped inside the branch that ends a live installation, and until one happened
   // `/git` and every module command answered «unknown» in a room that had them enabled all along.
   void refreshCommands();
-  for (const event of initial.events) renderEvent(event);
+  // How long the record takes to be drawn, readable in the browser's Performance panel
+  // (performance.getEntriesByName('madre:history')).
+  performance.mark?.('madre:history-start');
+  drawRecord(initial.events);
+  performance.mark?.('madre:history-end');
+  try { performance.measure?.('madre:history', 'madre:history-start', 'madre:history-end'); } catch { /* no timeline */ }
   setLoader(arrival, 0.9);
   scrollToEnd();
   matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(themeMode); renderAgents(); renderPicker(); });
@@ -10470,7 +10484,7 @@ async function paintConversation(payload) {
   const here = chats.list.find((chat) => chat.id === chats.active);
   const mark = document.querySelector('.project.chat-here');
   if (mark) mark.textContent = here && chats.list.length > 1 ? here.title : '';
-  for (const event of payload.events ?? []) renderEvent(event);
+  drawRecord(payload.events ?? []);
   renderAgents();
   renderPicker();
   renderOnboarding();
